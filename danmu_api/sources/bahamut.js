@@ -30,7 +30,7 @@ export default class BahamutSource extends BaseSource {
       // 第一次搜索：繁体词搜索
       const originalSearchPromise = (async () => {
         try {
-          const targetUrl = `https://p.876767.xyz/baha/mobile_app/anime/v1/search.php?kw=${encodedKeyword}`;
+          const targetUrl = `https://v.876767.xyz/https/api.gamer.com.tw/mobile_app/anime/v1/search.php?kw=${encodedKeyword}`;
           const url = globals.proxyUrl ? `http://127.0.0.1:5321/proxy?url=${encodeURIComponent(targetUrl)}` : targetUrl;
 
           const originalResp = await httpGet(url, {
@@ -106,7 +106,7 @@ export default class BahamutSource extends BaseSource {
 
           log("info", `[Bahamut] 使用日语原名进行搜索: ${tmdbTitle}`);
           const encodedTmdbTitle = encodeURIComponent(tmdbTitle);
-          const targetUrl = `https://p.876767.xyz/baha/mobile_app/anime/v1/search.php?kw=${encodedTmdbTitle}`;
+          const targetUrl = `https://v.876767.xyz/https/api.gamer.com.tw/mobile_app/anime/v1/search.php?kw=${encodedTmdbTitle}`;
           const tmdbSearchUrl = globals.proxyUrl ? `http://127.0.0.1:5321/proxy?url=${encodeURIComponent(targetUrl)}` : targetUrl;
 
           const tmdbResp = await httpGet(tmdbSearchUrl, {
@@ -173,7 +173,7 @@ export default class BahamutSource extends BaseSource {
   async getEpisodes(id) {
     try {
       // 构建剧集信息 URL
-      const targetUrl = `https://p.876767.xyz/baha/anime/v1/video.php?videoSn=${id}`;
+      const targetUrl = `https://v.876767.xyz/https/api.gamer.com.tw/anime/v1/video.php?videoSn=${id}`;
       const url = globals.proxyUrl ? `http://127.0.0.1:5321/proxy?url=${encodeURIComponent(targetUrl)}` : targetUrl;
       const resp = await httpGet(url, {
         headers: {
@@ -353,7 +353,7 @@ export default class BahamutSource extends BaseSource {
 
     try {
       // 构建弹幕 URL
-      const targetUrl = `https://p.876767.xyz/baha/anime/v1/danmu.php?geo=TW%2CHK&videoSn=${id}`;
+      const targetUrl = `https://v.876767.xyz/https/api.gamer.com.tw/anime/v1/danmu.php?geo=TW%2CHK&videoSn=${id}`;
       const url = globals.proxyUrl ? `http://127.0.0.1:5321/proxy?url=${encodeURIComponent(targetUrl)}` : targetUrl;
       const resp = await httpGet(url, {
         headers: {
