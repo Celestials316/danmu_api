@@ -20,7 +20,7 @@ export default class BahamutSource extends BaseSource {
       const traditionalizedKeyword = traditionalized(keyword);
       const tmdbSearchKeyword = keyword;
       const encodedKeyword = encodeURIComponent(traditionalizedKeyword);
-      
+
       log("info", `[Bahamut] 原始搜索词: ${keyword}`);
       log("info", `[Bahamut] 巴哈使用搜索词: ${traditionalizedKeyword}`);
 
@@ -30,9 +30,9 @@ export default class BahamutSource extends BaseSource {
       // 第一次搜索：繁体词搜索
       const originalSearchPromise = (async () => {
         try {
-          const targetUrl = `https://api.gamer.com.tw/mobile_app/anime/v1/search.php?kw=${encodedKeyword}`;
+          const targetUrl = `https://p.876767.xyz/baha/mobile_app/anime/v1/search.php?kw=${encodedKeyword}`;
           const url = globals.proxyUrl ? `http://127.0.0.1:5321/proxy?url=${encodeURIComponent(targetUrl)}` : targetUrl;
-          
+
           const originalResp = await httpGet(url, {
             headers: {
               "Content-Type": "application/json",
@@ -59,7 +59,7 @@ export default class BahamutSource extends BaseSource {
             log("info", `[Bahamut] 返回 ${anime.length} 条结果 (source: original)`);
             return { success: true, data: anime, source: 'original' };
           }
-          
+
           log("info", `[Bahamut] 原始搜索成功，但未返回任何结果 (source: original)`);
           return { success: false, source: 'original' };
         } catch (error) {
@@ -78,7 +78,7 @@ export default class BahamutSource extends BaseSource {
         try {
           // 延迟100毫秒，避免与原始搜索争抢同一连接池
           await new Promise(resolve => setTimeout(resolve, 100));
-          
+
           // 内部中断检查 (点1)
           if (tmdbAbortController.signal.aborted) {
             throw new DOMException('Aborted', 'AbortError');
@@ -106,9 +106,9 @@ export default class BahamutSource extends BaseSource {
 
           log("info", `[Bahamut] 使用日语原名进行搜索: ${tmdbTitle}`);
           const encodedTmdbTitle = encodeURIComponent(tmdbTitle);
-          const targetUrl = `https://api.gamer.com.tw/mobile_app/anime/v1/search.php?kw=${encodedTmdbTitle}`;
+          const targetUrl = `https://p.876767.xyz/baha/mobile_app/anime/v1/search.php?kw=${encodedTmdbTitle}`;
           const tmdbSearchUrl = globals.proxyUrl ? `http://127.0.0.1:5321/proxy?url=${encodeURIComponent(targetUrl)}` : targetUrl;
-          
+
           const tmdbResp = await httpGet(tmdbSearchUrl, {
             headers: {
               "Content-Type": "application/json",
@@ -173,7 +173,7 @@ export default class BahamutSource extends BaseSource {
   async getEpisodes(id) {
     try {
       // 构建剧集信息 URL
-      const targetUrl = `https://api.gamer.com.tw/anime/v1/video.php?videoSn=${id}`;
+      const targetUrl = `https://p.876767.xyz/baha/anime/v1/video.php?videoSn=${id}`;
       const url = globals.proxyUrl ? `http://127.0.0.1:5321/proxy?url=${encodeURIComponent(targetUrl)}` : targetUrl;
       const resp = await httpGet(url, {
         headers: {
@@ -353,7 +353,7 @@ export default class BahamutSource extends BaseSource {
 
     try {
       // 构建弹幕 URL
-      const targetUrl = `https://api.gamer.com.tw/anime/v1/danmu.php?geo=TW%2CHK&videoSn=${id}`;
+      const targetUrl = `https://p.876767.xyz/baha/anime/v1/danmu.php?geo=TW%2CHK&videoSn=${id}`;
       const url = globals.proxyUrl ? `http://127.0.0.1:5321/proxy?url=${encodeURIComponent(targetUrl)}` : targetUrl;
       const resp = await httpGet(url, {
         headers: {
