@@ -8,7 +8,7 @@ import { httpGet } from "./http-util.js";
 
 // TMDB API 请求
 async function tmdbApiGet(url) {
-  const tmdbApi = "https://p.876767.xyz/tmdb/3/";
+  const tmdbApi = "https://v.876767.xyz/https/api.themoviedb.org/3/";
   const tartgetUrl = `${tmdbApi}${url}`;
   const nextUrl = globals.proxyUrl ? `http://127.0.0.1:5321/proxy?url=${encodeURIComponent(tartgetUrl)}` : tartgetUrl;
 
