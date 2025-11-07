@@ -126,7 +126,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
 
   function handleHomepage() {
     log("info", "Accessed homepage");
-    
+
     const redisConfigured = !!(globals.redisUrl && globals.redisToken);
     const redisStatusText = redisConfigured 
       ? (globals.redisValid ? '已连接' : '已配置未连接') 
@@ -134,7 +134,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
     const redisStatusClass = redisConfigured 
       ? (globals.redisValid ? 'status-online' : 'status-warning')
       : 'status-offline';
-    
+
     const html = `
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -149,6 +149,10 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       box-sizing: border-box;
     }
     
+    html {
+      overflow-x: hidden;
+    }
+    
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
       background: #0f0f23;
@@ -157,6 +161,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       padding: 20px;
       position: relative;
       overflow-x: hidden;
+      transition: background 0.3s ease, color 0.3s ease;
     }
     
     /* 动态背景效果 */
@@ -173,6 +178,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
         radial-gradient(circle at 40% 20%, rgba(59, 130, 246, 0.1) 0%, transparent 50%);
       animation: drift 20s ease-in-out infinite;
       z-index: 0;
+      transition: background 0.3s ease;
     }
     
     @keyframes drift {
@@ -226,6 +232,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
+      transition: all 0.3s ease;
     }
     
     .hero-subtitle {
@@ -234,6 +241,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       max-width: 600px;
       margin: 0 auto;
       line-height: 1.6;
+      transition: color 0.3s ease;
     }
     
     .version-badge {
@@ -246,6 +254,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       font-size: 0.9em;
       font-weight: 600;
       color: #a5b4fc;
+      transition: all 0.3s ease;
     }
     
     /* 状态卡片网格 */
@@ -302,6 +311,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       font-weight: 700;
       color: #fff;
       margin-bottom: 8px;
+      transition: color 0.3s ease;
     }
     
     .stat-label {
@@ -309,6 +319,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       color: #9ca3af;
       text-transform: uppercase;
       letter-spacing: 1px;
+      transition: color 0.3s ease;
     }
     
     /* Redis 状态卡片 */
@@ -320,6 +331,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       padding: 30px;
       margin-bottom: 30px;
       animation: fadeInUp 0.8s ease-out 0.4s both;
+      transition: all 0.3s ease;
     }
     
     .redis-header {
@@ -338,6 +350,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       display: flex;
       align-items: center;
       gap: 10px;
+      transition: color 0.3s ease;
     }
     
     .status-badge {
@@ -348,6 +361,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       border-radius: 20px;
       font-size: 0.85em;
       font-weight: 600;
+      transition: all 0.3s ease;
     }
     
     .status-online {
@@ -414,6 +428,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.5px;
+      transition: color 0.3s ease;
     }
     
     .info-icon {
@@ -549,6 +564,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       color: #6b7280;
       font-size: 0.9em;
       animation: fadeInUp 0.8s ease-out 0.6s both;
+      transition: color 0.3s ease;
     }
     
     .footer-heart {
@@ -614,11 +630,187 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
         margin-left: -80px;
       }
     }
+
+    /* --- START: 主题切换按钮 --- */
+    .theme-toggle {
+      position: absolute;
+      top: 20px;
+      right: 40px;
+      z-index: 1001;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #e5e7eb;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2em;
+      transition: all 0.3s ease;
+      user-select: none;
+    }
+    .theme-toggle:hover {
+      background: rgba(255, 255, 255, 0.1);
+      transform: scale(1.1);
+    }
+    .light-mode .theme-toggle .icon-dark {
+      display: none;
+    }
+    .theme-toggle .icon-light {
+      display: none;
+    }
+    .light-mode .theme-toggle .icon-light {
+      display: inline;
+    }
+    .theme-toggle .icon-dark {
+      display: inline;
+    }
+
+    /* --- START: 亮色模式 (Light Mode) --- */
+    body.light-mode {
+      background: #f9fafb;
+      color: #111827;
+    }
+    body.light-mode::before {
+      background: 
+        radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.03) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(255, 110, 199, 0.03) 0%, transparent 50%),
+        radial-gradient(circle at 40% 20%, rgba(59, 130, 246, 0.02) 0%, transparent 50%);
+    }
+    body.light-mode .hero h1 {
+      background: none;
+      -webkit-background-clip: unset;
+      -webkit-text-fill-color: unset;
+      background-clip: unset;
+      color: #1f2937;
+    }
+    body.light-mode .hero-subtitle {
+      color: #4b5563;
+    }
+    body.light-mode .version-badge {
+      background: rgba(0, 0, 0, 0.05);
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      color: #4b5563;
+    }
+    body.light-mode .stat-card {
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      backdrop-filter: none;
+    }
+    body.light-mode .stat-card:hover {
+      transform: translateY(-5px);
+      border-color: #d1d5db;
+      background: #ffffff;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.03);
+    }
+    body.light-mode .stat-card::before {
+      background: linear-gradient(90deg, #4f46e5, #ec4899);
+    }
+    body.light-mode .stat-value {
+      color: #1f2937;
+    }
+    body.light-mode .stat-label {
+      color: #6b7280;
+    }
+    body.light-mode .redis-card {
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      backdrop-filter: none;
+    }
+    body.light-mode .redis-title {
+      color: #1f2937;
+    }
+    body.light-mode .status-online {
+      background: rgba(16, 185, 129, 0.1);
+      color: #059669;
+      border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+    body.light-mode .status-warning {
+      background: rgba(245, 158, 11, 0.1);
+      color: #d97706;
+      border: 1px solid rgba(245, 158, 11, 0.2);
+    }
+    body.light-mode .status-offline {
+      background: rgba(239, 68, 68, 0.1);
+      color: #dc2626;
+      border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+    body.light-mode .env-item {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+    }
+    body.light-mode .env-item:hover {
+      background: #f3f4f6;
+      border-color: rgba(79, 70, 229, 0.3);
+    }
+    body.light-mode .env-key {
+      color: #4f46e5;
+    }
+    body.light-mode .info-icon {
+      background: rgba(79, 70, 229, 0.1);
+      color: #4f46e5;
+      border: 1px solid rgba(79, 70, 229, 0.2);
+    }
+    body.light-mode .info-icon:hover {
+      background: rgba(79, 70, 229, 0.2);
+    }
+    body.light-mode .env-value {
+      color: #374151;
+      background: #f3f4f6;
+      border: 1px solid #e5e7eb;
+    }
+    body.light-mode .env-value.boolean-true {
+      color: #059669;
+    }
+    body.light-mode .env-value.boolean-false {
+      color: #dc2626;
+    }
+    body.light-mode .env-value.not-configured {
+      color: #6b7280;
+    }
+    body.light-mode .env-value.sensitive:hover {
+      background: #e5e7eb;
+      border-color: rgba(79, 70, 229, 0.3);
+    }
+    body.light-mode .env-value.sensitive.revealed {
+      color: #d97706;
+      background: rgba(254, 243, 226, 1);
+      border-color: rgba(245, 158, 11, 0.2);
+    }
+    body.light-mode .tooltip .tooltip-text {
+      background: #1f2937;
+      color: #f9fafb;
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+    body.light-mode .tooltip .tooltip-text::after {
+      border-color: #1f2937 transparent transparent transparent;
+    }
+    body.light-mode .footer {
+      color: #4b5563;
+    }
+    body.light-mode .footer-heart {
+      color: #ec4899;
+    }
+    body.light-mode .theme-toggle {
+      background: #ffffff;
+      color: #4b5563;
+      border: 1px solid #d1d5db;
+    }
+    body.light-mode .theme-toggle:hover {
+      background: #f9fafb;
+    }
+    /* --- END: 亮色模式 --- */
   </style>
 </head>
 <body>
+  <button id="theme-toggle-btn" class="theme-toggle" title="切换主题">
+    <span class="icon-light">☀️</span>
+    <span class="icon-dark">🌙</span>
+  </button>
   <div class="container">
-    <!-- 主标题区域 -->
     <div class="hero">
       <div class="hero-icon">🎬</div>
       <h1>弹幕 API 服务</h1>
@@ -628,7 +820,6 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       <span class="version-badge">v${globals.VERSION}</span>
     </div>
     
-    <!-- 状态概览 -->
     <div class="stats-grid">
       <div class="stat-card">
         <div class="stat-icon">⚙️</div>
@@ -652,7 +843,6 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       </div>
     </div>
     
-    <!-- Redis 状态详情 -->
     <div class="redis-card">
       <div class="redis-header">
         <h3 class="redis-title">
@@ -737,7 +927,6 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       </div>
     </div>
     
-    <!-- 页脚 -->
     <div class="footer">
       Made with <span class="footer-heart">♥</span> for Better Anime Experience
     </div>
@@ -784,11 +973,46 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
         }, 3000);
       }
     }
+
+    // --- START: 主题切换逻辑 ---
+    (function() {
+      const toggleBtn = document.getElementById('theme-toggle-btn');
+      if (!toggleBtn) return;
+      const body = document.body;
+      const themeKey = 'theme-preference';
+      
+      // 检查localStorage中保存的主题
+      let savedTheme = 'dark'; // 默认为暗色
+      try {
+        savedTheme = localStorage.getItem(themeKey) || 'dark';
+      } catch (e) {
+        console.warn('Could not access localStorage for theme');
+      }
+      
+      // 应用保存的主题
+      if (savedTheme === 'light') {
+        body.classList.add('light-mode');
+      }
+
+      // 添加点击事件
+      toggleBtn.addEventListener('click', function() {
+        const isLight = body.classList.toggle('light-mode');
+        const newTheme = isLight ? 'light' : 'dark';
+        
+        // 保存偏好到localStorage
+        try {
+          localStorage.setItem(themeKey, newTheme);
+        } catch (e) {
+          console.warn('Could not save theme to localStorage');
+        }
+      });
+    })();
+    // --- END: 主题切换逻辑 ---
   </script>
 </body>
 </html>
     `;
-    
+
     return new Response(html, {
       headers: {
         'Content-Type': 'text/html; charset=utf-8',
@@ -1012,67 +1236,67 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
 
 // --- Cloudflare Workers 入口 ---
 export default {
- async fetch(request, env, ctx) {
-   // 获取客户端的真实 IP
-   const clientIp = request.headers.get('cf-connecting-ip') || request.headers.get('x-forwarded-for') || 'unknown';
+  async fetch(request, env, ctx) {
+    // 获取客户端的真实 IP
+    const clientIp = request.headers.get('cf-connecting-ip') || request.headers.get('x-forwarded-for') || 'unknown';
 
-   return handleRequest(request, env, "cloudflare", clientIp);
- },
+    return handleRequest(request, env, "cloudflare", clientIp);
+  },
 };
 
 // --- Vercel 入口 ---
 export async function vercelHandler(req, res) {
- // 从请求头获取真实 IP
- const clientIp = req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown';
+  // 从请求头获取真实 IP
+  const clientIp = req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown';
 
- const cfReq = new Request(req.url, {
-   method: req.method,
-   headers: req.headers,
-   body:
-     req.method === "POST" || req.method === "PUT"
-       ? JSON.stringify(req.body)
-       : undefined,
- });
+  const cfReq = new Request(req.url, {
+    method: req.method,
+    headers: req.headers,
+    body:
+      req.method === "POST" || req.method === "PUT"
+        ? JSON.stringify(req.body)
+        : undefined,
+  });
 
- const response = await handleRequest(cfReq, process.env, "vercel", clientIp);
+  const response = await handleRequest(cfReq, process.env, "vercel", clientIp);
 
- res.status(response.status);
- response.headers.forEach((value, key) => res.setHeader(key, value));
- const text = await response.text();
- res.send(text);
+  res.status(response.status);
+  response.headers.forEach((value, key) => res.setHeader(key, value));
+  const text = await response.text();
+  res.send(text);
 }
 
 // --- Netlify 入口 ---
 export async function netlifyHandler(event, context) {
- // 获取客户端 IP
- const clientIp = event.headers['x-nf-client-connection-ip'] ||
-                  event.headers['x-forwarded-for'] ||
-                  context.ip ||
-                  'unknown';
+  // 获取客户端 IP
+  const clientIp = event.headers['x-nf-client-connection-ip'] ||
+                    event.headers['x-forwarded-for'] ||
+                    context.ip ||
+                    'unknown';
 
- // 构造标准 Request 对象
- const url = event.rawUrl || `https://${event.headers.host}${event.path}`;
+  // 构造标准 Request 对象
+  const url = event.rawUrl || `https://${event.headers.host}${event.path}`;
 
- const request = new Request(url, {
-   method: event.httpMethod,
-   headers: new Headers(event.headers),
-   body: event.body ? event.body : undefined,
- });
+  const request = new Request(url, {
+    method: event.httpMethod,
+    headers: new Headers(event.headers),
+    body: event.body ? event.body : undefined,
+  });
 
- // 调用核心处理函数
- const response = await handleRequest(request, process.env, "netlify", clientIp);
+  // 调用核心处理函数
+  const response = await handleRequest(request, process.env, "netlify", clientIp);
 
- // 转换为 Netlify 响应格式
- const headers = {};
- response.headers.forEach((value, key) => {
-   headers[key] = value;
- });
+  // 转换为 Netlify 响应格式
+  const headers = {};
+  response.headers.forEach((value, key) => {
+    headers[key] = value;
+  });
 
- return {
-   statusCode: response.status,
-   headers,
-   body: await response.text(),
- };
+  return {
+    statusCode: response.status,
+    headers,
+    body: await response.text(),
+  };
 }
 
 // 为了测试导出 handleRequest
