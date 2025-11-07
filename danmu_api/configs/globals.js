@@ -18,7 +18,7 @@ export const Globals = {
   // 运行时状态
   animes: [],
   episodeIds: [],
-  episodeNum: 10001, // 全局变量，用于自增 ID
+  episodeNum: 10001, // 全局变量,用于自增 ID
   logBuffer: [],
   requestHistory: new Map(), // 记录每个 IP 地址的请求历史
   redisValid: false, // redis是否生效
