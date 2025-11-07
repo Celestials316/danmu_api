@@ -84,6 +84,24 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       ? (globals.redisValid ? 'status-online' : 'status-warning')
       : 'status-offline';
 
+    // 获取真实环境变量值的函数
+    const getRealValue = (key) => {
+      // 优先从 globals 对象直接获取
+      if (globals[key] !== undefined) {
+        return globals[key];
+      }
+      // 其次从 accessedEnvVars 获取
+      if (globals.accessedEnvVars[key] !== undefined) {
+        return globals.accessedEnvVars[key];
+      }
+      // 特殊处理 Redis 相关
+      if (key === 'redisUrl') return globals.redisUrl;
+      if (key === 'redisToken') return globals.redisToken;
+      if (key === 'redisValid') return globals.redisValid;
+      
+      return null;
+    };
+
     const html = `
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -351,10 +369,11 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       border-color: rgba(102, 126, 234, 0.3);
     }
     
-    .env-item:hover .env-description {
-      opacity: 1;
-      max-height: 100px;
-      margin-top: 8px;
+    .env-key-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 10px;
     }
     
     .env-key {
@@ -363,19 +382,39 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      margin-bottom: 8px;
-      display: block;
     }
     
-    .env-description {
-      font-size: 0.75em;
+    .info-icon {
+      cursor: help;
+      font-size: 0.9em;
+      color: #6b7280;
+      transition: color 0.2s ease;
+      user-select: none;
+    }
+    
+    .info-icon:hover {
       color: #9ca3af;
+    }
+    
+    .tooltip {
+      position: absolute;
+      background: rgba(17, 24, 39, 0.95);
+      color: #e5e7eb;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 0.75em;
       line-height: 1.4;
+      max-width: 250px;
+      z-index: 1000;
+      pointer-events: none;
       opacity: 0;
-      max-height: 0;
-      overflow: hidden;
-      transition: all 0.3s ease;
-      margin-top: 0;
+      transition: opacity 0.2s ease;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+    
+    .tooltip.show {
+      opacity: 1;
     }
     
     .env-value-wrapper {
@@ -402,6 +441,11 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
     
     .env-value.boolean-false {
       color: #f87171;
+    }
+    
+    .env-value.default-value {
+      color: #9ca3af;
+      font-style: italic;
     }
     
     .env-value.sensitive {
@@ -535,7 +579,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
     <div class="stats-grid">
       <div class="stat-card">
         <div class="stat-icon">⚙️</div>
-        <div class="stat-value">${Object.keys(globals.accessedEnvVars).length}</div>
+        <div class="stat-value">${Object.keys(ENV_DESCRIPTIONS).length}</div>
         <div class="stat-label">环境变量</div>
       </div>
       <div class="stat-card">
@@ -568,46 +612,51 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
         </span>
       </div>
       <div class="env-grid">
-        ${Object.entries(globals.accessedEnvVars)
-          .map(([key, value]) => {
+        ${Object.keys(ENV_DESCRIPTIONS)
+          .map((key) => {
+            const realValue = getRealValue(key);
             let valueClass = '';
-            let displayValue = value;
+            let displayValue = realValue;
             let isArray = false;
-            const description = ENV_DESCRIPTIONS[key] || '环境变量配置项';
+            let isDefault = false;
+            const description = ENV_DESCRIPTIONS[key];
             const isSensitive = SENSITIVE_KEYS.has(key);
             
-            if (typeof value === 'boolean') {
-              valueClass = value ? 'boolean-true' : 'boolean-false';
-              displayValue = value ? '✓ 已启用' : '✗ 已禁用';
-            } else if (value === null || value === undefined) {
-              displayValue = '未设置';
-            } else if (typeof value === 'string' && value.length === 0) {
-              displayValue = '空';
-            } else if (Array.isArray(value)) {
+            // 判断是否为默认值(null, undefined, 空字符串)
+            if (realValue === null || realValue === undefined || realValue === '') {
+              isDefault = true;
+              displayValue = '使用默认值';
+              valueClass = 'default-value';
+            } else if (typeof realValue === 'boolean') {
+              valueClass = realValue ? 'boolean-true' : 'boolean-false';
+              displayValue = realValue ? '✓ 已启用' : '✗ 已禁用';
+            } else if (Array.isArray(realValue)) {
               isArray = true;
-              displayValue = value;
-            } else if (typeof value === 'string' && value.length > 100 && !isSensitive) {
-              displayValue = value.substring(0, 100) + '...';
+              displayValue = realValue;
+            } else if (typeof realValue === 'string' && realValue.length > 100 && !isSensitive) {
+              displayValue = realValue.substring(0, 100) + '...';
             }
             
             // 对于敏感信息,显示星号占位符
-            if (isSensitive && typeof value === 'string' && value.length > 0) {
-              displayValue = '•'.repeat(Math.min(value.length, 20));
+            if (isSensitive && !isDefault && typeof realValue === 'string' && realValue.length > 0) {
+              displayValue = '•'.repeat(Math.min(realValue.length, 20));
             }
             
             return `
               <div class="env-item">
-                <span class="env-key">${key}</span>
-                <div class="env-description">${description}</div>
+                <div class="env-key-wrapper">
+                  <span class="env-key">${key}</span>
+                  <span class="info-icon" onmouseenter="showTooltip(event, '${description.replace(/'/g, "\\'")}')">ℹ️</span>
+                </div>
                 <div class="env-value-wrapper">
                   ${isArray ? `
                     <div class="env-value array-value">
-                      ${value.map(item => `<span class="array-item">${item}</span>`).join('')}
+                      ${realValue.map(item => `<span class="array-item">${item}</span>`).join('')}
                     </div>
                   ` : `
-                    <div class="env-value ${valueClass}${isSensitive ? ' sensitive' : ''}" data-real-value="${isSensitive ? value : ''}">${displayValue}</div>
+                    <div class="env-value ${valueClass}${isSensitive && !isDefault ? ' sensitive' : ''}" data-real-value="${isSensitive && !isDefault ? realValue : ''}">${displayValue}</div>
                   `}
-                  ${isSensitive && typeof value === 'string' && value.length > 0 ? `
+                  ${isSensitive && !isDefault && typeof realValue === 'string' && realValue.length > 0 ? `
                     <button class="toggle-visibility" onclick="toggleVisibility(this)" title="显示/隐藏">
                       👁️
                     </button>
@@ -626,7 +675,40 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
     </div>
   </div>
   
+  <!-- Tooltip 容器 -->
+  <div id="tooltip" class="tooltip"></div>
+  
   <script>
+    const tooltip = document.getElementById('tooltip');
+    let hideTimeout;
+    
+    function showTooltip(event, text) {
+      clearTimeout(hideTimeout);
+      tooltip.textContent = text;
+      tooltip.classList.add('show');
+      
+      const rect = event.target.getBoundingClientRect();
+      const tooltipRect = tooltip.getBoundingClientRect();
+      
+      let left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
+      let top = rect.bottom + 8;
+      
+      // 防止 tooltip 超出屏幕
+      if (left < 10) left = 10;
+      if (left + tooltipRect.width > window.innerWidth - 10) {
+        left = window.innerWidth - tooltipRect.width - 10;
+      }
+      
+      tooltip.style.left = left + 'px';
+      tooltip.style.top = top + 'px';
+      
+      event.target.onmouseleave = () => {
+        hideTimeout = setTimeout(() => {
+          tooltip.classList.remove('show');
+        }, 200);
+      };
+    }
+    
     function toggleVisibility(button) {
       const wrapper = button.parentElement;
       const valueDiv = wrapper.querySelector('.env-value');
@@ -656,6 +738,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       }
     });
   }
+
 
   // GET /
   if (path === "/" && method === "GET") {
