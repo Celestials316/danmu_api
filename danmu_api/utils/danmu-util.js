@@ -180,17 +180,21 @@ export function convertToDanmakuJson(contents, platform) {
     return !regexArray.some(regex => regex.test(item.m)); // 针对 `m` 字段进行匹配
   });
 
-  // 按n分钟内去重
   log("info", `去重分钟数: ${globals.groupMinute}`);
   const groupedDanmus = groupDanmusByMinute(filteredDanmus, globals.groupMinute);
 
-  // 应用弹幕转换规则（在去重之后）
+// 应用弹幕转换规则（在去重之后）
   let convertedDanmus = groupedDanmus;
-  
-  // 获取颜色转换模式：default/toWhite/toColor
+
+// 获取颜色转换模式：default/toWhite/toColor
   const colorMode = globals.danmuColorMode || 'default';
-  
+  log("info", `[DEBUG] danmuColorMode from globals: ${globals.danmuColorMode}`);
+  log("info", `[DEBUG] Final colorMode: ${colorMode}`);
+  log("info", `[DEBUG] convertTopBottomToScroll: ${globals.convertTopBottomToScroll}`);
+
   if (globals.convertTopBottomToScroll || colorMode !== 'default') {
+    log("info", `[DEBUG] Entering color conversion logic...`);
+  // ... 后面的代码
     let topBottomCount = 0;
     let colorToWhiteCount = 0;
     let whiteToColorCount = 0;
