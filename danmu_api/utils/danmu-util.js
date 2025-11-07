@@ -137,7 +137,7 @@ export function convertToDanmakuJson(contents, platform) {
         color = pValues[2] || 16777215;
       } else if (pValues.length >= 8) {
         // 新标准格式（8字段或9字段）
-        color = pValues[3] || 16777215;
+        color = pValues[3] || pValues[2] || 16777215;
       } else {
         // 其他格式，尝试从第3或第4位获取颜色
         color = pValues[3] || pValues[2] || 16777215;
@@ -186,97 +186,111 @@ export function convertToDanmakuJson(contents, platform) {
   // 应用弹幕转换规则（在去重之后）
   let convertedDanmus = groupedDanmus;
 
-  // 获取颜色转换模式：default/towhite/tocolor
-  const colorMode = globals.danmuColorMode || 'default';
-  log("info", `[DEBUG] danmuColorMode from globals: ${globals.danmuColorMode}`);
-  log("info", `[DEBUG] Final colorMode: ${colorMode}`);
-  log("info", `[DEBUG] convertTopBottomToScroll: ${globals.convertTopBottomToScroll}`);
+  // 获取白色弹幕占比（0-100）
+  const whiteRatio = Math.max(0, Math.min(100, parseInt(globals.whiteRatio) || 50));
+  log("info", `[DEBUG] whiteRatio from globals: ${globals.whiteRatio}`);
+  log("info", `[DEBUG] Final whiteRatio: ${whiteRatio}%`);
 
-  if (globals.convertTopBottomToScroll || colorMode !== 'default') {
-    log("info", `[DEBUG] Entering color conversion logic...`);
-    
-    let topBottomCount = 0;
-    let colorToWhiteCount = 0;
-    let whiteToColorCount = 0;
-    let colorKeptCount = 0;
-    let whiteKeptCount = 0;
+  // 统计计数器
+  let topBottomCount = 0;
+  let colorToWhiteCount = 0;
+  let whiteToColorCount = 0;
+  let colorKeptCount = 0;
+  let whiteKeptCount = 0;
 
-    // 定义彩色弹幕的颜色池
-    const colorPalette = [
-      16711680,  // 红色 #FF0000
-      16744192,  // 橙色 #FF8000
-      16776960,  // 黄色 #FFFF00
-      65280,     // 绿色 #00FF00
-      65535,     // 青色 #00FFFF
-      255,       // 蓝色 #0000FF
-      10494192,  // 紫色 #A020F0
-      16711935,  // 粉色 #FF00FF
-      16488046,  // 浅粉 #FB7299
-      52479,     // 天蓝 #00CCFF
-    ];
+  // 定义彩色弹幕的颜色池
+  const colorPalette = [
+    16711680,  // 红色 #FF0000
+    16744192,  // 橙色 #FF8000
+    16776960,  // 黄色 #FFFF00
+    65280,     // 绿色 #00FF00
+    65535,     // 青色 #00FFFF
+    255,       // 蓝色 #0000FF
+    10494192,  // 紫色 #A020F0
+    16711935,  // 粉色 #FF00FF
+    16488046,  // 浅粉 #FB7299
+    52479,     // 天蓝 #00CCFF
+  ];
 
-    convertedDanmus = groupedDanmus.map(danmu => {
-      const pValues = danmu.p.split(',');
-      if (pValues.length < 3) {
-        log("warn", `Invalid danmu format: ${danmu.p}`);
-        return danmu;
-      }
+  convertedDanmus = groupedDanmus.map(danmu => {
+    const pValues = danmu.p.split(',');
+    if (pValues.length < 3) {
+      log("warn", `Invalid danmu format: ${danmu.p}`);
+      return danmu;
+    }
 
-      let mode = parseInt(pValues[1], 10);
-      let color = parseInt(pValues[2], 10);
-      let modified = false;
+    let mode = parseInt(pValues[1], 10);
+    let color = parseInt(pValues[2], 10);
+    let modified = false;
 
-      // 1. 将顶部/底部弹幕转换为滚动弹幕
-      if (globals.convertTopBottomToScroll && (mode === 4 || mode === 5)) {
-        topBottomCount++;
-        mode = 1;
+    // 1. 将顶部/底部弹幕转换为滚动弹幕
+    if (mode === 4 || mode === 5) {
+      topBottomCount++;
+      mode = 1;
+      modified = true;
+    }
+
+    // 2. 颜色转换逻辑
+    // whiteRatio = 100: 全部转为白色
+    // whiteRatio = 0: 全部转为彩色
+    // whiteRatio = 50: 50%白色，50%彩色
+    if (whiteRatio === 100) {
+      // 全部转为白色
+      if (color !== 16777215) {
+        colorToWhiteCount++;
+        color = 16777215;
         modified = true;
       }
+    } else if (whiteRatio === 0) {
+      // 全部转为彩色
+      if (color === 16777215) {
+        whiteToColorCount++;
+        color = colorPalette[Math.floor(Math.random() * colorPalette.length)];
+        modified = true;
+      }
+    } else {
+      // 根据占比进行转换
+      const convertToWhiteProb = whiteRatio / 100;
 
-      // 2. 颜色转换逻辑
-      if (colorMode === 'towhite') {
-        // 彩色转白色模式（保留20%的彩色）
-        if (color !== 16777215) {
-          if (Math.random() < 0.8) {
-            colorToWhiteCount++;
-            color = 16777215;
-            modified = true;
-          } else {
-            colorKeptCount++;
-          }
+      if (color !== 16777215) {
+        // 彩色弹幕：按概率转为白色
+        if (Math.random() < convertToWhiteProb) {
+          colorToWhiteCount++;
+          color = 16777215;
+          modified = true;
+        } else {
+          colorKeptCount++;
         }
-      } else if (colorMode === 'tocolor') {
-        // 白色转彩色模式（保留20%的白色）
-        if (color === 16777215) {
-          if (Math.random() < 0.8) {
-            whiteToColorCount++;
-            color = colorPalette[Math.floor(Math.random() * colorPalette.length)];
-            modified = true;
-          } else {
-            whiteKeptCount++;
-          }
+      } else {
+        // 白色弹幕：按概率转为彩色
+        if (Math.random() < (1 - convertToWhiteProb)) {
+          whiteToColorCount++;
+          color = colorPalette[Math.floor(Math.random() * colorPalette.length)];
+          modified = true;
+        } else {
+          whiteKeptCount++;
         }
       }
+    }
 
-      // 如果有修改，重新构建 p 属性
-      if (modified) {
-        pValues[1] = mode.toString();
-        pValues[2] = color.toString();
-        const newP = pValues.join(',');
-        return { ...danmu, p: newP };
-      }
-      
-      return danmu;
-    });
+    // 如果有修改，重新构建 p 属性
+    if (modified) {
+      pValues[1] = mode.toString();
+      pValues[2] = color.toString();
+      const newP = pValues.join(',');
+      return { ...danmu, p: newP };
+    }
 
-    // 统计输出转换结果
-    log("info", `[Color Conversion Stats]`);
-    log("info", `  - Top/Bottom→Scroll: ${topBottomCount}`);
-    log("info", `  - Color→White: ${colorToWhiteCount}`);
-    log("info", `  - White→Color: ${whiteToColorCount}`);
-    log("info", `  - Color kept: ${colorKeptCount}`);
-    log("info", `  - White kept: ${whiteKeptCount}`);
-  }
+    return danmu;
+  });
+
+  // 统计输出转换结果
+  log("info", `[Color Conversion Stats]`);
+  log("info", `  - Top/Bottom→Scroll: ${topBottomCount}`);
+  log("info", `  - Color→White: ${colorToWhiteCount}`);
+  log("info", `  - White→Color: ${whiteToColorCount}`);
+  log("info", `  - Color kept: ${colorKeptCount}`);
+  log("info", `  - White kept: ${whiteKeptCount}`);
 
   log("info", `danmus_original: ${danmus.length}`);
   log("info", `danmus_filter: ${filteredDanmus.length}`);
