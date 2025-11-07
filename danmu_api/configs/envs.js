@@ -149,7 +149,7 @@ export class Envs {
       '试看版|短剧|精编|Plus|独家版|特别版|短片|发布会|解忧局|走心局|火锅局|巅峰时刻|坞里都知道|福持目标坞民|观察室|上班那点事儿|' +
       '周top|赛段|直拍|REACTION|VLOG|全纪录|开播|先导|总宣|展演|集锦|旅行日记|精彩分享|剧情揭秘';
 
-    // 读取环境变量，如果设置了则完全覆盖默认值
+    // 读取环境变量,如果设置了则完全覆盖默认值
     const customFilter = this.get('EPISODE_TITLE_FILTER', '', 'string', false).trim();
     let keywords = customFilter || defaultFilter;
 
@@ -204,9 +204,7 @@ export class Envs {
       logLevel: this.get('LOG_LEVEL', 'info', 'string'), // 日志级别配置（默认 info，可选值：error, warn, info）
       searchCacheMinutes: this.get('SEARCH_CACHE_MINUTES', 1, 'number'), // 搜索结果缓存时间配置（分钟，默认 1）
       commentCacheMinutes: this.get('COMMENT_CACHE_MINUTES', 1, 'number'), // 弹幕缓存时间配置（分钟，默认 1）
-      convertTopBottomToScroll: this.get('CONVERT_TOP_BOTTOM_TO_SCROLL', false, 'boolean'), // 顶部/底部弹幕转换为浮动弹幕配置（默认 false，禁用转换）
-      convertColorToWhite: this.get('CONVERT_COLOR_TO_WHITE', false, 'boolean'), // 彩色弹幕转换为纯白弹幕配置（默认 false，禁用转换）
-      danmuColorMode: this.get('DANMU_COLOR_MODE', 'default', 'string').toLowerCase(), // 弹幕颜色模式配置（默认 default，可选值：default/toWhite/toColor）
+      whiteRatio: Math.max(0, Math.min(100, this.get('WHITE_RATIO', 50, 'number'))), // 白色弹幕占比配置（0-100，默认 50）
       danmuOutputFormat: this.get('DANMU_OUTPUT_FORMAT', 'json', 'string'), // 弹幕输出格式配置（默认 json，可选值：json, xml）
       strictTitleMatch: this.get('STRICT_TITLE_MATCH', false, 'boolean'), // 严格标题匹配模式配置（默认 false，宽松模糊匹配）
       rememberLastSelect: this.get('REMEMBER_LAST_SELECT', true, 'boolean'), // 是否记住手动选择结果，用于match自动匹配时优选上次的选择（默认 true，记住）
