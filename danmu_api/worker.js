@@ -25,7 +25,7 @@ const ENV_DESCRIPTIONS = {
   'BLOCKED_WORDS': '弹幕屏蔽词列表',
   'GROUP_MINUTE': '弹幕合并去重时间窗口(分钟)',
   'CONVERT_TOP_BOTTOM_TO_SCROLL': '顶部/底部弹幕转为滚动弹幕',
-  'CONVERT_COLOR_TO_WHITE': '彩色弹幕转为纯白色',
+  'WHITE_RATIO': '白色弹幕占比，0%全彩色弹幕，100%为全白色弹幕',
   'DANMU_OUTPUT_FORMAT': '弹幕输出格式：json 或 xml',
   'DANMU_SIMPLIFIED': '繁体弹幕转简体(巴哈姆特)',
   'PROXY_URL': '代理/反代地址(巴哈姆特和TMDB)',
