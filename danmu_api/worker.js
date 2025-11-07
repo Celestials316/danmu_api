@@ -1,3 +1,13 @@
+import { Globals } from './configs/globals.js';
+import { jsonResponse } from './utils/http-util.js';
+import { log, formatLogMessage } from './utils/log-util.js'
+import { getRedisCaches, judgeRedisValid } from "./utils/redis-util.js";
+import { cleanupExpiredIPs, findUrlById, getCommentCache } from "./utils/cache-util.js";
+import { formatDanmuResponse } from "./utils/danmu-util.js";
+import { getBangumi, getComment, getCommentByUrl, matchAnime, searchAnime, searchEpisodes } from "./apis/dandan-api.js";
+
+let globals;
+
 // ==================== 核心处理函数 ====================
 async function handleRequest(request, env, platform = "unknown", clientIp = "unknown") {
   const url = new URL(request.url);
@@ -417,4 +427,6 @@ export async function netlifyHandler(event, context) {
   };
 }
 
+// 导出核心函数供测试使用
 export { handleRequest };
+
