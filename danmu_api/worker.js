@@ -458,6 +458,11 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       color: #f87171;
     }
     
+    .env-value.not-configured {
+      color: #9ca3af;
+      font-style: italic;
+    }
+    
     .env-value.sensitive {
       cursor: pointer;
       user-select: none;
@@ -671,10 +676,10 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
             if (typeof value === 'boolean') {
               valueClass = value ? 'boolean-true' : 'boolean-false';
               displayValue = value ? '✓ 已启用' : '✗ 已禁用';
-            } else if (value === null || value === undefined) {
-              displayValue = '未设置';
-            } else if (typeof value === 'string' && value.length === 0) {
-              displayValue = '空';
+            } else if (value === null || value === undefined || (typeof value === 'string' && value.length === 0)) {
+              // 未配置的情况统一显示
+              valueClass = 'not-configured';
+              displayValue = '未配置';
             } else if (isSensitive && typeof value === 'string' && value.length > 0) {
               // 敏感信息的处理
               const realValue = getRealEnvValue(key);
@@ -704,9 +709,14 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
                        title="点击查看真实值（3秒后自动隐藏）">${maskedValue}</div>
                 </div>
               `;
-            } else if (typeof value === 'string' && value.length > 50) {
-              displayValue = value.substring(0, 50) + '...';
+            } else if (key === 'SOURCE_ORDER' && Array.isArray(value)) {
+              // SOURCE_ORDER 显示具体值
+              displayValue = value.join(', ');
+            } else if (typeof value === 'string' && value.length > 100) {
+              // 过长的字符串截断
+              displayValue = value.substring(0, 100) + '...';
             } else if (Array.isArray(value)) {
+              // 其他数组类型显示项数
               displayValue = `${value.length} 项`;
             }
             
