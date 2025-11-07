@@ -635,7 +635,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
     .theme-toggle {
       position: absolute;
       top: 20px;
-      right: 40px;
+      right: 35px;
       z-index: 1001;
       background: rgba(255, 255, 255, 0.05);
       border: 1px solid rgba(255, 255, 255, 0.1);
@@ -899,15 +899,17 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
                        title="点击查看真实值（3秒后自动隐藏）">${maskedValue}</div>
                 </div>
               `;
-            } else if (key === 'SOURCE_ORDER' && Array.isArray(value)) {
-              // SOURCE_ORDER 显示具体值
-              displayValue = value.join(', ');
+            } else if (Array.isArray(value)) {
+              // 数组类型：如果有值显示具体值，没有值显示"默认"
+              if (value.length > 0) {
+                displayValue = value.join(', ');
+              } else {
+                valueClass = 'not-configured';
+                displayValue = '默认';
+              }
             } else if (typeof value === 'string' && value.length > 100) {
               // 过长的字符串截断
               displayValue = value.substring(0, 100) + '...';
-            } else if (Array.isArray(value)) {
-              // 其他数组类型显示项数
-              displayValue = `${value.length} 项`;
             }
             
             return `
