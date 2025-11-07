@@ -8,6 +8,42 @@ import { getBangumi, getComment, getCommentByUrl, matchAnime, searchAnime, searc
 
 let globals;
 
+// 环境变量说明配置
+const ENV_DESCRIPTIONS = {
+  'TOKEN': '自定义用户token，用于API访问鉴权',
+  'OTHER_SERVER': '兜底第三方弹幕服务器地址',
+  'VOD_SERVERS': 'VOD服务器列表，支持多个并发查询',
+  'VOD_RETURN_MODE': 'VOD返回模式：all(全部) 或 fastest(最快)',
+  'VOD_REQUEST_TIMEOUT': 'VOD服务器请求超时时间(毫秒)',
+  'BILIBILI_COOKIE': 'B站Cookie，可获取完整弹幕',
+  'YOUKU_CONCURRENCY': '优酷弹幕请求并发数(1-16)',
+  'SOURCE_ORDER': '数据源排序，影响匹配优先级',
+  'PLATFORM_ORDER': '自动匹配优选平台顺序',
+  'EPISODE_TITLE_FILTER': '剧集标题正则过滤规则',
+  'ENABLE_EPISODE_FILTER': '手动选择接口是否启用集标题过滤',
+  'STRICT_TITLE_MATCH': '严格标题匹配模式，减少误匹配',
+  'BLOCKED_WORDS': '弹幕屏蔽词列表',
+  'GROUP_MINUTE': '弹幕合并去重时间窗口(分钟)',
+  'CONVERT_TOP_BOTTOM_TO_SCROLL': '顶部/底部弹幕转为滚动弹幕',
+  'CONVERT_COLOR_TO_WHITE': '彩色弹幕转为纯白色',
+  'DANMU_OUTPUT_FORMAT': '弹幕输出格式：json 或 xml',
+  'DANMU_SIMPLIFIED': '繁体弹幕转简体(巴哈姆特)',
+  'PROXY_URL': '代理/反代地址(巴哈姆特和TMDB)',
+  'TMDB_API_KEY': 'TMDB API Key，提升巴哈搜索准确度',
+  'RATE_LIMIT_MAX_REQUESTS': '1分钟内同IP最大请求次数',
+  'LOG_LEVEL': '日志级别：error/warn/info',
+  'SEARCH_CACHE_MINUTES': '搜索结果缓存时间(分钟)',
+  'COMMENT_CACHE_MINUTES': '弹幕数据缓存时间(分钟)',
+  'REMEMBER_LAST_SELECT': '记住手动选择结果用于优化匹配',
+  'MAX_LAST_SELECT_MAP': '最后选择映射缓存大小限制',
+  'UPSTASH_REDIS_REST_URL': 'Upstash Redis URL，持久化存储',
+  'UPSTASH_REDIS_REST_TOKEN': 'Upstash Redis Token，持久化存储',
+  'VERSION': '当前服务版本号',
+  'redisValid': 'Redis连接状态',
+  'redisUrl': 'Redis服务器地址',
+  'redisToken': 'Redis访问令牌'
+};
+
 async function handleRequest(req, env, deployPlatform, clientIp) {
   // 加载全局变量和环境变量配置
   globals = Globals.init(env, deployPlatform);
@@ -303,13 +339,40 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       border-color: rgba(102, 126, 234, 0.3);
     }
     
+    .env-key-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    
     .env-key {
       font-size: 0.85em;
       color: #a5b4fc;
-      margin-bottom: 8px;
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.5px;
+    }
+    
+    .info-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: rgba(102, 126, 234, 0.3);
+      color: #a5b4fc;
+      font-size: 12px;
+      cursor: help;
+      transition: all 0.3s ease;
+      border: 1px solid rgba(102, 126, 234, 0.4);
+      flex-shrink: 0;
+    }
+    
+    .info-icon:hover {
+      background: rgba(102, 126, 234, 0.5);
+      transform: scale(1.1);
     }
     
     .env-value {
@@ -329,6 +392,49 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
     
     .env-value.boolean-false {
       color: #f87171;
+    }
+    
+    /* Tooltip 样式 */
+    .tooltip {
+      position: relative;
+    }
+    
+    .tooltip .tooltip-text {
+      visibility: hidden;
+      width: 220px;
+      background: rgba(17, 24, 39, 0.98);
+      color: #e5e7eb;
+      text-align: left;
+      border-radius: 8px;
+      padding: 10px 12px;
+      position: absolute;
+      z-index: 1000;
+      bottom: 125%;
+      left: 50%;
+      margin-left: -110px;
+      opacity: 0;
+      transition: opacity 0.3s, visibility 0.3s;
+      font-size: 0.8em;
+      line-height: 1.4;
+      border: 1px solid rgba(102, 126, 234, 0.3);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+      pointer-events: none;
+    }
+    
+    .tooltip .tooltip-text::after {
+      content: "";
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      margin-left: -6px;
+      border-width: 6px;
+      border-style: solid;
+      border-color: rgba(17, 24, 39, 0.98) transparent transparent transparent;
+    }
+    
+    .tooltip:hover .tooltip-text {
+      visibility: visible;
+      opacity: 1;
     }
     
     /* 页脚 */
@@ -381,6 +487,12 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       .env-grid {
         grid-template-columns: 1fr;
       }
+      
+      .tooltip .tooltip-text {
+        width: 180px;
+        margin-left: -90px;
+        font-size: 0.75em;
+      }
     }
     
     @media (max-width: 480px) {
@@ -390,6 +502,11 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       
       .stats-grid {
         grid-template-columns: 1fr;
+      }
+      
+      .tooltip .tooltip-text {
+        width: 160px;
+        margin-left: -80px;
       }
     }
   </style>
@@ -447,6 +564,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
           .map(([key, value]) => {
             let valueClass = '';
             let displayValue = value;
+            const description = ENV_DESCRIPTIONS[key] || '环境变量';
             
             if (typeof value === 'boolean') {
               valueClass = value ? 'boolean-true' : 'boolean-false';
@@ -463,7 +581,13 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
             
             return `
               <div class="env-item">
-                <div class="env-key">${key}</div>
+                <div class="env-key-wrapper">
+                  <div class="env-key">${key}</div>
+                  <div class="tooltip">
+                    <span class="info-icon">i</span>
+                    <span class="tooltip-text">${description}</span>
+                  </div>
+                </div>
                 <div class="env-value ${valueClass}">${displayValue}</div>
               </div>
             `;
