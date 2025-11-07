@@ -8,7 +8,7 @@ import { httpGet } from "./http-util.js";
 
 // TMDB API 请求
 async function tmdbApiGet(url) {
-  const tmdbApi = "https://p.876767.xyz/tmdb/3/";
+  const tmdbApi = "https://api.tmdb.org/3/";
   const tartgetUrl = `${tmdbApi}${url}`;
   const nextUrl = globals.proxyUrl ? `http://127.0.0.1:5321/proxy?url=${encodeURIComponent(tartgetUrl)}` : tartgetUrl;
 
@@ -66,17 +66,17 @@ export async function getTmdbJaOriginalTitle(title, signal = null) {
       const allGenreIds = genreIds.length > 0 ? genreIds : genres.map(g => g.id);
       const originalLanguage = mediaInfo.original_language || '';
       const ANIMATION_GENRE_ID = 16;
-
+      
       // 动画类型直接通过
       if (allGenreIds.includes(ANIMATION_GENRE_ID)) {
         return { isValid: true, reason: "明确动画类型(genre_id: 16)" };
       }
-
+      
       // 日语内容通过（涵盖日剧、日影、日综艺）
       if (originalLanguage === 'ja') {
         return { isValid: true, reason: `原始语言为日语(ja),可能是日剧/日影/日综艺` };
       }
-
+      
       return { 
         isValid: false, 
         reason: `非动画且非日语内容(language: ${originalLanguage}, genres: ${allGenreIds.join(',')})` 
@@ -93,10 +93,10 @@ export async function getTmdbJaOriginalTitle(title, signal = null) {
           details: "搜索结果为空" 
         };
       }
-
+      
       let validCount = 0;
       const validItems = [];
-
+      
       for (const item of results) {
         const validation = isValidContent(item);
         if (validation.isValid) {
@@ -105,7 +105,7 @@ export async function getTmdbJaOriginalTitle(title, signal = null) {
           validItems.push(`${itemTitle}(${validation.reason})`);
         }
       }
-
+      
       return {
         hasValid: validCount > 0,
         validCount: validCount,
@@ -121,7 +121,7 @@ export async function getTmdbJaOriginalTitle(title, signal = null) {
       const longer = s1.length > s2.length ? s1 : s2;
       const shorter = s1.length > s2.length ? s2 : s1;
       if (longer.length === 0) return 1.0;
-
+      
       const editDistance = (str1, str2) => {
         str1 = str1.toLowerCase();
         str2 = str2.toLowerCase();
@@ -144,7 +144,7 @@ export async function getTmdbJaOriginalTitle(title, signal = null) {
         }
         return costs[str2.length];
       };
-
+      
       return (longer.length - editDistance(longer, shorter)) / longer.length;
     };
 
@@ -171,12 +171,12 @@ export async function getTmdbJaOriginalTitle(title, signal = null) {
 
     // 第二步：类型验证（宽松策略：只要有一个符合就继续）
     const validationResult = validateResults(dataZh.results);
-
+    
     if (!validationResult.hasValid) {
       log("info", `[TMDB] 类型判断未通过,跳过后续搜索: ${validationResult.details}`);
       return null;
     }
-
+    
     log("info", `[TMDB] 类型判断通过: ${validationResult.details}`);
 
     // 第三步：找到最相似的结果
