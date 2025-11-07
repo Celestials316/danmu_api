@@ -44,6 +44,32 @@ const ENV_DESCRIPTIONS = {
   'redisToken': 'Redis访问令牌'
 };
 
+// 定义敏感字段列表
+const SENSITIVE_KEYS = [
+  'TOKEN',
+  'BILIBILI_COOKIE',
+  'UPSTASH_REDIS_REST_URL',
+  'UPSTASH_REDIS_REST_TOKEN',
+  'TMDB_API_KEY',
+  'PROXY_URL',
+  'redisUrl',
+  'redisToken'
+];
+
+/**
+ * 判断环境变量是否为敏感信息
+ * @param {string} key 环境变量键名
+ * @returns {boolean} 是否敏感
+ */
+function isSensitiveKey(key) {
+  return SENSITIVE_KEYS.includes(key) ||
+    key.toLowerCase().includes('token') ||
+    key.toLowerCase().includes('password') ||
+    key.toLowerCase().includes('secret') ||
+    key.toLowerCase().includes('key') ||
+    key.toLowerCase().includes('cookie');
+}
+
 async function handleRequest(req, env, deployPlatform, clientIp) {
   // 加载全局变量和环境变量配置
   globals = Globals.init(env, deployPlatform);
@@ -384,6 +410,8 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       background: rgba(0, 0, 0, 0.3);
       border-radius: 6px;
       border: 1px solid rgba(255, 255, 255, 0.05);
+      position: relative;
+      transition: all 0.3s ease;
     }
     
     .env-value.boolean-true {
@@ -392,6 +420,42 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
     
     .env-value.boolean-false {
       color: #f87171;
+    }
+    
+    .env-value.sensitive {
+      cursor: pointer;
+      user-select: none;
+    }
+    
+    .env-value.sensitive:hover {
+      background: rgba(0, 0, 0, 0.5);
+      border-color: rgba(102, 126, 234, 0.3);
+    }
+    
+    .env-value.sensitive.revealed {
+      color: #fbbf24;
+      background: rgba(245, 158, 11, 0.1);
+      border-color: rgba(245, 158, 11, 0.3);
+    }
+    
+    .env-value.sensitive::after {
+      content: '👁️';
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 0.9em;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    
+    .env-value.sensitive:hover::after {
+      opacity: 0.6;
+    }
+    
+    .env-value.sensitive.revealed::after {
+      content: '🙈';
+      opacity: 0.8;
     }
     
     /* Tooltip 样式 */
@@ -565,7 +629,9 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
             let valueClass = '';
             let displayValue = value;
             const description = ENV_DESCRIPTIONS[key] || '环境变量';
+            const isSensitive = isSensitiveKey(key);
             
+            // 处理不同类型的值
             if (typeof value === 'boolean') {
               valueClass = value ? 'boolean-true' : 'boolean-false';
               displayValue = value ? '✓ 已启用' : '✗ 已禁用';
@@ -573,6 +639,25 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
               displayValue = '未设置';
             } else if (typeof value === 'string' && value.length === 0) {
               displayValue = '空';
+            } else if (isSensitive && typeof value === 'string' && value.length > 0) {
+              // 敏感信息的处理
+              const maskedValue = '•'.repeat(Math.min(value.length, 32));
+              return `
+                <div class="env-item">
+                  <div class="env-key-wrapper">
+                    <div class="env-key">${key}</div>
+                    <div class="tooltip">
+                      <span class="info-icon">i</span>
+                      <span class="tooltip-text">${description}</span>
+                    </div>
+                  </div>
+                  <div class="env-value sensitive" 
+                       data-real="${value}" 
+                       data-masked="${maskedValue}"
+                       onclick="toggleSensitiveValue(this)"
+                       title="点击查看真实值（3秒后自动隐藏）">${maskedValue}</div>
+                </div>
+              `;
             } else if (typeof value === 'string' && value.length > 50) {
               displayValue = value.substring(0, 50) + '...';
             } else if (Array.isArray(value)) {
@@ -601,6 +686,46 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       Made with <span class="footer-heart">♥</span> for Better Anime Experience
     </div>
   </div>
+  
+  <script>
+    /**
+     * 切换敏感信息的显示状态
+     * @param {HTMLElement} element 被点击的环境变量值元素
+     */
+    function toggleSensitiveValue(element) {
+      const realValue = element.dataset.real;
+      const maskedValue = element.dataset.masked;
+      const isRevealed = element.classList.contains('revealed');
+      
+      if (isRevealed) {
+        // 当前是显示状态，切换回隐藏
+        element.textContent = maskedValue;
+        element.classList.remove('revealed');
+        element.title = '点击查看真实值（3秒后自动隐藏）';
+        
+        // 清除定时器（如果存在）
+        if (element.hideTimer) {
+          clearTimeout(element.hideTimer);
+          delete element.hideTimer;
+        }
+      } else {
+        // 当前是隐藏状态，显示真实值
+        element.textContent = realValue;
+        element.classList.add('revealed');
+        element.title = '点击隐藏 / 3秒后自动隐藏';
+        
+        // 3秒后自动隐藏
+        element.hideTimer = setTimeout(() => {
+          if (element.classList.contains('revealed')) {
+            element.textContent = maskedValue;
+            element.classList.remove('revealed');
+            element.title = '点击查看真实值（3秒后自动隐藏）';
+          }
+          delete element.hideTimer;
+        }, 3000);
+      }
+    }
+  </script>
 </body>
 </html>
     `;
