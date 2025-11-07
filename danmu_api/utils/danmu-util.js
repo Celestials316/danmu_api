@@ -186,9 +186,32 @@ export function convertToDanmakuJson(contents, platform) {
 
   // 应用弹幕转换规则（在去重之后）
   let convertedDanmus = groupedDanmus;
-  if (globals.convertTopBottomToScroll || globals.convertColorToWhite) {
+  
+  // 获取颜色转换模式：default/toWhite/toColor
+  const colorMode = globals.danmuColorMode || 'default';
+  
+  if (globals.convertTopBottomToScroll || colorMode !== 'default') {
     let topBottomCount = 0;
-    let colorCount = 0;
+    let colorToWhiteCount = 0;
+    let whiteToColorCount = 0;
+    let colorKeptCount = 0; // 保留的彩色弹幕数
+    let whiteKeptCount = 0; // 保留的白色弹幕数
+
+    // 定义彩色弹幕的颜色池
+    const colorPalette = [
+      0xFF6B9D,  // 粉色
+      0x00D0FF,  // 天蓝
+      0xFFA500,  // 橙色
+      0x7FFF00,  // 春绿
+      0xFF1493,  // 深粉
+      0x00CED1,  // 深青
+      0xFFD700,  // 金色
+      0x9370DB,  // 紫色
+      0xFF69B4,  // 热粉
+      0x87CEEB,  // 天空蓝
+      0xFFB6C1,  // 浅粉
+      0x98FB98   // 浅绿
+    ];
 
     convertedDanmus = groupedDanmus.map(danmu => {
       const pValues = danmu.p.split(',');
@@ -205,11 +228,31 @@ export function convertToDanmakuJson(contents, platform) {
         modified = true;
       }
 
-      // 2. 将彩色弹幕转换为纯白弹幕
-      if (globals.convertColorToWhite && color !== 16777215) {
-        colorCount++;
-        color = 16777215;
-        modified = true;
+      // 2. 颜色转换逻辑
+      if (colorMode === 'toWhite') {
+        // 彩色转白色模式（保留20%的彩色）
+        if (color !== 16777215) {
+          // 80%概率转为白色，20%保持彩色
+          if (Math.random() < 0.8) {
+            colorToWhiteCount++;
+            color = 16777215;
+            modified = true;
+          } else {
+            colorKeptCount++;
+          }
+        }
+      } else if (colorMode === 'toColor') {
+        // 白色转彩色模式（保留20%的白色）
+        if (color === 16777215) {
+          // 80%概率转为彩色，20%保持白色
+          if (Math.random() < 0.8) {
+            whiteToColorCount++;
+            color = colorPalette[Math.floor(Math.random() * colorPalette.length)];
+            modified = true;
+          } else {
+            whiteKeptCount++;
+          }
+        }
       }
 
       if (modified) {
@@ -223,8 +266,11 @@ export function convertToDanmakuJson(contents, platform) {
     if (topBottomCount > 0) {
       log("info", `[danmu convert] 转换了 ${topBottomCount} 条顶部/底部弹幕为浮动弹幕`);
     }
-    if (colorCount > 0) {
-      log("info", `[danmu convert] 转换了 ${colorCount} 条彩色弹幕为纯白弹幕`);
+    
+    if (colorMode === 'toWhite') {
+      log("info", `[danmu convert] 彩转白模式: 转换了 ${colorToWhiteCount} 条彩色→白色, 保留了 ${colorKeptCount} 条彩色`);
+    } else if (colorMode === 'toColor') {
+      log("info", `[danmu convert] 白转彩模式: 转换了 ${whiteToColorCount} 条白色→彩色, 保留了 ${whiteKeptCount} 条白色`);
     }
   }
 
