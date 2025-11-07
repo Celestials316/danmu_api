@@ -10,50 +10,39 @@ let globals;
 
 // 环境变量说明配置
 const ENV_DESCRIPTIONS = {
-  'TOKEN': '自定义用户token,用于API访问鉴权',
+  'TOKEN': '自定义用户token，用于API访问鉴权',
   'OTHER_SERVER': '兜底第三方弹幕服务器地址',
-  'VOD_SERVERS': 'VOD服务器列表,支持多个并发查询',
-  'VOD_RETURN_MODE': 'VOD返回模式:all(全部) 或 fastest(最快)',
+  'VOD_SERVERS': 'VOD服务器列表，支持多个并发查询',
+  'VOD_RETURN_MODE': 'VOD返回模式：all(全部) 或 fastest(最快)',
   'VOD_REQUEST_TIMEOUT': 'VOD服务器请求超时时间(毫秒)',
-  'BILIBILI_COOKIE': 'B站Cookie,可获取完整弹幕',
+  'BILIBILI_COOKIE': 'B站Cookie，可获取完整弹幕',
   'YOUKU_CONCURRENCY': '优酷弹幕请求并发数(1-16)',
-  'SOURCE_ORDER': '数据源排序,影响匹配优先级',
+  'SOURCE_ORDER': '数据源排序，影响匹配优先级',
   'PLATFORM_ORDER': '自动匹配优选平台顺序',
   'EPISODE_TITLE_FILTER': '剧集标题正则过滤规则',
   'ENABLE_EPISODE_FILTER': '手动选择接口是否启用集标题过滤',
-  'STRICT_TITLE_MATCH': '严格标题匹配模式,减少误匹配',
+  'STRICT_TITLE_MATCH': '严格标题匹配模式，减少误匹配',
   'BLOCKED_WORDS': '弹幕屏蔽词列表',
   'GROUP_MINUTE': '弹幕合并去重时间窗口(分钟)',
   'CONVERT_TOP_BOTTOM_TO_SCROLL': '顶部/底部弹幕转为滚动弹幕',
-  'WHITE_RATIO': '白色弹幕占比,0%全彩色弹幕,100%为全白色弹幕',
-  'DANMU_OUTPUT_FORMAT': '弹幕输出格式:json 或 xml',
+  'WHITE_RATIO': '白色弹幕占比，0表示全彩色弹幕，100表示全白色弹幕',
+  'DANMU_OUTPUT_FORMAT': '弹幕输出格式：json 或 xml',
   'DANMU_SIMPLIFIED': '繁体弹幕转简体(巴哈姆特)',
   'PROXY_URL': '代理/反代地址(巴哈姆特和TMDB)',
-  'TMDB_API_KEY': 'TMDB API Key,提升巴哈搜索准确度',
+  'TMDB_API_KEY': 'TMDB API Key，提升巴哈搜索准确度',
   'RATE_LIMIT_MAX_REQUESTS': '1分钟内同IP最大请求次数',
-  'LOG_LEVEL': '日志级别:error/warn/info',
+  'LOG_LEVEL': '日志级别：error/warn/info',
   'SEARCH_CACHE_MINUTES': '搜索结果缓存时间(分钟)',
   'COMMENT_CACHE_MINUTES': '弹幕数据缓存时间(分钟)',
   'REMEMBER_LAST_SELECT': '记住手动选择结果用于优化匹配',
   'MAX_LAST_SELECT_MAP': '最后选择映射缓存大小限制',
-  'UPSTASH_REDIS_REST_URL': 'Upstash Redis URL,持久化存储',
-  'UPSTASH_REDIS_REST_TOKEN': 'Upstash Redis Token,持久化存储',
+  'UPSTASH_REDIS_REST_URL': 'Upstash Redis URL，持久化存储',
+  'UPSTASH_REDIS_REST_TOKEN': 'Upstash Redis Token，持久化存储',
   'VERSION': '当前服务版本号',
   'redisValid': 'Redis连接状态',
   'redisUrl': 'Redis服务器地址',
   'redisToken': 'Redis访问令牌'
 };
-
-// 定义需要隐私保护的环境变量
-const SENSITIVE_KEYS = new Set([
-  'TOKEN',
-  'BILIBILI_COOKIE',
-  'TMDB_API_KEY',
-  'UPSTASH_REDIS_REST_URL',
-  'UPSTASH_REDIS_REST_TOKEN',
-  'redisUrl',
-  'redisToken'
-]);
 
 async function handleRequest(req, env, deployPlatform, clientIp) {
   // 加载全局变量和环境变量配置
@@ -75,7 +64,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
 
   function handleHomepage() {
     log("info", "Accessed homepage");
-
+    
     const redisConfigured = !!(globals.redisUrl && globals.redisToken);
     const redisStatusText = redisConfigured 
       ? (globals.redisValid ? '已连接' : '已配置未连接') 
@@ -83,25 +72,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
     const redisStatusClass = redisConfigured 
       ? (globals.redisValid ? 'status-online' : 'status-warning')
       : 'status-offline';
-
-    // 获取真实环境变量值的函数
-    const getRealValue = (key) => {
-      // 优先从 globals 对象直接获取
-      if (globals[key] !== undefined) {
-        return globals[key];
-      }
-      // 其次从 accessedEnvVars 获取
-      if (globals.accessedEnvVars[key] !== undefined) {
-        return globals.accessedEnvVars[key];
-      }
-      // 特殊处理 Redis 相关
-      if (key === 'redisUrl') return globals.redisUrl;
-      if (key === 'redisToken') return globals.redisToken;
-      if (key === 'redisValid') return globals.redisValid;
-      
-      return null;
-    };
-
+    
     const html = `
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -351,7 +322,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
     /* 环境变量网格 */
     .env-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
       gap: 15px;
     }
     
@@ -359,9 +330,8 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       background: rgba(255, 255, 255, 0.03);
       border: 1px solid rgba(255, 255, 255, 0.08);
       border-radius: 10px;
-      padding: 16px;
+      padding: 15px;
       transition: all 0.3s ease;
-      position: relative;
     }
     
     .env-item:hover {
@@ -372,8 +342,8 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
     .env-key-wrapper {
       display: flex;
       align-items: center;
-      gap: 6px;
-      margin-bottom: 10px;
+      gap: 8px;
+      margin-bottom: 8px;
     }
     
     .env-key {
@@ -385,46 +355,27 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
     }
     
     .info-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: rgba(102, 126, 234, 0.3);
+      color: #a5b4fc;
+      font-size: 12px;
       cursor: help;
-      font-size: 0.9em;
-      color: #6b7280;
-      transition: color 0.2s ease;
-      user-select: none;
+      transition: all 0.3s ease;
+      border: 1px solid rgba(102, 126, 234, 0.4);
+      flex-shrink: 0;
     }
     
     .info-icon:hover {
-      color: #9ca3af;
-    }
-    
-    .tooltip {
-      position: absolute;
-      background: rgba(17, 24, 39, 0.95);
-      color: #e5e7eb;
-      padding: 8px 12px;
-      border-radius: 6px;
-      font-size: 0.75em;
-      line-height: 1.4;
-      max-width: 250px;
-      z-index: 1000;
-      pointer-events: none;
-      opacity: 0;
-      transition: opacity 0.2s ease;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-    }
-    
-    .tooltip.show {
-      opacity: 1;
-    }
-    
-    .env-value-wrapper {
-      display: flex;
-      align-items: center;
-      gap: 8px;
+      background: rgba(102, 126, 234, 0.5);
+      transform: scale(1.1);
     }
     
     .env-value {
-      flex: 1;
       color: #e5e7eb;
       font-family: 'Courier New', monospace;
       font-size: 0.9em;
@@ -443,61 +394,47 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       color: #f87171;
     }
     
-    .env-value.default-value {
-      color: #9ca3af;
-      font-style: italic;
+    /* Tooltip 样式 */
+    .tooltip {
+      position: relative;
     }
     
-    .env-value.sensitive {
-      filter: blur(4px);
-      user-select: none;
-      transition: filter 0.3s ease;
-    }
-    
-    .env-value.sensitive.revealed {
-      filter: blur(0);
-      user-select: text;
-    }
-    
-    .toggle-visibility {
-      flex-shrink: 0;
-      width: 32px;
-      height: 32px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: rgba(102, 126, 234, 0.2);
+    .tooltip .tooltip-text {
+      visibility: hidden;
+      width: 220px;
+      background: rgba(17, 24, 39, 0.98);
+      color: #e5e7eb;
+      text-align: left;
+      border-radius: 8px;
+      padding: 10px 12px;
+      position: absolute;
+      z-index: 1000;
+      bottom: 125%;
+      left: 50%;
+      margin-left: -110px;
+      opacity: 0;
+      transition: opacity 0.3s, visibility 0.3s;
+      font-size: 0.8em;
+      line-height: 1.4;
       border: 1px solid rgba(102, 126, 234, 0.3);
-      border-radius: 6px;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      font-size: 16px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+      pointer-events: none;
     }
     
-    .toggle-visibility:hover {
-      background: rgba(102, 126, 234, 0.3);
-      transform: scale(1.05);
+    .tooltip .tooltip-text::after {
+      content: "";
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      margin-left: -6px;
+      border-width: 6px;
+      border-style: solid;
+      border-color: rgba(17, 24, 39, 0.98) transparent transparent transparent;
     }
     
-    .toggle-visibility:active {
-      transform: scale(0.95);
-    }
-    
-    /* 数组值样式 */
-    .env-value.array-value {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      padding: 10px;
-    }
-    
-    .array-item {
-      background: rgba(102, 126, 234, 0.2);
-      color: #a5b4fc;
-      padding: 4px 10px;
-      border-radius: 4px;
-      font-size: 0.85em;
-      border: 1px solid rgba(102, 126, 234, 0.3);
+    .tooltip:hover .tooltip-text {
+      visibility: visible;
+      opacity: 1;
     }
     
     /* 页脚 */
@@ -550,6 +487,12 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       .env-grid {
         grid-template-columns: 1fr;
       }
+      
+      .tooltip .tooltip-text {
+        width: 180px;
+        margin-left: -90px;
+        font-size: 0.75em;
+      }
     }
     
     @media (max-width: 480px) {
@@ -559,6 +502,11 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       
       .stats-grid {
         grid-template-columns: 1fr;
+      }
+      
+      .tooltip .tooltip-text {
+        width: 160px;
+        margin-left: -80px;
       }
     }
   </style>
@@ -579,7 +527,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
     <div class="stats-grid">
       <div class="stat-card">
         <div class="stat-icon">⚙️</div>
-        <div class="stat-value">${Object.keys(ENV_DESCRIPTIONS).length}</div>
+        <div class="stat-value">${Object.keys(globals.accessedEnvVars).length}</div>
         <div class="stat-label">环境变量</div>
       </div>
       <div class="stat-card">
@@ -603,65 +551,44 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
     <div class="redis-card">
       <div class="redis-header">
         <h3 class="redis-title">
-          <span>⚙️</span>
-          环境变量配置
+          <span>💾</span>
+          缓存服务状态
         </h3>
         <span class="status-badge ${redisStatusClass}">
           <span class="status-dot"></span>
-          Redis ${redisStatusText}
+          ${redisStatusText}
         </span>
       </div>
       <div class="env-grid">
-        ${Object.keys(ENV_DESCRIPTIONS)
-          .map((key) => {
-            const realValue = getRealValue(key);
+        ${Object.entries(globals.accessedEnvVars)
+          .map(([key, value]) => {
             let valueClass = '';
-            let displayValue = realValue;
-            let isArray = false;
-            let isDefault = false;
-            const description = ENV_DESCRIPTIONS[key];
-            const isSensitive = SENSITIVE_KEYS.has(key);
+            let displayValue = value;
+            const description = ENV_DESCRIPTIONS[key] || '环境变量';
             
-            // 判断是否为默认值(null, undefined, 空字符串)
-            if (realValue === null || realValue === undefined || realValue === '') {
-              isDefault = true;
-              displayValue = '使用默认值';
-              valueClass = 'default-value';
-            } else if (typeof realValue === 'boolean') {
-              valueClass = realValue ? 'boolean-true' : 'boolean-false';
-              displayValue = realValue ? '✓ 已启用' : '✗ 已禁用';
-            } else if (Array.isArray(realValue)) {
-              isArray = true;
-              displayValue = realValue;
-            } else if (typeof realValue === 'string' && realValue.length > 100 && !isSensitive) {
-              displayValue = realValue.substring(0, 100) + '...';
-            }
-            
-            // 对于敏感信息,显示星号占位符
-            if (isSensitive && !isDefault && typeof realValue === 'string' && realValue.length > 0) {
-              displayValue = '•'.repeat(Math.min(realValue.length, 20));
+            if (typeof value === 'boolean') {
+              valueClass = value ? 'boolean-true' : 'boolean-false';
+              displayValue = value ? '✓ 已启用' : '✗ 已禁用';
+            } else if (value === null || value === undefined) {
+              displayValue = '未设置';
+            } else if (typeof value === 'string' && value.length === 0) {
+              displayValue = '空';
+            } else if (typeof value === 'string' && value.length > 50) {
+              displayValue = value.substring(0, 50) + '...';
+            } else if (Array.isArray(value)) {
+              displayValue = `${value.length} 项`;
             }
             
             return `
               <div class="env-item">
                 <div class="env-key-wrapper">
-                  <span class="env-key">${key}</span>
-                  <span class="info-icon" onmouseenter="showTooltip(event, '${description.replace(/'/g, "\\'")}')">ℹ️</span>
+                  <div class="env-key">${key}</div>
+                  <div class="tooltip">
+                    <span class="info-icon">i</span>
+                    <span class="tooltip-text">${description}</span>
+                  </div>
                 </div>
-                <div class="env-value-wrapper">
-                  ${isArray ? `
-                    <div class="env-value array-value">
-                      ${realValue.map(item => `<span class="array-item">${item}</span>`).join('')}
-                    </div>
-                  ` : `
-                    <div class="env-value ${valueClass}${isSensitive && !isDefault ? ' sensitive' : ''}" data-real-value="${isSensitive && !isDefault ? realValue : ''}">${displayValue}</div>
-                  `}
-                  ${isSensitive && !isDefault && typeof realValue === 'string' && realValue.length > 0 ? `
-                    <button class="toggle-visibility" onclick="toggleVisibility(this)" title="显示/隐藏">
-                      👁️
-                    </button>
-                  ` : ''}
-                </div>
+                <div class="env-value ${valueClass}">${displayValue}</div>
               </div>
             `;
           })
@@ -674,63 +601,10 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       Made with <span class="footer-heart">♥</span> for Better Anime Experience
     </div>
   </div>
-  
-  <!-- Tooltip 容器 -->
-  <div id="tooltip" class="tooltip"></div>
-  
-  <script>
-    const tooltip = document.getElementById('tooltip');
-    let hideTimeout;
-    
-    function showTooltip(event, text) {
-      clearTimeout(hideTimeout);
-      tooltip.textContent = text;
-      tooltip.classList.add('show');
-      
-      const rect = event.target.getBoundingClientRect();
-      const tooltipRect = tooltip.getBoundingClientRect();
-      
-      let left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
-      let top = rect.bottom + 8;
-      
-      // 防止 tooltip 超出屏幕
-      if (left < 10) left = 10;
-      if (left + tooltipRect.width > window.innerWidth - 10) {
-        left = window.innerWidth - tooltipRect.width - 10;
-      }
-      
-      tooltip.style.left = left + 'px';
-      tooltip.style.top = top + 'px';
-      
-      event.target.onmouseleave = () => {
-        hideTimeout = setTimeout(() => {
-          tooltip.classList.remove('show');
-        }, 200);
-      };
-    }
-    
-    function toggleVisibility(button) {
-      const wrapper = button.parentElement;
-      const valueDiv = wrapper.querySelector('.env-value');
-      const realValue = valueDiv.getAttribute('data-real-value');
-      
-      if (valueDiv.classList.contains('revealed')) {
-        // 隐藏
-        valueDiv.textContent = '•'.repeat(Math.min(realValue.length, 20));
-        valueDiv.classList.remove('revealed');
-        button.textContent = '👁️';
-      } else {
-        // 显示
-        valueDiv.textContent = realValue;
-        valueDiv.classList.add('revealed');
-        button.textContent = '🙈';
-      }
-    }
-  </script>
 </body>
 </html>
     `;
-
+    
     return new Response(html, {
       headers: {
         'Content-Type': 'text/html; charset=utf-8',
@@ -738,7 +612,6 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       }
     });
   }
-
 
   // GET /
   if (path === "/" && method === "GET") {
