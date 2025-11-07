@@ -758,17 +758,6 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
           delete element.hideTimer;
         }
       } else {
-        // 当前是显示状态，切换回隐藏
-        element.textContent = maskedValue;
-        element.classList.remove('revealed');
-        element.title = '点击查看真实值（3秒后自动隐藏）';
-        
-        // 清除定时器（如果存在）
-        if (element.hideTimer) {
-          clearTimeout(element.hideTimer);
-          delete element.hideTimer;
-        }
-      } else {
         // 当前是隐藏状态，显示真实值
         element.textContent = realValue;
         element.classList.add('revealed');
