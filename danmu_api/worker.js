@@ -8,425 +8,764 @@ import { getBangumi, getComment, getCommentByUrl, matchAnime, searchAnime, searc
 
 let globals;
 
-// ==================== 核心处理函数 ====================
-async function handleRequest(request, env, platform = "unknown", clientIp = "unknown") {
-  const url = new URL(request.url);
+async function handleRequest(req, env, deployPlatform, clientIp) {
+  // 加载全局变量和环境变量配置
+  globals = Globals.init(env, deployPlatform);
 
-  // 处理根路径请求
-  if (url.pathname === "/" || url.pathname === "") {
-    return new Response(getModernHTML(env, platform, clientIp), {
-      headers: { "Content-Type": "text/html;charset=UTF-8" },
-    });
+  const url = new URL(req.url);
+  let path = url.pathname;
+  const method = req.method;
+
+  await judgeRedisValid(path);
+
+  log("info", `request url: ${JSON.stringify(url)}`);
+  log("info", `request path: ${path}`);
+  log("info", `client ip: ${clientIp}`);
+
+  if (globals.redisValid && path !== "/favicon.ico" && path !== "/robots.txt") {
+    await getRedisCaches();
   }
 
-  return new Response(JSON.stringify({ error: "Not found" }), { 
-    status: 404,
-    headers: { "Content-Type": "application/json" }
-  });
-}
-
-// ==================== 现代化 HTML 页面 ====================
-function getModernHTML(env, platform, clientIp) {
-  const envVars = Object.keys(env || {});
-  const redisUrl = env.REDIS_URL || env.KV_URL || env.UPSTASH_REDIS_REST_URL || "";
-  
-  let redisStatus = "未配置";
-  let statusColor = "#94a3b8";
-  let statusIcon = "⚪";
-  
-  if (redisUrl) {
-    redisStatus = "已配置";
-    statusColor = "#10b981";
-    statusIcon = "🟢";
-  }
-
-  return `<!DOCTYPE html>
+  function handleHomepage() {
+    log("info", "Accessed homepage");
+    
+    const redisConfigured = !!(globals.redisUrl && globals.redisToken);
+    const redisStatusText = redisConfigured 
+      ? (globals.redisValid ? '已连接' : '已配置未连接') 
+      : '未配置';
+    const redisStatusClass = redisConfigured 
+      ? (globals.redisValid ? 'status-online' : 'status-warning')
+      : 'status-offline';
+    
+    const html = `
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>环境配置面板</title>
+  <title>弹幕 API 服务</title>
   <style>
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
     }
-
+    
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+      background: #0f0f23;
+      color: #e5e7eb;
       min-height: 100vh;
       padding: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      position: relative;
+      overflow-x: hidden;
     }
-
+    
+    /* 动态背景效果 */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: 
+        radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.15) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(255, 110, 199, 0.15) 0%, transparent 50%),
+        radial-gradient(circle at 40% 20%, rgba(59, 130, 246, 0.1) 0%, transparent 50%);
+      animation: drift 20s ease-in-out infinite;
+      z-index: 0;
+    }
+    
+    @keyframes drift {
+      0%, 100% { transform: translate(0, 0); }
+      50% { transform: translate(-5%, 5%); }
+    }
+    
     .container {
-      width: 100%;
       max-width: 900px;
-      animation: fadeIn 0.6s ease-out;
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
     }
-
-    @keyframes fadeIn {
+    
+    /* 主标题区域 */
+    .hero {
+      text-align: center;
+      padding: 60px 20px;
+      margin-bottom: 40px;
+      animation: fadeInUp 0.8s ease-out;
+    }
+    
+    @keyframes fadeInUp {
       from {
         opacity: 0;
-        transform: translateY(20px);
+        transform: translateY(30px);
       }
       to {
         opacity: 1;
         transform: translateY(0);
       }
     }
-
-    .header {
-      text-align: center;
-      margin-bottom: 40px;
-      color: white;
+    
+    .hero-icon {
+      font-size: 4em;
+      margin-bottom: 20px;
+      display: inline-block;
+      animation: float 3s ease-in-out infinite;
     }
-
-    .header h1 {
-      font-size: 2.5rem;
+    
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
+    }
+    
+    .hero h1 {
+      font-size: 2.5em;
       font-weight: 700;
-      margin-bottom: 10px;
-      text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      margin-bottom: 15px;
+      background: linear-gradient(135deg, #667eea 0%, #ff6ec3 50%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
-
-    .header p {
-      font-size: 1rem;
-      opacity: 0.9;
+    
+    .hero-subtitle {
+      font-size: 1.1em;
+      color: #9ca3af;
+      max-width: 600px;
+      margin: 0 auto;
+      line-height: 1.6;
     }
-
+    
+    .version-badge {
+      display: inline-block;
+      margin-top: 20px;
+      padding: 8px 20px;
+      background: rgba(102, 126, 234, 0.2);
+      border: 1px solid rgba(102, 126, 234, 0.3);
+      border-radius: 20px;
+      font-size: 0.9em;
+      font-weight: 600;
+      color: #a5b4fc;
+    }
+    
+    /* 状态卡片网格 */
     .stats-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
       gap: 20px;
-      margin-bottom: 30px;
+      margin-bottom: 40px;
+      animation: fadeInUp 0.8s ease-out 0.2s both;
     }
-
+    
     .stat-card {
-      background: rgba(255, 255, 255, 0.95);
+      background: rgba(255, 255, 255, 0.05);
       backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 16px;
-      padding: 24px;
+      padding: 30px;
       text-align: center;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
       transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
     }
-
+    
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #667eea, #ff6ec3);
+      transform: scaleX(0);
+      transition: transform 0.3s ease;
+    }
+    
     .stat-card:hover {
       transform: translateY(-5px);
-      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+      border-color: rgba(102, 126, 234, 0.5);
+      background: rgba(255, 255, 255, 0.08);
     }
-
+    
+    .stat-card:hover::before {
+      transform: scaleX(1);
+    }
+    
     .stat-icon {
-      font-size: 2rem;
-      margin-bottom: 12px;
+      font-size: 2.5em;
+      margin-bottom: 15px;
+      opacity: 0.9;
     }
-
+    
     .stat-value {
-      font-size: 2rem;
+      font-size: 2em;
       font-weight: 700;
-      color: #1e293b;
+      color: #fff;
       margin-bottom: 8px;
     }
-
+    
     .stat-label {
-      font-size: 0.9rem;
-      color: #64748b;
-      font-weight: 500;
+      font-size: 0.9em;
+      color: #9ca3af;
+      text-transform: uppercase;
+      letter-spacing: 1px;
     }
-
-    .main-card {
-      background: rgba(255, 255, 255, 0.95);
+    
+    /* Redis 状态卡片 */
+    .redis-card {
+      background: rgba(255, 255, 255, 0.05);
       backdrop-filter: blur(10px);
-      border-radius: 20px;
-      padding: 32px;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 30px;
+      margin-bottom: 30px;
+      animation: fadeInUp 0.8s ease-out 0.4s both;
     }
-
-    .section {
-      margin-bottom: 32px;
+    
+    .redis-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 15px;
     }
-
-    .section:last-child {
-      margin-bottom: 0;
-    }
-
-    .section-title {
-      font-size: 1.25rem;
+    
+    .redis-title {
+      font-size: 1.3em;
       font-weight: 600;
-      color: #1e293b;
-      margin-bottom: 16px;
+      color: #fff;
       display: flex;
       align-items: center;
       gap: 10px;
     }
-
-    .section-title::before {
-      content: "";
-      width: 4px;
-      height: 24px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      border-radius: 2px;
-    }
-
-    .info-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 14px 0;
-      border-bottom: 1px solid #e2e8f0;
-    }
-
-    .info-row:last-child {
-      border-bottom: none;
-    }
-
-    .info-label {
-      font-weight: 500;
-      color: #475569;
-      font-size: 0.95rem;
-    }
-
-    .info-value {
-      font-weight: 600;
-      color: #1e293b;
-      font-size: 0.95rem;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
+    
     .status-badge {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      padding: 6px 14px;
+      gap: 8px;
+      padding: 8px 16px;
       border-radius: 20px;
-      font-size: 0.85rem;
+      font-size: 0.85em;
       font-weight: 600;
-      background: ${statusColor}20;
-      color: ${statusColor};
     }
-
+    
+    .status-online {
+      background: rgba(16, 185, 129, 0.2);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    
+    .status-warning {
+      background: rgba(245, 158, 11, 0.2);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+    
+    .status-offline {
+      background: rgba(239, 68, 68, 0.2);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    /* 环境变量网格 */
     .env-grid {
       display: grid;
-      gap: 12px;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 15px;
     }
-
+    
     .env-item {
-      background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-      padding: 16px;
-      border-radius: 12px;
-      font-family: "Monaco", "Consolas", monospace;
-      font-size: 0.9rem;
-      color: #334155;
-      border-left: 3px solid #667eea;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 15px;
       transition: all 0.3s ease;
     }
-
+    
     .env-item:hover {
-      transform: translateX(5px);
-      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(102, 126, 234, 0.3);
     }
-
-    .empty-state {
-      text-align: center;
-      padding: 32px;
-      color: #94a3b8;
-      font-size: 0.95rem;
+    
+    .env-key {
+      font-size: 0.85em;
+      color: #a5b4fc;
+      margin-bottom: 8px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
-
+    
+    .env-value {
+      color: #e5e7eb;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9em;
+      word-break: break-all;
+      padding: 8px 12px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    .env-value.boolean-true {
+      color: #34d399;
+    }
+    
+    .env-value.boolean-false {
+      color: #f87171;
+    }
+    
+    /* 页脚 */
     .footer {
       text-align: center;
-      margin-top: 32px;
-      color: white;
-      font-size: 0.9rem;
-      opacity: 0.8;
+      padding: 40px 20px 20px;
+      color: #6b7280;
+      font-size: 0.9em;
+      animation: fadeInUp 0.8s ease-out 0.6s both;
     }
-
-    /* 移动端适配 */
+    
+    .footer-heart {
+      color: #ff6ec3;
+      animation: heartbeat 1.5s ease-in-out infinite;
+    }
+    
+    @keyframes heartbeat {
+      0%, 100% { transform: scale(1); }
+      10%, 30% { transform: scale(1.1); }
+      20%, 40% { transform: scale(1); }
+    }
+    
+    /* 响应式设计 */
     @media (max-width: 768px) {
-      body {
-        padding: 15px;
+      .hero {
+        padding: 40px 15px;
       }
-
-      .header h1 {
-        font-size: 1.8rem;
+      
+      .hero h1 {
+        font-size: 2em;
       }
-
-      .header p {
-        font-size: 0.9rem;
+      
+      .hero-subtitle {
+        font-size: 1em;
       }
-
+      
       .stats-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, 1fr);
         gap: 15px;
       }
-
-      .main-card {
+      
+      .stat-card {
         padding: 20px;
-        border-radius: 16px;
       }
-
-      .section-title {
-        font-size: 1.1rem;
-      }
-
-      .info-row {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 8px;
-      }
-
-      .info-value {
-        font-size: 0.9rem;
-      }
-
+      
       .stat-value {
-        font-size: 1.6rem;
+        font-size: 1.6em;
+      }
+      
+      .env-grid {
+        grid-template-columns: 1fr;
       }
     }
-
+    
     @media (max-width: 480px) {
-      .header h1 {
-        font-size: 1.5rem;
+      .hero h1 {
+        font-size: 1.6em;
       }
-
-      .stat-card {
-        padding: 18px;
-      }
-
-      .main-card {
-        padding: 16px;
+      
+      .stats-grid {
+        grid-template-columns: 1fr;
       }
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <div class="header">
-      <h1>🚀 环境配置面板</h1>
-      <p>系统信息与环境变量概览</p>
+    <!-- 主标题区域 -->
+    <div class="hero">
+      <div class="hero-icon">🎬</div>
+      <h1>弹幕 API 服务</h1>
+      <p class="hero-subtitle">
+        高性能弹幕数据接口服务,支持多平台弹幕获取与搜索
+      </p>
+      <span class="version-badge">v${globals.VERSION}</span>
     </div>
-
+    
+    <!-- 状态概览 -->
     <div class="stats-grid">
       <div class="stat-card">
-        <div class="stat-icon">📊</div>
-        <div class="stat-value">${envVars.length}</div>
+        <div class="stat-icon">⚙️</div>
+        <div class="stat-value">${Object.keys(globals.accessedEnvVars).length}</div>
         <div class="stat-label">环境变量</div>
       </div>
-
       <div class="stat-card">
-        <div class="stat-icon">🌐</div>
-        <div class="stat-value">${platform}</div>
-        <div class="stat-label">运行平台</div>
+        <div class="stat-icon">📡</div>
+        <div class="stat-value">${globals.vodServers.length}</div>
+        <div class="stat-label">VOD 服务器</div>
       </div>
-
       <div class="stat-card">
-        <div class="stat-icon">${statusIcon}</div>
-        <div class="stat-value">${redisStatus}</div>
-        <div class="stat-label">Redis 状态</div>
+        <div class="stat-icon">🔗</div>
+        <div class="stat-value">${globals.sourceOrderArr.length}</div>
+        <div class="stat-label">数据源</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">💾</div>
+        <div class="stat-value">${redisConfigured ? (globals.redisValid ? '✓' : '✗') : '—'}</div>
+        <div class="stat-label">Redis 缓存</div>
       </div>
     </div>
-
-    <div class="main-card">
-      <div class="section">
-        <h2 class="section-title">系统信息</h2>
-        <div class="info-row">
-          <span class="info-label">运行平台</span>
-          <span class="info-value">${platform.toUpperCase()}</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">客户端 IP</span>
-          <span class="info-value">${clientIp}</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">Redis 状态</span>
-          <span class="info-value">
-            <span class="status-badge">${statusIcon} ${redisStatus}</span>
-          </span>
-        </div>
+    
+    <!-- Redis 状态详情 -->
+    <div class="redis-card">
+      <div class="redis-header">
+        <h3 class="redis-title">
+          <span>💾</span>
+          缓存服务状态
+        </h3>
+        <span class="status-badge ${redisStatusClass}">
+          <span class="status-dot"></span>
+          ${redisStatusText}
+        </span>
       </div>
-
-      <div class="section">
-        <h2 class="section-title">环境变量列表</h2>
-        ${envVars.length > 0 
-          ? `<div class="env-grid">${envVars.map(key => `<div class="env-item">${key}</div>`).join("")}</div>`
-          : `<div class="empty-state">暂无环境变量配置</div>`
-        }
+      <div class="env-grid">
+        ${Object.entries(globals.accessedEnvVars)
+          .map(([key, value]) => {
+            let valueClass = '';
+            let displayValue = value;
+            
+            if (typeof value === 'boolean') {
+              valueClass = value ? 'boolean-true' : 'boolean-false';
+              displayValue = value ? '✓ 已启用' : '✗ 已禁用';
+            } else if (value === null || value === undefined) {
+              displayValue = '未设置';
+            } else if (typeof value === 'string' && value.length === 0) {
+              displayValue = '空';
+            } else if (typeof value === 'string' && value.length > 50) {
+              displayValue = value.substring(0, 50) + '...';
+            } else if (Array.isArray(value)) {
+              displayValue = `${value.length} 项`;
+            }
+            
+            return `
+              <div class="env-item">
+                <div class="env-key">${key}</div>
+                <div class="env-value ${valueClass}">${displayValue}</div>
+              </div>
+            `;
+          })
+          .join('')}
       </div>
     </div>
-
+    
+    <!-- 页脚 -->
     <div class="footer">
-      © ${new Date().getFullYear()} 个人环境配置面板
+      Made with <span class="footer-heart">♥</span> for Better Anime Experience
     </div>
   </div>
 </body>
-</html>`;
+</html>
+    `;
+    
+    return new Response(html, {
+      headers: {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'no-cache'
+      }
+    });
+  }
+
+  // GET /
+  if (path === "/" && method === "GET") {
+    return handleHomepage();
+  }
+
+  if (path === "/favicon.ico" || path === "/robots.txt") {
+    return new Response(null, { status: 204 });
+  }
+
+  // --- 校验 token ---
+  const parts = path.split("/").filter(Boolean); // 去掉空段
+  if (parts.length < 1 || parts[0] !== globals.token) {
+    log("error", `Invalid or missing token in path: ${path}`);
+    return jsonResponse(
+      { errorCode: 401, success: false, errorMessage: "Unauthorized" },
+      401
+    );
+  }
+  // 移除 token 部分,剩下的才是真正的路径
+  path = "/" + parts.slice(1).join("/");
+
+  log("info", path);
+
+  // 智能处理API路径前缀,确保最终有一个正确的 /api/v2
+  if (path !== "/" && path !== "/api/logs") {
+      log("info", `[Path Check] Starting path normalization for: "${path}"`);
+      const pathBeforeCleanup = path; // 保存清理前的路径检查是否修改
+
+      // 1. 清理:应对"用户填写/api/v2"+"客户端添加/api/v2"导致的重复前缀
+      while (path.startsWith('/api/v2/api/v2/')) {
+          log("info", `[Path Check] Found redundant /api/v2 prefix. Cleaning...`);
+          // 从第二个 /api/v2 的位置开始截取,相当于移除第一个
+          path = path.substring('/api/v2'.length);
+      }
+
+      // 打印日志:只有在发生清理时才显示清理后的路径,否则显示"无需清理"
+      if (path !== pathBeforeCleanup) {
+          log("info", `[Path Check] Path after cleanup: "${path}"`);
+      } else {
+          log("info", `[Path Check] Path after cleanup: No cleanup needed.`);
+      }
+
+      // 2. 补全:如果路径缺少前缀(例如请求原始路径为 /search/anime),则补全
+      const pathBeforePrefixCheck = path;
+      if (!path.startsWith('/api/v2') && path !== '/' && !path.startsWith('/api/logs')) {
+          log("info", `[Path Check] Path is missing /api/v2 prefix. Adding...`);
+          path = '/api/v2' + path;
+      }
+
+      // 打印日志:只有在发生添加前缀时才显示添加后的路径,否则显示"无需补全"
+      if (path === pathBeforePrefixCheck) {
+          log("info", `[Path Check] Prefix Check: No prefix addition needed.`);
+      }
+
+      log("info", `[Path Check] Final normalized path: "${path}"`);
+  }
+
+  // GET /
+  if (path === "/" && method === "GET") {
+    return handleHomepage();
+  }
+
+  // GET /api/v2/search/anime
+  if (path === "/api/v2/search/anime" && method === "GET") {
+    return searchAnime(url);
+  }
+
+  // GET /api/v2/search/episodes
+  if (path === "/api/v2/search/episodes" && method === "GET") {
+    return searchEpisodes(url);
+  }
+
+  // GET /api/v2/match
+  if (path === "/api/v2/match" && method === "POST") {
+    return matchAnime(url, req);
+  }
+
+  // GET /api/v2/bangumi/:animeId
+  if (path.startsWith("/api/v2/bangumi/") && method === "GET") {
+    return getBangumi(path);
+  }
+
+  // GET /api/v2/comment/:commentId or /api/v2/comment?url=xxx
+  if (path.startsWith("/api/v2/comment") && method === "GET") {
+    const queryFormat = url.searchParams.get('format');
+    const videoUrl = url.searchParams.get('url');
+
+    // ⚠️ 限流设计说明:
+    // 1. 先检查缓存,缓存命中时直接返回,不计入限流次数
+    // 2. 只有缓存未命中时才执行限流检查和网络请求
+    // 3. 这样可以避免频繁访问同一弹幕时被限流,提高用户体验
+
+    // 如果有url参数,则通过URL获取弹幕
+    if (videoUrl) {
+      // 先检查缓存
+      const cachedComments = getCommentCache(videoUrl);
+      if (cachedComments !== null) {
+        log("info", `[Rate Limit] Cache hit for URL: ${videoUrl}, skipping rate limit check`);
+        const responseData = { count: cachedComments.length, comments: cachedComments };
+        return formatDanmuResponse(responseData, queryFormat);
+      }
+
+      // 缓存未命中,执行限流检查(如果 rateLimitMaxRequests > 0 则启用限流)
+      if (globals.rateLimitMaxRequests > 0) {
+        const currentTime = Date.now();
+        const oneMinute = 60 * 1000;
+
+        // 清理所有过期的 IP 记录
+        cleanupExpiredIPs(currentTime);
+
+        // 检查该 IP 地址的历史请求
+        if (!globals.requestHistory.has(clientIp)) {
+          globals.requestHistory.set(clientIp, []);
+        }
+
+        const history = globals.requestHistory.get(clientIp);
+        const recentRequests = history.filter(timestamp => currentTime - timestamp <= oneMinute);
+
+        // 如果最近 1 分钟内的请求次数超过限制,返回 429 错误
+        if (recentRequests.length >= globals.rateLimitMaxRequests) {
+          log("warn", `[Rate Limit] IP ${clientIp} exceeded rate limit (${recentRequests.length}/${globals.rateLimitMaxRequests} requests in 1 minute)`);
+          return jsonResponse(
+            { errorCode: 429, success: false, errorMessage: "Too many requests, please try again later" },
+            429
+          );
+        }
+
+        // 记录本次请求时间戳
+        recentRequests.push(currentTime);
+        globals.requestHistory.set(clientIp, recentRequests);
+        log("info", `[Rate Limit] IP ${clientIp} request count: ${recentRequests.length}/${globals.rateLimitMaxRequests}`);
+      }
+
+      // 通过URL获取弹幕
+      return getCommentByUrl(videoUrl, queryFormat);
+    }
+
+    // 否则通过commentId获取弹幕
+    if (!path.startsWith("/api/v2/comment/")) {
+      log("error", "Missing commentId or url parameter");
+      return jsonResponse(
+        { errorCode: 400, success: false, errorMessage: "Missing commentId or url parameter" },
+        400
+      );
+    }
+
+    const commentId = parseInt(path.split("/").pop());
+    let urlForComment = findUrlById(commentId);
+
+    if (urlForComment) {
+      // 检查弹幕缓存 - 缓存命中时直接返回,不计入限流
+      const cachedComments = getCommentCache(urlForComment);
+      if (cachedComments !== null) {
+        log("info", `[Rate Limit] Cache hit for URL: ${urlForComment}, skipping rate limit check`);
+        const responseData = { count: cachedComments.length, comments: cachedComments };
+        return formatDanmuResponse(responseData, queryFormat);
+      }
+    }
+
+    // 缓存未命中,执行限流检查(如果 rateLimitMaxRequests > 0 则启用限流)
+    if (globals.rateLimitMaxRequests > 0) {
+      // 获取当前时间戳(单位:毫秒)
+      const currentTime = Date.now();
+      const oneMinute = 60 * 1000;  // 1分钟 = 60000 毫秒
+
+      // 清理所有过期的 IP 记录
+      cleanupExpiredIPs(currentTime);
+
+      // 检查该 IP 地址的历史请求
+      if (!globals.requestHistory.has(clientIp)) {
+        // 如果该 IP 地址没有请求历史,初始化一个空队列
+        globals.requestHistory.set(clientIp, []);
+      }
+
+      const history = globals.requestHistory.get(clientIp);
+
+      // 过滤掉已经超出 1 分钟的请求
+      const recentRequests = history.filter(timestamp => currentTime - timestamp <= oneMinute);
+
+      // 如果最近的请求数量大于等于配置的限制次数,则限制请求
+      if (recentRequests.length >= globals.rateLimitMaxRequests) {
+        log("warn", `[Rate Limit] IP ${clientIp} exceeded rate limit (${recentRequests.length}/${globals.rateLimitMaxRequests} requests in 1 minute)`);
+        return jsonResponse(
+          { errorCode: 429, success: false, errorMessage: "Too many requests, please try again later" },
+          429
+        );
+      }
+
+      // 记录本次请求时间戳
+      recentRequests.push(currentTime);
+      globals.requestHistory.set(clientIp, recentRequests);
+      log("info", `[Rate Limit] IP ${clientIp} request count: ${recentRequests.length}/${globals.rateLimitMaxRequests}`);
+    }
+
+    return getComment(path, queryFormat);
+  }
+
+  // GET /api/logs
+  if (path === "/api/logs" && method === "GET") {
+    const logText = globals.logBuffer
+      .map(
+        (log) =>
+          `[${log.timestamp}] ${log.level}: ${formatLogMessage(log.message)}`
+      )
+      .join("\n");
+    return new Response(logText, { headers: { "Content-Type": "text/plain; charset=utf-8" } });
+  }
+
+  return jsonResponse({ message: "Not found" }, 404);
 }
 
-// ==================== Cloudflare Workers 入口 ====================
+
+
+// --- Cloudflare Workers 入口 ---
 export default {
-  async fetch(request, env, ctx) {
-    const clientIp = request.headers.get('cf-connecting-ip') || 
-                     request.headers.get('x-forwarded-for') || 
-                     'unknown';
-    return handleRequest(request, env, "cloudflare", clientIp);
-  },
+ async fetch(request, env, ctx) {
+   // 获取客户端的真实 IP
+   const clientIp = request.headers.get('cf-connecting-ip') || request.headers.get('x-forwarded-for') || 'unknown';
+
+   return handleRequest(request, env, "cloudflare", clientIp);
+ },
 };
 
-// ==================== Vercel 入口 ====================
+// --- Vercel 入口 ---
 export async function vercelHandler(req, res) {
-  const clientIp = req.headers['x-forwarded-for'] || 
-                   req.connection.remoteAddress || 
-                   'unknown';
+ // 从请求头获取真实 IP
+ const clientIp = req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown';
 
-  const cfReq = new Request(req.url, {
-    method: req.method,
-    headers: req.headers,
-    body: req.method === "POST" || req.method === "PUT" 
-      ? JSON.stringify(req.body) 
-      : undefined,
-  });
+ const cfReq = new Request(req.url, {
+   method: req.method,
+   headers: req.headers,
+   body:
+     req.method === "POST" || req.method === "PUT"
+       ? JSON.stringify(req.body)
+       : undefined,
+ });
 
-  const response = await handleRequest(cfReq, process.env, "vercel", clientIp);
-  
-  res.status(response.status);
-  response.headers.forEach((value, key) => res.setHeader(key, value));
-  res.send(await response.text());
+ const response = await handleRequest(cfReq, process.env, "vercel", clientIp);
+
+ res.status(response.status);
+ response.headers.forEach((value, key) => res.setHeader(key, value));
+ const text = await response.text();
+ res.send(text);
 }
 
-// ==================== Netlify 入口 ====================
+// --- Netlify 入口 ---
 export async function netlifyHandler(event, context) {
-  const clientIp = event.headers['x-nf-client-connection-ip'] ||
-                   event.headers['x-forwarded-for'] ||
-                   context.ip ||
-                   'unknown';
+ // 获取客户端 IP
+ const clientIp = event.headers['x-nf-client-connection-ip'] ||
+                  event.headers['x-forwarded-for'] ||
+                  context.ip ||
+                  'unknown';
 
-  const url = event.rawUrl || `https://${event.headers.host}${event.path}`;
-  const request = new Request(url, {
-    method: event.httpMethod,
-    headers: new Headers(event.headers),
-    body: event.body || undefined,
-  });
+ // 构造标准 Request 对象
+ const url = event.rawUrl || `https://${event.headers.host}${event.path}`;
 
-  const response = await handleRequest(request, process.env, "netlify", clientIp);
+ const request = new Request(url, {
+   method: event.httpMethod,
+   headers: new Headers(event.headers),
+   body: event.body ? event.body : undefined,
+ });
 
-  const headers = {};
-  response.headers.forEach((value, key) => {
-    headers[key] = value;
-  });
+ // 调用核心处理函数
+ const response = await handleRequest(request, process.env, "netlify", clientIp);
 
-  return {
-    statusCode: response.status,
-    headers,
-    body: await response.text(),
-  };
+ // 转换为 Netlify 响应格式
+ const headers = {};
+ response.headers.forEach((value, key) => {
+   headers[key] = value;
+ });
+
+ return {
+   statusCode: response.status,
+   headers,
+   body: await response.text(),
+ };
 }
 
-// 导出核心函数供测试使用
-export { handleRequest };
-
+// 为了测试导出 handleRequest
+export { handleRequest};
