@@ -29,6 +29,15 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
   function handleHomepage() {
     log("info", "Accessed homepage with repository information");
     
+    // 检查 Redis 配置是否存在
+    const redisConfigured = !!(globals.redisUrl && globals.redisToken);
+    const redisStatusText = redisConfigured 
+      ? (globals.redisValid ? '已连接' : '已配置未连接') 
+      : '未配置';
+    const redisStatusClass = redisConfigured 
+      ? (globals.redisValid ? 'status-online' : 'status-warning')
+      : 'status-offline';
+    
     const html = `
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -44,194 +53,496 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
         }
         
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', 'PingFang SC', 'Hiragino Sans GB', Arial, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            padding: 20px;
+            padding: 15px;
             color: #333;
+            line-height: 1.6;
         }
         
         .container {
             max-width: 1200px;
             margin: 0 auto;
+            animation: fadeIn 0.6s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
         
         .header {
             background: white;
-            border-radius: 12px;
+            border-radius: 16px;
             padding: 30px;
             margin-bottom: 20px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .header-top {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 20px;
         }
         
         .header h1 {
             color: #667eea;
-            margin-bottom: 10px;
-            font-size: 2em;
+            font-size: 1.8em;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .emoji {
+            font-size: 1.2em;
         }
         
         .version {
-            display: inline-block;
-            background: #667eea;
+            display: inline-flex;
+            align-items: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 4px 12px;
-            border-radius: 16px;
-            font-size: 0.9em;
-            margin-bottom: 15px;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
         }
         
         .description {
             color: #666;
-            line-height: 1.6;
-            margin-bottom: 15px;
+            line-height: 1.8;
+            margin-bottom: 20px;
+            font-size: 0.95em;
         }
         
         .links {
-            margin-top: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 20px;
         }
         
         .links a {
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 18px;
+            background: #f8f9fa;
             color: #667eea;
             text-decoration: none;
-            margin-right: 20px;
+            border-radius: 10px;
             font-weight: 500;
-            transition: color 0.3s;
+            font-size: 0.9em;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
         }
         
         .links a:hover {
-            color: #764ba2;
-            text-decoration: underline;
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
         }
         
         .card {
             background: white;
-            border-radius: 12px;
+            border-radius: 16px;
             padding: 25px;
             margin-bottom: 20px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            animation: fadeIn 0.6s ease-in;
+            animation-delay: 0.2s;
+            animation-fill-mode: both;
+        }
+        
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
         }
         
         .card h2 {
             color: #667eea;
-            margin-bottom: 20px;
-            font-size: 1.5em;
-            border-bottom: 2px solid #f0f0f0;
-            padding-bottom: 10px;
-        }
-        
-        .env-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 15px;
-        }
-        
-        .env-item {
-            background: #f8f9fa;
-            border-radius: 8px;
-            padding: 15px;
-            border-left: 4px solid #667eea;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        
-        .env-item:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-        
-        .env-key {
+            font-size: 1.4em;
             font-weight: 600;
-            color: #667eea;
-            margin-bottom: 8px;
-            font-size: 0.95em;
-            word-break: break-word;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
         
-        .env-value {
-            color: #333;
-            font-family: 'Courier New', monospace;
-            background: white;
-            padding: 8px 12px;
-            border-radius: 4px;
-            word-break: break-all;
-            font-size: 0.9em;
-        }
-        
-        .env-value.boolean-true {
-            color: #28a745;
-        }
-        
-        .env-value.boolean-false {
-            color: #dc3545;
-        }
-        
-        .notice {
-            background: #fff3cd;
-            border-left: 4px solid #ffc107;
-            padding: 15px;
-            border-radius: 8px;
-            color: #856404;
-            line-height: 1.6;
+        .status-badges {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
         }
         
         .status-badge {
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 20px;
             font-size: 0.85em;
             font-weight: 600;
-            margin-left: 10px;
+            white-space: nowrap;
         }
         
         .status-online {
             background: #d4edda;
             color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status-online::before {
+            content: '●';
+            color: #28a745;
+            font-size: 1.2em;
+        }
+        
+        .status-warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        
+        .status-warning::before {
+            content: '●';
+            color: #ffc107;
+            font-size: 1.2em;
         }
         
         .status-offline {
             background: #f8d7da;
             color: #721c24;
+            border: 1px solid #f5c6cb;
         }
         
+        .status-offline::before {
+            content: '●';
+            color: #dc3545;
+            font-size: 1.2em;
+        }
+        
+        .env-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 15px;
+        }
+        
+        .env-item {
+            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+            border-radius: 12px;
+            padding: 16px;
+            border-left: 4px solid #667eea;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .env-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .env-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.15);
+        }
+        
+        .env-item:hover::before {
+            opacity: 1;
+        }
+        
+        .env-key {
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+            word-break: break-word;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .env-key::before {
+            content: '▸';
+            color: #764ba2;
+            font-weight: bold;
+        }
+        
+        .env-value {
+            color: #333;
+            font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
+            background: white;
+            padding: 10px 14px;
+            border-radius: 8px;
+            word-break: break-all;
+            font-size: 0.88em;
+            border: 1px solid #e9ecef;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+        
+        .env-value.boolean-true {
+            color: #28a745;
+            font-weight: 600;
+        }
+        
+        .env-value.boolean-false {
+            color: #dc3545;
+            font-weight: 600;
+        }
+        
+        .notice {
+            background: linear-gradient(135deg, #fff3cd 0%, #fffbea 100%);
+            border-left: 4px solid #ffc107;
+            padding: 20px;
+            border-radius: 12px;
+            color: #856404;
+            line-height: 1.8;
+            box-shadow: 0 2px 8px rgba(255, 193, 7, 0.1);
+        }
+        
+        .notice strong {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 1.05em;
+            margin-bottom: 10px;
+            color: #856404;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            border: 2px solid #e9ecef;
+            transition: all 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+            border-color: #667eea;
+        }
+        
+        .stat-number {
+            font-size: 2em;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: white;
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+        
+        .footer a {
+            color: white;
+            text-decoration: underline;
+        }
+        
+        /* 响应式设计 */
         @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .header {
+                padding: 20px;
+            }
+            
+            .header h1 {
+                font-size: 1.4em;
+            }
+            
+            .card {
+                padding: 20px;
+            }
+            
+            .card h2 {
+                font-size: 1.2em;
+            }
+            
             .env-grid {
                 grid-template-columns: 1fr;
             }
             
-            .header h1 {
-                font-size: 1.5em;
+            .links {
+                flex-direction: column;
             }
             
             .links a {
-                display: block;
-                margin: 10px 0;
+                width: 100%;
+                justify-content: center;
             }
+            
+            .card-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .status-badges {
+                width: 100%;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 1.2em;
+            }
+            
+            .version {
+                font-size: 0.75em;
+                padding: 5px 12px;
+            }
+            
+            .description {
+                font-size: 0.9em;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .stat-number {
+                font-size: 1.6em;
+            }
+        }
+        
+        /* 滚动条美化 */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.5);
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🎬 LogVar Danmu API Server</h1>
-            <span class="version">v${globals.VERSION}</span>
+            <div class="header-top">
+                <h1><span class="emoji">🎬</span> LogVar Danmu API</h1>
+                <span class="version">v${globals.VERSION}</span>
+            </div>
             <p class="description">
-                一个人人都能部署的基于 js 的弹幕 API 服务器,支持爱优腾芒哔人韩巴弹幕直接获取,兼容弹弹play的搜索、详情查询和弹幕获取接口规范,并提供日志记录,支持vercel/netlify/edgeone/cloudflare/docker/claw等部署方式,不用提前下载弹幕,没有nas或小鸡也能一键部署。
+                一个人人都能部署的基于 JavaScript 的弹幕 API 服务器，支持爱优腾芒哔人韩巴弹幕直接获取，兼容弹弹play的搜索、详情查询和弹幕获取接口规范，并提供日志记录，支持 Vercel/Netlify/EdgeOne/Cloudflare/Docker/Claw 等部署方式。
             </p>
             <div class="links">
-                <a href="https://github.com/huangxd-/danmu_api.git" target="_blank">📦 GitHub 仓库</a>
-                <a href="https://t.me/ddjdd_bot" target="_blank">🤖 TG 机器人</a>
-                <a href="https://t.me/logvar_danmu_group" target="_blank">👥 TG 互助群</a>
-                <a href="https://t.me/logvar_danmu_channel" target="_blank">📢 TG 频道</a>
+                <a href="https://github.com/huangxd-/danmu_api.git" target="_blank">
+                    📦 GitHub 仓库
+                </a>
+                <a href="https://t.me/ddjdd_bot" target="_blank">
+                    🤖 TG 机器人
+                </a>
+                <a href="https://t.me/logvar_danmu_group" target="_blank">
+                    👥 TG 互助群
+                </a>
+                <a href="https://t.me/logvar_danmu_channel" target="_blank">
+                    📢 TG 频道
+                </a>
             </div>
         </div>
         
         <div class="card">
-            <h2>
-                ⚙️ 环境变量配置
-                <span class="status-badge ${globals.redisValid ? 'status-online' : 'status-offline'}">
-                    Redis: ${globals.redisValid ? '已连接' : '未连接'}
-                </span>
-            </h2>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number">${Object.keys(globals.accessedEnvVars).length}</div>
+                    <div class="stat-label">环境变量</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${globals.vodServers.length}</div>
+                    <div class="stat-label">VOD 服务器</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${globals.sourceOrderArr.length}</div>
+                    <div class="stat-label">数据源</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${redisConfigured ? (globals.redisValid ? '✓' : '✗') : '-'}</div>
+                    <div class="stat-label">Redis 状态</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h2><span class="emoji">⚙️</span> 环境变量配置</h2>
+                <div class="status-badges">
+                    <span class="status-badge ${redisStatusClass}">
+                        Redis ${redisStatusText}
+                    </span>
+                </div>
+            </div>
             <div class="env-grid">
                 ${Object.entries(globals.accessedEnvVars)
                   .map(([key, value]) => {
@@ -242,9 +553,13 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
                       valueClass = value ? 'boolean-true' : 'boolean-false';
                       displayValue = value ? '✓ true' : '✗ false';
                     } else if (value === null || value === undefined) {
-                      displayValue = 'null';
+                      displayValue = '(未设置)';
+                    } else if (typeof value === 'string' && value.length === 0) {
+                      displayValue = '(空字符串)';
                     } else if (typeof value === 'string' && value.length > 50) {
                       displayValue = value.substring(0, 50) + '...';
+                    } else if (Array.isArray(value)) {
+                      displayValue = `[${value.length} 项]`;
                     }
                     
                     return `
@@ -260,8 +575,16 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
         
         <div class="card">
             <div class="notice">
-                <strong>⚠️ 免责声明:</strong> 本项目仅为个人爱好开发,代码开源。如有任何侵权行为,请联系本人删除。有问题提issue或私信机器人都ok。推荐加互助群咨询,关注频道获取最新更新内容。
+                <strong>⚠️ 免责声明</strong>
+                <div>
+                    本项目仅为个人爱好开发，代码开源。如有任何侵权行为，请联系本人删除。有问题可以提 Issue 或私信机器人，推荐加入互助群咨询，关注频道获取最新更新内容。
+                </div>
             </div>
+        </div>
+        
+        <div class="footer">
+            Made with ❤️ by LogVar Community | 
+            <a href="https://github.com/huangxd-/danmu_api.git" target="_blank">Open Source</a>
         </div>
     </div>
 </body>
@@ -487,69 +810,71 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
   return jsonResponse({ message: "Not found" }, 404);
 }
 
+
+
 // --- Cloudflare Workers 入口 ---
 export default {
-  async fetch(request, env, ctx) {
-    // 获取客户端的真实 IP
-    const clientIp = request.headers.get('cf-connecting-ip') || request.headers.get('x-forwarded-for') || 'unknown';
+ async fetch(request, env, ctx) {
+   // 获取客户端的真实 IP
+   const clientIp = request.headers.get('cf-connecting-ip') || request.headers.get('x-forwarded-for') || 'unknown';
 
-    return handleRequest(request, env, "cloudflare", clientIp);
-  },
+   return handleRequest(request, env, "cloudflare", clientIp);
+ },
 };
 
 // --- Vercel 入口 ---
 export async function vercelHandler(req, res) {
-  // 从请求头获取真实 IP
-  const clientIp = req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown';
+ // 从请求头获取真实 IP
+ const clientIp = req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown';
 
-  const cfReq = new Request(req.url, {
-    method: req.method,
-    headers: req.headers,
-    body:
-      req.method === "POST" || req.method === "PUT"
-        ? JSON.stringify(req.body)
-        : undefined,
-  });
+ const cfReq = new Request(req.url, {
+   method: req.method,
+   headers: req.headers,
+   body:
+     req.method === "POST" || req.method === "PUT"
+       ? JSON.stringify(req.body)
+       : undefined,
+ });
 
-  const response = await handleRequest(cfReq, process.env, "vercel", clientIp);
+ const response = await handleRequest(cfReq, process.env, "vercel", clientIp);
 
-  res.status(response.status);
-  response.headers.forEach((value, key) => res.setHeader(key, value));
-  const text = await response.text();
-  res.send(text);
+ res.status(response.status);
+ response.headers.forEach((value, key) => res.setHeader(key, value));
+ const text = await response.text();
+ res.send(text);
 }
 
 // --- Netlify 入口 ---
 export async function netlifyHandler(event, context) {
-  // 获取客户端 IP
-  const clientIp = event.headers['x-nf-client-connection-ip'] ||
-                   event.headers['x-forwarded-for'] ||
-                   context.ip ||
-                   'unknown';
+ // 获取客户端 IP
+ const clientIp = event.headers['x-nf-client-connection-ip'] ||
+                  event.headers['x-forwarded-for'] ||
+                  context.ip ||
+                  'unknown';
 
-  // 构造标准 Request 对象
-  const url = event.rawUrl || `https://${event.headers.host}${event.path}`;
+ // 构造标准 Request 对象
+ const url = event.rawUrl || `https://${event.headers.host}${event.path}`;
 
-  const request = new Request(url, {
-    method: event.httpMethod,
-    headers: new Headers(event.headers),
-    body: event.body ? event.body : undefined,
-  });
+ const request = new Request(url, {
+   method: event.httpMethod,
+   headers: new Headers(event.headers),
+   body: event.body ? event.body : undefined,
+ });
 
-  // 调用核心处理函数
-  const response = await handleRequest(request, process.env, "netlify", clientIp);
+ // 调用核心处理函数
+ const response = await handleRequest(request, process.env, "netlify", clientIp);
 
-  // 转换为 Netlify 响应格式
-  const headers = {};
-  response.headers.forEach((value, key) => {
-    headers[key] = value;
-  });
+ // 转换为 Netlify 响应格式
+ const headers = {};
+ response.headers.forEach((value, key) => {
+   headers[key] = value;
+ });
 
-  return {
-    statusCode: response.status,
-    headers,
-    body: await response.text(),
-  };
+ return {
+   statusCode: response.status,
+   headers,
+   body: await response.text(),
+ };
 }
 
 // 为了测试导出 handleRequest
