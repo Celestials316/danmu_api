@@ -480,7 +480,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
     }
     
     .env-value.sensitive::after {
-      content: '👁️';
+      content: '🙈';
       position: absolute;
       right: 8px;
       top: 50%;
@@ -495,7 +495,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
     }
     
     .env-value.sensitive.revealed::after {
-      content: '🙈';
+      content: '👁️';
       opacity: 0.8;
     }
     
