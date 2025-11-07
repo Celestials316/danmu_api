@@ -70,6 +70,42 @@ function isSensitiveKey(key) {
     key.toLowerCase().includes('cookie');
 }
 
+/**
+ * 获取环境变量的真实值（未加密）
+ * @param {string} key 环境变量键名
+ * @returns {any} 真实值
+ */
+function getRealEnvValue(key) {
+  // 映射显示键名到实际存储键名
+  const keyMapping = {
+    'redisUrl': 'UPSTASH_REDIS_REST_URL',
+    'redisToken': 'UPSTASH_REDIS_REST_TOKEN',
+    'bilibliCookie': 'BILIBILI_COOKIE',
+    'tmdbApiKey': 'TMDB_API_KEY',
+    'proxyUrl': 'PROXY_URL',
+    'token': 'TOKEN'
+  };
+
+  const actualKey = keyMapping[key] || key;
+
+  // 优先从 globals.envs 获取（存储的是原始值）
+  if (globals.envs && actualKey in globals.envs) {
+    return globals.envs[actualKey];
+  }
+
+  // 其次从环境变量获取
+  if (typeof process !== 'undefined' && process.env?.[actualKey]) {
+    return process.env[actualKey];
+  }
+
+  // 最后从 Globals 本身获取
+  if (actualKey in Globals) {
+    return Globals[actualKey];
+  }
+
+  return globals.accessedEnvVars[key];
+}
+
 async function handleRequest(req, env, deployPlatform, clientIp) {
   // 加载全局变量和环境变量配置
   globals = Globals.init(env, deployPlatform);
@@ -640,14 +676,17 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
             } else if (typeof value === 'string' && value.length === 0) {
               displayValue = '空';
             } else if (isSensitive && typeof value === 'string' && value.length > 0) {
-              // 敏感信息的处理 - 修复转义问题
-              const maskedValue = '•'.repeat(Math.min(value.length, 32));
-              // 使用 HTML 实体编码来保存真实值，避免被转义
-              const encodedRealValue = value.replace(/&/g, '&amp;')
-                                            .replace(/</g, '&lt;')
-                                            .replace(/>/g, '&gt;')
-                                            .replace(/"/g, '&quot;')
-                                            .replace(/'/g, '&#39;');
+              // 敏感信息的处理
+              const realValue = getRealEnvValue(key);
+              const maskedValue = '•'.repeat(Math.min(String(realValue).length, 32));
+              
+              // 使用 HTML 实体编码来保存真实值
+              const encodedRealValue = String(realValue)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
               
               return `
                 <div class="env-item">
@@ -708,6 +747,17 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       const isRevealed = element.classList.contains('revealed');
       
       if (isRevealed) {
+        // 当前是显示状态，切换回隐藏
+        element.textContent = maskedValue;
+        element.classList.remove('revealed');
+        element.title = '点击查看真实值（3秒后自动隐藏）';
+        
+        // 清除定时器（如果存在）
+        if (element.hideTimer) {
+          clearTimeout(element.hideTimer);
+          delete element.hideTimer;
+        }
+      } else {
         // 当前是显示状态，切换回隐藏
         element.textContent = maskedValue;
         element.classList.remove('revealed');
