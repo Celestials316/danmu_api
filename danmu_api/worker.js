@@ -640,8 +640,15 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
             } else if (typeof value === 'string' && value.length === 0) {
               displayValue = '空';
             } else if (isSensitive && typeof value === 'string' && value.length > 0) {
-              // 敏感信息的处理
+              // 敏感信息的处理 - 修复转义问题
               const maskedValue = '•'.repeat(Math.min(value.length, 32));
+              // 使用 HTML 实体编码来保存真实值，避免被转义
+              const encodedRealValue = value.replace(/&/g, '&amp;')
+                                            .replace(/</g, '&lt;')
+                                            .replace(/>/g, '&gt;')
+                                            .replace(/"/g, '&quot;')
+                                            .replace(/'/g, '&#39;');
+              
               return `
                 <div class="env-item">
                   <div class="env-key-wrapper">
@@ -652,7 +659,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
                     </div>
                   </div>
                   <div class="env-value sensitive" 
-                       data-real="${value}" 
+                       data-real="${encodedRealValue}" 
                        data-masked="${maskedValue}"
                        onclick="toggleSensitiveValue(this)"
                        title="点击查看真实值（3秒后自动隐藏）">${maskedValue}</div>
@@ -693,7 +700,10 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
      * @param {HTMLElement} element 被点击的环境变量值元素
      */
     function toggleSensitiveValue(element) {
-      const realValue = element.dataset.real;
+      // 解码HTML实体
+      const textarea = document.createElement('textarea');
+      textarea.innerHTML = element.dataset.real;
+      const realValue = textarea.value;
       const maskedValue = element.dataset.masked;
       const isRevealed = element.classList.contains('revealed');
       
