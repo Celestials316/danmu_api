@@ -1,4 +1,5 @@
 import { Envs } from './envs.js';
+import { initMySQLPool, checkMySQLConnection } from '../utils/mysql-util.js';
 
 /**
  * 全局变量管理模块
@@ -22,6 +23,7 @@ export const Globals = {
   logBuffer: [],
   requestHistory: new Map(), // 记录每个 IP 地址的请求历史
   redisValid: false, // redis是否生效
+  mysqlValid: false, // MySQL是否生效
   redisCacheInitialized: false, // redis 缓存是否已初始化
   lastSelectMap: new Map(), // 存储查询关键字上次选择的animeId，用于下次match自动匹配时优先选择该anime
   lastHashes: { // 存储上一次各变量哈希值
@@ -37,18 +39,33 @@ export const Globals = {
    * 初始化全局变量，加载环境变量依赖
    * @param {Object} env 环境对象
    * @param {string} deployPlatform 部署平台
-   * @returns {Object} 全局配置对象
+   * @returns {Promise<Object>} 全局配置对象
    */
-  init(env = {}, deployPlatform = 'node') {
-    this.envs = Envs.load(env, deployPlatform);
+  async init(env = {}, deployPlatform = 'node') {
+    // 加载环境变量（异步，支持从 MySQL 加载）
+    this.envs = await Envs.load(env, deployPlatform);
+    
+    // 尝试初始化 MySQL 连接
+    if (this.envs.MYSQL_HOST && this.envs.MYSQL_USER && this.envs.MYSQL_PASSWORD) {
+      try {
+        await initMySQLPool({
+          MYSQL_HOST: this.envs.MYSQL_HOST,
+          MYSQL_PORT: this.envs.MYSQL_PORT,
+          MYSQL_USER: this.envs.MYSQL_USER,
+          MYSQL_PASSWORD: this.envs.MYSQL_PASSWORD,
+          MYSQL_DATABASE: this.envs.MYSQL_DATABASE
+        });
+        this.mysqlValid = await checkMySQLConnection();
+      } catch (error) {
+        console.error('[Globals] MySQL initialization failed:', error.message);
+        this.mysqlValid = false;
+      }
+    }
+    
     this.accessedEnvVars = Object.fromEntries(Envs.getAccessedEnvVars());
     return this.getConfig();
   },
 
-  /**
-   * 获取全局配置快照
-   * @returns {Object} 当前全局配置
-   */
   /**
    * 获取全局配置对象（单例，可修改）
    * @returns {Object} 全局配置对象本身
