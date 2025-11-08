@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "A danmu Node.js Express API server",
   "main": "danmu_api/server.js",
-  "type": "commonjs",  // 改为 commonjs
+  "type": "commonjs",  
   "scripts": {
     "start": "node danmu_api/server.js"
   },
