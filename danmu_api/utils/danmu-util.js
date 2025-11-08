@@ -69,6 +69,37 @@ export function groupDanmusByMinute(filteredDanmus, n) {
   return result.flat().sort((a, b) => a.t - b.t);
 }
 
+/**
+ * 等间隔采样限制弹幕数量
+ * @param {Array} danmus 弹幕数组
+ * @param {number} limit 限制数量
+ * @returns {Array} 限制后的弹幕数组
+ */
+export function limitDanmusEvenly(danmus, limit) {
+  if (!danmus || danmus.length === 0 || limit <= 0) {
+    return danmus;
+  }
+  
+  // 如果弹幕数量小于等于限制，直接返回
+  if (danmus.length <= limit) {
+    return danmus;
+  }
+  
+  // 计算采样间隔
+  const interval = danmus.length / limit;
+  const result = [];
+  
+  // 等间隔采样
+  for (let i = 0; i < limit; i++) {
+    const index = Math.floor(i * interval);
+    result.push(danmus[index]);
+  }
+  
+  log("info", `[Danmu Limit] Original: ${danmus.length}, Limited: ${result.length}, Interval: ${interval.toFixed(2)}`);
+  
+  return result;
+}
+
 export function convertToDanmakuJson(contents, platform) {
   let danmus = [];
   let cidCounter = 1;
@@ -300,9 +331,18 @@ export function convertToDanmakuJson(contents, platform) {
   log("info", `danmus_original: ${danmus.length}`);
   log("info", `danmus_filter: ${filteredDanmus.length}`);
   log("info", `danmus_group: ${groupedDanmus.length}`);
+  
+  // ========== 新增：弹幕数量限制逻辑 ==========
+  let finalDanmus = convertedDanmus;
+  
+  if (globals.danmuLimit > 0 && convertedDanmus.length > globals.danmuLimit) {
+    finalDanmus = limitDanmusEvenly(convertedDanmus, globals.danmuLimit);
+    log("info", `danmus_limited: ${finalDanmus.length} (from ${convertedDanmus.length})`);
+  }
+  
   // 输出前五条弹幕
-  log("info", "Top 5 danmus:", JSON.stringify(convertedDanmus.slice(0, 5), null, 2));
-  return convertedDanmus;
+  log("info", "Top 5 danmus:", JSON.stringify(finalDanmus.slice(0, 5), null, 2));
+  return finalDanmus;
 }
 
 // RGB 转整数的函数
