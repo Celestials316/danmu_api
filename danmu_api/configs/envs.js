@@ -209,6 +209,7 @@ export class Envs {
       strictTitleMatch: this.get('STRICT_TITLE_MATCH', false, 'boolean'), // 严格标题匹配模式配置(默认 false,宽松模糊匹配)
       rememberLastSelect: this.get('REMEMBER_LAST_SELECT', true, 'boolean'), // 是否记住手动选择结果,用于match自动匹配时优选上次的选择(默认 true,记住)
       MAX_LAST_SELECT_MAP: this.get('MAX_LAST_SELECT_MAP', 100, 'number'), // 记住上次选择映射缓存大小限制(默认 100)
+      danmuLimit: this.get('DANMU_LIMIT', -1, 'number'), // 弹幕数量限制(默认 -1,表示不限制,>0表示限制数量)
     };
   }
 }
