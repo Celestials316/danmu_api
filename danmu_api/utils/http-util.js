@@ -1,76 +1,6 @@
 import { globals } from '../configs/globals.js';
 import { log } from './log-util.js'
 
-// 动态导入 socks-proxy-agent（仅在 Node.js 环境）
-let SocksProxyAgent;
-if (typeof process !== 'undefined' && process.versions && process.versions.node) {
-  try {
-    const module = await import('socks-proxy-agent');
-    SocksProxyAgent = module.SocksProxyAgent;
-  } catch (e) {
-    log("warn", "[HTTP工具] socks-proxy-agent 未安装，SOCKS5代理功能不可用");
-  }
-}
-
-// =====================
-// 代理配置解析
-// =====================
-
-/**
- * 判断 URL 是否需要使用代理
- * @param {string} url 请求的 URL
- * @returns {boolean} 是否需要代理
- */
-function shouldUseProxy(url) {
-  if (!url) return false;
-  
-  // 巴哈姆特域名
-  if (url.includes('gamer.com.tw') || url.includes('bahamut')) {
-    return true;
-  }
-  
-  // TMDB 域名
-  if (url.includes('themoviedb.org') || url.includes('tmdb')) {
-    return true;
-  }
-  
-  return false;
-}
-
-/**
- * 解析并创建代理 Agent（仅对特定域名生效）
- * @param {string} url 请求的 URL
- * @returns {Object|null} 返回 SOCKS5 Agent 或 null
- */
-function createProxyAgent(url) {
-  // 检查是否需要代理
-  if (!shouldUseProxy(url)) {
-    return null;
-  }
-
-  const socksProxy = globals.socksProxy;
-  
-  if (!socksProxy || socksProxy.trim() === '') {
-    return null;
-  }
-
-  // 仅在 Node.js 环境且有 SocksProxyAgent 时才创建代理
-  if (typeof process === 'undefined' || !SocksProxyAgent) {
-    log("warn", "[HTTP工具] 当前环境不支持 SOCKS5 代理");
-    return null;
-  }
-
-  try {
-    // 隐藏密码信息
-    const maskedProxy = socksProxy.replace(/:[^:]*@/, ':****@');
-    log("info", `[HTTP工具] 使用 SOCKS5 代理: ${maskedProxy}`);
-    return new SocksProxyAgent(socksProxy);
-  } catch (error) {
-    log("error", `[HTTP工具] 创建 SOCKS5 代理失败: ${error.message}`);
-    return null;
-  }
-}
-
 // =====================
 // 请求工具方法
 // =====================
@@ -85,23 +15,13 @@ export async function httpGet(url, options = {}) {
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
   try {
-    // 根据 URL 判断是否需要创建代理 Agent
-    const agent = createProxyAgent(url);
-    
-    const fetchOptions = {
+    const response = await fetch(url, {
       method: 'GET',
       headers: {
         ...options.headers,
       },
       signal: controller.signal
-    };
-
-    // 如果有代理 agent，添加到 fetch 选项中
-    if (agent) {
-      fetchOptions.agent = agent;
-    }
-
-    const response = await fetch(url, fetchOptions);
+    });
 
     clearTimeout(timeoutId);
 
@@ -215,10 +135,6 @@ export async function httpPost(url, body, options = {}) {
 
   // 处理请求头、body 和其他参数
   const { headers = {}, params, allow_redirects = true } = options;
-  
-  // 根据 URL 判断是否需要创建代理 Agent
-  const agent = createProxyAgent(url);
-  
   const fetchOptions = {
     method: 'POST',
     headers: {
@@ -226,11 +142,6 @@ export async function httpPost(url, body, options = {}) {
     },
     body: body
   };
-
-  // 如果有代理 agent，添加到 fetch 选项中
-  if (agent) {
-    fetchOptions.agent = agent;
-  }
 
   if (!allow_redirects) {
     fetchOptions.redirect = 'manual';  // 禁止重定向
