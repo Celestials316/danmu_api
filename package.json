@@ -14,7 +14,6 @@
     "esbuild": "^0.25.10",
     "https-proxy-agent": "^7.0.6",
     "js-yaml": "^4.1.0",
-    "node-fetch": "^3.3.2",
-    "socks-proxy-agent": "^8.0.4"
+    "node-fetch": "^3.3.2"
   }
 }
