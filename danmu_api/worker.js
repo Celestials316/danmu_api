@@ -5,7 +5,6 @@ import { getRedisCaches, judgeRedisValid } from "./utils/redis-util.js";
 import { cleanupExpiredIPs, findUrlById, getCommentCache } from "./utils/cache-util.js";
 import { formatDanmuResponse } from "./utils/danmu-util.js";
 import { getBangumi, getComment, getCommentByUrl, matchAnime, searchAnime, searchEpisodes } from "./apis/dandan-api.js";
-import { saveConfigs, checkMySQLConnection } from "./utils/mysql-util.js";
 
 let globals;
 
@@ -135,18 +134,6 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
     const redisStatusClass = redisConfigured 
       ? (globals.redisValid ? 'status-online' : 'status-warning')
       : 'status-offline';
-
-    // MySQL 状态 - 添加安全检查
-    const mysqlConfigured = !!(globals.envs && globals.envs.MYSQL_HOST && globals.envs.MYSQL_USER);
-    const mysqlStatusText = mysqlConfigured 
-      ? (globals.mysqlValid ? '已连接' : '已配置未连接') 
-      : '未配置';
-    const mysqlStatusClass = mysqlConfigured 
-      ? (globals.mysqlValid ? 'status-online' : 'status-warning')
-      : 'status-offline';
-
-    // 确保 accessedEnvVars 存在
-    const accessedEnvVars = globals.accessedEnvVars || {};
 
     const html = `
 <!DOCTYPE html>
@@ -865,262 +852,9 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       background: #f9fafb;
     }
     /* --- END: 亮色模式 --- */
-
-    /* 编辑按钮样式 */
-    .edit-config-btn {
-      position: fixed;
-      bottom: 30px;
-      right: 30px;
-      width: 60px;
-      height: 60px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      border-radius: 50%;
-      border: none;
-      color: white;
-      font-size: 1.5em;
-      cursor: pointer;
-      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-      transition: all 0.3s ease;
-      z-index: 1000;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .edit-config-btn:hover {
-      transform: scale(1.1);
-      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
-    }
-
-    .edit-config-btn:active {
-      transform: scale(0.95);
-    }
-
-    /* 模态框样式 */
-    .modal {
-      display: none;
-      position: fixed;
-      z-index: 2000;
-      left: 0;
-      top: 0;
-      width: 100%;
-      height: 100%;
-      background-color: rgba(0, 0, 0, 0.7);
-      backdrop-filter: blur(5px);
-      animation: fadeIn 0.3s ease;
-    }
-
-    .modal.active {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .modal-content {
-      background: rgba(255, 255, 255, 0.95);
-      border-radius: 16px;
-      padding: 30px;
-      max-width: 800px;
-      width: 90%;
-      max-height: 80vh;
-      overflow-y: auto;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-      animation: slideUp 0.3s ease;
-    }
-
-    body.light-mode .modal-content {
-      background: #ffffff;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-
-    @keyframes slideUp {
-      from {
-        transform: translateY(50px);
-        opacity: 0;
-      }
-      to {
-        transform: translateY(0);
-        opacity: 1;
-      }
-    }
-
-    .modal-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-      padding-bottom: 15px;
-      border-bottom: 2px solid rgba(102, 126, 234, 0.2);
-    }
-
-    .modal-title {
-      font-size: 1.5em;
-      font-weight: 700;
-      color: #1f2937;
-    }
-
-    .close-btn {
-      background: none;
-      border: none;
-      font-size: 1.5em;
-      color: #6b7280;
-      cursor: pointer;
-      width: 40px;
-      height: 40px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 50%;
-      transition: all 0.3s ease;
-    }
-
-    .close-btn:hover {
-      background: rgba(239, 68, 68, 0.1);
-      color: #ef4444;
-    }
-
-    .config-form {
-      display: grid;
-      gap: 20px;
-    }
-
-    .form-group {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .form-label {
-      font-size: 0.9em;
-      font-weight: 600;
-      color: #374151;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .form-input {
-      padding: 12px;
-      border: 2px solid #e5e7eb;
-      border-radius: 8px;
-      font-size: 0.95em;
-      font-family: 'Courier New', monospace;
-      transition: all 0.3s ease;
-      color: #1f2937;
-      background: #f9fafb;
-    }
-
-    .form-input:focus {
-      outline: none;
-      border-color: #667eea;
-      background: white;
-      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-    }
-
-    .form-input.sensitive {
-      letter-spacing: 0.1em;
-    }
-
-    .form-actions {
-      display: flex;
-      gap: 12px;
-      margin-top: 20px;
-      padding-top: 20px;
-      border-top: 2px solid rgba(102, 126, 234, 0.1);
-    }
-
-    .btn {
-      padding: 12px 24px;
-      border: none;
-      border-radius: 8px;
-      font-size: 1em;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      flex: 1;
-    }
-
-    .btn-primary {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-    }
-
-    .btn-primary:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-    }
-
-    .btn-secondary {
-      background: #e5e7eb;
-      color: #374151;
-    }
-
-    .btn-secondary:hover {
-      background: #d1d5db;
-    }
-
-    .btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-
-    .toast {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      padding: 16px 24px;
-      background: white;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      display: none;
-      align-items: center;
-      gap: 12px;
-      z-index: 3000;
-      animation: slideInRight 0.3s ease;
-    }
-
-    .toast.active {
-      display: flex;
-    }
-
-    .toast.success {
-      border-left: 4px solid #10b981;
-    }
-
-    .toast.error {
-      border-left: 4px solid #ef4444;
-    }
-
-    @keyframes slideInRight {
-      from {
-        transform: translateX(400px);
-        opacity: 0;
-      }
-      to {
-        transform: translateX(0);
-        opacity: 1;
-      }
-    }
-
-    /* 禁用编辑按钮样式 */
-    .edit-config-btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-      background: #9ca3af;
-    }
-
-    .edit-config-btn:disabled:hover {
-      transform: none;
-      box-shadow: none;
-    }
   </style>
 </head>
 <body>
-  <!-- 主题切换按钮 -->
   <div id="theme-toggle-btn" class="theme-toggle" title="切换主题" role="button" tabindex="0">
     <div class="theme-toggle-slider">
       <span style="font-size: 0.9em;">🌙</span>
@@ -1130,12 +864,6 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       <span class="icon-sun">☀️</span>
     </div>
   </div>
-
-  <!-- 编辑配置按钮 -->
-  <button class="edit-config-btn" id="editConfigBtn" ${!mysqlConfigured ? 'disabled title="MySQL未配置"' : 'title="编辑配置"'}>
-    ⚙️
-  </button>
-
   <div class="container">
     <div class="hero">
       <div class="hero-icon">🎬</div>
@@ -1143,23 +871,23 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       <p class="hero-subtitle">
         高性能弹幕数据接口服务,支持多平台弹幕获取与搜索
       </p>
-      <span class="version-badge">v${globals.VERSION || '1.0.0'}</span>
+      <span class="version-badge">v${globals.VERSION}</span>
     </div>
     
     <div class="stats-grid">
       <div class="stat-card">
         <div class="stat-icon">⚙️</div>
-        <div class="stat-value">${Object.keys(accessedEnvVars).length}</div>
+        <div class="stat-value">${Object.keys(globals.accessedEnvVars).length}</div>
         <div class="stat-label">环境变量</div>
       </div>
       <div class="stat-card">
         <div class="stat-icon">📡</div>
-        <div class="stat-value">${globals.vodServers ? globals.vodServers.length : 0}</div>
+        <div class="stat-value">${globals.vodServers.length}</div>
         <div class="stat-label">VOD 服务器</div>
       </div>
       <div class="stat-card">
         <div class="stat-icon">🔗</div>
-        <div class="stat-value">${globals.sourceOrderArr ? globals.sourceOrderArr.length : 0}</div>
+        <div class="stat-value">${globals.sourceOrderArr.length}</div>
         <div class="stat-label">数据源</div>
       </div>
       <div class="stat-card">
@@ -1181,7 +909,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
         </span>
       </div>
       <div class="env-grid">
-        ${Object.entries(accessedEnvVars)
+        ${Object.entries(globals.accessedEnvVars)
           .map(([key, value]) => {
             let valueClass = '';
             let displayValue = value;
@@ -1254,105 +982,12 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
           .join('')}
       </div>
     </div>
-
-    <!-- MySQL 状态卡片 -->
-    <div class="redis-card">
-      <div class="redis-header">
-        <h3 class="redis-title">
-          <span>🗄️</span>
-          MySQL 数据库
-        </h3>
-        <span class="status-badge ${mysqlStatusClass}">
-          <span class="status-dot"></span>
-          ${mysqlStatusText}
-        </span>
-      </div>
-      ${mysqlConfigured ? `
-        <div class="env-grid">
-          <div class="env-item">
-            <div class="env-key-wrapper">
-              <div class="env-key">HOST</div>
-            </div>
-            <div class="env-value">${globals.envs.MYSQL_HOST || '未配置'}</div>
-          </div>
-          <div class="env-item">
-            <div class="env-key-wrapper">
-              <div class="env-key">DATABASE</div>
-            </div>
-            <div class="env-value">${globals.envs.MYSQL_DATABASE || 'danmu_api'}</div>
-          </div>
-        </div>
-      ` : `
-        <p style="color: #6b7280; font-size: 0.9em; margin-top: 10px;">
-          MySQL 未配置，请在环境变量中设置 MYSQL_HOST, MYSQL_USER, MYSQL_PASSWORD
-        </p>
-      `}
-    </div>
     
     <div class="footer">
       Made with <span class="footer-heart">♥</span> for Better Anime Experience
     </div>
   </div>
-
-  <!-- 配置编辑模态框 -->
-  <div class="modal" id="configModal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2 class="modal-title">⚙️ 编辑配置</h2>
-        <button class="close-btn" onclick="closeModal()">×</button>
-      </div>
-      <form class="config-form" id="configForm">
-        ${Object.entries(accessedEnvVars)
-          .filter(([key]) => !['redisValid', 'redisUrl', 'redisToken', 'VERSION'].includes(key))
-          .map(([key, value]) => {
-            const description = ENV_DESCRIPTIONS[key] || '';
-            const isSensitive = isSensitiveKey(key);
-            const inputType = isSensitive ? 'password' : 'text';
-            
-            let displayValue = value;
-            if (typeof value === 'boolean') {
-              displayValue = value ? 'true' : 'false';
-            } else if (value === null || value === undefined || (typeof value === 'string' && value.length === 0)) {
-              displayValue = '';
-            } else if (Array.isArray(value)) {
-              displayValue = value.join(', ');
-            }
-
-            return `
-              <div class="form-group">
-                <label class="form-label" for="config_${key}">
-                  ${key}
-                  <div class="tooltip">
-                    <span class="info-icon">i</span>
-                    <span class="tooltip-text">${description}</span>
-                  </div>
-                </label>
-                <input 
-                  type="${inputType}" 
-                  id="config_${key}" 
-                  name="${key}"
-                  class="form-input ${isSensitive ? 'sensitive' : ''}"
-                  value="${displayValue}"
-                  placeholder="${description}"
-                />
-              </div>
-            `;
-          })
-          .join('')}
-        <div class="form-actions">
-          <button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button>
-          <button type="submit" class="btn btn-primary">保存配置</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Toast 通知 -->
-  <div class="toast" id="toast">
-    <span id="toastIcon"></span>
-    <span id="toastMessage"></span>
-  </div>
-
+  
   <script>
     /**
      * 切换敏感信息的显示状态
@@ -1450,98 +1085,18 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       });
     })();
     // --- END: 主题切换逻辑 ---
-
-    // 配置编辑功能
-    const modal = document.getElementById('configModal');
-    const editBtn = document.getElementById('editConfigBtn');
-    const configForm = document.getElementById('configForm');
-    const toast = document.getElementById('toast');
-
-    // 打开模态框
-    editBtn?.addEventListener('click', () => {
-      if (!editBtn.disabled) {
-        modal.classList.add('active');
-      }
-    });
-
-    // 关闭模态框
-    function closeModal() {
-      modal.classList.remove('active');
-    }
-
-    // 点击模态框外部关闭
-    modal.addEventListener('click', (e) => {
-      if (e.target === modal) {
-        closeModal();
-      }
-    });
-
-    // 显示通知
-    function showToast(message, type = 'success') {
-      toast.className = \`toast active \${type}\`;
-      document.getElementById('toastIcon').textContent = type === 'success' ? '✓' : '✗';
-      document.getElementById('toastMessage').textContent = message;
-
-      setTimeout(() => {
-        toast.classList.remove('active');
-      }, 3000);
-    }
-
-    // 提交表单
-    configForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-
-      const formData = new FormData(configForm);
-      const configs = {};
-
-      for (const [key, value] of formData.entries()) {
-        configs[key] = value;
-      }
-
-      const submitBtn = configForm.querySelector('button[type="submit"]');
-      submitBtn.disabled = true;
-      submitBtn.textContent = '保存中...';
-
-      try {
-        const token = window.location.pathname.split('/')[1] || '${globals.token}';
-        const response = await fetch(\`/\${token}/api/config/update\`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ configs })
-        });
-
-        const result = await response.json();
-
-        if (result.success) {
-          showToast('配置保存成功！页面将在 2 秒后刷新', 'success');
-          setTimeout(() => {
-            window.location.reload();
-          }, 2000);
-        } else {
-          showToast(\`保存失败: \${result.errorMessage}\`, 'error');
-          submitBtn.disabled = false;
-          submitBtn.textContent = '保存配置';
-        }
-      } catch (error) {
-        showToast(\`网络错误: \${error.message}\`, 'error');
-        submitBtn.disabled = false;
-        submitBtn.textContent = '保存配置';
-      }
-    });
   </script>
 </body>
 </html>
-  `;
+    `;
 
-  return new Response(html, {
-    headers: {
-      'Content-Type': 'text/html; charset=utf-8',
-      'Cache-Control': 'no-cache'
-    }
-  });
-}
+    return new Response(html, {
+      headers: {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'no-cache'
+      }
+    });
+  }
 
   // GET /
   if (path === "/" && method === "GET") {
@@ -1603,16 +1158,6 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
   // GET /
   if (path === "/" && method === "GET") {
     return handleHomepage();
-  }
-
-  // POST /{token}/api/config/update - 更新配置
-  if (path === "/api/config/update" && method === "POST") {
-    return handleConfigUpdate(req);
-  }
-
-  // GET /{token}/api/config/status - 获取数据库状态
-  if (path === "/api/config/status" && method === "GET") {
-    return handleConfigStatus();
   }
 
   // GET /api/v2/search/anime
@@ -1764,107 +1309,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
   return jsonResponse({ message: "Not found" }, 404);
 }
 
-/**
- * 处理配置更新请求
- */
-async function handleConfigUpdate(req) {
-  try {
-    // 检查 MySQL 连接
-    if (!globals.mysqlValid) {
-      return jsonResponse(
-        { 
-          errorCode: 503, 
-          success: false, 
-          errorMessage: "MySQL database not configured or not connected" 
-        },
-        503
-      );
-    }
 
-    // 解析请求体
-    const body = await req.json();
-    const { configs } = body;
-
-    if (!configs || typeof configs !== 'object') {
-      return jsonResponse(
-        { 
-          errorCode: 400, 
-          success: false, 
-          errorMessage: "Invalid request body, 'configs' object required" 
-        },
-        400
-      );
-    }
-
-    // 验证配置字段
-    const validKeys = Object.keys(ENV_DESCRIPTIONS);
-    const invalidKeys = Object.keys(configs).filter(key => !validKeys.includes(key));
-    
-    if (invalidKeys.length > 0) {
-      return jsonResponse(
-        { 
-          errorCode: 400, 
-          success: false, 
-          errorMessage: `Invalid config keys: ${invalidKeys.join(', ')}` 
-        },
-        400
-      );
-    }
-
-    // 保存到数据库
-    await saveConfigs(configs, ENV_DESCRIPTIONS, SENSITIVE_KEYS);
-
-    // 重新加载环境变量（更新内存中的配置）
-    globals.envs = await Envs.load(process.env, 'node');
-    globals.accessedEnvVars = Object.fromEntries(Envs.getAccessedEnvVars());
-
-    log("info", `[Config] Updated ${Object.keys(configs).length} configuration(s)`);
-
-    return jsonResponse({
-      success: true,
-      message: "Configuration updated successfully",
-      updated: Object.keys(configs)
-    });
-
-  } catch (error) {
-    log("error", `[Config] Update failed: ${error.message}`);
-    return jsonResponse(
-      { 
-        errorCode: 500, 
-        success: false, 
-        errorMessage: error.message 
-      },
-      500
-    );
-  }
-}
-
-/**
- * 处理配置状态查询
- */
-async function handleConfigStatus() {
-  try {
-    const mysqlConnected = await checkMySQLConnection();
-    
-    return jsonResponse({
-      success: true,
-      mysql: {
-        configured: !!(globals.envs.MYSQL_HOST && globals.envs.MYSQL_USER),
-        connected: mysqlConnected
-      }
-    });
-  } catch (error) {
-    log("error", `[Config] Status check failed: ${error.message}`);
-    return jsonResponse(
-      { 
-        errorCode: 500, 
-        success: false, 
-        errorMessage: error.message 
-      },
-      500
-    );
-  }
-}
 
 // --- Cloudflare Workers 入口 ---
 export default {
