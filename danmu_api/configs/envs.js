@@ -164,6 +164,21 @@ export class Envs {
   }
 
   /**
+   * 解析代理配置
+   * @param {Object} env 环境对象
+   * @returns {Object} 代理配置对象
+   */
+  static resolveProxyConfig(env) {
+    const proxyUrl = this.get('PROXY_URL', '', 'string', true);
+    const socksProxy = this.get('SOCKS_PROXY', '', 'string', true);
+    
+    return {
+      proxyUrl,
+      socksProxy
+    };
+  }
+
+  /**
    * 获取记录的环境变量 JSON
    * @returns {Map<any, any>} JSON 字符串
    */
@@ -179,6 +194,8 @@ export class Envs {
    */
   static load(env = {}, deployPlatform = 'node') {
     this.env = env;
+    const proxyConfig = this.resolveProxyConfig(env);
+    
     return {
       vodAllowedPlatforms: this.VOD_ALLOWED_PLATFORMS,
       allowedPlatforms: this.ALLOWED_PLATFORMS,
@@ -194,7 +211,8 @@ export class Envs {
       episodeTitleFilter: this.resolveEpisodeTitleFilter(env), // 剧集标题正则过滤
       blockedWords: this.get('BLOCKED_WORDS', '', 'string'), // 屏蔽词列表
       groupMinute: Math.min(this.get('GROUP_MINUTE', 1, 'number'), 30), // 分钟内合并去重(默认 1,最大值30,0表示不去重)
-      proxyUrl: this.get('PROXY_URL', '', 'string', true), // 代理/反代地址
+      proxyUrl: proxyConfig.proxyUrl, // HTTP代理/反代地址
+      socksProxy: proxyConfig.socksProxy, // SOCKS5代理地址
       danmuSimplified: this.get('DANMU_SIMPLIFIED', true, 'boolean'), // 弹幕繁体转简体开关
       tmdbApiKey: this.get('TMDB_API_KEY', '', 'string', true), // TMDB API KEY
       redisUrl: this.get('UPSTASH_REDIS_REST_URL', '', 'string', true), // upstash redis url
