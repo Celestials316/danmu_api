@@ -124,30 +124,31 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
   if (globals.redisValid && path !== "/favicon.ico" && path !== "/robots.txt") {
     await getRedisCaches();
   }
-fufunction handleHomepage() {
-  log("info", "Accessed homepage");
 
-  const redisConfigured = !!(globals.redisUrl && globals.redisToken);
-  const redisStatusText = redisConfigured 
-    ? (globals.redisValid ? '已连接' : '已配置未连接') 
-    : '未配置';
-  const redisStatusClass = redisConfigured 
-    ? (globals.redisValid ? 'status-online' : 'status-warning')
-    : 'status-offline';
+  function handleHomepage() {
+    log("info", "Accessed homepage");
 
-  // MySQL 状态 - 添加安全检查
-  const mysqlConfigured = !!(globals.envs && globals.envs.MYSQL_HOST && globals.envs.MYSQL_USER);
-  const mysqlStatusText = mysqlConfigured 
-    ? (globals.mysqlValid ? '已连接' : '已配置未连接') 
-    : '未配置';
-  const mysqlStatusClass = mysqlConfigured 
-    ? (globals.mysqlValid ? 'status-online' : 'status-warning')
-    : 'status-offline';
+    const redisConfigured = !!(globals.redisUrl && globals.redisToken);
+    const redisStatusText = redisConfigured 
+      ? (globals.redisValid ? '已连接' : '已配置未连接') 
+      : '未配置';
+    const redisStatusClass = redisConfigured 
+      ? (globals.redisValid ? 'status-online' : 'status-warning')
+      : 'status-offline';
 
-  // 确保 accessedEnvVars 存在
-  const accessedEnvVars = globals.accessedEnvVars || {};
+    // MySQL 状态 - 添加安全检查
+    const mysqlConfigured = !!(globals.envs && globals.envs.MYSQL_HOST && globals.envs.MYSQL_USER);
+    const mysqlStatusText = mysqlConfigured 
+      ? (globals.mysqlValid ? '已连接' : '已配置未连接') 
+      : '未配置';
+    const mysqlStatusClass = mysqlConfigured 
+      ? (globals.mysqlValid ? 'status-online' : 'status-warning')
+      : 'status-offline';
 
-  const html = `
+    // 确保 accessedEnvVars 存在
+    const accessedEnvVars = globals.accessedEnvVars || {};
+
+    const html = `
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
