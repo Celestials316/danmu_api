@@ -124,29 +124,30 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
   if (globals.redisValid && path !== "/favicon.ico" && path !== "/robots.txt") {
     await getRedisCaches();
   }
+fufunction handleHomepage() {
+  log("info", "Accessed homepage");
 
-  function handleHomepage() {
-    log("info", "Accessed homepage");
-
-    const redisConfigured = !!(globals.redisUrl && globals.redisToken);
-    const redisStatusText = redisConfigured 
-      ? (globals.redisValid ? '已连接' : '已配置未连接') 
-      : '未配置';
-    const redisStatusClass = redisConfigured 
-      ? (globals.redisValid ? 'status-online' : 'status-warning')
-      : 'status-offline';
+  const redisConfigured = !!(globals.redisUrl && globals.redisToken);
+  const redisStatusText = redisConfigured 
+    ? (globals.redisValid ? '已连接' : '已配置未连接') 
+    : '未配置';
+  const redisStatusClass = redisConfigured 
+    ? (globals.redisValid ? 'status-online' : 'status-warning')
+    : 'status-offline';
 
   // MySQL 状态 - 添加安全检查
-    const mysqlConfigured = !!(globals.envs && globals.envs.MYSQL_HOST && globals.envs.MYSQL_USER);
-    const mysqlStatusText = mysqlConfigured 
-      ? (globals.mysqlValid ? '已连接' : '已配置未连接') 
-      : '未配置';
-    const mysqlStatusClass = mysqlConfigured 
-      ? (globals.mysqlValid ? 'status-online' : 'status-warning')
-      : 'status-offline';
+  const mysqlConfigured = !!(globals.envs && globals.envs.MYSQL_HOST && globals.envs.MYSQL_USER);
+  const mysqlStatusText = mysqlConfigured 
+    ? (globals.mysqlValid ? '已连接' : '已配置未连接') 
+    : '未配置';
+  const mysqlStatusClass = mysqlConfigured 
+    ? (globals.mysqlValid ? 'status-online' : 'status-warning')
+    : 'status-offline';
 
+  // 确保 accessedEnvVars 存在
+  const accessedEnvVars = globals.accessedEnvVars || {};
 
-    const html = `
+  const html = `
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -1141,23 +1142,23 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       <p class="hero-subtitle">
         高性能弹幕数据接口服务,支持多平台弹幕获取与搜索
       </p>
-      <span class="version-badge">v${globals.VERSION}</span>
+      <span class="version-badge">v${globals.VERSION || '1.0.0'}</span>
     </div>
     
     <div class="stats-grid">
       <div class="stat-card">
         <div class="stat-icon">⚙️</div>
-        <div class="stat-value">${Object.keys(globals.accessedEnvVars).length}</div>
+        <div class="stat-value">${Object.keys(accessedEnvVars).length}</div>
         <div class="stat-label">环境变量</div>
       </div>
       <div class="stat-card">
         <div class="stat-icon">📡</div>
-        <div class="stat-value">${globals.vodServers.length}</div>
+        <div class="stat-value">${globals.vodServers ? globals.vodServers.length : 0}</div>
         <div class="stat-label">VOD 服务器</div>
       </div>
       <div class="stat-card">
         <div class="stat-icon">🔗</div>
-        <div class="stat-value">${globals.sourceOrderArr.length}</div>
+        <div class="stat-value">${globals.sourceOrderArr ? globals.sourceOrderArr.length : 0}</div>
         <div class="stat-label">数据源</div>
       </div>
       <div class="stat-card">
@@ -1179,7 +1180,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
         </span>
       </div>
       <div class="env-grid">
-        ${Object.entries(globals.accessedEnvVars)
+        ${Object.entries(accessedEnvVars)
           .map(([key, value]) => {
             let valueClass = '';
             let displayValue = value;
@@ -1253,7 +1254,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       </div>
     </div>
 
-    <!-- 添加 MySQL 状态卡片（在 Redis 卡片后面） -->
+    <!-- MySQL 状态卡片 -->
     <div class="redis-card">
       <div class="redis-header">
         <h3 class="redis-title">
@@ -1300,7 +1301,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
         <button class="close-btn" onclick="closeModal()">×</button>
       </div>
       <form class="config-form" id="configForm">
-        ${Object.entries(globals.accessedEnvVars)
+        ${Object.entries(accessedEnvVars)
           .filter(([key]) => !['redisValid', 'redisUrl', 'redisToken', 'VERSION'].includes(key))
           .map(([key, value]) => {
             const description = ENV_DESCRIPTIONS[key] || '';
@@ -1531,15 +1532,15 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
   </script>
 </body>
 </html>
-    `;
+  `;
 
-    return new Response(html, {
-      headers: {
-        'Content-Type': 'text/html; charset=utf-8',
-        'Cache-Control': 'no-cache'
-      }
-    });
-  }
+  return new Response(html, {
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-cache'
+    }
+  });
+}
 
   // GET /
   if (path === "/" && method === "GET") {
