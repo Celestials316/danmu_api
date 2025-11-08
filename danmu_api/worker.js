@@ -127,6 +127,17 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       ? (globals.redisValid ? 'status-online' : 'status-warning')
       : 'status-offline';
 
+    // 安全检查：确保必要的属性存在
+    if (!globals.accessedEnvVars) {
+      globals.accessedEnvVars = {};
+    }
+    if (!globals.vodServers) {
+      globals.vodServers = [];
+    }
+    if (!globals.sourceOrderArr) {
+      globals.sourceOrderArr = [];
+    }
+
     // 生成环境变量HTML
     const envItemsHtml = Object.entries(globals.accessedEnvVars)
       .map(([key, value]) => {
@@ -194,27 +205,74 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       })
       .join('');
 
-    // 生成VOD服务器HTML
-    const vodServersHtml = globals.vodServers.length > 0 
-      ? globals.vodServers.map((server, index) => `
-        <div class="list-item">
-          <div class="list-icon">🖥️</div>
-          <div class="list-content">
-            <div class="list-title">服务器 #${index + 1}</div>
-            <div class="list-value">${server}</div>
+    // 生成VOD服务器HTML - 修复对象显示问题
+    const defaultVodServers = [
+      { name: '金蝉', url: 'https://zy.jinchancaiji.com' },
+      { name: '789', url: 'https://www.caiji.cyou' },
+      { name: '听风', url: 'https://gctf.tfdh.top' }
+    ];
+    
+    let vodServersHtml = '';
+    
+    try {
+      if (globals.vodServers && globals.vodServers.length > 0) {
+        vodServersHtml = globals.vodServers.map((server, index) => {
+          let serverName = `服务器 #${index + 1}`;
+          let serverUrl = '';
+          
+          // 处理不同的数据类型
+          if (typeof server === 'string') {
+            // 字符串格式: "名称@URL"
+            serverUrl = server;
+            if (server.includes('@')) {
+              const parts = server.split('@');
+              serverName = parts[0];
+              serverUrl = parts.slice(1).join('@');
+            }
+          } else if (typeof server === 'object' && server !== null) {
+            // 对象格式: { name: '名称', url: 'URL' } 或 { name: '名称', baseUrl: 'URL' }
+            serverName = server.name || server.title || serverName;
+            serverUrl = server.url || server.baseUrl || server.address || JSON.stringify(server);
+          } else {
+            serverUrl = String(server);
+          }
+          
+          return `
+            <div class="list-item">
+              <div class="list-icon">🎬</div>
+              <div class="list-content">
+                <div class="list-title">${serverName}</div>
+                <div class="list-value">${serverUrl}</div>
+              </div>
+              <div class="list-badge">#${index + 1}</div>
+            </div>
+          `;
+        }).join('');
+      } else {
+        vodServersHtml = defaultVodServers.map((server, index) => `
+          <div class="list-item">
+            <div class="list-icon">🎬</div>
+            <div class="list-content">
+              <div class="list-title">${server.name} (默认)</div>
+              <div class="list-value">${server.url}</div>
+            </div>
+            <div class="list-badge">默认</div>
           </div>
-          <div class="list-badge">活跃</div>
-        </div>
-      `).join('')
-      : `
+        `).join('');
+      }
+    } catch (error) {
+      log("error", `Generate VOD HTML error: ${error.message}`);
+      vodServersHtml = `
         <div class="list-item">
           <div class="list-icon">⚠️</div>
           <div class="list-content">
-            <div class="list-title">未配置 VOD 服务器</div>
-            <div class="list-value">请在环境变量中配置 VOD_SERVERS</div>
+            <div class="list-title">加载错误</div>
+            <div class="list-value">无法加载 VOD 服务器列表: ${error.message}</div>
           </div>
         </div>
       `;
+    }
+
 
     // 生成数据源HTML
     const sourceIcons = {
@@ -1220,11 +1278,11 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
          <div class="stat-value">${Object.keys(globals.accessedEnvVars).length}</div>
          <div class="stat-label">环境变量</div>
        </div>
-       <div class="stat-card">
-         <div class="stat-icon">📡</div>
-         <div class="stat-value">${globals.vodServers.length}</div>
-         <div class="stat-label">VOD 服务器</div>
-       </div>
+        <div class="stat-card">
+          <div class="stat-icon">🎬</div>
+          <div class="stat-value">${globals.vodServers.length}</div>
+          <div class="stat-label">采集站</div>
+        </div>
        <div class="stat-card">
          <div class="stat-icon">🔗</div>
          <div class="stat-value">${globals.sourceOrderArr.length}</div>
@@ -1265,12 +1323,12 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
          <p class="feature-desc">查看和管理所有环境变量配置,包括 API 密钥、服务器设置等</p>
        </div>
        
-       <div class="feature-card" onclick="showPage('vod')">
-         <span class="feature-badge">${globals.vodServers.length} 个</span>
-         <div class="feature-icon">📡</div>
-         <h3 class="feature-title">VOD 服务器</h3>
-         <p class="feature-desc">管理视频点播服务器列表,支持并发查询和智能负载均衡</p>
-       </div>
+        <div class="feature-card" onclick="showPage('vod')">
+          <span class="feature-badge">${globals.vodServers.length} 个</span>
+          <div class="feature-icon">🎬</div>
+          <h3 class="feature-title">VOD 采集站</h3>
+          <p class="feature-desc">视频资源采集服务器列表,支持多站点并发查询和智能匹配</p>
+        </div>
        
        <div class="feature-card" onclick="showPage('sources')">
          <span class="feature-badge">${globals.sourceOrderArr.length} 个</span>
@@ -1282,11 +1340,11 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
      
      <div class="footer">
        <p>Made with <span class="footer-heart">♥</span> for Better Anime Experience</p>
-       <div class="footer-links">
-         <a href="#" class="footer-link" onclick="showPage('env'); return false;">环境变量</a>
-         <a href="#" class="footer-link" onclick="showPage('vod'); return false;">VOD 服务器</a>
-         <a href="#" class="footer-link" onclick="showPage('sources'); return false;">数据源</a>
-       </div>
+        <div class="footer-links">
+          <a href="#" class="footer-link" onclick="showPage('env'); return false;">环境变量</a>
+          <a href="#" class="footer-link" onclick="showPage('vod'); return false;">采集站配置</a>
+          <a href="#" class="footer-link" onclick="showPage('sources'); return false;">数据源</a>
+        </div>
      </div>
    </div>
    
@@ -1309,13 +1367,13 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
    </div>
    
    <div id="vod-page" class="page detail-page">
-     <div class="detail-header">
-       <div class="detail-icon">📡</div>
-       <h2 class="detail-title">VOD 服务器</h2>
-       <p class="detail-subtitle">
-         当前配置的视频点播服务器列表,支持并发查询和自动故障转移
-       </p>
-     </div>
+      <div class="detail-header">
+        <div class="detail-icon">🎬</div>
+        <h2 class="detail-title">VOD 采集服务器</h2>
+        <p class="detail-subtitle">
+          视频资源采集站列表,支持多个服务器并发查询。格式: 名称@URL
+        </p>
+      </div>
      
      <div class="list-grid">
        ${vodServersHtml}
@@ -1347,9 +1405,9 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
        </div>
      </div>
      
-     <div class="footer">
-       <p>服务器总数: <strong>${globals.vodServers.length}</strong></p>
-     </div>
+      <div class="footer">
+        <p>采集站总数: <strong>${globals.vodServers.length}</strong> | 支持并发查询,自动选择最快响应</p>
+      </div>
    </div>
    
    <div id="sources-page" class="page detail-page">
