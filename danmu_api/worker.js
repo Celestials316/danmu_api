@@ -631,41 +631,90 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       }
     }
 
-    /* --- START: 主题切换按钮 --- */
+    /* --- START: 主题切换按钮(滑动开关样式) --- */
     .theme-toggle {
-      position: absolute;
-      top: 20px;
-      right: 35px;
+      position: absolute !important;
+      top: 20px !important;
+      right: 20px !important;
+      left: auto !important;
       z-index: 1001;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      color: #e5e7eb;
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
+      width: 60px;
+      height: 30px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      border-radius: 30px;
       cursor: pointer;
       display: flex;
       align-items: center;
-      justify-content: center;
-      font-size: 1.2em;
-      transition: all 0.3s ease;
+      padding: 3px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       user-select: none;
+      position: relative;
     }
+    
     .theme-toggle:hover {
-      background: rgba(255, 255, 255, 0.1);
-      transform: scale(1.1);
+      border-color: rgba(255, 255, 255, 0.4);
+      transform: scale(1.05);
     }
-    .light-mode .theme-toggle .icon-dark {
-      display: none;
+    
+    /* 滑块 */
+    .theme-toggle-slider {
+      position: absolute;
+      width: 22px;
+      height: 22px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7em;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      left: 3px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
     }
-    .theme-toggle .icon-light {
-      display: none;
+    
+    /* 图标容器 */
+    .theme-toggle-icons {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 5px;
+      font-size: 0.85em;
+      pointer-events: none;
     }
-    .light-mode .theme-toggle .icon-light {
-      display: inline;
+    
+    .icon-moon, .icon-sun {
+      opacity: 0.5;
+      transition: opacity 0.3s ease;
     }
-    .theme-toggle .icon-dark {
-      display: inline;
+    
+    /* 暗色模式:月亮高亮 */
+    .icon-moon {
+      opacity: 1;
+    }
+    
+    /* 亮色模式样式 */
+    body.light-mode .theme-toggle {
+      background: rgba(0, 0, 0, 0.05);
+      border-color: rgba(0, 0, 0, 0.1);
+    }
+    
+    body.light-mode .theme-toggle:hover {
+      border-color: rgba(0, 0, 0, 0.2);
+    }
+    
+    body.light-mode .theme-toggle-slider {
+      left: calc(100% - 25px);
+      background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+    }
+    
+    body.light-mode .icon-moon {
+      opacity: 0.4;
+    }
+    
+    body.light-mode .icon-sun {
+      opacity: 1;
     }
 
     /* --- START: 亮色模式 (Light Mode) --- */
@@ -806,10 +855,15 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
   </style>
 </head>
 <body>
-  <button id="theme-toggle-btn" class="theme-toggle" title="切换主题">
-    <span class="icon-light">☀️</span>
-    <span class="icon-dark">🌙</span>
-  </button>
+  <div id="theme-toggle-btn" class="theme-toggle" title="切换主题" role="button" tabindex="0">
+    <div class="theme-toggle-slider">
+      <span style="font-size: 0.9em;">🌙</span>
+    </div>
+    <div class="theme-toggle-icons">
+      <span class="icon-moon">🌙</span>
+      <span class="icon-sun">☀️</span>
+    </div>
+  </div>
   <div class="container">
     <div class="hero">
       <div class="hero-icon">🎬</div>
@@ -980,7 +1034,9 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
     (function() {
       const toggleBtn = document.getElementById('theme-toggle-btn');
       if (!toggleBtn) return;
+      
       const body = document.body;
+      const slider = toggleBtn.querySelector('.theme-toggle-slider');
       const themeKey = 'theme-preference';
       
       // 检查localStorage中保存的主题
@@ -994,18 +1050,37 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       // 应用保存的主题
       if (savedTheme === 'light') {
         body.classList.add('light-mode');
+        if (slider) slider.innerHTML = '<span style="font-size: 0.9em;">☀️</span>';
       }
 
-      // 添加点击事件
-      toggleBtn.addEventListener('click', function() {
+      // 切换主题函数
+      function toggleTheme() {
         const isLight = body.classList.toggle('light-mode');
         const newTheme = isLight ? 'light' : 'dark';
+        
+        // 更新滑块图标
+        if (slider) {
+          slider.innerHTML = isLight 
+            ? '<span style="font-size: 0.9em;">☀️</span>' 
+            : '<span style="font-size: 0.9em;">🌙</span>';
+        }
         
         // 保存偏好到localStorage
         try {
           localStorage.setItem(themeKey, newTheme);
         } catch (e) {
           console.warn('Could not save theme to localStorage');
+        }
+      }
+
+      // 添加点击事件
+      toggleBtn.addEventListener('click', toggleTheme);
+      
+      // 添加键盘支持(按回车切换)
+      toggleBtn.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          toggleTheme();
         }
       });
     })();
