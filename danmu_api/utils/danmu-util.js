@@ -79,24 +79,24 @@ export function limitDanmusEvenly(danmus, limit) {
   if (!danmus || danmus.length === 0 || limit <= 0) {
     return danmus;
   }
-  
+
   // 如果弹幕数量小于等于限制，直接返回
   if (danmus.length <= limit) {
     return danmus;
   }
-  
+
   // 计算采样间隔
   const interval = danmus.length / limit;
   const result = [];
-  
+
   // 等间隔采样
   for (let i = 0; i < limit; i++) {
     const index = Math.floor(i * interval);
     result.push(danmus[index]);
   }
-  
+
   log("info", `[Danmu Limit] Original: ${danmus.length}, Limited: ${result.length}, Interval: ${interval.toFixed(2)}`);
-  
+
   return result;
 }
 
@@ -214,8 +214,20 @@ export function convertToDanmakuJson(contents, platform) {
   log("info", `去重分钟数: ${globals.groupMinute}`);
   const groupedDanmus = groupDanmusByMinute(filteredDanmus, globals.groupMinute);
 
-  // 应用弹幕转换规则(在去重之后)
-  let convertedDanmus = groupedDanmus;
+  log("info", `danmus_original: ${danmus.length}`);
+  log("info", `danmus_filter: ${filteredDanmus.length}`);
+  log("info", `danmus_group: ${groupedDanmus.length}`);
+
+  // ========== 修改：先限制弹幕数量，再进行颜色转换 ==========
+  let limitedDanmus = groupedDanmus;
+
+  if (globals.danmuLimit > 0 && groupedDanmus.length > globals.danmuLimit) {
+    limitedDanmus = limitDanmusEvenly(groupedDanmus, globals.danmuLimit);
+    log("info", `danmus_limited: ${limitedDanmus.length} (from ${groupedDanmus.length})`);
+  }
+
+  // 应用弹幕转换规则(在限制数量之后)
+  let finalDanmus = limitedDanmus;
 
   // 获取白色弹幕占比
   const whiteRatio = parseInt(globals.whiteRatio);
@@ -245,7 +257,7 @@ export function convertToDanmakuJson(contents, platform) {
       52479,     // 天蓝 #00CCFF
     ];
 
-    convertedDanmus = groupedDanmus.map(danmu => {
+    finalDanmus = limitedDanmus.map(danmu => {
       const pValues = danmu.p.split(',');
       if (pValues.length < 3) {
         log("warn", `Invalid danmu format: ${danmu.p}`);
@@ -328,18 +340,6 @@ export function convertToDanmakuJson(contents, platform) {
     log("info", `[Color Conversion] Skipped (whiteRatio=${whiteRatio}, not in 0-100 range)`);
   }
 
-  log("info", `danmus_original: ${danmus.length}`);
-  log("info", `danmus_filter: ${filteredDanmus.length}`);
-  log("info", `danmus_group: ${groupedDanmus.length}`);
-  
-  // ========== 新增：弹幕数量限制逻辑 ==========
-  let finalDanmus = convertedDanmus;
-  
-  if (globals.danmuLimit > 0 && convertedDanmus.length > globals.danmuLimit) {
-    finalDanmus = limitDanmusEvenly(convertedDanmus, globals.danmuLimit);
-    log("info", `danmus_limited: ${finalDanmus.length} (from ${convertedDanmus.length})`);
-  }
-  
   // 输出前五条弹幕
   log("info", "Top 5 danmus:", JSON.stringify(finalDanmus.slice(0, 5), null, 2));
   return finalDanmus;
