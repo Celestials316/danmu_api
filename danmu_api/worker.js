@@ -136,14 +136,15 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       ? (globals.redisValid ? 'status-online' : 'status-warning')
       : 'status-offline';
 
-    // MySQL 状态
-    const mysqlConfigured = !!(globals.envs.MYSQL_HOST && globals.envs.MYSQL_USER);
+  // MySQL 状态 - 添加安全检查
+    const mysqlConfigured = !!(globals.envs && globals.envs.MYSQL_HOST && globals.envs.MYSQL_USER);
     const mysqlStatusText = mysqlConfigured 
       ? (globals.mysqlValid ? '已连接' : '已配置未连接') 
       : '未配置';
     const mysqlStatusClass = mysqlConfigured 
       ? (globals.mysqlValid ? 'status-online' : 'status-warning')
       : 'status-offline';
+
 
     const html = `
 <!DOCTYPE html>
