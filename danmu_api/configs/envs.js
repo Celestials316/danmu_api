@@ -1,9 +1,13 @@
 /**
  * 环境变量管理模块
  * 提供获取和设置环境变量的函数,支持 Cloudflare Workers 和 Node.js
+ * 支持从 MySQL 数据库加载配置
  */
+import { getAllConfigs } from '../utils/mysql-util.js';
+
 export class Envs {
   static env;
+  static dbConfigs = {}; // 存储从数据库加载的配置
 
   // 记录获取过的环境变量
   static accessedEnvVars = new Map();
@@ -13,7 +17,20 @@ export class Envs {
   static ALLOWED_SOURCES = ['360', 'vod', 'tmdb', 'douban', 'tencent', 'youku', 'iqiyi', 'imgo', 'bilibili', 'renren', 'hanjutv', 'bahamut']; // 允许的源
 
   /**
+   * 从数据库加载配置
+   */
+  static async loadFromDatabase() {
+    try {
+      this.dbConfigs = await getAllConfigs();
+    } catch (error) {
+      console.warn('[Envs] Failed to load configs from database:', error.message);
+      this.dbConfigs = {};
+    }
+  }
+
+  /**
    * 获取环境变量
+   * 优先级：数据库 > 环境变量 > 默认值
    * @param {string} key 环境变量的键
    * @param {any} defaultValue 默认值
    * @param {'string' | 'number' | 'boolean'} type 类型
@@ -21,11 +38,21 @@ export class Envs {
    */
   static get(key, defaultValue, type = 'string', encrypt = false) {
     let value;
-    if (typeof this.env !== 'undefined' && this.env[key]) {
+    
+    // 1. 优先从数据库读取
+    if (this.dbConfigs && key in this.dbConfigs) {
+      value = this.dbConfigs[key];
+    }
+    // 2. 其次从环境对象读取
+    else if (typeof this.env !== 'undefined' && this.env[key]) {
       value = this.env[key];
-    } else if (typeof process !== 'undefined' && process.env?.[key]) {
+    }
+    // 3. 再从 process.env 读取
+    else if (typeof process !== 'undefined' && process.env?.[key]) {
       value = process.env[key];
-    } else {
+    }
+    // 4. 最后使用默认值
+    else {
       value = defaultValue;
     }
 
@@ -141,8 +168,7 @@ export class Envs {
    * @returns {RegExp} 过滤正则表达式
    */
   static resolveEpisodeTitleFilter(env) {
-    const defaultFilter = '(特别|惊喜|纳凉)?企划|合伙人手记|超前(营业|vlog)?|速览|vlog|reaction|纯享|加更(版|篇)?|抢先(看|版|集|篇)?|抢鲜|预告|花絮(独家)?|' +
-      '特辑|彩蛋|专访|幕后(故事|花絮|独家)?|直播(陪看|回顾)?|未播(片段)?|衍生|番外|会员(专享|加长|尊享|专属|版)?|片花|精华|看点|速看|解读|影评|解说|吐槽|盘点|拍摄花絮|制作花絮|幕后花絮|未播花絮|独家花絮|' +
+    const defaultFilter = '(特别|惊喜|纳凉)?企划|合伙人手记|超前(营业|vlog)?|速览|vlog|reaction|纯享|加更(版|篇)?|抢先(看|版|集|篇)?|抢鲜|预告|花絮(独家)?|特辑|彩蛋|专访|幕后(故事|花絮|独家)?|直播(陪看|回顾)?|未播(片段)?|衍生|番外|会员(专享|加长|尊享|专属|版)?|片花|精华|看点|速看|解读|影评|解说|吐槽|盘点|拍摄花絮|制作花絮|幕后花絮|未播花絮|独家花絮|' +
       '花絮特辑|先导预告|终极预告|正式预告|官方预告|彩蛋片段|删减片段|未播片段|番外彩蛋|精彩片段|精彩看点|精彩回顾|精彩集锦|看点解析|看点预告|' +
       'NG镜头|NG花絮|番外篇|番外特辑|制作特辑|拍摄特辑|幕后特辑|导演特辑|演员特辑|片尾曲|插曲|高光回顾|背景音乐|OST|音乐MV|歌曲MV|前季回顾|' +
       '剧情回顾|往期回顾|内容总结|剧情盘点|精选合集|剪辑合集|混剪视频|独家专访|演员访谈|导演访谈|主创访谈|媒体采访|发布会采访|采访|陪看(记)?|' +
@@ -175,10 +201,14 @@ export class Envs {
    * 初始化环境变量
    * @param {Object} env 环境对象
    * @param {string} deployPlatform 部署平台
-   * @returns {Object} 配置对象
+   * @returns {Promise<Object>} 配置对象
    */
-  static load(env = {}, deployPlatform = 'node') {
+  static async load(env = {}, deployPlatform = 'node') {
     this.env = env;
+    
+    // 从数据库加载配置（如果 MySQL 已配置）
+    await this.loadFromDatabase();
+    
     return {
       vodAllowedPlatforms: this.VOD_ALLOWED_PLATFORMS,
       allowedPlatforms: this.ALLOWED_PLATFORMS,
@@ -209,6 +239,12 @@ export class Envs {
       strictTitleMatch: this.get('STRICT_TITLE_MATCH', false, 'boolean'), // 严格标题匹配模式配置(默认 false,宽松模糊匹配)
       rememberLastSelect: this.get('REMEMBER_LAST_SELECT', true, 'boolean'), // 是否记住手动选择结果,用于match自动匹配时优选上次的选择(默认 true,记住)
       MAX_LAST_SELECT_MAP: this.get('MAX_LAST_SELECT_MAP', 100, 'number'), // 记住上次选择映射缓存大小限制(默认 100)
+      // MySQL 配置
+      MYSQL_HOST: this.get('MYSQL_HOST', '', 'string'),
+      MYSQL_PORT: this.get('MYSQL_PORT', 3306, 'number'),
+      MYSQL_USER: this.get('MYSQL_USER', '', 'string'),
+      MYSQL_PASSWORD: this.get('MYSQL_PASSWORD', '', 'string', true),
+      MYSQL_DATABASE: this.get('MYSQL_DATABASE', 'danmu_api', 'string'),
     };
   }
 }
