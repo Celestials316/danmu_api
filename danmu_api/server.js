@@ -1,19 +1,10 @@
 // server.js - 智能服务器启动器：根据 Node.js 环境自动选择最优启动模式
 
 // 加载 .env 文件中的环境变量（本地开发时使用）
-import path from 'path';
-import fs from 'fs';
-import dotenv from 'dotenv';
-import yaml from 'js-yaml';
-import { fileURLToPath } from 'url';
-import http from 'http';
-import https from 'https';
-import url from 'url';
-import { HttpsProxyAgent } from 'https-proxy-agent';
-
-// 在 ES 模块中获取 __dirname 的替代方法
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const path = require('path');
+const fs = require('fs');
+const dotenv = require('dotenv');
+const yaml = require('js-yaml');
 
 // 配置文件路径在项目根目录（server.js 的上一级目录）
 const envPath = path.join(__dirname, '..', '.env');
@@ -91,7 +82,7 @@ let reloadTimer = null;
 let mainServer = null;
 let proxyServer = null;
 
-async function setupEnvWatcher() {
+function setupEnvWatcher() {
   const envExists = fs.existsSync(envPath);
   const yamlExists = fs.existsSync(yamlPath);
 
@@ -101,8 +92,7 @@ async function setupEnvWatcher() {
   }
 
   try {
-    // 动态导入 chokidar
-    const { default: chokidar } = await import('chokidar');
+    const chokidar = require('chokidar');
     const watchPaths = [];
     if (envExists) watchPaths.push(envPath);
     if (yamlExists) watchPaths.push(yamlPath);
@@ -234,6 +224,14 @@ function cleanupWatcher() {
 process.on('SIGTERM', cleanupWatcher);
 process.on('SIGINT', cleanupWatcher);
 
+// 导入 ES module 兼容层（始终加载，但内部会根据需要启用）
+require('./esm-shim');
+
+const http = require('http');
+const https = require('https');
+const url = require('url');
+const { HttpsProxyAgent } = require('https-proxy-agent');
+
 // --- 版本兼容性检测工具 ---
 // 辅助函数：比较两个版本号字符串
 function compareVersion(version1, version2) {
@@ -259,8 +257,8 @@ function needsAsyncStartup() {
     const isNodeCompatible = compareVersion(nodeVersion, '20.19.0') >= 0;
 
     // 尝试检测已安装的 node-fetch 版本
-    const packagePath = new URL('./node_modules/node-fetch/package.json', import.meta.url).pathname;
-    const pkg = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
+    const packagePath = require.resolve('node-fetch/package.json');
+    const pkg = require(packagePath);
     // 检查 node-fetch 是否是 v3.x 版本 (v3.x 在旧版 Node.js 中可能存在一些加载问题)
     const isNodeFetchV3 = pkg.version.startsWith('3.');
 
@@ -283,12 +281,12 @@ function needsAsyncStartup() {
 
 // --- 核心 HTTP 服务器（端口 9321）逻辑 ---
 // 创建主业务服务器实例（将 Node.js 请求转换为 Web API Request，并调用 worker.js 处理）
-async function createServer() {
-  // 动态导入所需的 fetch 兼容对象
-  const { default: fetch, Request, Response } = await import('node-fetch');
-  
-  // 动态导入核心请求处理逻辑
-  const { handleRequest } = await import('./worker.js');
+function createServer() {
+  // 导入所需的 fetch 兼容对象
+  const fetch = require('node-fetch');
+  const { Request, Response } = fetch;
+  // 导入核心请求处理逻辑
+  const { handleRequest } = require('./worker.js'); // 直接导入 handleRequest 函数
 
   return http.createServer(async (req, res) => {
     try {
@@ -297,7 +295,7 @@ async function createServer() {
 
       // 获取请求客户端的ip，兼容反向代理场景
       let clientIp = 'unknown';
-
+      
       // 优先级：X-Forwarded-For > X-Real-IP > 直接连接IP
       const forwardedFor = req.headers['x-forwarded-for'];
       if (forwardedFor) {
@@ -311,7 +309,7 @@ async function createServer() {
         clientIp = req.connection.remoteAddress || 'unknown';
         console.log(`[server] Using direct connection IP: ${clientIp}`);
       }
-
+      
       // 清理IPv6前缀（如果存在）
       if (clientIp && clientIp.startsWith('::ffff:')) {
         clientIp = clientIp.substring(7);
@@ -370,7 +368,7 @@ function createProxyServer() {
       if (proxyConfig) {
         // 支持多个配置，用逗号分隔
         const proxyConfigs = proxyConfig.split(',').map(s => s.trim()).filter(s => s);
-
+        
         for (const config of proxyConfigs) {
           if (config.startsWith('bahamut@')) {
             // 巴哈姆特专用反代：bahamut@http://example.com
@@ -393,7 +391,7 @@ function createProxyServer() {
       }
       const targetUrl = queryObject.url;
       console.log('[Proxy Server] Target URL:', targetUrl);
-
+      
       const originalUrlObj = new URL(targetUrl);
       let options = {
         hostname: originalUrlObj.hostname,
@@ -404,7 +402,7 @@ function createProxyServer() {
       };
       // Host 头必须被移除，以便 protocol.request 根据 options.hostname 设置正确的值
       delete options.headers.host; 
-
+      
       let protocol = originalUrlObj.protocol === 'https:' ? https : http;
 
       // 新反代优先级判断：专用反代 > 万能反代 > PROXY_URL代理
@@ -434,7 +432,7 @@ function createProxyServer() {
           options.hostname = reverseUrlObj.hostname;
           options.port = reverseUrlObj.port || (reverseUrlObj.protocol === 'https:' ? 443 : 80);
           protocol = reverseUrlObj.protocol === 'https:' ? https : http;
-
+          
           const baseReversePath = reverseUrlObj.pathname.replace(/\/$/, '');
           let logMessage = '';
 
@@ -450,7 +448,7 @@ function createProxyServer() {
             options.path = baseReversePath + originalUrlObj.pathname + originalUrlObj.search;
             logMessage = `[Proxy Server] Specific RP rewriting to: ${protocol === https ? 'https' : 'http'}://${options.hostname}:${options.port}${options.path}`;
           }
-
+          
           console.log(logMessage);
 
         } catch (e) {
@@ -487,16 +485,17 @@ function createProxyServer() {
   });
 }
 
+
 // --- 启动函数 ---
 // 同步启动（最优/默认路径，适用于常规已兼容环境）
-async function startServerSync() {
+function startServerSync() {
   console.log('[server] Starting server synchronously (optimal path)');
 
   // 设置 .env 文件监听
-  await setupEnvWatcher();
+  setupEnvWatcher();
 
   // 启动主业务服务器 (9321)
-  mainServer = await createServer();
+  mainServer = createServer();
   mainServer.listen(9321, '0.0.0.0', () => {
     console.log('Server running on http://0.0.0.0:9321');
   });
@@ -514,15 +513,17 @@ async function startServerAsync() {
     console.log('[server] Starting server asynchronously (compatibility mode for Node.js <20.19.0 + node-fetch v3)');
 
     // 设置 .env 文件监听
-    await setupEnvWatcher();
+    setupEnvWatcher();
 
     // 预加载 node-fetch v3（解决特定环境下 node-fetch v3 的加载问题）
-    console.log('[server] Pre-loading node-fetch v3...');
-    await import('node-fetch');
-    console.log('[server] node-fetch v3 loaded successfully');
+    if (typeof global.loadNodeFetch === 'function') {
+      console.log('[server] Pre-loading node-fetch v3...');
+      await global.loadNodeFetch();
+      console.log('[server] node-fetch v3 loaded successfully');
+    }
 
     // 启动主业务服务器 (9321)
-    mainServer = await createServer();
+    mainServer = createServer();
     mainServer.listen(9321, '0.0.0.0', () => {
       console.log('Server running on http://0.0.0.0:9321 (compatibility mode)');
     });
@@ -541,16 +542,8 @@ async function startServerAsync() {
 
 // --- 启动决策逻辑 ---
 // 智能选择启动方式：如果环境需要兼容，则异步启动；否则同步启动。
-async function startServer() {
-  if (needsAsyncStartup()) {
-    await startServerAsync();
-  } else {
-    await startServerSync();
-  }
+if (needsAsyncStartup()) {
+  startServerAsync();
+} else {
+  startServerSync();
 }
-
-// 启动服务器
-startServer().catch(error => {
-  console.error('Failed to start server:', error);
-  process.exit(1);
-});
