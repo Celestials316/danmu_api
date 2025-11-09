@@ -4049,9 +4049,155 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
  }
 
  log("info", path);
+ 
+  log("info", path);
+
+  // ========== 配置管理 API（在路径规范化之前处理）==========
+  
+  // POST /api/config/save - 保存环境变量配置
+  if (path === "/api/config/save" && method === "POST") {
+    try {
+      const body = await req.json();
+      const { config } = body;
+
+      if (!config || typeof config !== 'object') {
+        return jsonResponse({
+          success: false,
+          errorMessage: "无效的配置数据"
+        }, 400);
+      }
+
+      log("info", `[config] 开始保存环境变量配置，共 ${Object.keys(config).length} 个`);
+
+      // 更新到全局变量
+      for (const [key, value] of Object.entries(config)) {
+        if (key in globals.accessedEnvVars) {
+          globals.accessedEnvVars[key] = value;
+          
+          // 同步更新到 envs
+          if (key in globals.envs) {
+            globals.envs[key] = value;
+          }
+        }
+      }
+
+      // 保存到数据库
+      let dbSaved = false;
+      if (globals.databaseValid) {
+        const { saveEnvConfigs } = await import('./utils/db-util.js');
+        dbSaved = await saveEnvConfigs(config);
+      }
+
+      // 保存到 Redis
+      let redisSaved = false;
+      if (globals.redisValid) {
+        const { setRedisKey } = await import('./utils/redis-util.js');
+        const configStr = JSON.stringify(config);
+        const result = await setRedisKey('env_configs', configStr);
+        redisSaved = result && result.result === 'OK';
+      }
+
+      const savedTo = [];
+      if (dbSaved) savedTo.push('数据库');
+      if (redisSaved) savedTo.push('Redis');
+
+      if (savedTo.length === 0) {
+        log("warn", "[config] 配置仅保存到内存（持久化存储不可用）");
+        return jsonResponse({
+          success: true,
+          message: "配置已更新到内存（重启后会丢失，建议配置数据库或Redis）",
+          savedTo: ['内存']
+        });
+      }
+
+      log("info", `[config] 配置保存成功: ${savedTo.join('、')}`);
+      return jsonResponse({
+        success: true,
+        message: `配置已成功保存到: ${savedTo.join('、')}`,
+        savedTo
+      });
+
+    } catch (error) {
+      log("error", `[config] 保存配置失败: ${error.message}`);
+      return jsonResponse({
+        success: false,
+        errorMessage: `保存失败: ${error.message}`
+      }, 500);
+    }
+  }
+
+  // GET /api/config/load - 加载环境变量配置
+  if (path === "/api/config/load" && method === "GET") {
+    try {
+      log("info", "[config] 开始加载环境变量配置");
+
+      let config = {};
+      let loadedFrom = [];
+
+      // 尝试从数据库加载
+      if (globals.databaseValid) {
+        const { loadEnvConfigs } = await import('./utils/db-util.js');
+        const dbConfig = await loadEnvConfigs();
+        if (Object.keys(dbConfig).length > 0) {
+          config = { ...config, ...dbConfig };
+          loadedFrom.push('数据库');
+        }
+      }
+
+      // 尝试从 Redis 加载
+      if (globals.redisValid && Object.keys(config).length === 0) {
+        const { getRedisKey } = await import('./utils/redis-util.js');
+        const result = await getRedisKey('env_configs');
+        if (result && result.result) {
+          try {
+            const redisConfig = JSON.parse(result.result);
+            config = { ...config, ...redisConfig };
+            loadedFrom.push('Redis');
+          } catch (e) {
+            log("warn", "[config] Redis 配置解析失败");
+          }
+        }
+      }
+
+      // 如果都没有，返回当前内存中的配置
+      if (Object.keys(config).length === 0) {
+        config = globals.accessedEnvVars;
+        loadedFrom.push('内存');
+      }
+
+      log("info", `[config] 配置加载成功，来源: ${loadedFrom.join('、')}`);
+      return jsonResponse({
+        success: true,
+        config,
+        loadedFrom
+      });
+
+    } catch (error) {
+      log("error", `[config] 加载配置失败: ${error.message}`);
+      return jsonResponse({
+        success: false,
+        errorMessage: `加载失败: ${error.message}`
+      }, 500);
+    }
+  }
+
+  // ========== 路径规范化开始 ==========
+
 
   // 智能处理API路径前缀
-  if (path !== "/" && path !== "/api/logs") {
+  // 定义不需要添加 /api/v2 前缀的路径
+  const excludedPaths = [
+    '/',
+    '/api/logs',
+    '/api/config/save',
+    '/api/config/load',
+    '/favicon.ico',
+    '/robots.txt'
+  ];
+
+  const shouldNormalizePath = !excludedPaths.some(excluded => path === excluded || path.startsWith(excluded));
+
+  if (shouldNormalizePath) {
     log("info", `[Path Check] Starting path normalization for: "${path}"`);
     const pathBeforeCleanup = path;
 
@@ -4067,7 +4213,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
     }
 
     const pathBeforePrefixCheck = path;
-    if (!path.startsWith('/api/v2') && path !== '/' && !path.startsWith('/api/logs')) {
+    if (!path.startsWith('/api/v2')) {
       log("info", `[Path Check] Path is missing /api/v2 prefix. Adding...`);
       path = '/api/v2' + path;
     }
@@ -4077,6 +4223,8 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
     }
 
     log("info", `[Path Check] Final normalized path: "${path}"`);
+  } else {
+    log("info", `[Path Check] Path "${path}" is excluded from normalization`);
   }
 
   // GET /
@@ -4480,5 +4628,6 @@ export async function netlifyHandler(event, context) {
 }
 
 export { handleRequest };
+
 
 
