@@ -40,10 +40,75 @@ export const Globals = {
    * @param {string} deployPlatform 部署平台
    * @returns {Object} 全局配置对象
    */
-  init(env = {}, deployPlatform = 'node') {
+    async init(env = {}, deployPlatform = 'node') {
     this.envs = Envs.load(env, deployPlatform);
     this.accessedEnvVars = Object.fromEntries(Envs.getAccessedEnvVars());
+    
+    // 尝试从数据库加载配置并覆盖
+    await this.loadConfigFromStorage();
+    
     return this.getConfig();
+  },
+
+  /**
+   * 从持久化存储加载配置
+   */
+  async loadConfigFromStorage() {
+    try {
+      // 首先检查数据库连接
+      if (this.envs.databaseUrl) {
+        const { checkDatabaseConnection, initDatabase, loadEnvConfigs } = await import('./utils/db-util.js');
+        
+        const isConnected = await checkDatabaseConnection();
+        if (isConnected) {
+          await initDatabase();
+          
+          const dbConfig = await loadEnvConfigs();
+          if (Object.keys(dbConfig).length > 0) {
+            console.log(`[Globals] 从数据库加载了 ${Object.keys(dbConfig).length} 个配置`);
+            
+            // 应用数据库配置，覆盖默认值
+            for (const [key, value] of Object.entries(dbConfig)) {
+              if (key in this.envs) {
+                this.envs[key] = value;
+                console.log(`[Globals] 应用数据库配置: ${key}`);
+              }
+              this.accessedEnvVars.set(key, value);
+            }
+            
+            return;
+          }
+        }
+      }
+      
+      // 如果数据库不可用，尝试 Redis
+      if (this.envs.redisUrl && this.envs.redisToken) {
+        const { pingRedis, getRedisKey } = await import('./utils/redis-util.js');
+        
+        const pingResult = await pingRedis();
+        if (pingResult && pingResult.result === "PONG") {
+          const result = await getRedisKey('env_configs');
+          if (result && result.result) {
+            try {
+              const redisConfig = JSON.parse(result.result);
+              console.log(`[Globals] 从 Redis 加载了 ${Object.keys(redisConfig).length} 个配置`);
+              
+              for (const [key, value] of Object.entries(redisConfig)) {
+                if (key in this.envs) {
+                  this.envs[key] = value;
+                  console.log(`[Globals] 应用 Redis 配置: ${key}`);
+                }
+                this.accessedEnvVars.set(key, value);
+              }
+            } catch (e) {
+              console.error('[Globals] 解析 Redis 配置失败:', e.message);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('[Globals] 加载存储配置失败:', error.message);
+    }
   },
 
   /**
