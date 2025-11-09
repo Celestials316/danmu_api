@@ -4020,39 +4020,6 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
    return new Response(null, { status: 204 });
  }
 
- // --- 校验 token ---
- const parts = path.split("/").filter(Boolean);
-
- // 如果 token 是默认值 87654321
- if (globals.token === "87654321") {
-   const knownApiPaths = ["api", "v1", "v2"];
-
-   if (parts.length > 0) {
-     if (parts[0] === "87654321") {
-       path = "/" + parts.slice(1).join("/");
-     } else if (!knownApiPaths.includes(parts[0])) {
-       log("error", `Invalid token in path: ${path}`);
-       return jsonResponse(
-         { errorCode: 401, success: false, errorMessage: "Unauthorized" },
-         401
-       );
-     }
-   }
- } else {
-   if (parts.length < 1 || parts[0] !== globals.token) {
-     log("error", `Invalid or missing token in path: ${path}`);
-     return jsonResponse(
-       { errorCode: 401, success: false, errorMessage: "Unauthorized" },
-       401
-     );
-   }
-   path = "/" + parts.slice(1).join("/");
- }
-
- log("info", path);
- 
-  log("info", path);
-
   // ========== 配置管理 API（在路径规范化之前处理）==========
   
   // POST /api/config/save - 保存环境变量配置
@@ -4190,7 +4157,37 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       }, 500);
     }
   }
+ // --- 校验 token ---
+ const parts = path.split("/").filter(Boolean);
 
+ // 如果 token 是默认值 87654321
+ if (globals.token === "87654321") {
+   const knownApiPaths = ["api", "v1", "v2"];
+
+   if (parts.length > 0) {
+     if (parts[0] === "87654321") {
+       path = "/" + parts.slice(1).join("/");
+     } else if (!knownApiPaths.includes(parts[0])) {
+       log("error", `Invalid token in path: ${path}`);
+       return jsonResponse(
+         { errorCode: 401, success: false, errorMessage: "Unauthorized" },
+         401
+       );
+     }
+   }
+ } else {
+   if (parts.length < 1 || parts[0] !== globals.token) {
+     log("error", `Invalid or missing token in path: ${path}`);
+     return jsonResponse(
+       { errorCode: 401, success: false, errorMessage: "Unauthorized" },
+       401
+     );
+   }
+   path = "/" + parts.slice(1).join("/");
+ }
+
+ 
+  log("info", path);
   // ========== 路径规范化开始 ==========
 
 
