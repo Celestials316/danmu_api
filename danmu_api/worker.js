@@ -121,11 +121,11 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
 
     const redisConfigured = !!(globals.redisUrl && globals.redisToken);
     const redisStatusText = redisConfigured 
-      ? (globals.redisValid ? '已连接' : '已配置未连接') 
+      ? (globals.redisValid ? '在线' : '离线') 
       : '未配置';
     const redisStatusClass = redisConfigured 
-      ? (globals.redisValid ? 'status-online' : 'status-warning')
-      : 'status-offline';
+      ? (globals.redisValid ? 'badge-success' : 'badge-warning')
+      : 'badge-secondary';
 
     // 安全检查：确保必要的属性存在
     if (!globals.accessedEnvVars) {
@@ -137,6 +137,26 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
     if (!globals.sourceOrderArr) {
       globals.sourceOrderArr = [];
     }
+    
+    // 计算已配置的环境变量数量（排除空值、undefined、null）
+    const configuredEnvCount = Object.entries(globals.accessedEnvVars).filter(([key, value]) => {
+      if (value === null || value === undefined) return false;
+      if (typeof value === 'string' && value.length === 0) return false;
+      if (Array.isArray(value) && value.length === 0) return false;
+      return true;
+    }).length;
+
+    const totalEnvCount = Object.keys(globals.accessedEnvVars).length;
+
+    // 计算敏感/隐私环境变量的数量
+    const sensitiveEnvCount = Object.entries(globals.accessedEnvVars).filter(([key, value]) => {
+      // 检查是否为敏感字段
+      if (!isSensitiveKey(key)) return false;
+      // 检查是否有实际值
+      if (value === null || value === undefined) return false;
+      if (typeof value === 'string' && value.length === 0) return false;
+      return true;
+    }).length;
 
     // 生成环境变量HTML
     const envItemsHtml = Object.entries(globals.accessedEnvVars)
@@ -145,70 +165,91 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
         let displayValue = value;
         const description = ENV_DESCRIPTIONS[key] || '环境变量';
         const isSensitive = isSensitiveKey(key);
-        
+
         if (typeof value === 'boolean') {
-          valueClass = value ? 'boolean-true' : 'boolean-false';
-          displayValue = value ? '✓ 已启用' : '✗ 已禁用';
+          valueClass = value ? 'value-enabled' : 'value-disabled';
+          displayValue = value ? '已启用' : '已禁用';
         } else if (value === null || value === undefined || (typeof value === 'string' && value.length === 0)) {
-          valueClass = 'not-configured';
+          valueClass = 'value-empty';
           displayValue = '未配置';
         } else if (isSensitive && typeof value === 'string' && value.length > 0) {
           const realValue = getRealEnvValue(key);
-          const maskedValue = '•'.repeat(Math.min(String(realValue).length, 32));
-          
+          const maskedValue = '•'.repeat(Math.min(String(realValue).length, 24));
+
           const encodedRealValue = String(realValue)
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#39;');
-          
+
           return `
-            <div class="env-item">
-              <div class="env-header">
-                <div class="env-key">${key}</div>
-                <div class="tooltip">
-                  <span class="info-icon">ⓘ</span>
-                  <span class="tooltip-text">${description}</span>
+            <div class="config-item">
+              <div class="config-header">
+                <span class="config-label">${key}</span>
+                <div class="tooltip-wrapper">
+                  <svg class="info-icon" viewBox="0 0 24 24" width="16" height="16">
+                    <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
+                    <path d="M12 16v-4m0-4h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                  <div class="tooltip-content">${description}</div>
                 </div>
               </div>
-              <div class="env-value sensitive" 
+              <div class="config-value sensitive-value" 
                    data-real="${encodedRealValue}" 
                    data-masked="${maskedValue}"
-                   onclick="toggleSensitiveValue(this)"
-                   title="点击查看真实值(3秒后自动隐藏)">${maskedValue}</div>
+                   onclick="toggleSensitive(this)"
+                   title="点击显示/隐藏">
+                <code>${maskedValue}</code>
+                <svg class="eye-icon" viewBox="0 0 24 24" width="16" height="16">
+                  <path fill="none" stroke="currentColor" stroke-width="2" d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+                  <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/>
+                </svg>
+              </div>
             </div>
           `;
         } else if (Array.isArray(value)) {
           if (value.length > 0) {
             displayValue = value.join(', ');
           } else {
-            valueClass = 'not-configured';
-            displayValue = '默认';
+            valueClass = 'value-empty';
+            displayValue = '默认值';
           }
         } else if (typeof value === 'string' && value.length > 100) {
           displayValue = value.substring(0, 100) + '...';
         }
-        
+
+        // 获取原始完整值用于复制
+        const realValue = getRealEnvValue(key);
+        const encodedOriginal = String(realValue || value)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+
         return `
-          <div class="env-item">
-            <div class="env-header">
-              <div class="env-key">${key}</div>
-              <div class="tooltip">
-                <span class="info-icon">ⓘ</span>
-                <span class="tooltip-text">${description}</span>
+          <div class="config-item">
+            <div class="config-header">
+              <span class="config-label">${key}</span>
+              <div class="tooltip-wrapper">
+                <svg class="info-icon" viewBox="0 0 24 24" width="16" height="16">
+                  <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
+                  <path d="M12 16v-4m0-4h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                <div class="tooltip-content">${description}</div>
               </div>
             </div>
-            <div class="env-value ${valueClass}">${displayValue}</div>
+            <div class="config-value ${valueClass}" data-original="${encodedOriginal}" title="双击复制完整内容">
+              <code>${displayValue}</code>
+            </div>
           </div>
         `;
       })
       .join('');
 
-    // 生成VOD服务器HTML - 从环境变量动态获取
+    // 生成VOD服务器HTML
     let vodServersHtml = '';
-    
-    // 解析默认 VOD 服务器（与 envs.js 保持一致）
     const defaultVodServersStr = '金蝉@https://zy.jinchancaiji.com,789@https://www.caiji.cyou,听风@https://gctf.tfdh.top';
     const defaultVodServers = defaultVodServersStr
       .split(',')
@@ -222,16 +263,14 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
         return { name: `vod-${index + 1}`, url: item };
       })
       .filter(server => server.url && server.url.length > 0);
-    
+
     try {
       if (globals.vodServers && globals.vodServers.length > 0) {
         vodServersHtml = globals.vodServers.map((server, index) => {
           let serverName = `服务器 #${index + 1}`;
           let serverUrl = '';
-          
-          // 处理不同的数据类型
+
           if (typeof server === 'string') {
-            // 字符串格式: "名称@URL"
             serverUrl = server;
             if (server.includes('@')) {
               const parts = server.split('@');
@@ -239,83 +278,75 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
               serverUrl = parts.slice(1).join('@');
             }
           } else if (typeof server === 'object' && server !== null) {
-            // 对象格式: { name: '名称', url: 'URL' } 或 { name: '名称', baseUrl: 'URL' }
             serverName = server.name || server.title || serverName;
             serverUrl = server.url || server.baseUrl || server.address || JSON.stringify(server);
           } else {
             serverUrl = String(server);
           }
-          
+
           return `
-            <div class="list-item">
-              <div class="list-icon">🎬</div>
-              <div class="list-content">
-                <div class="list-title">${serverName}</div>
-                <div class="list-value">${serverUrl}</div>
+            <div class="server-item">
+              <div class="server-badge">${index + 1}</div>
+              <div class="server-info">
+                <div class="server-name">${serverName}</div>
+                <div class="server-url">${serverUrl}</div>
               </div>
-              <div class="list-badge">#${index + 1}</div>
             </div>
           `;
         }).join('');
       } else {
         vodServersHtml = defaultVodServers.map((server, index) => `
-          <div class="list-item">
-            <div class="list-icon">🎬</div>
-            <div class="list-content">
-              <div class="list-title">${server.name} (默认)</div>
-              <div class="list-value">${server.url}</div>
+          <div class="server-item">
+            <div class="server-badge default-badge">默认</div>
+            <div class="server-info">
+              <div class="server-name">${server.name}</div>
+              <div class="server-url">${server.url}</div>
             </div>
-            <div class="list-badge">默认</div>
           </div>
         `).join('');
       }
     } catch (error) {
       log("error", `Generate VOD HTML error: ${error.message}`);
       vodServersHtml = `
-        <div class="list-item">
-          <div class="list-icon">⚠️</div>
-          <div class="list-content">
-            <div class="list-title">加载错误</div>
-            <div class="list-value">无法加载 VOD 服务器列表: ${error.message}</div>
-          </div>
+        <div class="alert alert-error">
+          <svg class="alert-icon" viewBox="0 0 24 24" width="20" height="20">
+            <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
+            <path d="M12 8v4m0 4h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <span>无法加载 VOD 服务器列表: ${error.message}</span>
         </div>
       `;
     }
 
-
     // 生成数据源HTML
     const sourceIcons = {
-      'dandan': '🎯',
-      'bilibili': '📺',
-      'iqiyi': '🎬',
-      'youku': '▶️',
-      'tencent': '🎞️',
-      'mgtv': '📹',
-      'bahamut': '🎴'
+      'dandan': 'D',
+      'bilibili': 'B',
+      'iqiyi': 'I',
+      'youku': 'Y',
+      'tencent': 'T',
+      'mgtv': 'M',
+      'bahamut': 'BH'
     };
 
     const sourcesHtml = globals.sourceOrderArr.length > 0 
       ? globals.sourceOrderArr.map((source, index) => {
-        const icon = sourceIcons[source.toLowerCase()] || '🔗';
-        
+        const icon = sourceIcons[source.toLowerCase()] || source.charAt(0).toUpperCase();
         return `
-          <div class="list-item">
-            <div class="list-icon">${icon}</div>
-            <div class="list-content">
-              <div class="list-title">${source}</div>
-              <div class="list-value">优先级: ${index + 1}</div>
-            </div>
-            <div class="list-badge">#${index + 1}</div>
+          <div class="source-item">
+            <div class="source-priority">${index + 1}</div>
+            <div class="source-icon">${icon}</div>
+            <div class="source-name">${source}</div>
           </div>
         `;
       }).join('')
       : `
-        <div class="list-item">
-          <div class="list-icon">⚠️</div>
-          <div class="list-content">
-            <div class="list-title">未配置数据源</div>
-            <div class="list-value">使用默认数据源顺序</div>
-          </div>
+        <div class="alert alert-info">
+          <svg class="alert-icon" viewBox="0 0 24 24" width="20" height="20">
+            <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
+            <path d="M12 16v-4m0-4h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <span>使用默认数据源顺序</span>
         </div>
       `;
 
@@ -324,1672 +355,1687 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>弹幕 API 服务 - Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>弹幕 API 管理后台</title>
   <style>
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
     }
-    
+
     :root {
-      --primary: #667eea;
-      --secondary: #764ba2;
-      --accent: #ff6ec3;
+      --primary-50: #f0f4ff;
+      --primary-100: #e0e9ff;
+      --primary-200: #c7d7fe;
+      --primary-300: #a5b8fc;
+      --primary-400: #8b92f9;
+      --primary-500: #6366f1;
+      --primary-600: #4f46e5;
+      --primary-700: #4338ca;
+      --primary-800: #3730a3;
+      --primary-900: #312e81;
+      
       --success: #10b981;
       --warning: #f59e0b;
-      --danger: #ef4444;
+      --error: #ef4444;
+      --info: #3b82f6;
       
-      --bg-dark: #0f0f23;
-      --bg-card-dark: rgba(30, 30, 50, 0.8);
-      --text-dark: #e5e7eb;
-      --text-secondary-dark: #9ca3af;
-      --border-dark: rgba(255, 255, 255, 0.12);
+      /* 深色主题 */
+      --bg-primary: #0a0a0f;
+      --bg-secondary: #13131a;
+      --bg-tertiary: #1c1c27;
+      --bg-hover: #25253a;
       
-      --bg-light: #f8fafc;
-      --bg-card-light: #ffffff;
-      --text-light: #1e293b;
-      --text-secondary-light: #64748b;
-      --border-light: #e2e8f0;
+      --text-primary: #e5e7eb;
+      --text-secondary: #9ca3af;
+      --text-tertiary: #6b7280;
+      
+      --border-color: #2d2d3f;
+      --border-light: #3f3f56;
+      
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+      --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.6);
     }
-    
-    html {
-      overflow-x: hidden;
-      scroll-behavior: smooth;
-    }
-    
+
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
-      background: var(--bg-dark);
-      color: var(--text-dark);
-      min-height: 100vh;
-      transition: background 0.3s ease, color 0.3s ease;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.6;
       overflow-x: hidden;
     }
-    
-    body::before {
-      content: '';
+
+    /* 浅色主题 */
+    body.light {
+      --bg-primary: #f8fafc;
+      --bg-secondary: #ffffff;
+      --bg-tertiary: #f1f5f9;
+      --bg-hover: #e2e8f0;
+      
+      --text-primary: #1e293b;
+      --text-secondary: #475569;
+      --text-tertiary: #94a3b8;
+      
+      --border-color: #e2e8f0;
+      --border-light: #cbd5e1;
+      
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+      --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    }
+
+    /* 侧边栏 */
+    .sidebar {
       position: fixed;
-      top: -50%;
-      left: -50%;
-      width: 200%;
-      height: 200%;
-      background: 
-        radial-gradient(circle at 20% 50%, rgba(102, 126, 234, 0.15) 0%, transparent 50%),
-        radial-gradient(circle at 80% 80%, rgba(255, 110, 199, 0.15) 0%, transparent 50%),
-        radial-gradient(circle at 40% 20%, rgba(59, 130, 246, 0.1) 0%, transparent 50%);
-      animation: drift 25s ease-in-out infinite;
-      z-index: 0;
-      transition: opacity 0.3s ease;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 260px;
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border-color);
+      padding: 24px 0;
+      overflow-y: auto;
+      transition: all 0.3s ease;
+      z-index: 1000;
     }
-    
-    @keyframes drift {
-      0%, 100% { transform: translate(0, 0) rotate(0deg); }
-      33% { transform: translate(-5%, 5%) rotate(5deg); }
-      66% { transform: translate(5%, -3%) rotate(-5deg); }
+
+    .sidebar-logo {
+      padding: 0 24px 24px;
+      border-bottom: 1px solid var(--border-color);
+      margin-bottom: 24px;
     }
-    
+
+    .logo-content {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-icon {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: bold;
+      color: white;
+    }
+
+    .logo-text h1 {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 2px;
+    }
+
+    .logo-text p {
+      font-size: 12px;
+      color: var(--text-tertiary);
+    }
+
+    .nav-menu {
+      padding: 0 12px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      margin-bottom: 4px;
+      border-radius: 8px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .nav-item:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .nav-item.active {
+      background: var(--primary-500);
+      color: white;
+    }
+
+    .nav-item svg {
+      width: 20px;
+      height: 20px;
+      stroke-width: 2;
+    }
+
+    /* 主内容区 */
+    .main-content {
+      margin-left: 260px;
+      min-height: 100vh;
+      transition: margin-left 0.3s ease;
+    }
+
+    /* 顶部栏 */
+    .topbar {
+      position: sticky;
+      top: 0;
+      height: 64px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      padding: 0 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 100;
+      backdrop-filter: blur(10px);
+    }
+
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .topbar-left h2 {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
     .theme-toggle {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      z-index: 1001;
-      width: 56px;
-      height: 56px;
-      background: var(--bg-card-dark);
-      backdrop-filter: blur(20px);
-      border: 2px solid var(--border-dark);
-      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      background: var(--bg-tertiary);
+      border: none;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.5em;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      transition: all 0.2s ease;
+      color: var(--text-primary);
     }
-    
+
     .theme-toggle:hover {
-      transform: scale(1.1) rotate(15deg);
-      border-color: var(--primary);
-      box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+      background: var(--bg-hover);
+      transform: scale(1.05);
     }
-    
-    .theme-toggle.hide,
-    .back-button.hide {
-      opacity: 0;
-      pointer-events: none;
-      transform: translateY(-80px);
+
+    .theme-toggle svg {
+      width: 20px;
+      height: 20px;
     }
-    
-    .back-button {
-      position: fixed;
-      top: 20px;
-      left: 20px;
-      z-index: 1001;
-      width: 56px;
-      height: 56px;
-      background: var(--bg-card-dark);
-      backdrop-filter: blur(20px);
-      border: 2px solid var(--border-dark);
-      border-radius: 50%;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.4em;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      opacity: 0;
-      pointer-events: none;
-    }
-    
-    .back-button.show {
-      opacity: 1;
-      pointer-events: all;
-    }
-    
-    .back-button:hover {
-      transform: scale(1.1) translateX(-5px);
-      border-color: var(--primary);
-      box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
-    }
-    
+
+    /* 内容容器 */
     .container {
-      max-width: 1200px;
+      padding: 32px;
+      max-width: 1400px;
       margin: 0 auto;
-      padding: 100px 20px 40px;
-      position: relative;
-      z-index: 1;
     }
-    
-    .page {
-      animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+
+    .page-section {
+      display: none;
+      animation: fadeIn 0.3s ease;
     }
-    
-    .page.page-out {
-      animation: fadeOut 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+
+    .page-section.active {
+      display: block;
     }
-    
-    @keyframes fadeInUp {
+
+    @keyframes fadeIn {
       from {
         opacity: 0;
-        transform: translateY(30px);
+        transform: translateY(10px);
       }
       to {
         opacity: 1;
         transform: translateY(0);
       }
     }
-    
-    @keyframes fadeOut {
-      to {
-        opacity: 0;
-        transform: translateY(-20px);
-      }
-    }
-    
-    .hero {
-      text-align: center;
-      padding: 40px 20px 60px;
-      margin-bottom: 40px;
-    }
-    
-    .hero-icon {
-      font-size: 4.5em;
-      margin-bottom: 20px;
-      display: inline-block;
-      animation: float 3s ease-in-out infinite;
-      filter: drop-shadow(0 4px 8px rgba(102, 126, 234, 0.3));
-    }
-    
-    @keyframes float {
-      0%, 100% { transform: translateY(0px) rotate(0deg); }
-      50% { transform: translateY(-15px) rotate(5deg); }
-    }
-    
-    .hero h1 {
-      font-size: clamp(2em, 5vw, 3em);
-      font-weight: 800;
-      margin-bottom: 15px;
-      background: linear-gradient(135deg, #667eea 0%, #ff6ec3 50%, #764ba2 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      letter-spacing: -0.5px;
-    }
-    
-    .hero-subtitle {
-      font-size: clamp(0.95em, 2.5vw, 1.15em);
-      color: var(--text-secondary-dark);
-      max-width: 600px;
-      margin: 0 auto 25px;
-      line-height: 1.7;
-    }
-    
-    .version-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 24px;
-      background: linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(118, 75, 162, 0.2));
-      border: 2px solid rgba(102, 126, 234, 0.4);
-      border-radius: 25px;
-      font-size: 0.9em;
-      font-weight: 600;
-      color: #a5b4fc;
-      transition: all 0.3s ease;
-    }
-    
+
+    /* 统计卡片 */
     .stats-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 20px;
-      margin-bottom: 50px;
+      gap: 24px;
+      margin-bottom: 32px;
     }
-    
+
     .stat-card {
-      background: var(--bg-card-dark);
-      backdrop-filter: blur(20px);
-      border: 2px solid var(--border-dark);
-      border-radius: 20px;
-      padding: 35px 25px;
-      text-align: center;
-      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-      position: relative;
-      overflow: hidden;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 24px;
+      transition: all 0.2s ease;
     }
-    
-    .stat-card::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 4px;
-      background: linear-gradient(90deg, var(--primary), var(--accent));
-      transform: scaleX(0);
-      transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    
+
     .stat-card:hover {
-      transform: translateY(-8px);
-      border-color: rgba(102, 126, 234, 0.6);
-      box-shadow: 0 12px 30px rgba(102, 126, 234, 0.3);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+      border-color: var(--primary-500);
     }
-    
-    .stat-card:hover::before {
-      transform: scaleX(1);
-    }
-    
-    .stat-icon {
-      font-size: 3em;
-      margin-bottom: 15px;
-      opacity: 0.9;
-    }
-    
-    .stat-value {
-      font-size: 2.2em;
-      font-weight: 800;
-      color: var(--text-dark);
-      margin-bottom: 10px;
-    }
-    
-    .stat-label {
-      font-size: 0.9em;
-      color: var(--text-secondary-dark);
-      text-transform: uppercase;
-      letter-spacing: 1.5px;
-      font-weight: 600;
-    }
-    
-    .redis-card {
-      background: var(--bg-card-dark);
-      backdrop-filter: blur(20px);
-      border: 2px solid var(--border-dark);
-      border-radius: 20px;
-      padding: 35px;
-      margin-bottom: 40px;
-      transition: all 0.3s ease;
-    }
-    
-    .redis-header {
+
+    .stat-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 15px;
-      flex-wrap: wrap;
-      gap: 15px;
+      margin-bottom: 16px;
     }
-    
-    .redis-title {
-      font-size: 1.4em;
-      font-weight: 700;
-      color: var(--text-dark);
+
+    .stat-title {
+      font-size: 14px;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .stat-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
       display: flex;
       align-items: center;
-      gap: 12px;
+      justify-content: center;
+      font-size: 20px;
+    }
+
+    .stat-icon.primary {
+      background: linear-gradient(135deg, var(--primary-100), var(--primary-200));
+      color: var(--primary-700);
+    }
+
+    .stat-icon.success {
+      background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+      color: #059669;
+    }
+
+    .stat-icon.warning {
+      background: linear-gradient(135deg, #fed7aa, #fbbf24);
+      color: #d97706;
+    }
+
+    .stat-icon.info {
+      background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+      color: #2563eb;
+    }
+
+    body.light .stat-icon.primary {
+      background: var(--primary-100);
+      color: var(--primary-600);
+    }
+
+    .stat-value {
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 4px;
     }
     
-    .status-badge {
+    .stat-footer {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border-color);
+      font-weight: 500;
+    }
+
+    /* 内容卡片 */
+    .card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: between;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .card-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-title svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    /* 徽章 */
+    .badge {
       display: inline-flex;
       align-items: center;
-      gap: 10px;
-      padding: 10px 20px;
-      border-radius: 25px;
-      font-size: 0.9em;
-      font-weight: 700;
-      transition: all 0.3s ease;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
-    
-    .status-online {
-      background: rgba(16, 185, 129, 0.2);
-      color: #34d399;
-      border: 2px solid rgba(16, 185, 129, 0.4);
+
+    .badge-success {
+      background: rgba(16, 185, 129, 0.1);
+      color: var(--success);
+      border: 1px solid rgba(16, 185, 129, 0.2);
     }
-    
-    .status-warning {
-      background: rgba(245, 158, 11, 0.2);
-      color: #fbbf24;
-      border: 2px solid rgba(245, 158, 11, 0.4);
+
+    .badge-warning {
+      background: rgba(245, 158, 11, 0.1);
+      color: var(--warning);
+      border: 1px solid rgba(245, 158, 11, 0.2);
     }
-    
-    .status-offline {
-      background: rgba(239, 68, 68, 0.2);
-      color: #f87171;
-      border: 2px solid rgba(239, 68, 68, 0.4);
+
+    .badge-secondary {
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-color);
     }
-    
+
     .status-dot {
-      width: 10px;
-      height: 10px;
+      width: 6px;
+      height: 6px;
       border-radius: 50%;
       background: currentColor;
       animation: pulse 2s ease-in-out infinite;
-      box-shadow: 0 0 8px currentColor;
     }
-    
+
     @keyframes pulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.6; transform: scale(0.9); }
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
     }
-    
-    .features-grid {
+
+    /* 配置项 */
+    .config-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 25px;
-      margin-bottom: 50px;
+      gap: 16px;
     }
-    
-    .feature-card {
-      background: var(--bg-card-dark);
-      backdrop-filter: blur(20px);
-      border: 2px solid var(--border-dark);
-      border-radius: 20px;
-      padding: 35px 30px;
-      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-      cursor: pointer;
-      position: relative;
-      overflow: hidden;
+
+    .config-item {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 16px;
+      transition: all 0.2s ease;
     }
-    
-    .feature-card::after {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(255, 110, 199, 0.1));
-      opacity: 0;
-      transition: opacity 0.4s ease;
-      pointer-events: none;
+
+    .config-item:hover {
+      background: var(--bg-hover);
+      border-color: var(--border-light);
     }
-    
-    .feature-card:hover {
-      transform: translateY(-8px) scale(1.02);
-      border-color: var(--primary);
-      box-shadow: 0 16px 40px rgba(102, 126, 234, 0.35);
-    }
-    
-    .feature-card:hover::after {
-      opacity: 1;
-    }
-    
-    .feature-icon {
-      font-size: 3.5em;
-      margin-bottom: 20px;
-      display: block;
-      position: relative;
-      z-index: 1;
-    }
-    
-    .feature-title {
-      font-size: 1.3em;
-      font-weight: 700;
-      color: var(--text-dark);
-      margin-bottom: 12px;
-      position: relative;
-      z-index: 1;
-    }
-    
-    .feature-desc {
-      font-size: 0.95em;
-      color: var(--text-secondary-dark);
-      line-height: 1.6;
-      position: relative;
-      z-index: 1;
-    }
-    
-    .feature-badge {
-      position: absolute;
-      top: 15px;
-      right: 15px;
-      background: linear-gradient(135deg, var(--primary), var(--secondary));
-      color: white;
-      padding: 6px 14px;
-      border-radius: 15px;
-      font-size: 0.75em;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      z-index: 1;
-    }
-    
-    .detail-page {
-      display: none;
-    }
-    
-    .detail-page.active {
-      display: block;
-    }
-    
-    .detail-header {
-      text-align: center;
-      margin-bottom: 50px;
-    }
-    
-    .detail-icon {
-      font-size: 4em;
-      margin-bottom: 20px;
-      display: inline-block;
-    }
-    
-    .detail-title {
-      font-size: 2.5em;
-      font-weight: 800;
-      margin-bottom: 15px;
-      background: linear-gradient(135deg, var(--primary), var(--accent));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-    
-    .detail-subtitle {
-      font-size: 1.1em;
-      color: var(--text-secondary-dark);
-      max-width: 600px;
-      margin: 0 auto;
-    }
-    
-    .env-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-      gap: 20px;
-    }
-    
-    .env-item {
-      background: var(--bg-card-dark);
-      border: 2px solid var(--border-dark);
-      border-radius: 16px;
-      padding: 24px;
-      transition: all 0.3s ease;
-    }
-    
-    .env-item:hover {
-      background: rgba(255, 255, 255, 0.05);
-      border-color: rgba(102, 126, 234, 0.5);
-      transform: translateY(-3px);
-      box-shadow: 0 8px 20px rgba(102, 126, 234, 0.25);
-    }
-    
-    .env-header {
+
+    .config-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 14px;
+      margin-bottom: 12px;
     }
-    
-    .env-key {
-      font-size: 0.95em;
-      color: #a5b4fc;
-      font-weight: 700;
+
+    .config-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--primary-400);
       text-transform: uppercase;
-      letter-spacing: 0.8px;
-      flex: 1;
+      letter-spacing: 0.5px;
     }
-    
+
+    .tooltip-wrapper {
+      position: relative;
+    }
+
     .info-icon {
-      display: inline-flex;
+      color: var(--text-tertiary);
+      cursor: help;
+      transition: color 0.2s;
+    }
+
+    .info-icon:hover {
+      color: var(--primary-500);
+    }
+
+    .tooltip-content {
+      position: absolute;
+      bottom: calc(100% + 8px);
+      right: 0;
+      min-width: 250px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      box-shadow: var(--shadow-lg);
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.2s ease;
+      z-index: 1000;
+      pointer-events: none;
+    }
+
+    .tooltip-wrapper:hover .tooltip-content {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .config-value {
+      font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+      font-size: 13px;
+      color: var(--text-primary);
+      background: var(--bg-primary);
+      padding: 10px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      word-break: break-all;
+    }
+
+    .config-value code {
+      color: inherit;
+      background: none;
+    }
+
+    .config-value.value-enabled {
+      color: var(--success);
+      font-weight: 600;
+    }
+
+    .config-value.value-disabled {
+      color: var(--error);
+      font-weight: 600;
+    }
+
+    .config-value.value-empty {
+      color: var(--text-tertiary);
+      font-style: italic;
+    }
+
+    .config-value.sensitive-value {
+      cursor: pointer;
+      position: relative;
+      padding-right: 40px;
+      user-select: none;
+    }
+
+    .config-value.sensitive-value:hover {
+      border-color: var(--primary-500);
+      background: var(--bg-secondary);
+    }
+
+    .config-value.sensitive-value.revealed {
+      color: var(--warning);
+      user-select: text;
+    }
+
+    .eye-icon {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-tertiary);
+      opacity: 0.6;
+      transition: all 0.2s;
+    }
+
+    .sensitive-value:hover .eye-icon {
+      opacity: 1;
+      color: var(--primary-500);
+    }
+
+    /* 服务器列表 */
+    .server-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .server-item {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 16px;
+      transition: all 0.2s ease;
+    }
+
+    .server-item:hover {
+      background: var(--bg-hover);
+      border-color: var(--primary-500);
+      transform: translateX(4px);
+    }
+
+    .server-badge {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+      color: white;
+      display: flex;
       align-items: center;
       justify-content: center;
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-     background: rgba(102, 126, 234, 0.25);
-     color: #a5b4fc;
-     font-size: 14px;
-     font-weight: bold;
-     cursor: help;
-     transition: all 0.3s ease;
-     border: 2px solid rgba(102, 126, 234, 0.5);
-     flex-shrink: 0;
-     font-style: normal;
-   }
-   
-   .info-icon:hover {
-     background: rgba(102, 126, 234, 0.4);
-     transform: scale(1.15);
-     border-color: rgba(102, 126, 234, 0.7);
-   }
-   
-   .env-value {
-     color: var(--text-dark);
-     font-family: 'Courier New', monospace;
-     font-size: 0.9em;
-     word-break: break-all;
-     padding: 14px 18px;
-     background: rgba(0, 0, 0, 0.25);
-     border-radius: 10px;
-     border: 1px solid rgba(255, 255, 255, 0.08);
-     position: relative;
-     transition: all 0.3s ease;
-     line-height: 1.6;
-   }
-   
-   .env-value.boolean-true {
-     color: #34d399;
-     font-weight: 600;
-   }
-   
-   .env-value.boolean-false {
-     color: #f87171;
-     font-weight: 600;
-   }
-   
-   .env-value.not-configured {
-     color: var(--text-secondary-dark);
-     font-style: italic;
-   }
-   
-   .env-value.sensitive {
-     cursor: pointer;
-     user-select: none;
-     padding-right: 45px;
-   }
-   
-   .env-value.sensitive:hover {
-     background: rgba(0, 0, 0, 0.4);
-     border-color: rgba(102, 126, 234, 0.4);
-   }
-   
-   .env-value.sensitive.revealed {
-     color: #fbbf24;
-     background: rgba(245, 158, 11, 0.2);
-     border-color: rgba(245, 158, 11, 0.4);
-   }
-   
-   .env-value.sensitive::after {
-     content: '👁️‍🗨️';
-     position: absolute;
-     right: 14px;
-     top: 50%;
-     transform: translateY(-50%);
-     font-size: 1.2em;
-     opacity: 0;
-     transition: opacity 0.3s ease;
-   }
-   
-   .env-value.sensitive:hover::after {
-     opacity: 0.7;
-   }
-   
-   .env-value.sensitive.revealed::after {
-     content: '👁️';
-     opacity: 1;
-   }
-   
-   .tooltip {
-     position: relative;
-   }
-   
-   .tooltip .tooltip-text {
-     visibility: hidden;
-     width: 260px;
-     background: rgba(17, 24, 39, 0.98);
-     color: #e5e7eb;
-     text-align: left;
-     border-radius: 12px;
-     padding: 14px 18px;
-     position: absolute;
-     z-index: 1000;
-     bottom: 150%;
-     right: 0;
-     opacity: 0;
-     transition: opacity 0.3s, visibility 0.3s;
-     font-size: 0.85em;
-     line-height: 1.6;
-     border: 2px solid rgba(102, 126, 234, 0.5);
-     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-     pointer-events: none;
-     backdrop-filter: blur(10px);
-     white-space: normal;
-   }
-   
-   .tooltip .tooltip-text::after {
-     content: "";
-     position: absolute;
-     top: 100%;
-     right: 10px;
-     border-width: 8px;
-     border-style: solid;
-     border-color: rgba(17, 24, 39, 0.98) transparent transparent transparent;
-   }
-   
-   .tooltip:hover .tooltip-text {
-     visibility: visible;
-     opacity: 1;
-   }
-   
-   .list-grid {
-     display: grid;
-     gap: 15px;
-   }
-   
-   .list-item {
-     background: var(--bg-card-dark);
-     border: 2px solid var(--border-dark);
-     border-radius: 14px;
-     padding: 20px 24px;
-     transition: all 0.3s ease;
-     display: flex;
-     align-items: center;
-     gap: 15px;
-   }
-   
-   .list-item:hover {
-     background: rgba(255, 255, 255, 0.05);
-     border-color: rgba(102, 126, 234, 0.5);
-     transform: translateX(5px);
-     box-shadow: 0 4px 15px rgba(102, 126, 234, 0.25);
-   }
-   
-   .list-icon {
-     font-size: 2em;
-     flex-shrink: 0;
-   }
-   
-   .list-content {
-     flex: 1;
-     min-width: 0;
-   }
-   
-   .list-title {
-     font-size: 1.05em;
-     font-weight: 600;
-     color: var(--text-dark);
-     margin-bottom: 5px;
-   }
-   
-   .list-value {
-     font-size: 0.9em;
-     color: var(--text-secondary-dark);
-     font-family: 'Courier New', monospace;
-     word-break: break-all;
-   }
-   
-   .list-badge {
-     background: linear-gradient(135deg, rgba(102, 126, 234, 0.25), rgba(118, 75, 162, 0.25));
-     color: #a5b4fc;
-     padding: 6px 14px;
-     border-radius: 20px;
-     font-size: 0.8em;
-     font-weight: 700;
-     text-transform: uppercase;
-     letter-spacing: 0.5px;
-     white-space: nowrap;
-     border: 2px solid rgba(102, 126, 234, 0.4);
-   }
-   
-   .footer {
-     text-align: center;
-     padding: 50px 20px 30px;
-     color: var(--text-secondary-dark);
-     font-size: 0.95em;
-   }
-   
-   .footer-heart {
-     color: var(--accent);
-     animation: heartbeat 1.5s ease-in-out infinite;
-     display: inline-block;
-   }
-   
-   @keyframes heartbeat {
-     0%, 100% { transform: scale(1); }
-     10%, 30% { transform: scale(1.2); }
-     20%, 40% { transform: scale(1); }
-   }
-   
-   .footer-links {
-     margin-top: 15px;
-     display: flex;
-     justify-content: center;
-     gap: 20px;
-     flex-wrap: wrap;
-   }
-   
-   .footer-link {
-     color: var(--text-secondary-dark);
-     text-decoration: none;
-     transition: color 0.3s ease;
-     font-weight: 500;
-   }
-   
-   .footer-link:hover {
-     color: var(--primary);
-   }
-   
-   /* 浅色模式样式优化 */
-   body.light-mode {
-     background: var(--bg-light);
-     color: var(--text-light);
-   }
-   
-   body.light-mode::before {
-     background: 
-       radial-gradient(circle at 20% 50%, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
-       radial-gradient(circle at 80% 80%, rgba(236, 72, 153, 0.08) 0%, transparent 50%),
-       radial-gradient(circle at 40% 20%, rgba(59, 130, 246, 0.05) 0%, transparent 50%);
-   }
-   
-   body.light-mode .theme-toggle,
-   body.light-mode .back-button {
-     background: var(--bg-card-light);
-     border-color: var(--border-light);
-     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-   }
-   
-   body.light-mode .theme-toggle:hover,
-   body.light-mode .back-button:hover {
-     box-shadow: 0 8px 25px rgba(99, 102, 241, 0.3);
-   }
-   
-   body.light-mode .hero h1,
-   body.light-mode .detail-title {
-     background: linear-gradient(135deg, #6366f1 0%, #ec4899 50%, #8b5cf6 100%);
-     -webkit-background-clip: text;
-     -webkit-text-fill-color: transparent;
-     background-clip: text;
-   }
-   
-   body.light-mode .hero-subtitle,
-   body.light-mode .detail-subtitle {
-     color: var(--text-secondary-light);
-   }
-   
-   body.light-mode .version-badge {
-     background: rgba(99, 102, 241, 0.12);
-     border-color: rgba(99, 102, 241, 0.3);
-     color: #6366f1;
-   }
-   
-   body.light-mode .stat-card,
-   body.light-mode .redis-card,
-   body.light-mode .feature-card,
-   body.light-mode .env-item,
-   body.light-mode .list-item {
-     background: var(--bg-card-light);
-     border-color: var(--border-light);
-     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-   }
-   
-   body.light-mode .stat-card:hover,
-   body.light-mode .feature-card:hover,
-   body.light-mode .env-item:hover,
-   body.light-mode .list-item:hover {
-     box-shadow: 0 8px 25px rgba(99, 102, 241, 0.15);
-   }
-   
-   body.light-mode .stat-value,
-   body.light-mode .redis-title,
-   body.light-mode .feature-title,
-   body.light-mode .list-title {
-     color: var(--text-light);
-   }
-   
-   body.light-mode .stat-label,
-   body.light-mode .feature-desc,
-   body.light-mode .list-value,
-   body.light-mode .footer {
-     color: var(--text-secondary-light);
-   }
-   
-   body.light-mode .env-key {
-     color: #6366f1;
-   }
-   
-   body.light-mode .env-value {
-     background: #f1f5f9;
-     border-color: #e2e8f0;
-     color: var(--text-light);
-   }
-   
-   body.light-mode .env-value.boolean-true {
-     color: #059669;
-   }
-   
-   body.light-mode .env-value.boolean-false {
-     color: #dc2626;
-   }
-   
-   body.light-mode .env-value.not-configured {
-     color: var(--text-secondary-light);
-   }
-   
-   body.light-mode .env-value.sensitive:hover {
-     background: #e2e8f0;
-     border-color: rgba(99, 102, 241, 0.4);
-   }
-   
-   body.light-mode .env-value.sensitive.revealed {
-     color: #d97706;
-     background: rgba(245, 158, 11, 0.15);
-     border-color: rgba(245, 158, 11, 0.4);
-   }
-   
-   body.light-mode .info-icon {
-     background: rgba(99, 102, 241, 0.15);
-     color: #6366f1;
-     border-color: rgba(99, 102, 241, 0.4);
-   }
-   
-   body.light-mode .info-icon:hover {
-     background: rgba(99, 102, 241, 0.25);
-   }
-   
-   body.light-mode .tooltip .tooltip-text {
-     background: rgba(30, 41, 59, 0.98);
-     border-color: rgba(99, 102, 241, 0.4);
-   }
-   
-   body.light-mode .status-online {
-     background: rgba(16, 185, 129, 0.15);
-     color: #059669;
-     border-color: rgba(16, 185, 129, 0.4);
-   }
-   
-   body.light-mode .status-warning {
-     background: rgba(245, 158, 11, 0.15);
-     color: #d97706;
-     border-color: rgba(245, 158, 11, 0.4);
-   }
-   
-   body.light-mode .status-offline {
-     background: rgba(239, 68, 68, 0.15);
-     color: #dc2626;
-     border-color: rgba(239, 68, 68, 0.4);
-   }
-   
-   body.light-mode .list-badge {
-     background: rgba(99, 102, 241, 0.15);
-     color: #6366f1;
-     border-color: rgba(99, 102, 241, 0.3);
-   }
-   
-   @media (max-width: 768px) {
-     .container {
-       padding: 80px 15px 30px;
-     }
-     
-     .theme-toggle,
-     .back-button {
-       width: 48px;
-       height: 48px;
-       font-size: 1.3em;
-       top: 15px;
-     }
-     
-     .stats-grid {
-       grid-template-columns: repeat(2, 1fr);
-       gap: 15px;
-     }
-     
-     .features-grid {
-       grid-template-columns: 1fr;
-     }
-     
-     .env-grid {
-       grid-template-columns: 1fr;
-     }
-     
-     .tooltip .tooltip-text {
-       width: 220px;
-       right: -50px;
-     }
-   }
-   
-   @media (max-width: 480px) {
-     .stats-grid {
-       grid-template-columns: 1fr;
-     }
-     
-     .redis-header {
-       flex-direction: column;
-       align-items: flex-start;
-     }
-     
-     .tooltip .tooltip-text {
-       width: 200px;
-       right: -20px;
-     }
-   }
- </style>
+      font-weight: 700;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    .server-badge.default-badge {
+      background: linear-gradient(135deg, var(--text-tertiary), var(--text-secondary));
+    }
+
+    .server-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .server-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .server-url {
+      font-size: 12px;
+      color: var(--text-secondary);
+      font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* 数据源列表 */
+    .source-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 12px;
+    }
+
+    .source-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 16px;
+      transition: all 0.2s ease;
+    }
+
+    .source-item:hover {
+      background: var(--bg-hover);
+      border-color: var(--primary-500);
+      transform: translateY(-2px);
+    }
+
+    .source-priority {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      background: var(--primary-500);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 12px;
+      flex-shrink: 0;
+    }
+
+    .source-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--bg-hover), var(--bg-tertiary));
+      border: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--primary-500);
+      flex-shrink: 0;
+    }
+
+    .source-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      flex: 1;
+    }
+
+    /* 警告框 */
+    .alert {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+
+    .alert-icon {
+      flex-shrink: 0;
+    }
+
+    .alert-error {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      color: var(--error);
+    }
+
+    .alert-info {
+      background: rgba(59, 130, 246, 0.1);
+      border: 1px solid rgba(59, 130, 246, 0.2);
+      color: var(--info);
+    }
+
+    /* 页脚 */
+    .footer {
+      margin-top: 48px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border-color);
+      text-align: center;
+      color: var(--text-tertiary);
+      font-size: 14px;
+    }
+
+    /* 移动端适配 */
+    @media (max-width: 768px) {
+      .sidebar {
+        transform: translateX(-100%);
+      }
+
+      .sidebar.mobile-open {
+        transform: translateX(0);
+      }
+
+      .main-content {
+        margin-left: 0;
+      }
+
+      .container {
+        padding: 16px;
+      }
+
+      .topbar {
+        padding: 0 16px;
+      }
+
+      .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+
+      .source-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .mobile-menu-btn {
+        display: flex !important;
+      }
+    }
+
+    .mobile-menu-btn {
+      display: none;
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      background: var(--bg-tertiary);
+      border: none;
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-primary);
+      transition: all 0.2s ease;
+    }
+
+    .mobile-menu-btn:hover {
+      background: var(--bg-hover);
+    }
+
+    .mobile-menu-btn svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    /* 移动端遮罩 */
+    .mobile-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 999;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .mobile-overlay.show {
+      display: block;
+      opacity: 1;
+    }
+
+    /* 滚动条美化 */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg-primary);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border-light);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--text-tertiary);
+    }
+
+    /* Toast 通知 */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 16px 20px;
+      box-shadow: var(--shadow-xl);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 14px;
+      font-weight: 500;
+      z-index: 9999;
+      animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateX(400px);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    .toast-success {
+      border-color: var(--success);
+      color: var(--success);
+    }
+
+    .toast-icon {
+      width: 20px;
+      height: 20px;
+    }
+  </style>
 </head>
 <body>
- <div id="theme-toggle-btn" class="theme-toggle" title="切换主题" role="button" tabindex="0">
-   <span id="theme-icon">🌙</span>
- </div>
- 
- <div id="back-btn" class="back-button" title="返回首页" role="button" tabindex="0">
-   <span>←</span>
- </div>
- 
- <div class="container">
-   <div id="home-page" class="page">
-     <div class="hero">
-       <div class="hero-icon">🎬</div>
-       <h1>弹幕 API 服务</h1>
-       <p class="hero-subtitle">
-         高性能弹幕数据接口服务,支持多平台弹幕获取、智能匹配与缓存管理
-       </p>
-       <span class="version-badge">
-         <span>🚀</span>
-         <span>v${globals.VERSION}</span>
-       </span>
-     </div>
-     
-     <div class="stats-grid">
-       <div class="stat-card">
-         <div class="stat-icon">⚙️</div>
-         <div class="stat-value">${Object.keys(globals.accessedEnvVars).length}</div>
-         <div class="stat-label">环境变量</div>
-       </div>
-        <div class="stat-card">
-          <div class="stat-icon">🎬</div>
-          <div class="stat-value">${globals.vodServers.length}</div>
-          <div class="stat-label">采集站</div>
+  <!-- 移动端遮罩 -->
+  <div class="mobile-overlay" id="mobileOverlay" onclick="closeMobileMenu()"></div>
+
+  <!-- 侧边栏 -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-content">
+        <div class="logo-icon">🎬</div>
+        <div class="logo-text">
+          <h1>弹幕 API</h1>
+          <p>v${globals.VERSION}</p>
         </div>
-       <div class="stat-card">
-         <div class="stat-icon">🔗</div>
-         <div class="stat-value">${globals.sourceOrderArr.length}</div>
-         <div class="stat-label">数据源</div>
-       </div>
-       <div class="stat-card">
-         <div class="stat-icon">💾</div>
-         <div class="stat-value">${redisConfigured ? (globals.redisValid ? '✓' : '✗') : '—'}</div>
-         <div class="stat-label">Redis 缓存</div>
-       </div>
-     </div>
-     
-     <div class="redis-card">
-       <div class="redis-header">
-         <h3 class="redis-title">
-           <span>💾</span>
-           <span>缓存服务状态</span>
-         </h3>
-         <span class="status-badge ${redisStatusClass}">
-           <span class="status-dot"></span>
-           <span>${redisStatusText}</span>
-         </span>
-       </div>
-       <p style="color: var(--text-secondary-dark); font-size: 0.95em; line-height: 1.6;">
-         ${redisConfigured 
-           ? (globals.redisValid 
-             ? '✅ Redis 缓存服务运行正常,已启用持久化存储和智能缓存优化。' 
-             : '⚠️ Redis 已配置但连接失败,请检查配置信息和网络连接。')
-           : '📝 未配置 Redis 缓存服务,数据将仅保存在内存中(重启后丢失)。'}
-       </p>
-     </div>
-     
-     <div class="features-grid">
-       <div class="feature-card" onclick="showPage('env')">
-         <span class="feature-badge">配置</span>
-         <div class="feature-icon">🔧</div>
-         <h3 class="feature-title">环境变量</h3>
-         <p class="feature-desc">查看和管理所有环境变量配置,包括 API 密钥、服务器设置等</p>
-       </div>
-       
-        <div class="feature-card" onclick="showPage('vod')">
-          <span class="feature-badge">${globals.vodServers.length} 个</span>
-          <div class="feature-icon">🎬</div>
-          <h3 class="feature-title">VOD 采集站</h3>
-          <p class="feature-desc">视频资源采集服务器列表,支持多站点并发查询和智能匹配</p>
-        </div>
-       
-       <div class="feature-card" onclick="showPage('sources')">
-         <span class="feature-badge">${globals.sourceOrderArr.length} 个</span>
-         <div class="feature-icon">🗂️</div>
-         <h3 class="feature-title">数据源</h3>
-         <p class="feature-desc">查看弹幕数据源优先级排序,影响自动匹配和查询策略</p>
-       </div>
-     </div>
-     
-     <div class="footer">
-       <p>Made with <span class="footer-heart">♥</span> for Better Anime Experience</p>
-        <div class="footer-links">
-          <a href="#" class="footer-link" onclick="showPage('env'); return false;">环境变量</a>
-          <a href="#" class="footer-link" onclick="showPage('vod'); return false;">采集站配置</a>
-          <a href="#" class="footer-link" onclick="showPage('sources'); return false;">数据源</a>
-        </div>
-     </div>
-   </div>
-   
-   <div id="env-page" class="page detail-page">
-     <div class="detail-header">
-       <div class="detail-icon">🔧</div>
-       <h2 class="detail-title">环境变量配置</h2>
-       <p class="detail-subtitle">
-         当前系统配置的所有环境变量,敏感信息已加密显示,点击可查看明文
-       </p>
-     </div>
-     
-     <div class="env-grid">
-       ${envItemsHtml}
-     </div>
-     
-     <div class="footer">
-       <p>配置变量总数: <strong>${Object.keys(globals.accessedEnvVars).length}</strong></p>
-     </div>
-   </div>
-   
-   <div id="vod-page" class="page detail-page">
-      <div class="detail-header">
-        <div class="detail-icon">🎬</div>
-        <h2 class="detail-title">VOD 采集服务器</h2>
-        <p class="detail-subtitle">
-          视频资源采集站列表,支持多个服务器并发查询。格式: 名称@URL
-        </p>
       </div>
-     
-     <div class="list-grid">
-       ${vodServersHtml}
-     </div>
-     
-     <div class="redis-card" style="margin-top: 30px;">
-       <div class="redis-header">
-         <h3 class="redis-title">
-           <span>⚙️</span>
-           <span>VOD 配置</span>
-         </h3>
-       </div>
-       <div class="list-grid">
-         <div class="list-item">
-           <div class="list-icon">🔄</div>
-           <div class="list-content">
-             <div class="list-title">返回模式</div>
-             <div class="list-value">${globals.vodReturnMode === 'all' ? '返回所有结果' : '返回最快响应'}</div>
-           </div>
-           <div class="list-badge">${globals.vodReturnMode}</div>
-         </div>
-         <div class="list-item">
-           <div class="list-icon">⏱️</div>
-           <div class="list-content">
-             <div class="list-title">请求超时</div>
-             <div class="list-value">${globals.vodRequestTimeout} 毫秒</div>
-           </div>
-         </div>
-       </div>
-     </div>
-     
-      <div class="footer">
-        <p>采集站总数: <strong>${globals.vodServers.length}</strong> | 支持并发查询,自动选择最快响应</p>
+    </div>
+    
+    <nav class="nav-menu">
+      <div class="nav-item active" onclick="switchPage('overview')">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" stroke="currentColor" fill="none"/>
+        </svg>
+        <span>概览</span>
       </div>
-   </div>
-   
-   <div id="sources-page" class="page detail-page">
-     <div class="detail-header">
-       <div class="detail-icon">🗂️</div>
-       <h2 class="detail-title">数据源配置</h2>
-       <p class="detail-subtitle">
-         弹幕数据源优先级排序,数字越小优先级越高,影响自动匹配策略
-       </p>
-     </div>
-     
-     <div class="list-grid">
-       ${sourcesHtml}
-     </div>
-     
-     <div class="redis-card" style="margin-top: 30px;">
-       <div class="redis-header">
-         <h3 class="redis-title">
-           <span>🎯</span>
-           <span>匹配策略</span>
-         </h3>
-       </div>
-       <div class="list-grid">
-         <div class="list-item">
-           <div class="list-icon">🔍</div>
-           <div class="list-content">
-             <div class="list-title">严格匹配模式</div>
-             <div class="list-value">${globals.strictTitleMatch ? '已启用 - 减少误匹配' : '已禁用 - 宽松匹配'}</div>
-           </div>
-           <div class="list-badge">${globals.strictTitleMatch ? 'ON' : 'OFF'}</div>
-         </div>
-         <div class="list-item">
-           <div class="list-icon">📝</div>
-           <div class="list-content">
-             <div class="list-title">记住手动选择</div>
-             <div class="list-value">${globals.rememberLastSelect ? '已启用 - 优化匹配准确度' : '已禁用'}</div>
-           </div>
-           <div class="list-badge">${globals.rememberLastSelect ? 'ON' : 'OFF'}</div>
-         </div>
-       </div>
-     </div>
-     
-     <div class="footer">
-       <p>数据源总数: <strong>${globals.sourceOrderArr.length}</strong></p>
-     </div>
-   </div>
- </div>
- 
- <script>
-   let currentPage = 'home';
-   let lastScrollTop = 0;
-   let scrollTimeout;
-   
-   // 滚动检测,隐藏/显示按钮
-   window.addEventListener('scroll', function() {
-     const themeToggle = document.getElementById('theme-toggle-btn');
-     const backBtn = document.getElementById('back-btn');
-     const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-     
-     clearTimeout(scrollTimeout);
-     
-     if (scrollTop > lastScrollTop && scrollTop > 100) {
-       // 向下滚动,隐藏按钮
-       themeToggle.classList.add('hide');
-       if (currentPage !== 'home') {
-         backBtn.classList.add('hide');
-       }
-     } else {
-       // 向上滚动或在顶部,显示按钮
-       themeToggle.classList.remove('hide');
-       if (currentPage !== 'home') {
-         backBtn.classList.remove('hide');
-       }
-     }
-     
-     lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
-     
-     // 停止滚动2秒后显示按钮
-     scrollTimeout = setTimeout(function() {
-       themeToggle.classList.remove('hide');
-       if (currentPage !== 'home') {
-         backBtn.classList.remove('hide');
-       }
-     }, 2000);
-   }, false);
-   
-   function showPage(pageName) {
-     if (currentPage === pageName) return;
-     
-     const currentPageEl = document.getElementById(currentPage + '-page');
-     if (currentPageEl) {
-       currentPageEl.classList.add('page-out');
-       setTimeout(() => {
-         currentPageEl.style.display = 'none';
-         currentPageEl.classList.remove('page-out', 'active');
-       }, 300);
-     }
-     
-     setTimeout(() => {
-       const newPageEl = document.getElementById(pageName + '-page');
-       if (newPageEl) {
-         newPageEl.style.display = 'block';
-         setTimeout(() => newPageEl.classList.add('active'), 10);
-       }
-       
-       const backBtn = document.getElementById('back-btn');
-       if (pageName === 'home') {
-         backBtn.classList.remove('show');
-       } else {
-         backBtn.classList.add('show');
-         backBtn.classList.remove('hide');
-       }
-       
-       currentPage = pageName;
-       window.scrollTo({ top: 0, behavior: 'smooth' });
-     }, 300);
-   }
-   
-   document.getElementById('back-btn').addEventListener('click', () => {
-     showPage('home');
-   });
-   
-   function toggleSensitiveValue(element) {
-     const textarea = document.createElement('textarea');
-     textarea.innerHTML = element.dataset.real;
-     const realValue = textarea.value;
-     const maskedValue = element.dataset.masked;
-     const isRevealed = element.classList.contains('revealed');
-     
-     if (isRevealed) {
-       element.textContent = maskedValue;
-       element.classList.remove('revealed');
-       element.title = '点击查看真实值(3秒后自动隐藏)';
-       
-       if (element.hideTimer) {
-         clearTimeout(element.hideTimer);
-         delete element.hideTimer;
-       }
-     } else {
-       element.textContent = realValue;
-       element.classList.add('revealed');
-       element.title = '点击隐藏 / 3秒后自动隐藏';
-       
-       element.hideTimer = setTimeout(() => {
-         if (element.classList.contains('revealed')) {
-           element.textContent = maskedValue;
-           element.classList.remove('revealed');
-           element.title = '点击查看真实值(3秒后自动隐藏)';
-         }
-         delete element.hideTimer;
-       }, 3000);
-     }
-   }
-   
-   // 主题切换
-   (function() {
-     const toggleBtn = document.getElementById('theme-toggle-btn');
-     const themeIcon = document.getElementById('theme-icon');
-     const body = document.body;
-     const themeKey = 'danmu-api-theme';
-     
-     let savedTheme = 'dark';
-     try {
-       savedTheme = localStorage.getItem(themeKey) || 'dark';
-     } catch (e) {
-       console.warn('Could not access localStorage for theme');
-     }
-     
-     if (savedTheme === 'light') {
-       body.classList.add('light-mode');
-       themeIcon.textContent = '☀️';
-     }
-     
-     function toggleTheme() {
-       const isLight = body.classList.toggle('light-mode');
-       const newTheme = isLight ? 'light' : 'dark';
-       
-       themeIcon.textContent = isLight ? '☀️' : '🌙';
-       
-       themeIcon.style.transform = 'scale(0.8) rotate(180deg)';
-       setTimeout(() => {
-         themeIcon.style.transform = 'scale(1) rotate(0deg)';
-       }, 200);
-       
-       try {
-         localStorage.setItem(themeKey, newTheme);
-       } catch (e) {
-         console.warn('Could not save theme to localStorage');
-       }
-     }
-     
-     toggleBtn.addEventListener('click', toggleTheme);
-     themeIcon.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
-   })();
-   
-   // 键盘快捷键
-   document.addEventListener('keydown', (e) => {
-     if (e.key === 'Escape' && currentPage !== 'home') {
-       showPage('home');
-     }
-     
-     if (e.key === '1' && currentPage === 'home') {
-       showPage('env');
-     } else if (e.key === '2' && currentPage === 'home') {
-       showPage('vod');
-     } else if (e.key === '3' && currentPage === 'home') {
-       showPage('sources');
-     }
-     
-     if (e.key === 't' || e.key === 'T') {
-       document.getElementById('theme-toggle-btn').click();
-     }
-   });
-   
-   // 双击复制功能
-   document.querySelectorAll('.env-value, .list-value').forEach(element => {
-     element.addEventListener('dblclick', function() {
-       const text = this.textContent;
-       if (text === '未配置' || text === '默认') return;
-       
-       if (this.classList.contains('sensitive') && this.dataset.real) {
-         const textarea = document.createElement('textarea');
-         textarea.innerHTML = this.dataset.real;
-         copyToClipboard(textarea.value);
-       } else {
-         copyToClipboard(text);
-       }
-       
-       showToast('已复制到剪贴板 ✓');
-     });
-   });
-   
-   function copyToClipboard(text) {
-     if (navigator.clipboard && window.isSecureContext) {
-       navigator.clipboard.writeText(text);
-     } else {
-       const textArea = document.createElement('textarea');
-       textArea.value = text;
-       textArea.style.position = 'fixed';
-       textArea.style.left = '-999999px';
-       document.body.appendChild(textArea);
-       textArea.focus();
-       textArea.select();
-       try {
-         document.execCommand('copy');
-       } catch (err) {
-         console.error('Failed to copy:', err);
-       }
-       document.body.removeChild(textArea);
-     }
-   }
-   
-   function showToast(message) {
-     const toast = document.createElement('div');
-     toast.textContent = message;
-     toast.style.cssText = 'position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100px); background: linear-gradient(135deg, rgba(102, 126, 234, 0.95), rgba(118, 75, 162, 0.95)); color: white; padding: 14px 28px; border-radius: 25px; font-weight: 600; font-size: 0.95em; z-index: 10000; box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4); backdrop-filter: blur(10px); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); pointer-events: none;';
-     
-     document.body.appendChild(toast);
-     
-     setTimeout(() => {
-       toast.style.transform = 'translateX(-50%) translateY(0)';
-     }, 10);
-     
-     setTimeout(() => {
-       toast.style.transform = 'translateX(-50%) translateY(100px)';
-       toast.style.opacity = '0';
-       setTimeout(() => {
-         document.body.removeChild(toast);
-       }, 300);
-     }, 2000);
-   }
- </script>
+      
+      <div class="nav-item" onclick="switchPage('config')">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor"/>
+        </svg>
+        <span>环境配置</span>
+      </div>
+      
+      <div class="nav-item" onclick="switchPage('vod')">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M5 3l14 9-14 9V3z" stroke="currentColor"/>
+        </svg>
+        <span>VOD 采集站</span>
+      </div>
+      
+      <div class="nav-item" onclick="switchPage('sources')">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor"/>
+        </svg>
+        <span>数据源</span>
+      </div>
+    </nav>
+  </aside>
+
+  <!-- 主内容区 -->
+  <main class="main-content">
+    <!-- 顶部栏 -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="mobile-menu-btn" onclick="toggleMobileMenu()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M4 6h16M4 12h16M4 18h16" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <h2 id="pageTitle">系统概览</h2>
+      </div>
+      <div class="topbar-right">
+        <button class="theme-toggle" onclick="toggleTheme()" title="切换主题">
+          <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" stroke-width="2"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- 内容容器 -->
+    <div class="container">
+      <!-- 概览页面 -->
+      <section id="overview-page" class="page-section active">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-header">
+              <span class="stat-title">环境变量</span>
+              <div class="stat-icon primary">⚙️</div>
+            </div>
+            <div class="stat-value">${configuredEnvCount}/${totalEnvCount}</div>
+            <div class="stat-footer">
+              ${sensitiveEnvCount > 0 ? `隐私变量: ${sensitiveEnvCount} 个` : '已配置 / 总数'}
+            </div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="stat-header">
+              <span class="stat-title">VOD 采集站</span>
+              <div class="stat-icon success">🎬</div>
+            </div>
+            <div class="stat-value">${globals.vodServers.length}</div>
+            <div class="stat-footer">
+              ${globals.vodReturnMode === 'all' ? '返回所有结果' : '仅返回最快'}
+            </div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="stat-header">
+              <span class="stat-title">数据源</span>
+              <div class="stat-icon info">🔗</div>
+            </div>
+            <div class="stat-value">${globals.sourceOrderArr.length > 0 ? globals.sourceOrderArr.length : '默认'}</div>
+            <div class="stat-footer">
+              ${globals.sourceOrderArr.length > 0 ? `优先: ${globals.sourceOrderArr[0]}` : '使用默认顺序'}
+            </div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="stat-header">
+              <span class="stat-title">Redis 缓存</span>
+              <div class="stat-icon warning">💾</div>
+            </div>
+            <div class="stat-value">${redisConfigured ? (globals.redisValid ? '在线' : '离线') : '未配置'}</div>
+            <div class="stat-footer">
+              ${redisConfigured 
+                ? (globals.redisValid ? '持久化存储' : '连接失败') 
+                : '仅内存缓存'}
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
+              </svg>
+              系统状态
+            </h3>
+          </div>
+          <div class="config-grid">
+            <div class="config-item">
+              <div class="config-header">
+                <span class="config-label">Redis 缓存</span>
+                <span class="badge ${redisStatusClass}">
+                  <span class="status-dot"></span>
+                  <span>${redisStatusText}</span>
+                </span>
+              </div>
+              <div class="config-value" style="background: none; border: none; padding: 0;">
+                <code style="color: var(--text-secondary); font-size: 13px;">
+                  ${redisConfigured 
+                    ? (globals.redisValid 
+                      ? '✅ 缓存服务运行正常，已启用持久化存储' 
+                      : '⚠️ 已配置但连接失败，请检查配置信息')
+                    : '📝 未配置，数据仅保存在内存中（重启后丢失）'}
+                </code>
+              </div>
+            </div>
+            
+            <div class="config-item">
+              <div class="config-header">
+                <span class="config-label">限流配置</span>
+                <span class="badge badge-secondary">
+                  ${globals.rateLimitMaxRequests > 0 ? '已启用' : '未启用'}
+                </span>
+              </div>
+              <div class="config-value" style="background: none; border: none; padding: 0;">
+                <code style="color: var(--text-secondary); font-size: 13px;">
+                  ${globals.rateLimitMaxRequests > 0 
+                    ? `🛡️ 每 IP 限制 ${globals.rateLimitMaxRequests} 次/分钟` 
+                    : '🔓 未启用请求限流'}
+                </code>
+              </div>
+            </div>
+            
+            <div class="config-item">
+              <div class="config-header">
+                <span class="config-label">缓存策略</span>
+              </div>
+              <div class="config-value" style="background: none; border: none; padding: 0;">
+                <code style="color: var(--text-secondary); font-size: 13px;">
+                  🔍 搜索: ${globals.searchCacheMinutes} 分钟 | 💬 弹幕: ${globals.commentCacheMinutes} 分钟
+                </code>
+              </div>
+            </div>
+            
+            <div class="config-item">
+              <div class="config-header">
+                <span class="config-label">弹幕处理</span>
+              </div>
+              <div class="config-value" style="background: none; border: none; padding: 0;">
+                <code style="color: var(--text-secondary); font-size: 13px;">
+                  ${globals.danmuLimit > 0 
+                    ? `📊 限制 ${globals.danmuLimit} 条` 
+                    : '♾️ 不限制数量'} | 
+                  ${globals.danmuSimplified ? '🇨🇳 繁转简' : '🌐 保持原样'} | 
+                  格式: ${globals.danmuOutputFormat.toUpperCase()}
+                </code>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-width="2"/>
+              </svg>
+              快速导航
+            </h3>
+          </div>
+          <div class="source-grid">
+            <div class="source-item" onclick="switchPage('config')" style="cursor: pointer;">
+              <div class="source-icon">⚙️</div>
+              <div class="source-name">环境配置</div>
+            </div>
+            <div class="source-item" onclick="switchPage('vod')" style="cursor: pointer;">
+              <div class="source-icon">🎬</div>
+              <div class="source-name">采集站管理</div>
+            </div>
+            <div class="source-item" onclick="switchPage('sources')" style="cursor: pointer;">
+              <div class="source-icon">🔗</div>
+              <div class="source-name">数据源配置</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="footer">
+          <p>弹幕 API 服务 v${globals.VERSION} | Made with ❤️ for Better Anime Experience</p>
+        </div>
+      </section>
+
+      <!-- 环境配置页面 -->
+      <section id="config-page" class="page-section">
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke-width="2"/>
+                <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-width="2"/>
+              </svg>
+              环境变量配置
+            </h3>
+          </div>
+          <div class="config-grid">
+            ${envItemsHtml}
+          </div>
+        </div>
+
+        <div class="footer">
+          <p>共 ${totalEnvCount} 个环境变量，已配置 ${configuredEnvCount} 个 | 双击配置值可复制完整内容</p>
+        </div>
+      </section>
+
+      <!-- VOD 采集站页面 -->
+      <section id="vod-page" class="page-section">
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M5 3l14 9-14 9V3z" stroke-width="2"/>
+              </svg>
+              VOD 采集服务器列表
+            </h3>
+          </div>
+          <div class="server-grid">
+            ${vodServersHtml}
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" stroke-width="2"/>
+              </svg>
+              VOD 配置参数
+            </h3>
+          </div>
+          <div class="config-grid">
+            <div class="config-item">
+              <div class="config-header">
+                <span class="config-label">返回模式</span>
+              </div>
+              <div class="config-value">
+                <code>${globals.vodReturnMode === 'all' ? '返回所有站点结果' : '仅返回最快响应站点'}</code>
+              </div>
+            </div>
+            <div class="config-item">
+              <div class="config-header">
+                <span class="config-label">请求超时</span>
+              </div>
+              <div class="config-value">
+                <code>${globals.vodRequestTimeout} 毫秒</code>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="footer">
+          <p>共 ${globals.vodServers.length} 个采集站 | 支持并发查询</p>
+        </div>
+      </section>
+
+      <!-- 数据源页面 -->
+      <section id="sources-page" class="page-section">
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M4 7h16M4 12h16M4 17h16" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              数据源优先级
+            </h3>
+          </div>
+          <div class="source-grid">
+            ${sourcesHtml}
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke-width="2"/>
+              </svg>
+              匹配策略配置
+            </h3>
+          </div>
+          <div class="config-grid">
+            <div class="config-item">
+              <div class="config-header">
+                <span class="config-label">严格匹配模式</span>
+              </div>
+              <div class="config-value ${globals.strictTitleMatch ? 'value-enabled' : 'value-disabled'}">
+                <code>${globals.strictTitleMatch ? '已启用 - 减少误匹配' : '已禁用 - 宽松匹配'}</code>
+              </div>
+            </div>
+            <div class="config-item">
+              <div class="config-header">
+                <span class="config-label">记住手动选择</span>
+              </div>
+              <div class="config-value ${globals.rememberLastSelect ? 'value-enabled' : 'value-disabled'}">
+                <code>${globals.rememberLastSelect ? '已启用 - 优化匹配准确度' : '已禁用'}</code>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="footer">
+          <p>共 ${globals.sourceOrderArr.length} 个数据源 | 按优先级排序</p>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    // 主题切换
+    function toggleTheme() {
+      const body = document.body;
+      const icon = document.getElementById('themeIcon');
+      const isLight = body.classList.toggle('light');
+      
+      if (isLight) {
+        icon.innerHTML = '<circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2"/><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="2"/>';
+      } else {
+        icon.innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" stroke="currentColor" stroke-width="2"/>';
+      }
+      
+      localStorage.setItem('theme', isLight ? 'light' : 'dark');
+    }
+
+    // 初始化主题
+    (function() {
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme === 'light') {
+        document.body.classList.add('light');
+        document.getElementById('themeIcon').innerHTML = '<circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2"/><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="2"/>';
+      }
+    })();
+
+    // 页面切换
+    function switchPage(pageName) {
+      // 更新导航激活状态
+      document.querySelectorAll('.nav-item').forEach(item => {
+        item.classList.remove('active');
+      });
+      event.currentTarget.classList.add('active');
+
+      // 更新页面内容
+      document.querySelectorAll('.page-section').forEach(section => {
+        section.classList.remove('active');
+      });
+      document.getElementById(pageName + '-page').classList.add('active');
+
+      // 更新页面标题
+      const titles = {
+        'overview': '系统概览',
+        'config': '环境配置',
+        'vod': 'VOD 采集站',
+        'sources': '数据源配置'
+      };
+      document.getElementById('pageTitle').textContent = titles[pageName];
+
+      // 关闭移动端菜单
+      closeMobileMenu();
+    }
+
+    // 切换敏感信息显示
+    function toggleSensitive(element) {
+      const real = element.dataset.real;
+      const masked = element.dataset.masked;
+      const isRevealed = element.classList.contains('revealed');
+      
+      if (isRevealed) {
+        element.querySelector('code').textContent = masked;
+        element.classList.remove('revealed');
+        if (element.hideTimer) {
+          clearTimeout(element.hideTimer);
+        }
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.innerHTML = real;
+        element.querySelector('code').textContent = textarea.value;
+        element.classList.add('revealed');
+        
+        element.hideTimer = setTimeout(() => {
+          element.querySelector('code').textContent = masked;
+          element.classList.remove('revealed');
+        }, 3000);
+      }
+    }
+
+    // 双击复制
+    document.addEventListener('dblclick', function(e) {
+      const configValue = e.target.closest('.config-value');
+      if (configValue) {
+        const code = configValue.querySelector('code');
+        if (!code) return;
+        
+        let text = code.textContent;
+        
+        // 如果是敏感信息，复制真实值
+        if (configValue.classList.contains('sensitive-value') && configValue.dataset.real) {
+          const textarea = document.createElement('textarea');
+          textarea.innerHTML = configValue.dataset.real;
+          text = textarea.value;
+        } else {
+          // 对于非敏感信息，也需要获取原始值
+          const originalValue = configValue.dataset.original;
+          if (originalValue) {
+            const textarea = document.createElement('textarea');
+            textarea.innerHTML = originalValue;
+            text = textarea.value;
+          }
+        }
+        
+        if (text === '未配置' || text === '默认值' || text === '已启用' || text === '已禁用') return;
+        
+        copyToClipboard(text);
+        showToast('已复制到剪贴板');
+      }
+    });
+
+    // 复制到剪贴板
+    function copyToClipboard(text) {
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+    }
+
+    // 显示提示
+    function showToast(message) {
+      const toast = document.createElement('div');
+      toast.className = 'toast toast-success';
+      toast.innerHTML = \`
+        <svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
+        </svg>
+        <span>\${message}</span>
+      \`;
+      
+      document.body.appendChild(toast);
+      
+      setTimeout(() => {
+        toast.style.animation = 'slide Out 0.3s ease forwards';
+        setTimeout(() => document.body.removeChild(toast), 300);
+      }, 2000);
+    }
+
+    // 移动端菜单
+    function toggleMobileMenu() {
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.getElementById('mobileOverlay');
+      sidebar.classList.toggle('mobile-open');
+      overlay.classList.toggle('show');
+    }
+
+    function closeMobileMenu() {
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.getElementById('mobileOverlay');
+      sidebar.classList.remove('mobile-open');
+      overlay.classList.remove('show');
+    }
+
+    // 键盘快捷键
+    document.addEventListener('keydown', function(e) {
+      // Ctrl/Cmd + 数字键切换页面
+      if ((e.ctrlKey || e.metaKey) && e.key >= '1' && e.key <= '4') {
+        e.preventDefault();
+        const pages = ['overview', 'config', 'vod', 'sources'];
+        const index = parseInt(e.key) - 1;
+        if (pages[index]) {
+          document.querySelectorAll('.nav-item')[index].click();
+        }
+      }
+      
+      // Ctrl/Cmd + K 切换主题
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        toggleTheme();
+      }
+
+      // ESC 关闭移动端菜单
+      if (e.key === 'Escape') {
+        closeMobileMenu();
+      }
+    });
+
+    // 添加滑出动画
+    const style = document.createElement('style');
+    style.textContent = \`
+      @keyframes slideOut {
+        to {
+          transform: translateX(400px);
+          opacity: 0;
+        }
+      }
+    \`;
+    document.head.appendChild(style);
+  </script>
 </body>
 </html>
-   `;
+    `;
 
-   return new Response(html, {
-     headers: {
-       'Content-Type': 'text/html; charset=utf-8',
-       'Cache-Control': 'no-cache'
-     }
-   });
- }
+    return new Response(html, {
+      headers: {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'no-cache'
+      }
+    });
+  }
 
- // GET /
- if (path === "/" && method === "GET") {
-   return handleHomepage();
- }
+  // GET /
+  if (path === "/" && method === "GET") {
+    return handleHomepage();
+  }
 
- if (path === "/favicon.ico" || path === "/robots.txt") {
-   return new Response(null, { status: 204 });
- }
+  if (path === "/favicon.ico" || path === "/robots.txt") {
+    return new Response(null, { status: 204 });
+  }
 
- // --- 校验 token ---
- const parts = path.split("/").filter(Boolean);
- if (parts.length < 1 || parts[0] !== globals.token) {
-   log("error", `Invalid or missing token in path: ${path}`);
-   return jsonResponse(
-     { errorCode: 401, success: false, errorMessage: "Unauthorized" },
-     401
-   );
- }
- 
- path = "/" + parts.slice(1).join("/");
+  // --- 校验 token ---
+  const parts = path.split("/").filter(Boolean);
+  if (parts.length < 1 || parts[0] !== globals.token) {
+    log("error", `Invalid or missing token in path: ${path}`);
+    return jsonResponse(
+      { errorCode: 401, success: false, errorMessage: "Unauthorized" },
+      401
+    );
+  }
 
- log("info", path);
+  path = "/" + parts.slice(1).join("/");
 
- // 智能处理API路径前缀
- if (path !== "/" && path !== "/api/logs") {
-   log("info", `[Path Check] Starting path normalization for: "${path}"`);
-   const pathBeforeCleanup = path;
+  log("info", path);
 
-   while (path.startsWith('/api/v2/api/v2/')) {
-     log("info", `[Path Check] Found redundant /api/v2 prefix. Cleaning...`);
-     path = path.substring('/api/v2'.length);
-   }
+  // 智能处理API路径前缀
+  if (path !== "/" && path !== "/api/logs") {
+    log("info", `[Path Check] Starting path normalization for: "${path}"`);
+    const pathBeforeCleanup = path;
 
-   if (path !== pathBeforeCleanup) {
-     log("info", `[Path Check] Path after cleanup: "${path}"`);
-   } else {
-     log("info", `[Path Check] Path after cleanup: No cleanup needed.`);
-   }
+    while (path.startsWith('/api/v2/api/v2/')) {
+      log("info", `[Path Check] Found redundant /api/v2 prefix. Cleaning...`);
+      path = path.substring('/api/v2'.length);
+    }
 
-   const pathBeforePrefixCheck = path;
-   if (!path.startsWith('/api/v2') && path !== '/' && !path.startsWith('/api/logs')) {
-     log("info", `[Path Check] Path is missing /api/v2 prefix. Adding...`);
-     path = '/api/v2' + path;
-   }
+    if (path !== pathBeforeCleanup) {
+      log("info", `[Path Check] Path after cleanup: "${path}"`);
+    } else {
+      log("info", `[Path Check] Path after cleanup: No cleanup needed.`);
+    }
 
-   if (path === pathBeforePrefixCheck) {
-     log("info", `[Path Check] Prefix Check: No prefix addition needed.`);
-   }
+    const pathBeforePrefixCheck = path;
+    if (!path.startsWith('/api/v2') && path !== '/' && !path.startsWith('/api/logs')) {
+      log("info", `[Path Check] Path is missing /api/v2 prefix. Adding...`);
+      path = '/api/v2' + path;
+    }
 
-   log("info", `[Path Check] Final normalized path: "${path}"`);
- }
+    if (path === pathBeforePrefixCheck) {
+      log("info", `[Path Check] Prefix Check: No prefix addition needed.`);
+    }
 
- // GET /
- if (path === "/" && method === "GET") {
-   return handleHomepage();
- }
+    log("info", `[Path Check] Final normalized path: "${path}"`);
+  }
 
- // GET /api/v2/search/anime
- if (path === "/api/v2/search/anime" && method === "GET") {
-   return searchAnime(url);
- }
+  // GET /
+  if (path === "/" && method === "GET") {
+    return handleHomepage();
+  }
 
- // GET /api/v2/search/episodes
- if (path === "/api/v2/search/episodes" && method === "GET") {
-   return searchEpisodes(url);
- }
+  // GET /api/v2/search/anime
+  if (path === "/api/v2/search/anime" && method === "GET") {
+    return searchAnime(url);
+  }
 
- // GET /api/v2/match
- if (path === "/api/v2/match" && method === "POST") {
-   return matchAnime(url, req);
- }
+  // GET /api/v2/search/episodes
+  if (path === "/api/v2/search/episodes" && method === "GET") {
+    return searchEpisodes(url);
+  }
 
- // GET /api/v2/bangumi/:animeId
- if (path.startsWith("/api/v2/bangumi/") && method === "GET") {
-   return getBangumi(path);
- }
+  // GET /api/v2/match
+  if (path === "/api/v2/match" && method === "POST") {
+    return matchAnime(url, req);
+  }
 
- // GET /api/v2/comment/:commentId or /api/v2/comment?url=xxx
- if (path.startsWith("/api/v2/comment") && method === "GET") {
-   const queryFormat = url.searchParams.get('format');
-   const videoUrl = url.searchParams.get('url');
+  // GET /api/v2/bangumi/:animeId
+  if (path.startsWith("/api/v2/bangumi/") && method === "GET") {
+    return getBangumi(path);
+  }
 
-   if (videoUrl) {
-     const cachedComments = getCommentCache(videoUrl);
-     if (cachedComments !== null) {
-       log("info", `[Rate Limit] Cache hit for URL: ${videoUrl}, skipping rate limit check`);
-       const responseData = { count: cachedComments.length, comments: cachedComments };
-       return formatDanmuResponse(responseData, queryFormat);
-     }
+  // GET /api/v2/comment/:commentId or /api/v2/comment?url=xxx
+  if (path.startsWith("/api/v2/comment") && method === "GET") {
+    const queryFormat = url.searchParams.get('format');
+    const videoUrl = url.searchParams.get('url');
 
-     if (globals.rateLimitMaxRequests > 0) {
-       const currentTime = Date.now();
-       const oneMinute = 60 * 1000;
+    if (videoUrl) {
+      const cachedComments = getCommentCache(videoUrl);
+      if (cachedComments !== null) {
+        log("info", `[Rate Limit] Cache hit for URL: ${videoUrl}, skipping rate limit check`);
+        const responseData = { count: cachedComments.length, comments: cachedComments };
+        return formatDanmuResponse(responseData, queryFormat);
+      }
 
-       cleanupExpiredIPs(currentTime);
+      if (globals.rateLimitMaxRequests > 0) {
+        const currentTime = Date.now();
+        const oneMinute = 60 * 1000;
 
-       if (!globals.requestHistory.has(clientIp)) {
-         globals.requestHistory.set(clientIp, []);
-       }
+        cleanupExpiredIPs(currentTime);
 
-       const history = globals.requestHistory.get(clientIp);
-       const recentRequests = history.filter(timestamp => currentTime - timestamp <= oneMinute);
+        if (!globals.requestHistory.has(clientIp)) {
+          globals.requestHistory.set(clientIp, []);
+        }
 
-       if (recentRequests.length >= globals.rateLimitMaxRequests) {
-         log("warn", `[Rate Limit] IP ${clientIp} exceeded rate limit (${recentRequests.length}/${globals.rateLimitMaxRequests} requests in 1 minute)`);
-         return jsonResponse(
-           { errorCode: 429, success: false, errorMessage: "Too many requests, please try again later" },
-           429
-         );
-       }
+        const history = globals.requestHistory.get(clientIp);
+        const recentRequests = history.filter(timestamp => currentTime - timestamp <= oneMinute);
 
-       recentRequests.push(currentTime);
-       globals.requestHistory.set(clientIp, recentRequests);
-       log("info", `[Rate Limit] IP ${clientIp} request count: ${recentRequests.length}/${globals.rateLimitMaxRequests}`);
-     }
+        if (recentRequests.length >= globals.rateLimitMaxRequests) {
+          log("warn", `[Rate Limit] IP ${clientIp} exceeded rate limit (${recentRequests.length}/${globals.rateLimitMaxRequests} requests in 1 minute)`);
+          return jsonResponse(
+            { errorCode: 429, success: false, errorMessage: "Too many requests, please try again later" },
+            429
+          );
+        }
 
-     return getCommentByUrl(videoUrl, queryFormat);
-   }
+        recentRequests.push(currentTime);
+        globals.requestHistory.set(clientIp, recentRequests);
+        log("info", `[Rate Limit] IP ${clientIp} request count: ${recentRequests.length}/${globals.rateLimitMaxRequests}`);
+      }
 
-   if (!path.startsWith("/api/v2/comment/")) {
-     log("error", "Missing commentId or url parameter");
-     return jsonResponse(
-       { errorCode: 400, success: false, errorMessage: "Missing commentId or url parameter" },
-       400
-     );
-   }
+      return getCommentByUrl(videoUrl, queryFormat);
+    }
 
-   const commentId = parseInt(path.split("/").pop());
-   let urlForComment = findUrlById(commentId);
+    if (!path.startsWith("/api/v2/comment/")) {
+      log("error", "Missing commentId or url parameter");
+      return jsonResponse(
+        { errorCode: 400, success: false, errorMessage: "Missing commentId or url parameter" },
+        400
+      );
+    }
 
-   if (urlForComment) {
-     const cachedComments = getCommentCache(urlForComment);
-     if (cachedComments !== null) {
-       log("info", `[Rate Limit] Cache hit for URL: ${urlForComment}, skipping rate limit check`);
-       const responseData = { count: cachedComments.length, comments: cachedComments };
-       return formatDanmuResponse(responseData, queryFormat);
-     }
-   }
+    const commentId = parseInt(path.split("/").pop());
+    let urlForComment = findUrlById(commentId);
 
-   if (globals.rateLimitMaxRequests > 0) {
-     const currentTime = Date.now();
-     const oneMinute = 60 * 1000;
+    if (urlForComment) {
+      const cachedComments = getCommentCache(urlForComment);
+      if (cachedComments !== null) {
+        log("info", `[Rate Limit] Cache hit for URL: ${urlForComment}, skipping rate limit check`);
+        const responseData = { count: cachedComments.length, comments: cachedComments };
+        return formatDanmuResponse(responseData, queryFormat);
+      }
+    }
 
-     cleanupExpiredIPs(currentTime);
+    if (globals.rateLimitMaxRequests > 0) {
+      const currentTime = Date.now();
+      const oneMinute = 60 * 1000;
 
-     if (!globals.requestHistory.has(clientIp)) {
-       globals.requestHistory.set(clientIp, []);
-     }
+      cleanupExpiredIPs(currentTime);
 
-     const history = globals.requestHistory.get(clientIp);
-     const recentRequests = history.filter(timestamp => currentTime - timestamp <= oneMinute);
+      if (!globals.requestHistory.has(clientIp)) {
+        globals.requestHistory.set(clientIp, []);
+      }
 
-     if (recentRequests.length >= globals.rateLimitMaxRequests) {
-       log("warn", `[Rate Limit] IP ${clientIp} exceeded rate limit (${recentRequests.length}/${globals.rateLimitMaxRequests} requests in 1 minute)`);
-       return jsonResponse(
-         { errorCode: 429, success: false, errorMessage: "Too many requests, please try again later" },
-         429
-       );
-     }
+      const history = globals.requestHistory.get(clientIp);
+      const recentRequests = history.filter(timestamp => currentTime - timestamp <= oneMinute);
 
-     recentRequests.push(currentTime);
-     globals.requestHistory.set(clientIp, recentRequests);
-     log("info", `[Rate Limit] IP ${clientIp} request count: ${recentRequests.length}/${globals.rateLimitMaxRequests}`);
-   }
+      if (recentRequests.length >= globals.rateLimitMaxRequests) {
+        log("warn", `[Rate Limit] IP ${clientIp} exceeded rate limit (${recentRequests.length}/${globals.rateLimitMaxRequests} requests in 1 minute)`);
+        return jsonResponse(
+          { errorCode: 429, success: false, errorMessage: "Too many requests, please try again later" },
+          429
+        );
+      }
 
-   return getComment(path, queryFormat);
- }
+      recentRequests.push(currentTime);
+      globals.requestHistory.set(clientIp, recentRequests);
+      log("info", `[Rate Limit] IP ${clientIp} request count: ${recentRequests.length}/${globals.rateLimitMaxRequests}`);
+    }
 
- // GET /api/logs
- if (path === "/api/logs" && method === "GET") {
-   const logText = globals.logBuffer
-     .map(
-       (log) =>
-         `[${log.timestamp}] ${log.level}: ${formatLogMessage(log.message)}`
-     )
-     .join("\n");
-   return new Response(logText, { headers: { "Content-Type": "text/plain; charset=utf-8" } });
- }
+    return getComment(path, queryFormat);
+  }
 
- return jsonResponse({ message: "Not found" }, 404);
+  // GET /api/logs
+  if (path === "/api/logs" && method === "GET") {
+    const logText = globals.logBuffer
+      .map(
+        (log) =>
+          `[${log.timestamp}] ${log.level}: ${formatLogMessage(log.message)}`
+      )
+      .join("\n");
+    return new Response(logText, { headers: { "Content-Type": "text/plain; charset=utf-8" } });
+  }
+
+  return jsonResponse({ message: "Not found" }, 404);
 }
 
 // --- Cloudflare Workers 入口 ---
 export default {
- async fetch(request, env, ctx) {
-   const clientIp = request.headers.get('cf-connecting-ip') || request.headers.get('x-forwarded-for') || 'unknown';
-   return handleRequest(request, env, "cloudflare", clientIp);
- },
+  async fetch(request, env, ctx) {
+    const clientIp = request.headers.get('cf-connecting-ip') || request.headers.get('x-forwarded-for') || 'unknown';
+    return handleRequest(request, env, "cloudflare", clientIp);
+  },
 };
 
 // --- Vercel 入口 ---
 export async function vercelHandler(req, res) {
- try {
-   const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || 
-                    req.headers['x-real-ip'] || 
-                    req.socket?.remoteAddress || 
-                    'unknown';
+  try {
+    const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || 
+                     req.headers['x-real-ip'] || 
+                     req.socket?.remoteAddress || 
+                     'unknown';
 
-   const protocol = req.headers['x-forwarded-proto'] || 'https';
-   const host = req.headers['host'] || 'localhost';
-   const fullUrl = `${protocol}://${host}${req.url}`;
+    const protocol = req.headers['x-forwarded-proto'] || 'https';
+    const host = req.headers['host'] || 'localhost';
+    const fullUrl = `${protocol}://${host}${req.url}`;
 
-   let body = undefined;
-   if (req.method === "POST" || req.method === "PUT") {
-     if (typeof req.body === 'string') {
-       body = req.body;
-     } else if (req.body && typeof req.body === 'object') {
-       body = JSON.stringify(req.body);
-     }
-   }
+    let body = undefined;
+    if (req.method === "POST" || req.method === "PUT") {
+      if (typeof req.body === 'string') {
+        body = req.body;
+      } else if (req.body && typeof req.body === 'object') {
+        body = JSON.stringify(req.body);
+      }
+    }
 
-   const cfReq = new Request(fullUrl, {
-     method: req.method,
-     headers: req.headers,
-     body: body,
-   });
+    const cfReq = new Request(fullUrl, {
+      method: req.method,
+      headers: req.headers,
+      body: body,
+    });
 
-   const response = await handleRequest(cfReq, process.env, "vercel", clientIp);
+    const response = await handleRequest(cfReq, process.env, "vercel", clientIp);
 
-   res.status(response.status);
-   response.headers.forEach((value, key) => {
-     res.setHeader(key, value);
-   });
-   
-   const text = await response.text();
-   res.send(text);
- } catch (error) {
-   console.error('Vercel handler error:', error);
-   res.status(500).json({ 
-     errorCode: 500, 
-     success: false, 
-     errorMessage: "Internal Server Error",
-     error: error.message 
-   });
- }
+    res.status(response.status);
+    response.headers.forEach((value, key) => {
+      res.setHeader(key, value);
+    });
+
+    const text = await response.text();
+    res.send(text);
+  } catch (error) {
+    console.error('Vercel handler error:', error);
+    res.status(500).json({ 
+      errorCode: 500, 
+      success: false, 
+      errorMessage: "Internal Server Error",
+      error: error.message 
+    });
+  }
 }
 
 // --- Netlify 入口 ---
 export async function netlifyHandler(event, context) {
- try {
-   const clientIp = event.headers['x-nf-client-connection-ip'] ||
-                    event.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
-                    context.ip ||
-                    'unknown';
+  try {
+    const clientIp = event.headers['x-nf-client-connection-ip'] ||
+                     event.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
+                     context.ip ||
+                     'unknown';
 
-   const url = event.rawUrl || `https://${event.headers.host}${event.path}`;
+    const url = event.rawUrl || `https://${event.headers.host}${event.path}`;
 
-   let body = undefined;
-   if (event.body) {
-     if (event.isBase64Encoded) {
-       body = Buffer.from(event.body, 'base64').toString('utf-8');
-     } else {
-       body = event.body;
-     }
-   }
+    let body = undefined;
+    if (event.body) {
+      if (event.isBase64Encoded) {
+        body = Buffer.from(event.body, 'base64').toString('utf-8');
+      } else {
+        body = event.body;
+      }
+    }
 
-   const request = new Request(url, {
-     method: event.httpMethod,
-     headers: new Headers(event.headers),
-     body: body,
-   });
+    const request = new Request(url, {
+      method: event.httpMethod,
+      headers: new Headers(event.headers),
+      body: body,
+    });
 
-   const response = await handleRequest(request, process.env, "netlify", clientIp);
+    const response = await handleRequest(request, process.env, "netlify", clientIp);
 
-   const headers = {};
-   response.headers.forEach((value, key) => {
-     headers[key] = value;
-   });
+    const headers = {};
+    response.headers.forEach((value, key) => {
+      headers[key] = value;
+    });
 
-   return {
-     statusCode: response.status,
-     headers,
-     body: await response.text(),
-   };
- } catch (error) {
-   console.error('Netlify handler error:', error);
-   return {
-     statusCode: 500,
-     headers: { 'Content-Type': 'application/json' },
-     body: JSON.stringify({ 
-       errorCode: 500, 
-       success: false, 
-       errorMessage: "Internal Server Error",
-       error: error.message 
-     }),
-   };
- }
+    return {
+      statusCode: response.status,
+      headers,
+      body: await response.text(),
+    };
+  } catch (error) {
+    console.error('Netlify handler error:', error);
+    return {
+      statusCode: 500,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        errorCode: 500, 
+        success: false, 
+        errorMessage: "Internal Server Error",
+        error: error.message 
+      }),
+    };
+  }
 }
 
 export { handleRequest };
-
-
