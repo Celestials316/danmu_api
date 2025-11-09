@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@libsql/client": "^0.14.0",
     "chokidar": "^4.0.3",
     "dotenv": "^16.4.7",
     "esbuild": "^0.25.10",
@@ -16,4 +17,5 @@
     "js-yaml": "^4.1.0",
     "node-fetch": "^3.3.2"
   }
+
 }
