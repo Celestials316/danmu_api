@@ -109,7 +109,8 @@ function getRealEnvValue(key) {
 }
 
 async function handleRequest(req, env, deployPlatform, clientIp) {
-  globals = Globals.init(env, deployPlatform);
+  // 注意：这里改成 await
+  globals = await Globals.init(env, deployPlatform);
 
   const url = new URL(req.url);
   let path = url.pathname;
@@ -4076,10 +4077,19 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
           
           // 同步更新到 envs
           if (key in globals.envs) {
+            const oldValue = globals.envs[key];
             globals.envs[key] = value;
+            log("info", `[config] 更新配置: ${key} (${oldValue} -> ${value})`);
           }
         }
       }
+      
+      // 特别处理 token（因为它被 Proxy 访问）
+      if ('TOKEN' in config) {
+        globals.token = config.TOKEN;
+        log("info", `[config] TOKEN 已更新为: ${config.TOKEN}`);
+      }
+
 
       // 保存到数据库
       let dbSaved = false;
@@ -4411,9 +4421,17 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
           
           // 同步更新到 envs
           if (key in globals.envs) {
+            const oldValue = globals.envs[key];
             globals.envs[key] = value;
+            log("info", `[config] 更新配置: ${key} (${oldValue} -> ${value})`);
           }
         }
+      }
+      
+      // 特别处理 token（因为它被 Proxy 访问）
+      if ('TOKEN' in config) {
+        globals.token = config.TOKEN;
+        log("info", `[config] TOKEN 已更新为: ${config.TOKEN}`);
       }
 
       // 保存到数据库
