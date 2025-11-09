@@ -23,6 +23,7 @@ export const Globals = {
   requestHistory: new Map(), // 记录每个 IP 地址的请求历史
   redisValid: false, // redis是否生效
   redisCacheInitialized: false, // redis 缓存是否已初始化
+  databaseValid: false, // 数据库是否可用
   lastSelectMap: new Map(), // 存储查询关键字上次选择的animeId，用于下次match自动匹配时优先选择该anime
   lastHashes: { // 存储上一次各变量哈希值
     animes: null,
