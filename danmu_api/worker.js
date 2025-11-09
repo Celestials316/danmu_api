@@ -10,37 +10,37 @@ let globals;
 
 // 环境变量说明配置
 const ENV_DESCRIPTIONS = {
-  'TOKEN': '自定义用户token,用于API访问鉴权',
-  'OTHER_SERVER': '兜底第三方弹幕服务器地址',
-  'VOD_SERVERS': 'VOD服务器列表,支持多个并发查询',
-  'VOD_RETURN_MODE': 'VOD返回模式:all(全部) 或 fastest(最快)',
-  'VOD_REQUEST_TIMEOUT': 'VOD服务器请求超时时间(毫秒)',
-  'BILIBILI_COOKIE': 'B站Cookie,可获取完整弹幕',
-  'YOUKU_CONCURRENCY': '优酷弹幕请求并发数(1-16)',
-  'SOURCE_ORDER': '数据源排序,影响匹配优先级',
-  'PLATFORM_ORDER': '自动匹配优选平台顺序',
-  'EPISODE_TITLE_FILTER': '剧集标题正则过滤规则',
-  'ENABLE_EPISODE_FILTER': '手动选择接口是否启用集标题过滤',
-  'STRICT_TITLE_MATCH': '严格标题匹配模式,减少误匹配',
-  'BLOCKED_WORDS': '弹幕屏蔽词列表',
-  'GROUP_MINUTE': '弹幕合并去重时间窗口(分钟)',
-  'CONVERT_TOP_BOTTOM_TO_SCROLL': '顶部/底部弹幕转为滚动弹幕',
-  'WHITE_RATIO': '白色弹幕占比,0表示全彩色弹幕,100表示全白色弹幕,默认值为-1表示不转换',
-  'DANMU_LIMIT': '弹幕数量限制,默认值为-1表示不限制',
-  'DANMU_OUTPUT_FORMAT': '弹幕输出格式:json 或 xml',
-  'DANMU_SIMPLIFIED': '繁体弹幕转简体(巴哈姆特)',
-  'PROXY_URL': '代理/反代地址(巴哈姆特和TMDB)',
-  'TMDB_API_KEY': 'TMDB API Key,提升巴哈搜索准确度',
-  'RATE_LIMIT_MAX_REQUESTS': '1分钟内同IP最大请求次数',
-  'LOG_LEVEL': '日志级别:error/warn/info',
-  'SEARCH_CACHE_MINUTES': '搜索结果缓存时间(分钟)',
-  'COMMENT_CACHE_MINUTES': '弹幕数据缓存时间(分钟)',
-  'REMEMBER_LAST_SELECT': '记住手动选择结果用于优化匹配',
-  'MAX_LAST_SELECT_MAP': '最后选择映射缓存大小限制',
-  'UPSTASH_REDIS_REST_URL': 'Upstash Redis URL,持久化存储',
-  'UPSTASH_REDIS_REST_TOKEN': 'Upstash Redis Token,持久化存储',
+  'TOKEN': '自定义API访问令牌,默认87654321',
+  'OTHER_SERVER': '兜底第三方弹幕服务器,默认api.danmu.icu',
+  'VOD_SERVERS': 'VOD采集站列表,格式:名称@URL,名称@URL...',
+  'VOD_RETURN_MODE': 'VOD返回模式: all(返回所有站点) / fastest(仅返回最快站点)',
+  'VOD_REQUEST_TIMEOUT': 'VOD单个请求超时时间(毫秒),默认10000',
+  'BILIBILI_COOKIE': 'B站Cookie,获取完整弹幕(最少需SESSDATA字段)',
+  'YOUKU_CONCURRENCY': '优酷弹幕请求并发数,默认8,最高16',
+  'SOURCE_ORDER': '数据源优先级排序,影响自动匹配结果',
+  'PLATFORM_ORDER': '弹幕平台优先级,优先返回指定平台弹幕',
+  'EPISODE_TITLE_FILTER': '剧集标题正则过滤,过滤预告/花絮等非正片',
+  'ENABLE_EPISODE_FILTER': '手动选择接口是否启用集标题过滤,默认false',
+  'STRICT_TITLE_MATCH': '严格标题匹配模式,仅匹配开头或完全匹配,默认false',
+  'BLOCKED_WORDS': '弹幕屏蔽词列表,过滤指定关键词',
+  'GROUP_MINUTE': '弹幕合并去重时间窗口(分钟),默认1分钟',
+  'CONVERT_TOP_BOTTOM_TO_SCROLL': '顶部/底部弹幕转为滚动弹幕,默认false',
+  'WHITE_RATIO': '白色弹幕占比(0-100),-1表示不转换',
+  'DANMU_LIMIT': '弹幕数量限制,-1表示不限制',
+  'DANMU_OUTPUT_FORMAT': '弹幕输出格式: json / xml,默认json',
+  'DANMU_SIMPLIFIED': '繁体弹幕转简体(巴哈姆特),默认true',
+  'PROXY_URL': '代理/反代地址(巴哈姆特和TMDB),支持混合配置',
+  'TMDB_API_KEY': 'TMDB API Key,提升巴哈搜索准确度(通过日语原名搜索)',
+  'RATE_LIMIT_MAX_REQUESTS': '限流配置:1分钟内同IP最大请求次数,默认3',
+  'LOG_LEVEL': '日志级别: error / warn / info,默认info',
+  'SEARCH_CACHE_MINUTES': '搜索结果缓存时间(分钟),默认1',
+  'COMMENT_CACHE_MINUTES': '弹幕数据缓存时间(分钟),默认1',
+  'REMEMBER_LAST_SELECT': '记住手动选择结果优化自动匹配,默认true',
+  'MAX_LAST_SELECT_MAP': '最后选择映射缓存大小,默认100条',
+  'UPSTASH_REDIS_REST_URL': 'Upstash Redis URL,持久化存储防止冷启动数据丢失',
+  'UPSTASH_REDIS_REST_TOKEN': 'Upstash Redis Token,配合URL使用',
   'VERSION': '当前服务版本号',
-  'redisValid': 'Redis连接状态',
+  'redisValid': 'Redis连接状态(已连接/未连接)',
   'redisUrl': 'Redis服务器地址',
   'redisToken': 'Redis访问令牌'
 };
@@ -205,14 +205,23 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       })
       .join('');
 
-    // 生成VOD服务器HTML - 修复对象显示问题
-    const defaultVodServers = [
-      { name: '金蝉', url: 'https://zy.jinchancaiji.com' },
-      { name: '789', url: 'https://www.caiji.cyou' },
-      { name: '听风', url: 'https://gctf.tfdh.top' }
-    ];
-    
+    // 生成VOD服务器HTML - 从环境变量动态获取
     let vodServersHtml = '';
+    
+    // 解析默认 VOD 服务器（与 envs.js 保持一致）
+    const defaultVodServersStr = '金蝉@https://zy.jinchancaiji.com,789@https://www.caiji.cyou,听风@https://gctf.tfdh.top';
+    const defaultVodServers = defaultVodServersStr
+      .split(',')
+      .map(s => s.trim())
+      .filter(s => s.length > 0)
+      .map((item, index) => {
+        if (item.includes('@')) {
+          const [name, url] = item.split('@').map(s => s.trim());
+          return { name: name || `vod-${index + 1}`, url };
+        }
+        return { name: `vod-${index + 1}`, url: item };
+      })
+      .filter(server => server.url && server.url.length > 0);
     
     try {
       if (globals.vodServers && globals.vodServers.length > 0) {
