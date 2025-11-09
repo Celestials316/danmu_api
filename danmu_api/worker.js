@@ -3055,7 +3055,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
      });
    });
 
-   function initializeApp() {
+   async function initializeApp() {
      console.log('🚀 应用初始化...');
      
      const savedTheme = localStorage.getItem('theme');
@@ -3064,9 +3064,30 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
        updateThemeIcon(true);
      }
 
-     setTimeout(() => {
+     // 尝试从服务器加载配置
+     try {
+       const response = await fetch('/api/config/load');
+       const result = await response.json();
+       
+       if (result.success && result.config) {
+         console.log('✅ 从服务器加载配置成功:', result.loadedFrom.join('、'));
+         
+         // 合并服务器配置到本地状态
+         AppState.config = { ...AppState.config, ...result.config };
+         
+         // 同步更新显示
+         for (const [key, value] of Object.entries(result.config)) {
+           updateConfigDisplay(key, value);
+         }
+         
+         showToast(\`配置已从 \${result.loadedFrom.join('、')} 加载\`, 'success');
+       } else {
+         showToast('欢迎回来! 弹幕 API 管理后台已就绪', 'success');
+       }
+     } catch (error) {
+       console.error('从服务器加载配置失败:', error);
        showToast('欢迎回来! 弹幕 API 管理后台已就绪', 'success');
-     }, 500);
+     }
    }
 
    function loadLocalStorageData() {
@@ -3176,7 +3197,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
      showModal('editEnvModal');
    }
 
-   function saveEnvVar() {
+   async function saveEnvVar() {
      const key = AppState.currentEditingEnv;
      const value = document.getElementById('editEnvValue').value.trim();
      
@@ -3186,11 +3207,79 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
      }
 
      AppState.config[key] = value;
-     AppState.hasUnsavedChanges = true;
+     
+     // 保存到本地存储
      localStorage.setItem('danmu_api_config', JSON.stringify(AppState.config));
-     updateConfigDisplay(key, value);
-     closeModal('editEnvModal');
-     showToast(\`环境变量 \${key} 已更新\`, 'success');
+     
+     // 尝试保存到服务器
+     try {
+       const response = await fetch('/api/config/save', {
+         method: 'POST',
+         headers: {
+           'Content-Type': 'application/json'
+         },
+         body: JSON.stringify({
+           config: { [key]: value }
+         })
+       });
+
+       const result = await response.json();
+       
+       if (result.success) {
+         AppState.hasUnsavedChanges = false;
+         updateConfigDisplay(key, value);
+         closeModal('editEnvModal');
+         showToast(\`环境变量 \${key} 已保存到: \${result.savedTo.join('、')}\`, 'success');
+       } else {
+         throw new Error(result.errorMessage || '保存失败');
+       }
+     } catch (error) {
+       console.error('保存到服务器失败:', error);
+       updateConfigDisplay(key, value);
+       closeModal('editEnvModal');
+       showToast(\`环境变量 \${key} 已保存到浏览器本地（服务器保存失败: \${error.message}）\`, 'warning');
+     }
+   }
+
+   async function saveAllConfig() {
+     // 保存到本地存储
+     localStorage.setItem('danmu_api_config', JSON.stringify(AppState.config));
+     localStorage.setItem('danmu_api_vod_servers', JSON.stringify(AppState.vodServers));
+     localStorage.setItem('danmu_api_source_order', JSON.stringify(AppState.sourceOrder));
+     
+     showToast('正在保存配置到服务器...', 'info', 1000);
+
+     // 尝试保存到服务器
+     try {
+       const response = await fetch('/api/config/save', {
+         method: 'POST',
+         headers: {
+           'Content-Type': 'application/json'
+         },
+         body: JSON.stringify({
+           config: {
+             ...AppState.config,
+             VOD_SERVERS: AppState.vodServers.map(s => {
+               if (typeof s === 'string') return s;
+               return \`\${s.name}@\${s.url}\`;
+             }).join(','),
+             SOURCE_ORDER: AppState.sourceOrder.join(',')
+           }
+         })
+       });
+
+       const result = await response.json();
+       
+       if (result.success) {
+         AppState.hasUnsavedChanges = false;
+         showToast(\`所有配置已保存到: \${result.savedTo.join('、')}\`, 'success');
+       } else {
+         throw new Error(result.errorMessage || '保存失败');
+       }
+     } catch (error) {
+       console.error('保存到服务器失败:', error);
+       showToast(\`配置已保存到浏览器本地（服务器保存失败: \${error.message}）\`, 'warning');
+     }
    }
 
    function updateConfigDisplay(key, value) {
@@ -4152,8 +4241,136 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
     return new Response(logText, { headers: { "Content-Type": "text/plain; charset=utf-8" } });
   }
 
+  // POST /api/config/save - 保存环境变量配置
+  if (path === "/api/config/save" && method === "POST") {
+    try {
+      const body = await req.json();
+      const { config } = body;
+
+      if (!config || typeof config !== 'object') {
+        return jsonResponse({
+          success: false,
+          errorMessage: "无效的配置数据"
+        }, 400);
+      }
+
+      log("info", `[config] 开始保存环境变量配置，共 ${Object.keys(config).length} 个`);
+
+      // 更新到全局变量
+      for (const [key, value] of Object.entries(config)) {
+        if (key in globals.accessedEnvVars) {
+          globals.accessedEnvVars[key] = value;
+          
+          // 同步更新到 envs
+          if (key in globals.envs) {
+            globals.envs[key] = value;
+          }
+        }
+      }
+
+      // 保存到数据库
+      let dbSaved = false;
+      if (globals.databaseValid) {
+        const { saveEnvConfigs } = await import('./utils/db-util.js');
+        dbSaved = await saveEnvConfigs(config);
+      }
+
+      // 保存到 Redis
+      let redisSaved = false;
+      if (globals.redisValid) {
+        const { setRedisKey } = await import('./utils/redis-util.js');
+        const configStr = JSON.stringify(config);
+        const result = await setRedisKey('env_configs', configStr);
+        redisSaved = result && result.result === 'OK';
+      }
+
+      const savedTo = [];
+      if (dbSaved) savedTo.push('数据库');
+      if (redisSaved) savedTo.push('Redis');
+
+      if (savedTo.length === 0) {
+        log("warn", "[config] 配置仅保存到内存（持久化存储不可用）");
+        return jsonResponse({
+          success: true,
+          message: "配置已更新到内存（重启后会丢失，建议配置数据库或Redis）",
+          savedTo: ['内存']
+        });
+      }
+
+      log("info", `[config] 配置保存成功: ${savedTo.join('、')}`);
+      return jsonResponse({
+        success: true,
+        message: `配置已成功保存到: ${savedTo.join('、')}`,
+        savedTo
+      });
+
+    } catch (error) {
+      log("error", `[config] 保存配置失败: ${error.message}`);
+      return jsonResponse({
+        success: false,
+        errorMessage: `保存失败: ${error.message}`
+      }, 500);
+    }
+  }
+
+  // GET /api/config/load - 加载环境变量配置
+  if (path === "/api/config/load" && method === "GET") {
+    try {
+      log("info", "[config] 开始加载环境变量配置");
+
+      let config = {};
+      let loadedFrom = [];
+
+      // 尝试从数据库加载
+      if (globals.databaseValid) {
+        const { loadEnvConfigs } = await import('./utils/db-util.js');
+        const dbConfig = await loadEnvConfigs();
+        if (Object.keys(dbConfig).length > 0) {
+          config = { ...config, ...dbConfig };
+          loadedFrom.push('数据库');
+        }
+      }
+
+      // 尝试从 Redis 加载
+      if (globals.redisValid && Object.keys(config).length === 0) {
+        const { getRedisKey } = await import('./utils/redis-util.js');
+        const result = await getRedisKey('env_configs');
+        if (result && result.result) {
+          try {
+            const redisConfig = JSON.parse(result.result);
+            config = { ...config, ...redisConfig };
+            loadedFrom.push('Redis');
+          } catch (e) {
+            log("warn", "[config] Redis 配置解析失败");
+          }
+        }
+      }
+
+      // 如果都没有，返回当前内存中的配置
+      if (Object.keys(config).length === 0) {
+        config = globals.accessedEnvVars;
+        loadedFrom.push('内存');
+      }
+
+      log("info", `[config] 配置加载成功，来源: ${loadedFrom.join('、')}`);
+      return jsonResponse({
+        success: true,
+        config,
+        loadedFrom
+      });
+
+    } catch (error) {
+      log("error", `[config] 加载配置失败: ${error.message}`);
+      return jsonResponse({
+        success: false,
+        errorMessage: `加载失败: ${error.message}`
+      }, 500);
+    }
+  }
+
   return jsonResponse({ message: "Not found" }, 404);
 }
+
 
 // --- Cloudflare Workers 入口 ---
 export default {
