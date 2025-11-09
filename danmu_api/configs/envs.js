@@ -198,19 +198,21 @@ export class Envs {
       danmuSimplified: this.get('DANMU_SIMPLIFIED', true, 'boolean'), // 弹幕繁体转简体开关
       tmdbApiKey: this.get('TMDB_API_KEY', '', 'string', true), // TMDB API KEY
       redisUrl: this.get('UPSTASH_REDIS_REST_URL', '', 'string', true), // upstash redis url
-      redisToken: this.get('UPSTASH_REDIS_REST_TOKEN', '', 'string', true), // upstash redis url
-      rateLimitMaxRequests: this.get('RATE_LIMIT_MAX_REQUESTS', 3, 'number'), // 限流配置:时间窗口内最大请求次数(默认 3,0表示不限流)
-      enableEpisodeFilter: this.get('ENABLE_EPISODE_FILTER', false, 'boolean'), // 集标题过滤开关配置(默认 false,禁用过滤)
-      logLevel: this.get('LOG_LEVEL', 'info', 'string'), // 日志级别配置(默认 info,可选值:error, warn, info)
-      searchCacheMinutes: this.get('SEARCH_CACHE_MINUTES', 1, 'number'), // 搜索结果缓存时间配置(分钟,默认 1)
-      commentCacheMinutes: this.get('COMMENT_CACHE_MINUTES', 1, 'number'), // 弹幕缓存时间配置(分钟,默认 1)
-      danmuLimit: this.get('DANMU_LIMIT', -1, 'number'), // 弹幕数量限制(默认 -1,表示不限制,>0表示限制数量)
-      whiteRatio: this.get('WHITE_RATIO', -1, 'number'), // 白色弹幕占比配置(-1表示不转换,0-100表示转换比例,默认 -1)
-      danmuOutputFormat: this.get('DANMU_OUTPUT_FORMAT', 'json', 'string'), // 弹幕输出格式配置(默认 json,可选值:json, xml)
-      strictTitleMatch: this.get('STRICT_TITLE_MATCH', false, 'boolean'), // 严格标题匹配模式配置(默认 false,宽松模糊匹配)
-      titleToChinese: this.get('TITLE_TO_CHINESE', false, 'boolean'), // 外语标题转换中文开关
-      rememberLastSelect: this.get('REMEMBER_LAST_SELECT', true, 'boolean'), // 是否记住手动选择结果,用于match自动匹配时优选上次的选择(默认 true,记住)
-      MAX_LAST_SELECT_MAP: this.get('MAX_LAST_SELECT_MAP', 100, 'number'), // 记住上次选择映射缓存大小限制(默认 100)
-    };
+     redisToken: this.get('UPSTASH_REDIS_REST_TOKEN', '', 'string', true), // upstash redis token
+     databaseUrl: this.get('DATABASE_URL', '', 'string', true), // 数据库 URL (支持本地 SQLite 或 Turso)
+     databaseAuthToken: this.get('DATABASE_AUTH_TOKEN', '', 'string', true), // 数据库认证 Token (Turso 需要)
+     rateLimitMaxRequests: this.get('RATE_LIMIT_MAX_REQUESTS', 3, 'number'), // 限流配置:时间窗口内最大请求次数(默认 3,0表示不限流)
+     enableEpisodeFilter: this.get('ENABLE_EPISODE_FILTER', false, 'boolean'), // 集标题过滤开关配置(默认 false,禁用过滤)
+     logLevel: this.get('LOG_LEVEL', 'info', 'string'), // 日志级别配置(默认 info,可选值:error, warn, info)
+     searchCacheMinutes: this.get('SEARCH_CACHE_MINUTES', 1, 'number'), // 搜索结果缓存时间配置(分钟,默认 1)
+     commentCacheMinutes: this.get('COMMENT_CACHE_MINUTES', 1, 'number'), // 弹幕缓存时间配置(分钟,默认 1)
+     danmuLimit: this.get('DANMU_LIMIT', -1, 'number'), // 弹幕数量限制(默认 -1,表示不限制,>0表示限制数量)
+     whiteRatio: this.get('WHITE_RATIO', -1, 'number'), // 白色弹幕占比配置(-1表示不转换,0-100表示转换比例,默认 -1)
+     danmuOutputFormat: this.get('DANMU_OUTPUT_FORMAT', 'json', 'string'), // 弹幕输出格式配置(默认 json,可选值:json, xml)
+     strictTitleMatch: this.get('STRICT_TITLE_MATCH', false, 'boolean'), // 严格标题匹配模式配置(默认 false,宽松模糊匹配)
+     titleToChinese: this.get('TITLE_TO_CHINESE', false, 'boolean'), // 外语标题转换中文开关
+     rememberLastSelect: this.get('REMEMBER_LAST_SELECT', true, 'boolean'), // 是否记住手动选择结果,用于match自动匹配时优选上次的选择(默认 true,记住)
+     MAX_LAST_SELECT_MAP: this.get('MAX_LAST_SELECT_MAP', 100, 'number'), // 记住上次选择映射缓存大小限制(默认 100)
+   };
   }
 }
