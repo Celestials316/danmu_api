@@ -87,7 +87,8 @@ export const Globals = {
                   this.envs[key] = value;
                   console.log(`[Globals] 应用数据库配置: ${key} (${oldValue} -> ${value})`);
                 }
-                this.accessedEnvVars.set(key, value);
+                // 注意：这里改用对象赋值，不用 .set()
+                this.accessedEnvVars[key] = value;
               }
               
               return;
@@ -117,7 +118,8 @@ export const Globals = {
                     this.envs[key] = value;
                     console.log(`[Globals] 应用 Redis 配置: ${key} (${oldValue} -> ${value})`);
                   }
-                  this.accessedEnvVars.set(key, value);
+                  // 注意：这里改用对象赋值，不用 .set()
+                  this.accessedEnvVars[key] = value;
                 }
               } catch (e) {
                 console.error('[Globals] 解析 Redis 配置失败:', e.message);
@@ -132,6 +134,7 @@ export const Globals = {
       console.error('[Globals] 加载存储配置失败:', error.message);
     }
   },
+
 
 
   /**
