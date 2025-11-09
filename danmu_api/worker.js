@@ -18,6 +18,7 @@ const ENV_DESCRIPTIONS = {
   'BILIBILI_COOKIE': 'B站Cookie,获取完整弹幕(最少需SESSDATA字段)',
   'YOUKU_CONCURRENCY': '优酷弹幕请求并发数,默认8,最高16',
   'SOURCE_ORDER': '数据源优先级排序,影响自动匹配结果',
+  'TITLE_TO_CHINESE': '是否在match自动匹配时将外语标题转换成中文标题，需配合TMDB_API_KEY使用',
   'PLATFORM_ORDER': '弹幕平台优先级,优先返回指定平台弹幕',
   'EPISODE_TITLE_FILTER': '剧集标题正则过滤,过滤预告/花絮等非正片',
   'ENABLE_EPISODE_FILTER': '手动选择接口是否启用集标题过滤,默认false',
