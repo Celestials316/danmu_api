@@ -71,7 +71,7 @@ function isSensitiveKey(key) {
 }
 
 /**
- * 获取环境变量的真实值(未加密)
+ * 获取环境变量的真实值(未加密) - 服务端版本
  */
 function getRealEnvValue(key) {
   const keyMapping = {
@@ -85,19 +85,27 @@ function getRealEnvValue(key) {
 
   const actualKey = keyMapping[key] || key;
 
-  if (globals.envs && actualKey in globals.envs) {
-    return globals.envs[actualKey];
+  // 优先从 globals.accessedEnvVars 获取（这是真实值）
+  if (globals.accessedEnvVars && actualKey in globals.accessedEnvVars) {
+    const value = globals.accessedEnvVars[actualKey];
+    // 如果值不是占位符，直接返回
+    if (value && (typeof value !== 'string' || !value.match(/^\*+$/))) {
+      return value;
+    }
   }
 
+  // 备用方案：从 process.env 获取
   if (typeof process !== 'undefined' && process.env?.[actualKey]) {
     return process.env[actualKey];
   }
 
+  // 最后尝试从 Globals 获取默认值
   if (actualKey in Globals) {
     return Globals[actualKey];
   }
 
-  return globals.accessedEnvVars[key];
+  // 如果都没有，返回空字符串
+  return '';
 }
 
 async function handleRequest(req, env, deployPlatform, clientIp) {
@@ -1911,6 +1919,25 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
      margin-bottom: 24px;
    }
 
+   /* 桌面/移动端显示控制 */
+   .desktop-only {
+     display: flex;
+   }
+
+   .mobile-only {
+     display: none;
+   }
+
+   @media (max-width: 768px) {
+     .desktop-only {
+       display: none;
+     }
+
+     .mobile-only {
+       display: flex;
+     }
+   }
+
    /* 移动端适配 */
    @media (max-width: 768px) {
      .sidebar {
@@ -2507,26 +2534,34 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
        </button>
        <h2 id="pageTitle">系统概览</h2>
      </div>
-     <div class="topbar-right">
-       <div class="search-box">
-         <input type="text" class="search-input" placeholder="搜索配置..." id="globalSearch">
-         <svg class="search-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor">
-           <circle cx="11" cy="11" r="8" stroke-width="2"/>
-           <path d="m21 21-4.35-4.35" stroke-width="2" stroke-linecap="round"/>
-         </svg>
+       <div class="topbar-right">
+         <div class="search-box">
+           <input type="text" class="search-input" placeholder="搜索配置..." id="globalSearch">
+           <svg class="search-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor">
+             <circle cx="11" cy="11" r="8" stroke-width="2"/>
+             <path d="m21 21-4.35-4.35" stroke-width="2" stroke-linecap="round"/>
+           </svg>
+         </div>
+         <!-- 桌面端显示通知按钮 -->
+         <button class="icon-btn notification-btn desktop-only" title="通知">
+           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0" stroke-width="2" stroke-linecap="round"/>
+           </svg>
+           <span class="notification-badge">3</span>
+         </button>
+         <!-- 移动端显示搜索按钮 -->
+         <button class="icon-btn mobile-search-btn mobile-only" onclick="toggleMobileSearch()" title="搜索">
+           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+             <circle cx="11" cy="11" r="8" stroke-width="2"/>
+             <path d="m21 21-4.35-4.35" stroke-width="2" stroke-linecap="round"/>
+           </svg>
+         </button>
+         <button class="icon-btn theme-toggle" onclick="toggleTheme()" title="切换主题 (Ctrl+K)">
+           <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+             <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" stroke-width="2"/>
+           </svg>
+         </button>
        </div>
-       <button class="icon-btn notification-btn" title="通知">
-         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-           <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0" stroke-width="2" stroke-linecap="round"/>
-         </svg>
-         <span class="notification-badge">3</span>
-       </button>
-       <button class="icon-btn theme-toggle" onclick="toggleTheme()" title="切换主题 (Ctrl+K)">
-         <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-           <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" stroke-width="2"/>
-         </svg>
-       </button>
-     </div>
    </header>
 
    <!-- 内容容器 -->
@@ -3785,6 +3820,54 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
      overlay.classList.remove('show');
    }
 
+   function toggleMobileSearch() {
+     const searchBox = document.querySelector('.search-box');
+     const isVisible = searchBox.style.display === 'block';
+     
+     if (isVisible) {
+       searchBox.style.display = '';
+       searchBox.style.position = '';
+       searchBox.style.top = '';
+       searchBox.style.left = '';
+       searchBox.style.right = '';
+       searchBox.style.width = '';
+       searchBox.style.zIndex = '';
+       searchBox.style.background = '';
+       searchBox.style.padding = '';
+       searchBox.style.borderRadius = '';
+       searchBox.style.boxShadow = '';
+     } else {
+       searchBox.style.display = 'block';
+       searchBox.style.position = 'fixed';
+       searchBox.style.top = '70px';
+       searchBox.style.left = '16px';
+       searchBox.style.right = '16px';
+       searchBox.style.width = 'auto';
+       searchBox.style.zIndex = '9999';
+       searchBox.style.background = 'var(--bg-secondary)';
+       searchBox.style.padding = '12px';
+       searchBox.style.borderRadius = '12px';
+       searchBox.style.boxShadow = 'var(--shadow-xl)';
+       
+       // 自动聚焦搜索框
+       setTimeout(() => {
+         document.getElementById('globalSearch').focus();
+       }, 100);
+     }
+   }
+
+   // 点击页面其他地方关闭搜索框
+   document.addEventListener('click', function(e) {
+     const searchBox = document.querySelector('.search-box');
+     const searchBtn = document.querySelector('.mobile-search-btn');
+     
+     if (!searchBox.contains(e.target) && !searchBtn.contains(e.target)) {
+       if (window.innerWidth <= 768 && searchBox.style.display === 'block') {
+         toggleMobileSearch();
+       }
+     }
+   });
+
    document.addEventListener('keydown', function(e) {
      if ((e.ctrlKey || e.metaKey) && e.key >= '1' && e.key <= '4') {
        e.preventDefault();
@@ -4180,4 +4263,5 @@ export async function netlifyHandler(event, context) {
 }
 
 export { handleRequest };
+
 
