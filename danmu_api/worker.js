@@ -10,7 +10,7 @@ let globals;
 
 // 环境变量说明配置
 const ENV_DESCRIPTIONS = {
-  'TOKEN': '自定义API访问令牌,默认87654321',
+  'TOKEN': '自定义API访问令牌,使用默认87654321可以不填写',
   'OTHER_SERVER': '兜底第三方弹幕服务器,默认api.danmu.icu',
   'VOD_SERVERS': 'VOD采集站列表,格式:名称@URL,名称@URL...',
   'VOD_RETURN_MODE': 'VOD返回模式: all(返回所有站点) / fastest(仅返回最快站点)',
@@ -1760,15 +1760,40 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
 
   // --- 校验 token ---
   const parts = path.split("/").filter(Boolean);
-  if (parts.length < 1 || parts[0] !== globals.token) {
-    log("error", `Invalid or missing token in path: ${path}`);
-    return jsonResponse(
-      { errorCode: 401, success: false, errorMessage: "Unauthorized" },
-      401
-    );
-  }
 
-  path = "/" + parts.slice(1).join("/");
+  // 如果 token 是默认值 87654321
+  if (globals.token === "87654321") {
+    // 检查第一段是否是已知的 API 路径（不是 token）
+    const knownApiPaths = ["api", "v1", "v2"];
+
+    if (parts.length > 0) {
+      // 如果第一段是正确的默认 token
+      if (parts[0] === "87654321") {
+        // 移除 token，继续处理
+        path = "/" + parts.slice(1).join("/");
+      } else if (!knownApiPaths.includes(parts[0])) {
+        // 第一段不是已知的 API 路径，可能是错误的 token
+        // 返回 401
+        log("error", `Invalid token in path: ${path}`);
+        return jsonResponse(
+          { errorCode: 401, success: false, errorMessage: "Unauthorized" },
+          401
+        );
+      }
+      // 如果第一段是已知的 API 路径（如 "api"），允许直接访问
+    }
+  } else {
+    // token 不是默认值，必须严格校验
+    if (parts.length < 1 || parts[0] !== globals.token) {
+      log("error", `Invalid or missing token in path: ${path}`);
+      return jsonResponse(
+        { errorCode: 401, success: false, errorMessage: "Unauthorized" },
+        401
+      );
+    }
+    // 移除 token 部分，剩下的才是真正的路径
+    path = "/" + parts.slice(1).join("/");
+  }
 
   log("info", path);
 
