@@ -163,7 +163,7 @@ export async function getRedisCaches() {
       if (globals.databaseValid) {
         log("info", '[cache] 尝试从数据库加载缓存...');
         const cacheMap = await loadCacheBatch();
-        
+
         if (Object.keys(cacheMap).length > 0) {
           globals.animes = cacheMap.animes || globals.animes;
           globals.episodeIds = cacheMap.episodeIds || globals.episodeIds;
@@ -241,7 +241,7 @@ export async function updateRedisCaches() {
         ? JSON.stringify(Object.fromEntries(value)) 
         : JSON.stringify(value);
       const currentHash = simpleHash(serializedValue);
-      
+
       if (currentHash !== globals.lastHashes[key]) {
         updates.push({ key, hash: currentHash });
         cacheMap[key] = key === 'lastSelectMap' ? Object.fromEntries(value) : value;
@@ -282,7 +282,7 @@ async function updateRedis(variables, updates) {
         ? JSON.stringify(Object.fromEntries(value)) 
         : JSON.stringify(value);
       const currentHash = simpleHash(serializedValue);
-      
+
       if (updates.some(u => u.key === key)) {
         commands.push(['SET', key, serializedValue]);
       }
@@ -306,19 +306,39 @@ export async function judgeRedisValid(path) {
     return;
   }
 
+  log("info", "[storage] ========== 检查持久化存储状态 ==========");
+
   // 检查数据库
   if (!globals.databaseValid && globals.databaseUrl) {
+    log("info", "[storage] 检测到数据库配置，开始检查数据库连接...");
     await checkDatabaseConnection();
     if (globals.databaseValid) {
+      log("info", "[storage] 数据库连接成功，开始初始化数据库表...");
       await initDatabase();
+    } else {
+      log("warn", "[storage] 数据库连接失败");
     }
+  } else if (!globals.databaseUrl) {
+    log("info", "[storage] 未配置数据库");
+  } else {
+    log("info", `[storage] 数据库状态: ${globals.databaseValid ? '已连接' : '未连接'}`);
   }
 
   // 检查 Redis
   if (!globals.redisValid && globals.redisUrl && globals.redisToken) {
+    log("info", "[storage] 检测到 Redis 配置，开始检查 Redis 连接...");
     const res = await pingRedis();
     if (res && res.result && res.result === "PONG") {
       globals.redisValid = true;
+      log("info", "[storage] ✅ Redis 连接成功");
+    } else {
+      log("warn", "[storage] ❌ Redis 连接失败");
     }
+  } else if (!globals.redisUrl || !globals.redisToken) {
+    log("info", "[storage] 未配置 Redis");
+  } else {
+    log("info", `[storage] Redis 状态: ${globals.redisValid ? '已连接' : '未连接'}`);
   }
+
+  log("info", `[storage] 持久化存储总结 - 数据库: ${globals.databaseValid ? '✅' : '❌'}, Redis: ${globals.redisValid ? '✅' : '❌'}`);
 }
