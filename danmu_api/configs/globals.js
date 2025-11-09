@@ -17,10 +17,21 @@ async function importRedisUtil() {
  * 集中管理项目中的静态常量和运行时共享变量
  * ⚠️不是持久化存储，每次冷启动会丢失
  */
-export const Globals = {
-  // 缓存环境变量
+const Globals = {
   envs: {},
   accessedEnvVars: {},
+  databaseValid: false,
+  redisValid: false,
+  configLoaded: false,  // 添加这个标志
+
+  async init(env = {}, deployPlatform = 'node') {
+    // 如果已经加载过，直接返回
+    if (this.configLoaded) {
+      return this.getConfig();
+    }
+
+    this.envs = Envs.load(env, deployPlatform);
+
 
   // 静态常量
   VERSION: '1.7.3',
