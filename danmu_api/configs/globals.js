@@ -2,8 +2,6 @@ import { Envs } from './envs.js';
 
 // 动态导入函数（避免循环依赖）
 async function importDbUtil() {
-  // 根据你的文件结构调整路径
-  // 如果 globals.js 在 configs/ 目录，db-util.js 在 utils/ 目录
   return await import('../utils/db-util.js');
 }
 
@@ -11,51 +9,43 @@ async function importRedisUtil() {
   return await import('../utils/redis-util.js');
 }
 
-
 /**
  * 全局变量管理模块
  * 集中管理项目中的静态常量和运行时共享变量
  * ⚠️不是持久化存储，每次冷启动会丢失
  */
 const Globals = {
+  // 环境变量相关
   envs: {},
   accessedEnvVars: {},
+  
+  // 持久化存储状态
   databaseValid: false,
   redisValid: false,
-  configLoaded: false,  // 添加这个标志
-
-  async init(env = {}, deployPlatform = 'node') {
-    // 如果已经加载过，直接返回
-    if (this.configLoaded) {
-      return this.getConfig();
-    }
-
-    this.envs = Envs.load(env, deployPlatform);
-
-
+  redisCacheInitialized: false,
+  configLoaded: false,
+  
   // 静态常量
   VERSION: '1.7.3',
-  MAX_LOGS: 500, // 日志存储，最多保存 500 行
+  MAX_LOGS: 500,
   MAX_ANIMES: 100,
-
+  MAX_LAST_SELECT_MAP: 1000,
+  
   // 运行时状态
   animes: [],
   episodeIds: [],
-  episodeNum: 10001, // 全局变量,用于自增 ID
+  episodeNum: 10001,
   logBuffer: [],
-  requestHistory: new Map(), // 记录每个 IP 地址的请求历史
-  redisValid: false, // redis是否生效
-  redisCacheInitialized: false, // redis 缓存是否已初始化
-  databaseValid: false, // 数据库是否可用
-  lastSelectMap: new Map(), // 存储查询关键字上次选择的animeId，用于下次match自动匹配时优先选择该anime
-  lastHashes: { // 存储上一次各变量哈希值
+  requestHistory: new Map(),
+  lastSelectMap: new Map(),
+  lastHashes: {
     animes: null,
     episodeIds: null,
     episodeNum: null,
     lastSelectMap: null
   },
-  searchCache: new Map(), // 搜索结果缓存，存储格式：{ keyword: { results, timestamp } }
-  commentCache: new Map(), // 弹幕缓存，存储格式：{ videoUrl: { comments, timestamp } }
+  searchCache: new Map(),
+  commentCache: new Map(),
 
   /**
    * 初始化全局变量，加载环境变量依赖
@@ -63,12 +53,24 @@ const Globals = {
    * @param {string} deployPlatform 部署平台
    * @returns {Object} 全局配置对象
    */
-    async init(env = {}, deployPlatform = 'node') {
+  async init(env = {}, deployPlatform = 'node') {
+    // 如果已经加载过，直接返回
+    if (this.configLoaded) {
+      console.log('[Globals] 配置已加载，跳过重复初始化');
+      return this.getConfig();
+    }
+
+    console.log('[Globals] 开始初始化配置...');
     this.envs = Envs.load(env, deployPlatform);
     this.accessedEnvVars = Object.fromEntries(Envs.getAccessedEnvVars());
     
     // 尝试从数据库加载配置并覆盖
     await this.loadConfigFromStorage();
+    
+    // 标记配置已加载
+    this.configLoaded = true;
+    console.log('[Globals] 配置初始化完成');
+    console.log('[Globals] 当前 TOKEN:', this.envs.TOKEN);
     
     return this.getConfig();
   },
@@ -98,7 +100,6 @@ const Globals = {
                   this.envs[key] = value;
                   console.log(`[Globals] 应用数据库配置: ${key} (${oldValue} -> ${value})`);
                 }
-                // 注意：这里改用对象赋值，不用 .set()
                 this.accessedEnvVars[key] = value;
               }
               
@@ -129,7 +130,6 @@ const Globals = {
                     this.envs[key] = value;
                     console.log(`[Globals] 应用 Redis 配置: ${key} (${oldValue} -> ${value})`);
                   }
-                  // 注意：这里改用对象赋值，不用 .set()
                   this.accessedEnvVars[key] = value;
                 }
               } catch (e) {
@@ -146,22 +146,15 @@ const Globals = {
     }
   },
 
-
-
-  /**
-   * 获取全局配置快照
-   * @returns {Object} 当前全局配置
-   */
   /**
    * 获取全局配置对象（单例，可修改）
    * @returns {Object} 全局配置对象本身
    */
   getConfig() {
-    // 使用 Proxy 保持接口兼容性
     const self = this;
     return new Proxy({}, {
       get(target, prop) {
-        // 优先返回 envs 中的属性（保持原有的平铺效果）
+        // 优先返回 envs 中的属性
         if (prop in self.envs) {
           return self.envs[prop];
         }
@@ -185,14 +178,18 @@ const Globals = {
       }
     });
   },
+
+  /**
+   * 获取 Globals 实例（用于直接访问内部状态）
+   */
+  getInstance() {
+    return this;
+  }
 };
 
 /**
  * 全局配置代理对象
  * 自动转发所有属性访问到 Globals.getConfig()
- * 使用示例：
- *   import { globals } from './globals.js';
- *   console.log(globals.version);  // 直接访问，无需调用 getConfig()
  */
 export const globals = new Proxy({}, {
   get(target, prop) {
@@ -212,3 +209,6 @@ export const globals = new Proxy({}, {
     return Object.getOwnPropertyDescriptor(Globals.getConfig(), prop);
   }
 });
+
+// 导出 Globals 对象（用于初始化）
+export { Globals };
