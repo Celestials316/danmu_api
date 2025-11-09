@@ -1,6 +1,12 @@
 import { globals } from '../configs/globals.js';
 import { log } from './log-util.js'
 import { simpleHash, serializeValue } from "./codec-util.js";
+import { 
+  initDatabase, 
+  saveCacheBatch, 
+  loadCacheBatch, 
+  checkDatabaseConnection 
+} from './db-util.js';
 
 // =====================
 // upstash redis 读写请求 （先简单实现，不加锁）
@@ -147,50 +153,79 @@ export async function runPipeline(commands) {
   }
 }
 
-// 优化后的 getRedisCaches，单次请求获取所有键
+// 优化后的 getRedisCaches，支持从数据库或 Redis 加载
 export async function getRedisCaches() {
   if (!globals.redisCacheInitialized) {
     try {
       log("info", 'getRedisCaches start.');
-      const keys = ['animes', 'episodeIds', 'episodeNum', 'lastSelectMap'];
-      const commands = keys.map(key => ['GET', key]); // 构造 pipeline 命令
-      const results = await runPipeline(commands);
 
-      // 解析结果，按顺序赋值
-      globals.animes = results[0].result ? JSON.parse(results[0].result) : globals.animes;
-      globals.episodeIds = results[1].result ? JSON.parse(results[1].result) : globals.episodeIds;
-      globals.episodeNum = results[2].result ? JSON.parse(results[2].result) : globals.episodeNum;
+      // 优先尝试从数据库加载
+      if (globals.databaseValid) {
+        log("info", '[cache] 尝试从数据库加载缓存...');
+        const cacheMap = await loadCacheBatch();
+        
+        if (Object.keys(cacheMap).length > 0) {
+          globals.animes = cacheMap.animes || globals.animes;
+          globals.episodeIds = cacheMap.episodeIds || globals.episodeIds;
+          globals.episodeNum = cacheMap.episodeNum || globals.episodeNum;
 
-      // 恢复 lastSelectMap 并转换为 Map 对象
-      const lastSelectMapData = results[3].result ? JSON.parse(results[3].result) : null;
-      if (lastSelectMapData && typeof lastSelectMapData === 'object') {
-        globals.lastSelectMap = new Map(Object.entries(lastSelectMapData));
-        log("info", `Restored lastSelectMap from Redis with ${globals.lastSelectMap.size} entries`);
+          // 恢复 lastSelectMap
+          if (cacheMap.lastSelectMap && typeof cacheMap.lastSelectMap === 'object') {
+            globals.lastSelectMap = new Map(Object.entries(cacheMap.lastSelectMap));
+            log("info", `[cache] 从数据库恢复 lastSelectMap,共 ${globals.lastSelectMap.size} 条`);
+          }
+
+          // 更新哈希值
+          globals.lastHashes.animes = simpleHash(JSON.stringify(globals.animes));
+          globals.lastHashes.episodeIds = simpleHash(JSON.stringify(globals.episodeIds));
+          globals.lastHashes.episodeNum = simpleHash(JSON.stringify(globals.episodeNum));
+          globals.lastHashes.lastSelectMap = simpleHash(JSON.stringify(Object.fromEntries(globals.lastSelectMap)));
+
+          globals.redisCacheInitialized = true;
+          log("info", '[cache] 从数据库加载缓存成功');
+          return;
+        }
       }
 
-      // 更新哈希值
-      globals.lastHashes.animes = simpleHash(JSON.stringify(globals.animes));
-      globals.lastHashes.episodeIds = simpleHash(JSON.stringify(globals.episodeIds));
-      globals.lastHashes.episodeNum = simpleHash(JSON.stringify(globals.episodeNum));
-      globals.lastHashes.lastSelectMap = simpleHash(JSON.stringify(Object.fromEntries(globals.lastSelectMap)));
+      // 如果数据库不可用或无数据，尝试 Redis
+      if (globals.redisValid) {
+        log("info", '[cache] 尝试从 Redis 加载缓存...');
+        const keys = ['animes', 'episodeIds', 'episodeNum', 'lastSelectMap'];
+        const commands = keys.map(key => ['GET', key]);
+        const results = await runPipeline(commands);
+
+        globals.animes = results[0].result ? JSON.parse(results[0].result) : globals.animes;
+        globals.episodeIds = results[1].result ? JSON.parse(results[1].result) : globals.episodeIds;
+        globals.episodeNum = results[2].result ? JSON.parse(results[2].result) : globals.episodeNum;
+
+        const lastSelectMapData = results[3].result ? JSON.parse(results[3].result) : null;
+        if (lastSelectMapData && typeof lastSelectMapData === 'object') {
+          globals.lastSelectMap = new Map(Object.entries(lastSelectMapData));
+          log("info", `[cache] 从 Redis 恢复 lastSelectMap,共 ${globals.lastSelectMap.size} 条`);
+        }
+
+        // 更新哈希值
+        globals.lastHashes.animes = simpleHash(JSON.stringify(globals.animes));
+        globals.lastHashes.episodeIds = simpleHash(JSON.stringify(globals.episodeIds));
+        globals.lastHashes.episodeNum = simpleHash(JSON.stringify(globals.episodeNum));
+        globals.lastHashes.lastSelectMap = simpleHash(JSON.stringify(Object.fromEntries(globals.lastSelectMap)));
+
+        log("info", '[cache] 从 Redis 加载缓存成功');
+      }
 
       globals.redisCacheInitialized = true;
       log("info", 'getRedisCaches completed successfully.');
     } catch (error) {
       log("error", `getRedisCaches failed: ${error.message}`, error.stack);
-      globals.redisCacheInitialized = true; // 标记为已初始化，避免重复尝试
+      globals.redisCacheInitialized = true;
     }
   }
 }
 
-// 优化后的 updateRedisCaches，仅更新有变化的变量
+// 优化后的 updateRedisCaches，支持更新到数据库和 Redis
 export async function updateRedisCaches() {
   try {
     log("info", 'updateCaches start.');
-    const commands = [];
-    const updates = [];
-
-    // 检查每个变量的哈希值
     const variables = [
       { key: 'animes', value: globals.animes },
       { key: 'episodeIds', value: globals.episodeIds },
@@ -198,57 +233,89 @@ export async function updateRedisCaches() {
       { key: 'lastSelectMap', value: globals.lastSelectMap }
     ];
 
+    const updates = [];
+    const cacheMap = {};
+
     for (const { key, value } of variables) {
-      // 对于 lastSelectMap（Map 对象），需要转换为普通对象后再序列化
-      const serializedValue = key === 'lastSelectMap' ? JSON.stringify(Object.fromEntries(value)) : JSON.stringify(value);
+      const serializedValue = key === 'lastSelectMap' 
+        ? JSON.stringify(Object.fromEntries(value)) 
+        : JSON.stringify(value);
       const currentHash = simpleHash(serializedValue);
+      
       if (currentHash !== globals.lastHashes[key]) {
-        commands.push(['SET', key, serializedValue]);
         updates.push({ key, hash: currentHash });
+        cacheMap[key] = key === 'lastSelectMap' ? Object.fromEntries(value) : value;
       }
     }
 
-    // 如果有需要更新的键，执行 pipeline
-    if (commands.length > 0) {
-      log("info", `Updating ${commands.length} changed keys: ${updates.map(u => u.key).join(', ')}`);
-      const results = await runPipeline(commands);
+    if (updates.length === 0) {
+      log("info", '[cache] 无变化,跳过更新');
+      return;
+    }
 
-      // 检查每个操作的结果
-      let successCount = 0;
-      let failureCount = 0;
+    log("info", `[cache] 检测到 ${updates.length} 个变化: ${updates.map(u => u.key).join(', ')}`);
 
-      if (Array.isArray(results)) {
-        results.forEach((result, index) => {
-          if (result && result.result === 'OK') {
-            successCount++;
-          } else {
-            failureCount++;
-            log("warn", `Failed to update Redis key: ${updates[index]?.key}, result: ${JSON.stringify(result)}`);
-          }
-        });
-      }
+    // 同时更新数据库和 Redis
+    const dbSuccess = globals.databaseValid ? await saveCacheBatch(cacheMap) : false;
+    const redisSuccess = globals.redisValid ? await updateRedis(variables, updates) : false;
 
-      // 只有在所有操作都成功时才更新哈希值
-      if (failureCount === 0) {
-        updates.forEach(({ key, hash }) => {
-          globals.lastHashes[key] = hash;
-        });
-        log("info", `Redis update completed successfully: ${successCount} keys updated`);
-      } else {
-        log("warn", `Redis update partially failed: ${successCount} succeeded, ${failureCount} failed`);
-      }
+    // 至少一个成功就更新哈希值
+    if (dbSuccess || redisSuccess) {
+      updates.forEach(({ key, hash }) => {
+        globals.lastHashes[key] = hash;
+      });
+      log("info", `[cache] 更新成功 - 数据库: ${dbSuccess ? '成功' : '跳过'}, Redis: ${redisSuccess ? '成功' : '跳过'}`);
     } else {
-      log("info", 'No changes detected, skipping Redis update.');
+      log("warn", '[cache] 所有存储方式均失败');
     }
   } catch (error) {
     log("error", `updateRedisCaches failed: ${error.message}`, error.stack);
-    log("error", `Error details - Name: ${error.name}, Cause: ${error.cause ? error.cause.message : 'N/A'}`);
   }
 }
 
-// 判断redis是否可用
+// Redis 更新辅助函数
+async function updateRedis(variables, updates) {
+  try {
+    const commands = [];
+    for (const { key, value } of variables) {
+      const serializedValue = key === 'lastSelectMap' 
+        ? JSON.stringify(Object.fromEntries(value)) 
+        : JSON.stringify(value);
+      const currentHash = simpleHash(serializedValue);
+      
+      if (updates.some(u => u.key === key)) {
+        commands.push(['SET', key, serializedValue]);
+      }
+    }
+
+    if (commands.length > 0) {
+      const results = await runPipeline(commands);
+      const failureCount = results.filter(r => !r || r.result !== 'OK').length;
+      return failureCount === 0;
+    }
+    return false;
+  } catch (error) {
+    log("error", `[redis] 更新失败: ${error.message}`);
+    return false;
+  }
+}
+
+// 判断持久化存储是否可用（Redis 或数据库）
 export async function judgeRedisValid(path) {
-  if (!globals.redisValid && globals.redisUrl && globals.redisToken && path !== "/favicon.ico" && path !== "/robots.txt") {
+  if (path === "/favicon.ico" || path === "/robots.txt") {
+    return;
+  }
+
+  // 检查数据库
+  if (!globals.databaseValid && globals.databaseUrl) {
+    await checkDatabaseConnection();
+    if (globals.databaseValid) {
+      await initDatabase();
+    }
+  }
+
+  // 检查 Redis
+  if (!globals.redisValid && globals.redisUrl && globals.redisToken) {
     const res = await pingRedis();
     if (res && res.result && res.result === "PONG") {
       globals.redisValid = true;
