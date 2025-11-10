@@ -878,18 +878,28 @@ if (needsAuth) {
   // Docker 部署：优先检查 Session Cookie
   if (globals.databaseValid && deployPlatform !== 'vercel') {
     const cookies = req.headers.get('cookie');
+    log('info', `[auth] 检查 Cookie: ${cookies ? '存在' : '不存在'}`);
+    
     if (cookies) {
+      log('info', `[auth] Cookie 内容: ${cookies}`);
       const sessionMatch = cookies.match(/session_id=([^;]+)/);
       if (sessionMatch) {
         const sessionId = sessionMatch[1];
+        log('info', `[auth] 找到 Session ID: ${sessionId.substring(0, 8)}...`);
+        
         username = await verifySession(sessionId);
         if (username) {
           isAuthenticated = true;
-          log('info', `[auth] Session 验证成功: ${username}`);
+          log('info', `[auth] ✅ Session 验证成功: ${username}`);
+        } else {
+          log('warn', `[auth] ❌ Session 验证失败或已过期`);
         }
+      } else {
+        log('warn', `[auth] Cookie 中没有找到 session_id`);
       }
     }
   }
+
 
   // Vercel 部署或 Session 失效：检查 JWT Token
   if (!isAuthenticated) {
