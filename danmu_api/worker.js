@@ -8,6 +8,264 @@ import { getBangumi, getComment, getCommentByUrl, matchAnime, searchAnime, searc
 
 let globals;
 
+/**
+ * 合并写入 Redis：读取现有 -> 合并 patch -> 写回
+ */
+async function mergeSaveToRedis(key, patch) {
+  try {
+    const { getRedisKey, setRedisKey } = await import('./utils/redis-util.js');
+    const existing = await getRedisKey(key);
+    let base = {};
+    if (existing && existing.result) {
+      try { base = JSON.parse(existing.result) || {}; } catch (_) { base = {}; }
+    }
+    const merged = { ...base, ...patch };
+    const res = await setRedisKey(key, JSON.stringify(merged), true);
+    if (res && res.result === 'OK') {
+      const { simpleHash } = await import('./utils/codec-util.js');
+      globals.lastHashes[key] = simpleHash(JSON.stringify(merged));
+      return true;
+    }
+    return false;
+  } catch (e) {
+    log('warn', `[config] mergeSaveToRedis 失败: ${e.message}`);
+    return false;
+  }
+}
+
+/**
+ * 应用配置补丁到运行时：同步快照 + 按需重建派生缓存
+ */
+async function applyConfigPatch(patch) {
+  // 从 globals 获取 deployPlatform（已在 handleRequest 中设置）
+  const deployPlatform = globals.deployPlatform || 'unknown';
+  
+  // 1) 更新运行时快照
+  for (const [k, v] of Object.entries(patch)) {
+    globals.envs[k] = v;
+    if (globals.accessedEnvVars) globals.accessedEnvVars[k] = v;
+  }
+
+  const { Envs } = await import('./configs/envs.js');
+  Envs.env = globals.envs;
+
+  // 2) 特殊变量即时刷新
+  if ('TOKEN' in patch) {
+    globals.token = patch.TOKEN;
+  }
+
+  // 🔥 自动处理所有环境变量更新（增强版：同步到 Envs 模块）
+  const ENV_VAR_HANDLERS = {
+    'BILIBILI_COOKIE': (value) => {
+      globals.bilibiliCookie = value || '';
+      globals.bilibliCookie = value || '';  // ← 兼容错误拼写
+      globals.BILIBILI_COOKIE = value || '';
+      globals.envs.bilibiliCookie = value || '';
+      globals.envs.bilibliCookie = value || '';  // ← 兼容错误拼写
+      globals.envs.BILIBILI_COOKIE = value || '';
+      Envs.env.bilibiliCookie = value || '';
+      Envs.env.bilibliCookie = value || '';  // ← 兼容错误拼写
+      Envs.env.BILIBILI_COOKIE = value || '';
+      return `${value ? '已设置' : '已清空'}`;
+    },
+    'TMDB_API_KEY': (value) => {
+      globals.tmdbApiKey = value || '';
+      globals.TMDB_API_KEY = value || '';
+      globals.envs.tmdbApiKey = value || '';
+      globals.envs.TMDB_API_KEY = value || '';
+      Envs.env.tmdbApiKey = value || '';
+      Envs.env.TMDB_API_KEY = value || '';
+      return `${value ? '已设置' : '已清空'}`;
+    },
+    'WHITE_RATIO': (value) => {
+      const ratio = parseFloat(value);
+      if (!isNaN(ratio)) {
+        globals.whiteRatio = ratio;
+        globals.WHITE_RATIO = ratio;
+        globals.envs.whiteRatio = ratio;
+        globals.envs.WHITE_RATIO = ratio;
+        Envs.env.whiteRatio = ratio;
+        Envs.env.WHITE_RATIO = ratio;
+        return `${ratio}`;
+      }
+      return null;
+    },
+    'BLOCKED_WORDS': (value) => {
+      globals.blockedWords = value || '';
+      globals.BLOCKED_WORDS = value || '';
+      globals.envs.blockedWords = value || '';
+      globals.envs.BLOCKED_WORDS = value || '';
+      globals.blockedWordsArr = value ? value.split(',').map(w => w.trim()).filter(w => w.length > 0) : [];
+      globals.envs.blockedWordsArr = globals.blockedWordsArr;
+      Envs.env.blockedWords = value || '';
+      Envs.env.BLOCKED_WORDS = value || '';
+      Envs.env.blockedWordsArr = globals.blockedWordsArr;
+      return `${globals.blockedWordsArr.length} 个屏蔽词`;
+    },
+    'GROUP_MINUTE': (value) => {
+      const minutes = parseInt(value) || 1;
+      globals.groupMinute = minutes;
+      globals.GROUP_MINUTE = minutes;
+      globals.envs.groupMinute = minutes;
+      globals.envs.GROUP_MINUTE = minutes;
+      Envs.env.groupMinute = minutes;
+      Envs.env.GROUP_MINUTE = minutes;
+      return `${minutes} 分钟`;
+    },
+    'CONVERT_TOP_BOTTOM_TO_SCROLL': (value) => {
+      const enabled = String(value).toLowerCase() === 'true';
+      globals.convertTopBottomToScroll = enabled;
+      globals.CONVERT_TOP_BOTTOM_TO_SCROLL = enabled;
+      globals.envs.convertTopBottomToScroll = enabled;
+      globals.envs.CONVERT_TOP_BOTTOM_TO_SCROLL = enabled;
+      Envs.env.convertTopBottomToScroll = enabled;
+      Envs.env.CONVERT_TOP_BOTTOM_TO_SCROLL = enabled;
+      return `${enabled}`;
+    },
+    'DANMU_SIMPLIFIED': (value) => {
+      const enabled = String(value).toLowerCase() === 'true';
+      globals.danmuSimplified = enabled;
+      globals.DANMU_SIMPLIFIED = enabled;
+      globals.envs.danmuSimplified = enabled;
+      globals.envs.DANMU_SIMPLIFIED = enabled;
+      Envs.env.danmuSimplified = enabled;
+      Envs.env.DANMU_SIMPLIFIED = enabled;
+      return `${enabled}`;
+    },
+    'DANMU_LIMIT': (value) => {
+      const limit = parseInt(value) || -1;
+      globals.danmuLimit = limit;
+      globals.DANMU_LIMIT = limit;
+      globals.envs.danmuLimit = limit;
+      globals.envs.DANMU_LIMIT = limit;
+      Envs.env.danmuLimit = limit;
+      Envs.env.DANMU_LIMIT = limit;
+      return `${limit}`;
+    },
+    'DANMU_OUTPUT_FORMAT': (value) => {
+      globals.danmuOutputFormat = value || 'json';
+      globals.DANMU_OUTPUT_FORMAT = value || 'json';
+      globals.envs.danmuOutputFormat = value || 'json';
+      globals.envs.DANMU_OUTPUT_FORMAT = value || 'json';
+      Envs.env.danmuOutputFormat = value || 'json';
+      Envs.env.DANMU_OUTPUT_FORMAT = value || 'json';
+      return `${value || 'json'}`;
+    }
+  };
+
+  // 自动处理所有定义好的环境变量
+  for (const [key, value] of Object.entries(patch)) {
+    if (ENV_VAR_HANDLERS[key]) {
+      const result = ENV_VAR_HANDLERS[key](value);
+      if (result !== null) {
+        log('info', `[config] ${key} 已立即更新: ${result}`);
+      }
+    }
+  }
+
+  // 3) 派生缓存重建（按需、存在才调用）
+  const safeCall = async (fn, label) => {
+    try { await fn(); log('info', `[config] 重建派生缓存成功: ${label}`); }
+    catch (e) { log('warn', `[config] 重建派生缓存失败: ${label}: ${e.message}`); }
+  };
+
+  const need = new Set(Object.keys(patch));
+
+  // VOD 采集站解析
+  if (need.has('VOD_SERVERS') || need.has('PROXY_URL') || need.has('VOD_REQUEST_TIMEOUT')) {
+    await safeCall(async () => {
+      const { Envs } = await import('./configs/envs.js');
+      Envs.env = globals.envs;
+      if (typeof Envs.resolveVodServers === 'function') {
+        globals.vodServers = Envs.resolveVodServers(globals.envs);
+      }
+    }, 'VOD_SERVERS');
+  }
+
+  // 数据源排序
+  if (need.has('SOURCE_ORDER') || need.has('PLATFORM_ORDER')) {
+    await safeCall(async () => {
+      const { Envs } = await import('./configs/envs.js');
+      Envs.env = globals.envs;
+      if (typeof Envs.resolveSourceOrder === 'function') {
+        globals.sourceOrderArr = Envs.resolveSourceOrder(globals.envs, deployPlatform);
+      }
+      if (typeof Envs.resolvePlatformOrder === 'function') {
+        globals.platformOrderArr = Envs.resolvePlatformOrder(globals.envs, deployPlatform);
+      }
+    }, 'SOURCE_ORDER/PLATFORM_ORDER');
+  }
+
+  // 代理
+  if (need.has('PROXY_URL')) {
+    await safeCall(async () => {
+      try {
+        const { buildProxyAgent } = await import('./utils/net-util.js');
+        if (typeof buildProxyAgent === 'function') {
+          globals.proxyAgent = buildProxyAgent(globals.envs.PROXY_URL);
+        }
+      } catch (_) {}
+    }, 'PROXY_URL');
+  }
+
+  // 限流
+  if (need.has('RATE_LIMIT_MAX_REQUESTS')) {
+    await safeCall(async () => {
+      try {
+        const { setRateLimitMax } = await import('./utils/rate-limit.js');
+        if (typeof setRateLimitMax === 'function') {
+          setRateLimitMax(parseInt(globals.envs.RATE_LIMIT_MAX_REQUESTS, 10));
+        } else if (globals.rateLimiter && typeof globals.rateLimiter.setMax === 'function') {
+          globals.rateLimiter.setMax(parseInt(globals.envs.RATE_LIMIT_MAX_REQUESTS, 10));
+        }
+      } catch (_) {}
+    }, 'RATE_LIMIT_MAX_REQUESTS');
+  }
+
+  // 缓存策略
+  if (
+    need.has('SEARCH_CACHE_MINUTES') ||
+    need.has('COMMENT_CACHE_MINUTES') ||
+    need.has('REMEMBER_LAST_SELECT') ||
+    need.has('MAX_LAST_SELECT_MAP')
+  ) {
+    await safeCall(async () => {
+      try {
+        if (globals.caches?.search && typeof globals.caches.search.setTTL === 'function') {
+          globals.caches.search.setTTL(parseInt(globals.envs.SEARCH_CACHE_MINUTES || '1', 10) * 60);
+        }
+        if (globals.caches?.comment && typeof globals.caches.comment.setTTL === 'function') {
+          globals.caches.comment.setTTL(parseInt(globals.envs.COMMENT_CACHE_MINUTES || '1', 10) * 60);
+        }
+        if (globals.lastSelectMap && typeof globals.lastSelectMap.resize === 'function' && globals.envs.MAX_LAST_SELECT_MAP) {
+          globals.lastSelectMap.resize(parseInt(globals.envs.MAX_LAST_SELECT_MAP, 10));
+        }
+        if (typeof globals.setRememberLastSelect === 'function' && typeof globals.envs.REMEMBER_LAST_SELECT !== 'undefined') {
+          const on = String(globals.envs.REMEMBER_LAST_SELECT).toLowerCase() === 'true';
+          globals.setRememberLastSelect(on);
+        }
+      } catch (_) {}
+    }, '缓存策略');
+  }
+
+  // 文本处理相关钩子（若你的项目有）
+  if (
+    need.has('DANMU_SIMPLIFIED') ||
+    need.has('WHITE_RATIO') ||
+    need.has('CONVERT_TOP_BOTTOM_TO_SCROLL') ||
+    need.has('EPISODE_TITLE_FILTER')
+  ) {
+    await safeCall(async () => {
+      try {
+        if (typeof globals.reconfigureTextPipeline === 'function') {
+          globals.reconfigureTextPipeline(globals.envs);
+        }
+      } catch (_) {}
+    }, '弹幕文本处理');
+  }
+}
+
+
 // 环境变量说明配置
 // 环境变量说明配置
 const ENV_DESCRIPTIONS = {
@@ -96,6 +354,9 @@ function isSensitiveKey(key) {
 /**
  * 获取环境变量的真实值(未加密) - 服务端版本
  */
+/**
+ * 获取环境变量的真实值(未加密) - 服务端版本
+ */
 function getRealEnvValue(key) {
   const keyMapping = {
     'redisUrl': 'UPSTASH_REDIS_REST_URL',
@@ -111,20 +372,21 @@ function getRealEnvValue(key) {
   // 优先从 globals.accessedEnvVars 获取（这是真实值）
   if (globals.accessedEnvVars && actualKey in globals.accessedEnvVars) {
     const value = globals.accessedEnvVars[actualKey];
-    // 如果值不是占位符，直接返回
-    if (value && (typeof value !== 'string' || !value.match(/^\*+$/))) {
-      return value;
+    // 🔥 确保返回字符串类型
+    if (value !== null && value !== undefined) {
+      return typeof value === 'string' ? value : String(value);
     }
   }
 
   // 备用方案：从 process.env 获取
   if (typeof process !== 'undefined' && process.env?.[actualKey]) {
-    return process.env[actualKey];
+    return String(process.env[actualKey]);
   }
 
   // 最后尝试从 Globals 获取默认值
   if (actualKey in Globals) {
-    return Globals[actualKey];
+    const value = Globals[actualKey];
+    return typeof value === 'string' ? value : String(value);
   }
 
   // 如果都没有，返回空字符串
@@ -134,7 +396,8 @@ function getRealEnvValue(key) {
 async function handleRequest(req, env, deployPlatform, clientIp) {
   // 注意：这里改成 await
   globals = await Globals.init(env, deployPlatform);
-
+  globals.deployPlatform = deployPlatform;  // 保存 deployPlatform 供后续使用
+  
   const url = new URL(req.url);
   let path = url.pathname;
   const method = req.method;
@@ -207,12 +470,15 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
           const realValue = getRealEnvValue(key);
           const maskedValue = '•'.repeat(Math.min(String(realValue).length, 24));
 
-          const encodedRealValue = String(realValue)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
+        // 确保 realValue 是字符串类型
+        const safeRealValue = typeof realValue === 'string' ? realValue : JSON.stringify(realValue);
+        const encodedRealValue = safeRealValue
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+
 
           return `
             <div class="config-item" data-key="${key}">
@@ -3345,14 +3611,6 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
      }
    }
 
-   function saveAllConfig() {
-     localStorage.setItem('danmu_api_config', JSON.stringify(AppState.config));
-     localStorage.setItem('danmu_api_vod_servers', JSON.stringify(AppState.vodServers));
-     localStorage.setItem('danmu_api_source_order', JSON.stringify(AppState.sourceOrder));
-     AppState.hasUnsavedChanges = false;
-     showToast('所有配置已保存到本地存储', 'success');
-   }
-
    function exportConfig() {
      const config = {
        envVars: AppState.config,
@@ -4045,7 +4303,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
 
   // ========== 配置管理 API（在路径规范化之前处理）==========
   
-     // POST /api/config/save - 保存环境变量配置
+  // POST /api/config/save - 保存环境变量配置（合并持久化 + 运行时立即生效）
   if (path === "/api/config/save" && method === "POST") {
     try {
       const body = await req.json();
@@ -4058,118 +4316,67 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
         }, 400);
       }
 
-      log("info", `[config] 开始保存环境变量配置，共 ${Object.keys(config).length} 个`);
+      log("info", `[config] 开始保存环境变量配置，共 ${Object.keys(config).length} 个: ${Object.keys(config).join(', ')}`);
 
-      // 保存到数据库
+      // 1) 数据库（如有）
       let dbSaved = false;
       if (globals.databaseValid) {
-        const { saveEnvConfigs } = await import('./utils/db-util.js');
-        dbSaved = await saveEnvConfigs(config);
+        try {
+          const { saveEnvConfigs } = await import('./utils/db-util.js');
+          dbSaved = await saveEnvConfigs(config);
+          log("info", `[config] 数据库保存${dbSaved ? '成功' : '失败'}`);
+        } catch (e) {
+          log("warn", `[config] 保存到数据库失败: ${e.message}`);
+        }
       }
 
-      // 保存到 Redis（修复：先读取现有配置，合并后再保存）
+      // 2) Redis：合并而非覆盖
       let redisSaved = false;
       if (globals.redisValid) {
-        const { getRedisKey, setRedisKey } = await import('./utils/redis-util.js');
-        
-        // 1. 读取现有配置
-        const existingResult = await getRedisKey('env_configs');
-        let existingConfig = {};
-        
-        if (existingResult && existingResult.result) {
-          try {
-            existingConfig = JSON.parse(existingResult.result);
-            log("info", `[config] 读取到现有配置，共 ${Object.keys(existingConfig).length} 个`);
-          } catch (e) {
-            log("warn", `[config] 解析现有配置失败，将使用空对象: ${e.message}`);
-          }
-        }
-        
-        // 2. 合并配置（新配置覆盖旧配置）
-        const mergedConfig = { ...existingConfig, ...config };
-        log("info", `[config] 合并后配置共 ${Object.keys(mergedConfig).length} 个`);
-        
-        // 3. 保存合并后的完整配置
-        const configStr = JSON.stringify(mergedConfig);
-        const result = await setRedisKey('env_configs', configStr, true); // 强制更新
-        redisSaved = result && result.result === 'OK';
+        redisSaved = await mergeSaveToRedis('env_configs', config);
+        log("info", `[config] Redis保存${redisSaved ? '成功' : '失败'}`);
+      }
 
-        // 如果 Redis 保存成功，强制刷新哈希值
-        if (redisSaved) {
-          const { simpleHash } = await import('./utils/codec-util.js');
-          globals.lastHashes['env_configs'] = simpleHash(configStr);
-          log("info", `[config] Redis 哈希值已更新`);
-        }
+      // 3) 🔥 立即应用到当前运行时（关键步骤）
+      try {
+        // 使用全局 Globals 对象应用配置
+        const { Globals } = await import('./configs/globals.js');
+        Globals.applyConfig(config);
+        log("info", `[config] 配置已应用到运行时`);
+      } catch (e) {
+        log("error", `[config] 应用配置到运行时失败: ${e.message}`);
+        throw e;
+      }
+
+      // 4) 重建派生缓存（如果 applyConfigPatch 存在的话）
+      try {
+        await applyConfigPatch(config);
+        log("info", `[config] 派生缓存已重建`);
+      } catch (e) {
+        log("warn", `[config] 重建派生缓存失败（可忽略）: ${e.message}`);
       }
 
       const savedTo = [];
       if (dbSaved) savedTo.push('数据库');
       if (redisSaved) savedTo.push('Redis');
+      savedTo.push('运行时内存'); // 总是会应用到内存
 
-      // 无论持久化是否成功，都更新到内存（立即生效）
-      for (const [key, value] of Object.entries(config)) {
-        // 更新 accessedEnvVars
-        globals.accessedEnvVars[key] = value;
-
-        // 更新 envs
-        if (key in globals.envs) {
-          const oldValue = globals.envs[key];
-          globals.envs[key] = value;
-          log("info", `[config] 更新配置: ${key} = ${value} (旧值: ${oldValue})`);
-        } else {
-          // 如果 envs 中不存在，也添加进去
-          globals.envs[key] = value;
-          log("info", `[config] 新增配置: ${key} = ${value}`);
-        }
-      }
-
-      // 特别处理 TOKEN
-      if ('TOKEN' in config) {
-        globals.token = config.TOKEN;
-        log("info", `[config] TOKEN 已更新为: ${config.TOKEN}`);
-      }
-
-      // 特别处理 VOD_SERVERS（需要重新解析）
-      if ('VOD_SERVERS' in config) {
-        const { Envs } = await import('./configs/envs.js');
-        Envs.env = globals.envs; // 更新 Envs 的环境引用
-        globals.vodServers = Envs.resolveVodServers(globals.envs);
-        log("info", `[config] VOD 服务器列表已更新，共 ${globals.vodServers.length} 个`);
-      }
-
-      // 特别处理 SOURCE_ORDER（需要重新解析）
-      if ('SOURCE_ORDER' in config) {
-        const { Envs } = await import('./configs/envs.js');
-        Envs.env = globals.envs;
-        globals.sourceOrderArr = Envs.resolveSourceOrder(globals.envs, deployPlatform);
-        log("info", `[config] 数据源顺序已更新: ${globals.sourceOrderArr.join(', ')}`);
-      }
-
-      if (savedTo.length === 0) {
-        log("warn", "[config] 配置仅保存到内存（持久化存储不可用）");
-        return jsonResponse({
-          success: true,
-          message: "配置已更新到内存并立即生效（重启后会丢失，建议配置数据库或Redis）",
-          savedTo: ['内存']
-        });
-      }
-
-      log("info", `[config] 配置保存成功: ${savedTo.join('、')}`);
+      log("info", `[config] 配置保存完成: ${savedTo.join('、')}`);
       return jsonResponse({
         success: true,
-        message: `配置已成功保存到: ${savedTo.join('、')}，并已立即生效`,
-        savedTo
+        message: `配置已保存至 ${savedTo.join('、')}，并立即生效`,
+        savedTo,
+        appliedConfig: config
       });
 
     } catch (error) {
-      log("error", `[config] 保存配置失败: ${error.message}`);
+      log("error", `[config] 保存配置失败: ${error.message}\n${error.stack}`);
       return jsonResponse({
         success: false,
         errorMessage: `保存失败: ${error.message}`
       }, 500);
     }
   }
-
 
   // GET /api/config/load - 加载环境变量配置
   if (path === "/api/config/load" && method === "GET") {

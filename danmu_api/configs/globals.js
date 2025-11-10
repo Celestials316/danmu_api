@@ -137,12 +137,17 @@ const Globals = {
    * @param {Object} config 配置对象
    */
   applyConfig(config) {
+    console.log(`[Globals] 开始应用配置，共 ${Object.keys(config).length} 个`);
+
     for (const [key, value] of Object.entries(config)) {
       const oldValue = this.envs[key];
       this.envs[key] = value;
       this.accessedEnvVars[key] = value;
-      console.log(`[Globals] 应用配置: ${key} = ${value} (旧值: ${oldValue})`);
+      console.log(`[Globals] 应用配置: ${key} = ${value !== oldValue ? `(旧值: ${oldValue})` : '(未变化)'}`);
     }
+
+    // 🔥 关键：更新 Envs 模块的静态变量（让其他模块能读到新值）
+    Envs.env = this.envs;
 
     // 特别处理需要重新解析的配置
     if ('VOD_SERVERS' in config) {
@@ -157,10 +162,202 @@ const Globals = {
       console.log(`[Globals] 数据源顺序已更新: ${this.envs.sourceOrderArr.join(', ')}`);
     }
 
+    if ('PLATFORM_ORDER' in config) {
+      const platformOrder = config.PLATFORM_ORDER;
+      this.envs.platformOrderArr = this.parsePlatformOrder(platformOrder);
+      console.log(`[Globals] 平台顺序已更新: ${this.envs.platformOrderArr.join(', ')}`);
+    }
+
     if ('TOKEN' in config) {
       this.envs.token = config.TOKEN;
       console.log(`[Globals] TOKEN 已更新`);
     }
+
+    // 更新其他派生属性
+    this.updateDerivedProperties(config);
+
+    console.log(`[Globals] 配置应用完成`);
+  },
+
+  /**
+   * 更新派生属性（基于配置变化）
+   */
+  updateDerivedProperties(config) {
+    const changedKeys = Object.keys(config);
+
+    // 更新搜索缓存时间
+    if (changedKeys.includes('SEARCH_CACHE_MINUTES')) {
+      const minutes = parseInt(config.SEARCH_CACHE_MINUTES) || 1;
+      this.envs.searchCacheMinutes = minutes;
+      console.log(`[Globals] 搜索缓存时间已更新: ${minutes} 分钟`);
+    }
+
+    // 更新评论缓存时间
+    if (changedKeys.includes('COMMENT_CACHE_MINUTES')) {
+      const minutes = parseInt(config.COMMENT_CACHE_MINUTES) || 1;
+      this.envs.commentCacheMinutes = minutes;
+      console.log(`[Globals] 评论缓存时间已更新: ${minutes} 分钟`);
+    }
+
+    // 🔥 添加 WHITE_RATIO 处理
+    if (changedKeys.includes('WHITE_RATIO')) {
+      const ratio = parseFloat(config.WHITE_RATIO);
+      if (!isNaN(ratio)) {
+        this.envs.whiteRatio = ratio;
+        this.envs.WHITE_RATIO = ratio;
+        console.log(`[Globals] WHITE_RATIO 已更新: ${ratio}`);
+      } else {
+        console.warn(`[Globals] WHITE_RATIO 值无效 (${config.WHITE_RATIO})，保持原值`);
+      }
+    }
+
+    // 🔥 添加 BILIBILI_COOKIE 处理（兼容错误拼写）
+    if (changedKeys.includes('BILIBILI_COOKIE')) {
+      this.envs.bilibiliCookie = config.BILIBILI_COOKIE || '';
+      this.envs.bilibliCookie = config.BILIBILI_COOKIE || '';  // ← 兼容错误拼写
+      this.envs.BILIBILI_COOKIE = config.BILIBILI_COOKIE || '';
+      console.log(`[Globals] BILIBILI_COOKIE 已更新: ${config.BILIBILI_COOKIE ? '已设置' : '已清空'}`);
+    }
+
+    // 🔥 添加 TMDB_API_KEY 处理
+    if (changedKeys.includes('TMDB_API_KEY')) {
+      this.envs.tmdbApiKey = config.TMDB_API_KEY || '';
+      this.envs.TMDB_API_KEY = config.TMDB_API_KEY || '';
+      console.log(`[Globals] TMDB_API_KEY 已更新: ${config.TMDB_API_KEY ? '已设置' : '已清空'}`);
+    }
+
+    // 🔥 添加 BLOCKED_WORDS 处理
+    if (changedKeys.includes('BLOCKED_WORDS')) {
+      this.envs.blockedWords = config.BLOCKED_WORDS || '';
+      this.envs.BLOCKED_WORDS = config.BLOCKED_WORDS || '';
+      // 解析为数组
+      if (config.BLOCKED_WORDS) {
+        this.envs.blockedWordsArr = config.BLOCKED_WORDS
+          .split(',')
+          .map(w => w.trim())
+          .filter(w => w.length > 0);
+      } else {
+        this.envs.blockedWordsArr = [];
+      }
+      console.log(`[Globals] BLOCKED_WORDS 已更新: ${this.envs.blockedWordsArr.length} 个屏蔽词`);
+    }
+
+    // 🔥 添加 GROUP_MINUTE 处理
+    if (changedKeys.includes('GROUP_MINUTE')) {
+      const minutes = parseInt(config.GROUP_MINUTE) || 1;
+      this.envs.groupMinute = minutes;
+      this.envs.GROUP_MINUTE = minutes;
+      console.log(`[Globals] GROUP_MINUTE 已更新: ${minutes} 分钟`);
+    }
+
+    // 🔥 添加 CONVERT_TOP_BOTTOM_TO_SCROLL 处理
+    if (changedKeys.includes('CONVERT_TOP_BOTTOM_TO_SCROLL')) {
+      const enabled = String(config.CONVERT_TOP_BOTTOM_TO_SCROLL).toLowerCase() === 'true';
+      this.envs.convertTopBottomToScroll = enabled;
+      this.envs.CONVERT_TOP_BOTTOM_TO_SCROLL = enabled;
+      console.log(`[Globals] CONVERT_TOP_BOTTOM_TO_SCROLL 已更新: ${enabled}`);
+    }
+
+    // 更新弹幕限制
+    if (changedKeys.includes('DANMU_LIMIT')) {
+      const limit = parseInt(config.DANMU_LIMIT) || -1;
+      this.envs.danmuLimit = limit;
+      console.log(`[Globals] 弹幕限制已更新: ${limit}`);
+    }
+
+    // 更新限流配置
+    if (changedKeys.includes('RATE_LIMIT_MAX_REQUESTS')) {
+      const maxRequests = parseInt(config.RATE_LIMIT_MAX_REQUESTS) || 0;
+      this.envs.rateLimitMaxRequests = maxRequests;
+      console.log(`[Globals] 限流配置已更新: ${maxRequests} 次/分钟`);
+    }
+
+    // 更新 VOD 返回模式
+    if (changedKeys.includes('VOD_RETURN_MODE')) {
+      this.envs.vodReturnMode = config.VOD_RETURN_MODE;
+      console.log(`[Globals] VOD 返回模式已更新: ${config.VOD_RETURN_MODE}`);
+    }
+
+    // 更新 VOD 请求超时
+    if (changedKeys.includes('VOD_REQUEST_TIMEOUT')) {
+      const timeout = parseInt(config.VOD_REQUEST_TIMEOUT) || 10000;
+      this.envs.vodRequestTimeout = timeout;
+      console.log(`[Globals] VOD 请求超时已更新: ${timeout} 毫秒`);
+    }
+
+    // 更新弹幕输出格式
+    if (changedKeys.includes('DANMU_OUTPUT_FORMAT')) {
+      this.envs.danmuOutputFormat = config.DANMU_OUTPUT_FORMAT || 'json';
+      console.log(`[Globals] 弹幕输出格式已更新: ${this.envs.danmuOutputFormat}`);
+    }
+
+    // 更新繁简转换设置
+    if (changedKeys.includes('DANMU_SIMPLIFIED')) {
+      this.envs.danmuSimplified = String(config.DANMU_SIMPLIFIED).toLowerCase() === 'true';
+      console.log(`[Globals] 繁简转换已更新: ${this.envs.danmuSimplified}`);
+    }
+
+    // 更新记住选择设置
+    if (changedKeys.includes('REMEMBER_LAST_SELECT')) {
+      this.envs.rememberLastSelect = String(config.REMEMBER_LAST_SELECT).toLowerCase() === 'true';
+      console.log(`[Globals] 记住选择已更新: ${this.envs.rememberLastSelect}`);
+    }
+
+    // 更新严格匹配设置
+    if (changedKeys.includes('STRICT_TITLE_MATCH')) {
+      this.envs.strictTitleMatch = String(config.STRICT_TITLE_MATCH).toLowerCase() === 'true';
+      console.log(`[Globals] 严格匹配已更新: ${this.envs.strictTitleMatch}`);
+    }
+
+    // 更新优酷并发数
+    if (changedKeys.includes('YOUKU_CONCURRENCY')) {
+      const concurrency = parseInt(config.YOUKU_CONCURRENCY) || 8;
+      this.envs.youkuConcurrency = Math.min(concurrency, 16);
+      console.log(`[Globals] 优酷并发数已更新: ${this.envs.youkuConcurrency}`);
+    }
+
+    // 更新日志级别
+    if (changedKeys.includes('LOG_LEVEL')) {
+      this.envs.logLevel = config.LOG_LEVEL || 'info';
+      console.log(`[Globals] 日志级别已更新: ${this.envs.logLevel}`);
+    }
+
+    // 🔥 添加 TITLE_TO_CHINESE 处理
+    if (changedKeys.includes('TITLE_TO_CHINESE')) {
+      const enabled = String(config.TITLE_TO_CHINESE).toLowerCase() === 'true';
+      this.envs.titleToChinese = enabled;
+      this.envs.TITLE_TO_CHINESE = enabled;
+      console.log(`[Globals] TITLE_TO_CHINESE 已更新: ${enabled}`);
+    }
+
+    // 🔥 添加 EPISODE_TITLE_FILTER 处理
+    if (changedKeys.includes('EPISODE_TITLE_FILTER')) {
+      this.envs.episodeTitleFilter = config.EPISODE_TITLE_FILTER || '';
+      this.envs.EPISODE_TITLE_FILTER = config.EPISODE_TITLE_FILTER || '';
+      console.log(`[Globals] EPISODE_TITLE_FILTER 已更新`);
+    }
+
+    // 🔥 添加 ENABLE_EPISODE_FILTER 处理
+    if (changedKeys.includes('ENABLE_EPISODE_FILTER')) {
+      const enabled = String(config.ENABLE_EPISODE_FILTER).toLowerCase() === 'true';
+      this.envs.enableEpisodeFilter = enabled;
+      this.envs.ENABLE_EPISODE_FILTER = enabled;
+      console.log(`[Globals] ENABLE_EPISODE_FILTER 已更新: ${enabled}`);
+    }
+  },
+
+  /**
+   * 解析平台顺序
+   */
+  parsePlatformOrder(platformOrder) {
+    if (!platformOrder || platformOrder.trim() === '') {
+      return [];
+    }
+
+    return platformOrder
+      .split(',')
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
   },
 
   /**
