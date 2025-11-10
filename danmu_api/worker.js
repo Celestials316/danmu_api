@@ -394,14 +394,16 @@ function getRealEnvValue(key) {
 }
 
 async function handleRequest(req, env, deployPlatform, clientIp) {
-  // 🔥 强制刷新全局配置（解决 TOKEN 缓存问题）
-  if (Globals.configLoaded) {
-    // 如果已加载过，从数据库/Redis 重新加载最新配置
-    await Globals.loadConfigFromStorage();
-  } else {
-    // 首次加载
+  // ✅ 只在首次请求时初始化
+  if (!Globals.configLoaded) {
+    log("info", "[init] 🚀 首次启动，初始化全局配置...");
     globals = await Globals.init(env, deployPlatform);
+    log("info", "[init] ✅ 全局配置初始化完成");
   }
+  
+  // 后续请求直接使用已加载的 globals
+  // 不再重复加载
+}
   
   globals.deployPlatform = deployPlatform;
 
