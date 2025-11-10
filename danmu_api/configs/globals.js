@@ -30,7 +30,7 @@ const Globals = {
   redisValid: false,
   redisCacheInitialized: false,
   configLoaded: false,
-  
+
   // 🔥 新增：认证状态
   currentUser: null,  // 当前登录用户
 
@@ -81,18 +81,16 @@ const Globals = {
     this.configLoaded = true;
     console.log('[Globals] 配置初始化完成');
     console.log('[Globals] 当前 TOKEN:', this.envs.TOKEN);
-    // 标记配置已加载
-    this.configLoaded = true;
-    console.log('[Globals] 配置初始化完成');
-    console.log('[Globals] 当前 TOKEN:', this.envs.TOKEN);
 
     // 🔥 新增：初始化管理员用户（仅 Docker 部署且数据库可用）
     if (deployPlatform !== 'vercel' && this.envs.databaseUrl) {
       try {
+        console.log('[Globals] 开始初始化管理员用户...');
         const { initAdminUser } = await importAuthUtil();
         await initAdminUser();
       } catch (error) {
         console.error('[Globals] 初始化管理员用户失败:', error.message);
+        console.error('[Globals] 错误详情:', error);
       }
     }
 
@@ -166,14 +164,22 @@ const Globals = {
     for (const [key, value] of Object.entries(config)) {
       const oldValue = this.envs[key];
       const hasChanged = JSON.stringify(oldValue) !== JSON.stringify(value); // 🔥 深度比较
-      
+
       this.envs[key] = value;
       this.accessedEnvVars[key] = value;
-      
+
+      // ✅ 修复：安全的 substring 调用
+      const oldValueStr = oldValue !== null && oldValue !== undefined 
+        ? JSON.stringify(oldValue).substring(0, 50) 
+        : 'undefined';
+      const newValueStr = value !== null && value !== undefined 
+        ? JSON.stringify(value).substring(0, 50) 
+        : 'undefined';
+
       if (hasChanged) {
-        console.log(`[Globals] 应用配置: ${key} = ${JSON.stringify(value).substring(0, 50)} (旧值: ${JSON.stringify(oldValue).substring(0, 50)})`);
+        console.log(`[Globals] 应用配置: ${key} = ${newValueStr} (旧值: ${oldValueStr})`);
       } else {
-        console.log(`[Globals] 应用配置: ${key} = ${JSON.stringify(value).substring(0, 50)} (值未变化，但仍刷新)`);
+        console.log(`[Globals] 应用配置: ${key} = ${newValueStr} (值未变化，但仍刷新)`);
       }
     }
 
