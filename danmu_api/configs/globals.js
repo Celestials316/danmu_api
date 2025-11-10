@@ -1,6 +1,6 @@
 import { Envs } from './envs.js';
 
-// 动态导入函数（避免循环依赖）
+// 动态导入函数(避免循环依赖)
 async function importDbUtil() {
   return await import('../utils/db-util.js');
 }
@@ -12,7 +12,7 @@ async function importRedisUtil() {
 /**
  * 全局变量管理模块
  * 集中管理项目中的静态常量和运行时共享变量
- * ⚠️不是持久化存储，每次冷启动会丢失
+ * ⚠️不是持久化存储,每次冷启动会丢失
  */
 const Globals = {
   // 环境变量相关
@@ -24,6 +24,7 @@ const Globals = {
   redisValid: false,
   redisCacheInitialized: false,
   configLoaded: false,
+  storageChecked: false, // 🔥 新增:标记是否已检查存储连接
 
   // 静态常量
   VERSION: '1.7.4',
@@ -48,15 +49,15 @@ const Globals = {
   commentCache: new Map(),
 
   /**
-   * 初始化全局变量，加载环境变量依赖
+   * 初始化全局变量,加载环境变量依赖
    * @param {Object} env 环境对象
    * @param {string} deployPlatform 部署平台
    * @returns {Object} 全局配置对象
    */
   async init(env = {}, deployPlatform = 'node') {
-    // 如果已经加载过，直接返回
+    // 如果已经加载过,直接返回
     if (this.configLoaded) {
-      console.log('[Globals] 配置已加载，跳过重复初始化');
+      console.log('[Globals] 配置已加载,跳过重复初始化');
       return this.getConfig();
     }
 
@@ -92,7 +93,7 @@ const Globals = {
             if (Object.keys(dbConfig).length > 0) {
               console.log(`[Globals] ✅ 从数据库加载了 ${Object.keys(dbConfig).length} 个配置`);
 
-              // 应用数据库配置，覆盖默认值
+              // 应用数据库配置,覆盖默认值
               this.applyConfig(dbConfig);
               return;
             }
@@ -102,7 +103,7 @@ const Globals = {
         }
       }
 
-      // 如果数据库不可用，尝试 Redis
+      // 如果数据库不可用,尝试 Redis
       if (this.envs.redisUrl && this.envs.redisToken) {
         try {
           const { pingRedis, getRedisKey } = await importRedisUtil();
@@ -137,14 +138,14 @@ const Globals = {
    */
   applyConfig(config) {
     const configCount = Object.keys(config).length;
-    
+
     for (const [key, value] of Object.entries(config)) {
       // 跳过 null 和 undefined
       if (value === null || value === undefined) {
         continue;
       }
 
-      // 直接赋值，保持原始类型
+      // 直接赋值,保持原始类型
       this.envs[key] = value;
       this.accessedEnvVars[key] = value;
     }
@@ -180,7 +181,7 @@ const Globals = {
   },
 
   /**
-   * 更新派生属性（基于配置变化）
+   * 更新派生属性(基于配置变化)
    */
   updateDerivedProperties(config) {
     const changedKeys = Object.keys(config);
@@ -206,7 +207,7 @@ const Globals = {
       }
     }
 
-    // BILIBILI_COOKIE 处理（兼容错误拼写）
+    // BILIBILI_COOKIE 处理(兼容错误拼写)
     if (changedKeys.includes('BILIBILI_COOKIE')) {
       this.envs.bilibiliCookie = config.BILIBILI_COOKIE || '';
       this.envs.bilibliCookie = config.BILIBILI_COOKIE || '';
@@ -336,104 +337,105 @@ const Globals = {
       .filter(s => s.length > 0);
   },
 
-  /**
-   * 解析 VOD 服务器配置
-   */
-  parseVodServers(vodServersConfig) {
-    if (!vodServersConfig || vodServersConfig.trim() === '') {
-      return [];
-    }
+ /**
+  * 解析 VOD 服务器配置
+  */
+ parseVodServers(vodServersConfig) {
+   if (!vodServersConfig || vodServersConfig.trim() === '') {
+     return [];
+   }
 
-    return vodServersConfig
-      .split(',')
-      .map(s => s.trim())
-      .filter(s => s.length > 0)
-      .map((item, index) => {
-        if (item.includes('@')) {
-          const [name, url] = item.split('@').map(s => s.trim());
-          return { name: name || `vod-${index + 1}`, url };
-        }
-        return { name: `vod-${index + 1}`, url: item };
-      })
-      .filter(server => server.url && server.url.length > 0);
-  },
+   return vodServersConfig
+     .split(',')
+     .map(s => s.trim())
+     .filter(s => s.length > 0)
+     .map((item, index) => {
+       if (item.includes('@')) {
+         const [name, url] = item.split('@').map(s => s.trim());
+         return { name: name || `vod-${index + 1}`, url };
+       }
+       return { name: `vod-${index + 1}`, url: item };
+     })
+     .filter(server => server.url && server.url.length > 0);
+ },
 
-  /**
-   * 解析数据源顺序
-   */
-  parseSourceOrder(sourceOrder) {
-    const ALLOWED_SOURCES = ['360', 'vod', 'tmdb', 'douban', 'tencent', 'youku', 'iqiyi', 'imgo', 'bilibili', 'renren', 'hanjutv', 'bahamut'];
-    const orderArr = sourceOrder
-      .split(',')
-      .map(s => s.trim())
-      .filter(s => ALLOWED_SOURCES.includes(s));
+ /**
+  * 解析数据源顺序
+  */
+ parseSourceOrder(sourceOrder) {
+   const ALLOWED_SOURCES = ['360', 'vod', 'tmdb', 'douban', 'tencent', 'youku', 'iqiyi', 'imgo', 'bilibili', 'renren', 'hanjutv', 'bahamut'];
+   const orderArr = sourceOrder
+     .split(',')
+     .map(s => s.trim())
+     .filter(s => ALLOWED_SOURCES.includes(s));
 
-    return orderArr.length > 0 ? orderArr : ['360', 'vod', 'renren', 'hanjutv'];
-  },
+   return orderArr.length > 0 ? orderArr : ['360', 'vod', 'renren', 'hanjutv'];
+ },
 
-  /**
-   * 获取全局配置对象（单例，可修改）
-   * @returns {Object} 全局配置对象本身
-   */
-  getConfig() {
-    const self = this;
-    return new Proxy({}, {
-      get(target, prop) {
-        // 优先返回 envs 中的属性
-        if (prop in self.envs) {
-          return self.envs[prop];
-        }
-        // 映射大写常量到小写
-        if (prop === 'version') return self.VERSION;
-        if (prop === 'maxLogs') return self.MAX_LOGS;
-        if (prop === 'maxAnimes') return self.MAX_ANIMES;
-        if (prop === 'maxLastSelectMap') return self.MAX_LAST_SELECT_MAP;
+ /**
+  * 获取全局配置对象(单例,可修改)
+  * @returns {Object} 全局配置对象本身
+  */
+ getConfig() {
+   const self = this;
+   return new Proxy({}, {
+     get(target, prop) {
+       // 优先返回 envs 中的属性
+       if (prop in self.envs) {
+         return self.envs[prop];
+       }
+       // 映射大写常量到小写
+       if (prop === 'version') return self.VERSION;
+       if (prop === 'maxLogs') return self.MAX_LOGS;
+       if (prop === 'maxAnimes') return self.MAX_ANIMES;
+       if (prop === 'maxLastSelectMap') return self.MAX_LAST_SELECT_MAP;
 
-        // 其他属性直接返回
-        return self[prop];
-      },
-      set(target, prop, value) {
-        // 写操作同步到 Globals
-        if (prop in self.envs) {
-          self.envs[prop] = value;
-        } else {
-          self[prop] = value;
-        }
-        return true;
-      }
-    });
-  },
+       // 其他属性直接返回
+       return self[prop];
+     },
+     set(target, prop, value) {
+       // 写操作同步到 Globals
+       if (prop in self.envs) {
+         self.envs[prop] = value;
+       } else {
+         self[prop] = value;
+       }
+       return true;
+     }
+   });
+ },
 
-  /**
-   * 获取 Globals 实例（用于直接访问内部状态）
-   */
-  getInstance() {
-    return this;
-  }
+ /**
+  * 获取 Globals 实例(用于直接访问内部状态)
+  */
+ getInstance() {
+   return this;
+ }
 };
 
 /**
- * 全局配置代理对象
- * 自动转发所有属性访问到 Globals.getConfig()
- */
+* 全局配置代理对象
+* 自动转发所有属性访问到 Globals.getConfig()
+*/
 export const globals = new Proxy({}, {
-  get(target, prop) {
-    return Globals.getConfig()[prop];
-  },
-  set(target, prop, value) {
-    Globals.getConfig()[prop] = value;
-    return true;
-  },
-  has(target, prop) {
-    return prop in Globals.getConfig();
-  },
-  ownKeys(target) {
-    return Reflect.ownKeys(Globals.getConfig());
-  },
-  getOwnPropertyDescriptor(target, prop) {
-    return Object.getOwnPropertyDescriptor(Globals.getConfig(), prop);
-  }
+ get(target, prop) {
+   return Globals.getConfig()[prop];
+ },
+ set(target, prop, value) {
+   Globals.getConfig()[prop] = value;
+   return true;
+ },
+ has(target, prop) {
+   return prop in Globals.getConfig();
+ },
+ ownKeys(target) {
+   return Reflect.ownKeys(Globals.getConfig());
+ },
+ getOwnPropertyDescriptor(target, prop) {
+   return Object.getOwnPropertyDescriptor(Globals.getConfig(), prop);
+ }
 });
 
-// 导出 Globals 对象（用于初始化）
+// 导出 Globals 对象(用于初始化)
 export { Globals };
+
