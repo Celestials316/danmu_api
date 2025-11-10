@@ -14,12 +14,11 @@ import {
 import { 
   generateToken, 
   verifyToken, 
-  generateSessionId 
+  generateSessionId, 
   createSession,
   verifySession,
   deleteSession,
   cleanupExpiredSessions,
-  initAdminUser  // 如果需要的话
 } from "./utils/auth-util.js";
 
 /**
