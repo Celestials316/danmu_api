@@ -137,25 +137,52 @@ const Globals = {
    * @param {Object} config 配置对象
    */
   applyConfig(config) {
-    console.log(`[Globals] 开始应用配置，共 ${Object.keys(config).length} 个`);
+    console.log(`[Globals] 开始应用配置,共 ${Object.keys(config).length} 个`);
 
     for (const [key, value] of Object.entries(config)) {
-      // 🔥 确保值不是 undefined 或 null，转换为空字符串
-      const safeValue = (value === null || value === undefined) ? '' : value;
+      // 🔥 跳过 null/undefined,但保留其他类型(包括正则表达式、对象等)
+      if (value === null || value === undefined) {
+        console.log(`[Globals] 跳过空值配置: ${key}`);
+        continue;
+      }
       
       const oldValue = this.envs[key];
-      const hasChanged = JSON.stringify(oldValue) !== JSON.stringify(safeValue);
+      
+      // 🔥 对于正则表达式等特殊对象,直接赋值
+      let hasChanged;
+      if (value instanceof RegExp || typeof value === 'object') {
+        hasChanged = true; // 对象类型总是视为变化
+      } else {
+        hasChanged = JSON.stringify(oldValue) !== JSON.stringify(value);
+      }
 
-      this.envs[key] = safeValue;
-      this.accessedEnvVars[key] = safeValue;
+      this.envs[key] = value;
+      this.accessedEnvVars[key] = value;
 
       if (hasChanged) {
-        const safeValueStr = String(safeValue);
-        const oldValueStr = String(oldValue);
-        console.log(`[Globals] 应用配置: ${key} = ${safeValueStr.substring(0, 50)} (旧值: ${oldValueStr.substring(0, 50)})`);
+        // 🔥 安全地转换为字符串用于日志
+        let valueStr;
+        if (value instanceof RegExp) {
+          valueStr = value.toString();
+        } else if (typeof value === 'object') {
+          valueStr = JSON.stringify(value).substring(0, 50);
+        } else {
+          valueStr = String(value).substring(0, 50);
+        }
+        
+        let oldValueStr;
+        if (oldValue instanceof RegExp) {
+          oldValueStr = oldValue.toString();
+        } else if (typeof oldValue === 'object') {
+          oldValueStr = JSON.stringify(oldValue).substring(0, 50);
+        } else {
+          oldValueStr = String(oldValue).substring(0, 50);
+        }
+        
+        console.log(`[Globals] 应用配置: ${key} = ${valueStr} (旧值: ${oldValueStr})`);
       } else {
-        const safeValueStr = String(safeValue);
-        console.log(`[Globals] 应用配置: ${key} = ${safeValueStr.substring(0, 50)} (值未变化，但仍刷新)`);
+        const valueStr = String(value).substring(0, 50);
+        console.log(`[Globals] 应用配置: ${key} = ${valueStr} (值未变化,但仍刷新)`);
       }
     }
 
