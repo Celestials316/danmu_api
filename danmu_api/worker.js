@@ -1,30 +1,12 @@
-import { Globals, globals } from './configs/globals.js';
+import { Globals } from './configs/globals.js';
 import { jsonResponse } from './utils/http-util.js';
-import { log, formatLogMessage } from './utils/log-util.js';
+import { log, formatLogMessage } from './utils/log-util.js'
 import { getRedisCaches, judgeRedisValid } from "./utils/redis-util.js";
 import { cleanupExpiredIPs, findUrlById, getCommentCache } from "./utils/cache-util.js";
 import { formatDanmuResponse } from "./utils/danmu-util.js";
 import { getBangumi, getComment, getCommentByUrl, matchAnime, searchAnime, searchEpisodes } from "./apis/dandan-api.js";
 
-// ✅ 数据库操作 + Session 管理
-import { 
-  initDatabase,        
-  initUserTable,
-  verifyUser, 
-  changePassword,
-  createSession,
-  verifySession,
-  deleteSession,
-  cleanupExpiredSessions
-} from "./utils/db-util.js";
-
-// ✅ Token 生成 + 密码哈希
-import { 
-  generateToken, 
-  verifyToken, 
-  generateSessionId
-} from "./utils/auth-util.js";
-
+let globals;
 
 /**
  * 合并写入 Redis：读取现有 -> 合并 patch -> 写回
@@ -410,559 +392,22 @@ function getRealEnvValue(key) {
   // 如果都没有，返回空字符串
   return '';
 }
-function handleLoginPage() {
-  const html = `
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>弹幕 API 管理后台 - 登录</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
 
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-    }
-
-    .login-container {
-      background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(10px);
-      border-radius: 20px;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-      padding: 50px 40px;
-      width: 100%;
-      max-width: 420px;
-      animation: slideIn 0.5s ease-out;
-    }
-
-    @keyframes slideIn {
-      from {
-        opacity: 0;
-        transform: translateY(-30px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    .login-header {
-      text-align: center;
-      margin-bottom: 40px;
-    }
-
-    .login-logo {
-      width: 80px;
-      height: 80px;
-      background: linear-gradient(135deg, #667eea, #764ba2);
-      border-radius: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 40px;
-      margin: 0 auto 20px;
-      box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
-    }
-
-    .login-title {
-      font-size: 28px;
-      font-weight: 700;
-      color: #2d3748;
-      margin-bottom: 8px;
-    }
-
-    .login-subtitle {
-      font-size: 14px;
-      color: #718096;
-    }
-
-    .form-group {
-      margin-bottom: 24px;
-    }
-
-    .form-label {
-      display: block;
-      font-size: 14px;
-      font-weight: 600;
-      color: #2d3748;
-      margin-bottom: 8px;
-    }
-
-    .form-input {
-      width: 100%;
-      height: 50px;
-      padding: 0 16px;
-      background: #f7fafc;
-      border: 2px solid #e2e8f0;
-      border-radius: 12px;
-      font-size: 15px;
-      color: #2d3748;
-      transition: all 0.3s ease;
-    }
-
-    .form-input:focus {
-      outline: none;
-      border-color: #667eea;
-      background: #fff;
-      box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
-    }
-
-    .login-btn {
-      width: 100%;
-      height: 50px;
-      background: linear-gradient(135deg, #667eea, #764ba2);
-      color: white;
-      border: none;
-      border-radius: 12px;
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-    }
-
-    .login-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
-    }
-
-    .login-btn:active {
-      transform: translateY(0);
-    }
-
-    .login-btn:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-      transform: none;
-    }
-
-    .alert {
-      padding: 12px 16px;
-      border-radius: 10px;
-      margin-bottom: 20px;
-      font-size: 14px;
-      display: none;
-    }
-
-    .alert.show {
-      display: block;
-      animation: shake 0.5s ease;
-    }
-
-    .alert-error {
-      background: #fee;
-      color: #c53030;
-      border: 1px solid #fc8181;
-    }
-
-    @keyframes shake {
-      0%, 100% { transform: translateX(0); }
-      25% { transform: translateX(-10px); }
-      75% { transform: translateX(10px); }
-    }
-
-    .footer {
-      text-align: center;
-      margin-top: 30px;
-      font-size: 13px;
-      color: #a0aec0;
-    }
-  </style>
-</head>
-<body>
-  <div class="login-container">
-    <div class="login-header">
-      <div class="login-logo">🎬</div>
-      <h1 class="login-title">弹幕 API 管理后台</h1>
-      <p class="login-subtitle">请登录以继续</p>
-    </div>
-
-    <div id="alertBox" class="alert alert-error"></div>
-
-    <form id="loginForm" onsubmit="handleLogin(event)">
-      <div class="form-group">
-        <label class="form-label">用户名</label>
-        <input 
-          type="text" 
-          class="form-input" 
-          id="username" 
-          placeholder="请输入用户名"
-          required
-        >
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">密码</label>
-        <input 
-          type="password" 
-          class="form-input" 
-          id="password" 
-          placeholder="请输入密码"
-          required
-        >
-      </div>
-
-      <button type="submit" class="login-btn" id="loginBtn">
-        登 录
-      </button>
-    </form>
-
-    <div class="footer">
-      弹幕 API 服务 v${globals.VERSION}
-    </div>
-  </div>
-
-  <script>
-    function showAlert(message) {
-      const alertBox = document.getElementById('alertBox');
-      alertBox.textContent = message;
-      alertBox.classList.add('show');
-      
-      setTimeout(() => {
-        alertBox.classList.remove('show');
-      }, 3000);
-    }
-
-async function handleLogin(event) {
-  event.preventDefault();
-  
-  const username = document.getElementById('username').value;
-  const password = document.getElementById('password').value;
-  const loginBtn = document.getElementById('loginBtn');
-  
-  loginBtn.disabled = true;
-  loginBtn.textContent = '登录中...';
-  
-  try {
-    const response = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      // 🔥 添加 credentials 确保Cookie被发送
-      credentials: 'same-origin',
-      body: JSON.stringify({ username, password })
-    });
-    
-    const result = await response.json();
-    
-    if (result.success) {
-      // 🔥 检查是否成功设置Cookie
-      console.log('[Login] Set-Cookie:', response.headers.get('set-cookie'));
-      
-      // Docker部署不需要手动存储token
-      if (result.token) {
-        localStorage.setItem('auth_token', result.token);
-      }
-      
-      // 🔥 延迟跳转,确保Cookie生效
-      setTimeout(() => {
-        window.location.href = '/';
-      }, 100);
-    } else {
-      showAlert(result.errorMessage || '登录失败');
-      loginBtn.disabled = false;
-      loginBtn.textContent = '登 录';
-    }
-  } catch (error) {
-    console.error('[Login] Error:', error);
-    showAlert('网络错误,请稍后重试');
-    loginBtn.disabled = false;
-    loginBtn.textContent = '登 录';
-  }
-}
-
-  </script>
-</body>
-</html>
-  `;
-
-  return new Response(html, {
-    headers: {
-      'Content-Type': 'text/html; charset=utf-8',
-      'Cache-Control': 'no-cache'
-    }
-  });
-}
 async function handleRequest(req, env, deployPlatform, clientIp) {
-  // 🔥 只在首次初始化，不要每次请求都重载
-  if (!Globals.configLoaded) {
+  // 🔥 强制刷新全局配置（解决 TOKEN 缓存问题）
+  if (Globals.configLoaded) {
+    // 如果已加载过，从数据库/Redis 重新加载最新配置
+    await Globals.loadConfigFromStorage();
+  } else {
+    // 首次加载
     globals = await Globals.init(env, deployPlatform);
   }
   
   globals.deployPlatform = deployPlatform;
 
-  // 初始化用户表
-  if (globals.databaseValid && !globals.userTableInitialized) {
-    try {
-      const { initUserTable } = await import('./utils/db-util.js');
-      await initUserTable();
-      globals.userTableInitialized = true;
-      log('info', '[init] ✅ 用户表初始化完成');
-    } catch (error) {
-      log('error', `[init] ❌ 用户表初始化失败: ${error.message}`);
-    }
-  }
-
   const url = new URL(req.url);
-  const path = url.pathname;
+  let path = url.pathname;
   const method = req.method;
-
-
-  // ========== 登录接口（必须在认证检查之前！）==========
-  if (path === '/api/auth/login' && method === 'POST') {
-    try {
-      const body = await req.json();
-      const { username, password } = body;
-
-      log('info', `[auth] 登录请求 - 用户名: ${username}`);
-
-      // 验证输入
-      if (!username || !password) {
-        log('warn', '[auth] 登录失败 - 缺少用户名或密码');
-        return jsonResponse({
-          success: false,
-          errorMessage: '请输入用户名和密码'
-        }, 400);
-      }
-
-      // 验证用户（数据库验证）
-      if (globals.databaseValid) {
-        try {
-          const isValid = await verifyUser(username, password);
-          
-          if (!isValid) {
-            log('warn', `[auth] 登录失败 - 用户名或密码错误: ${username}`);
-            return jsonResponse({
-              success: false,
-              errorMessage: '用户名或密码错误'
-            }, 401);
-          }
-
-          log('info', `[auth] ✅ 用户验证成功: ${username}`);
-
-// Docker 部署:创建 Session
-if (deployPlatform !== 'vercel') {
-  const sessionId = generateSessionId();
-  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24小时
-
-  await createSession(sessionId, username, expiresAt);
-  
-  log('info', `[auth] ✅ Session 创建成功: ${sessionId.substring(0, 8)}...`);
-
-  // 🔥 修复:强制使用HTTP协议(如果你的服务在本地或HTTP环境)
-  const isHttps = req.headers.get('x-forwarded-proto') === 'https' || 
-                  req.url.startsWith('https://');
-
-  const cookieAttributes = [
-    `session_id=${sessionId}`,
-    'HttpOnly',
-    // 🔥 修复:如果是本地开发,移除 Secure 标志
-    isHttps ? 'Secure' : '',  
-    'SameSite=Lax',
-    'Path=/',
-    'Max-Age=86400'
-  ].filter(Boolean).join('; ');
-
-  log('info', `[auth] 设置 Cookie: ${cookieAttributes}`);
-
-  return new Response(
-    JSON.stringify({
-      success: true,
-      message: '登录成功'
-    }),
-    {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Set-Cookie': cookieAttributes
-      }
-    }
-  );
-}
-
-
-
-          // Vercel 部署：生成 JWT Token
-          const token = generateToken(username);
-          
-          log('info', `[auth] ✅ JWT Token 生成成功`);
-
-          return jsonResponse({
-            success: true,
-            message: '登录成功',
-            token
-          });
-
-        } catch (error) {
-          log('error', `[auth] 数据库验证失败: ${error.message}`);
-          return jsonResponse({
-            success: false,
-            errorMessage: '服务器错误,请稍后重试'
-          }, 500);
-        }
-      }
-
-      // 数据库不可用
-      log('error', '[auth] 数据库不可用');
-      return jsonResponse({
-        success: false,
-        errorMessage: '认证服务不可用'
-      }, 503);
-
-    } catch (error) {
-      log('error', `[auth] 登录接口错误: ${error.message}\n${error.stack}`);
-      return jsonResponse({
-        success: false,
-        errorMessage: '服务器错误'
-      }, 500);
-    }
-  }
-
-  // 检查认证状态接口
-  if (path === '/api/auth/check' && method === 'GET') {
-    return jsonResponse({
-      success: true,
-      authenticated: !!globals.currentUser,
-      username: globals.currentUser
-    });
-  }
-
-  // 退出登录接口
-  if (path === '/api/auth/logout' && method === 'POST') {
-    if (deployPlatform !== 'vercel') {
-      const cookies = req.headers.get('cookie');
-      if (cookies) {
-        const sessionMatch = cookies.match(/session_id=([^;]+)/);
-        if (sessionMatch) {
-          try {
-            await deleteSession(sessionMatch[1]);
-            log('info', '[auth] Session 已删除');
-          } catch (error) {
-            log('error', `[auth] 删除 Session 失败: ${error.message}`);
-          }
-        }
-      }
-
-        const isHttps = req.headers.get('x-forwarded-proto') === 'https' || 
-                        req.url.startsWith('https://');
-
-        const clearCookie = [
-          'session_id=',
-          'HttpOnly',
-          isHttps ? 'Secure' : '',
-          'SameSite=Lax',
-          'Path=/',
-          'Max-Age=0'
-        ].filter(Boolean).join('; ');
-
-        return new Response(
-          JSON.stringify({ success: true, message: '已退出登录' }),
-          {
-            status: 200,
-            headers: {
-              'Content-Type': 'application/json',
-              'Set-Cookie': clearCookie
-            }
-          }
-        );
-    }
-
-    return jsonResponse({
-      success: true,
-      message: '已退出登录'
-    });
-  }
-
-
-// ========== 认证检查（排除登录接口和静态资源）==========
-const excludedPaths = [
-  '/api/auth/login',
-  '/api/auth/check',
-  '/api/auth/logout',
-  '/favicon.ico',
-  '/robots.txt'
-];
-
-const needsAuth = !excludedPaths.some(p => url.pathname.startsWith(p));
-
-if (needsAuth) {
-  let isAuthenticated = false;
-  let username = null;
-
-// Docker 部署:优先检查 Session Cookie
-if (globals.databaseValid && deployPlatform !== 'vercel') {
-  const cookies = req.headers.get('cookie');
-  log('info', `[auth] 检查 Cookie: ${cookies ? '存在' : '不存在'}`);
-  
-  if (cookies) {
-    // 🔥 添加调试日志
-    log('info', `[auth] Cookie 内容: ${cookies}`);
-    
-    const sessionMatch = cookies.match(/session_id=([^;]+)/);
-    if (sessionMatch) {
-      const sessionId = sessionMatch[1];
-      log('info', `[auth] 找到 Session ID: ${sessionId.substring(0, 8)}...`);
-      
-      username = await verifySession(sessionId);
-      if (username) {
-        isAuthenticated = true;
-        log('info', `[auth] ✅ Session 验证成功: ${username}`);
-      } else {
-        log('warn', `[auth] ❌ Session 验证失败或已过期`);
-      }
-    } else {
-      log('warn', `[auth] Cookie 中没有找到 session_id`);
-    }
-  }
-}
-
-
-
-  // Vercel 部署或 Session 失效：检查 JWT Token
-  if (!isAuthenticated) {
-    const authHeader = req.headers.get('authorization');
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.substring(7);
-      const payload = verifyToken(token);
-      if (payload) {
-        isAuthenticated = true;
-        username = payload.username;
-        log('info', `[auth] JWT Token 验证成功: ${username}`);
-      }
-    }
-  }
-
-  // 未认证，返回 401
-  if (!isAuthenticated) {
-    log('warn', `[auth] 未授权访问: ${url.pathname}`);
-    
-    // 如果是首页，返回登录页面
-    if (url.pathname === '/') {
-      return handleLoginPage();
-    }
-    
-    return jsonResponse({
-      errorCode: 401,
-      success: false,
-      errorMessage: '未授权访问，请先登录'
-    }, 401);
-  }
-
-  // 认证成功，将用户信息存储到 globals
-  globals.currentUser = username;
-}
 
   await judgeRedisValid(path);
 
@@ -970,11 +415,9 @@ if (globals.databaseValid && deployPlatform !== 'vercel') {
   log("info", `request path: ${path}`);
   log("info", `client ip: ${clientIp}`);
 
-
   if (globals.redisValid && path !== "/favicon.ico" && path !== "/robots.txt") {
     await getRedisCaches();
   }
-
 
   function handleHomepage() {
     log("info", "Accessed homepage");
@@ -3333,65 +2776,48 @@ if (globals.databaseValid && deployPlatform !== 'vercel') {
  <div class="mobile-overlay" id="mobileOverlay" onclick="closeMobileMenu()"></div>
 
  <!-- 侧边栏 -->
-<aside class="sidebar" id="sidebar">
-  <div class="sidebar-logo">
-    <div class="logo-content">
-      <div class="logo-icon">🎬</div>
-      <div class="logo-text">
-        <h1>弹幕 API</h1>
-        <p>v${globals.VERSION}</p>
-      </div>
-    </div>
-  </div>
-  
-  <nav class="nav-menu">
-    <div class="nav-item active" onclick="switchPage('overview')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" stroke-width="2"/>
-      </svg>
-      <span>概览</span>
-    </div>
-    
-    <div class="nav-item" onclick="switchPage('config')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke-width="2"/>
-        <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-width="2"/>
-      </svg>
-      <span>环境配置</span>
-    </div>
-    
-    <div class="nav-item" onclick="switchPage('vod')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <path d="M5 3l14 9-14 9V3z" stroke-width="2"/>
-      </svg>
-      <span>VOD 采集站</span>
-    </div>
-    
-    <div class="nav-item" onclick="switchPage('sources')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <path d="M4 7h16M4 12h16M4 17h16" stroke-width="2" stroke-linecap="round"/>
-      </svg>
-      <span>数据源</span>
-    </div>
-  </nav>
-
-  <div style="margin-top: auto; padding: 12px; border-top: 1px solid var(--border-color);">
-    <div class="nav-item" onclick="showModal('changePasswordModal')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke-width="2"/>
-        <path d="M7 11V7a5 5 0 0110 0v4" stroke-width="2"/>
-      </svg>
-      <span>修改密码</span>
-    </div>
-    
-    <div class="nav-item" onclick="handleLogout()" style="color: var(--error);">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4m7 14l5-5m0 0l-5-5m5 5H9" stroke-width="2" stroke-linecap="round"/>
-      </svg>
-      <span>退出登录</span>
-    </div>
-  </div>
-</aside>
+ <aside class="sidebar" id="sidebar">
+   <div class="sidebar-logo">
+     <div class="logo-content">
+       <div class="logo-icon">🎬</div>
+       <div class="logo-text">
+         <h1>弹幕 API</h1>
+         <p>v${globals.VERSION}</p>
+       </div>
+     </div>
+   </div>
+   
+   <nav class="nav-menu">
+     <div class="nav-item active" onclick="switchPage('overview')">
+       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+         <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" stroke-width="2"/>
+       </svg>
+       <span>概览</span>
+     </div>
+     
+     <div class="nav-item" onclick="switchPage('config')">
+       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+         <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke-width="2"/>
+         <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-width="2"/>
+       </svg>
+       <span>环境配置</span>
+     </div>
+     
+     <div class="nav-item" onclick="switchPage('vod')">
+       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+         <path d="M5 3l14 9-14 9V3z" stroke-width="2"/>
+       </svg>
+       <span>VOD 采集站</span>
+     </div>
+     
+     <div class="nav-item" onclick="switchPage('sources')">
+       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+         <path d="M4 7h16M4 12h16M4 17h16" stroke-width="2" stroke-linecap="round"/>
+       </svg>
+       <span>数据源</span>
+     </div>
+   </nav>
+ </aside>
 
  <!-- 主内容区 -->
  <main class="main-content">
@@ -3864,48 +3290,6 @@ if (globals.databaseValid && deployPlatform !== 'vercel') {
  </div>
 
  <!-- 编辑VOD服务器模态框 -->
-<!-- 修改密码模态框 -->
-    <div class="modal-overlay" id="changePasswordModal">
-      <div class="modal">
-        <div class="modal-header">
-          <h3 class="modal-title">
-            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke-width="2"/>
-              <path d="M7 11V7a5 5 0 0110 0v4" stroke-width="2"/>
-            </svg>
-            修改密码
-          </h3>
-          <button class="modal-close" onclick="closeModal('changePasswordModal')">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor">
-              <path d="M6 18L18 6M6 6l12 12" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-          </button>
-        </div>
-        <div class="modal-body">
-          <div class="form-group">
-            <label class="form-label">当前密码</label>
-            <input type="password" class="form-input" id="currentPassword" placeholder="请输入当前密码">
-          </div>
-          <div class="form-group">
-            <label class="form-label">新密码</label>
-            <input type="password" class="form-input" id="newPassword" placeholder="请输入新密码（至少8位）">
-          </div>
-          <div class="form-group">
-            <label class="form-label">确认新密码</label>
-            <input type="password" class="form-input" id="confirmPassword" placeholder="请再次输入新密码">
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-secondary" onclick="closeModal('changePasswordModal')">取消</button>
-          <button class="btn btn-primary" onclick="handleChangePassword()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path d="M5 13l4 4L19 7" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-            确认修改
-          </button>
-        </div>
-      </div>
-    </div>
  <div class="modal-overlay" id="editVodModal">
    <div class="modal">
      <div class="modal-header">
@@ -3952,120 +3336,18 @@ if (globals.databaseValid && deployPlatform !== 'vercel') {
  </button>
 
  <script>
-  // ==================== 全局状态管理 ====================
-  const AppState = {
-    currentEditingEnv: null,
-    currentEditingVodIndex: null,
-    sourceOrder: ${JSON.stringify(globals.sourceOrderArr)},
-    config: ${JSON.stringify(globals.accessedEnvVars)},
-    vodServers: ${JSON.stringify(globals.vodServers)},
-    hasUnsavedChanges: false
-  };
+   // ==================== 全局状态管理 ====================
+   const AppState = {
+     currentEditingEnv: null,
+     currentEditingVodIndex: null,
+     sourceOrder: ${JSON.stringify(globals.sourceOrderArr)},
+     config: ${JSON.stringify(globals.accessedEnvVars)},
+     vodServers: ${JSON.stringify(globals.vodServers)},
+     hasUnsavedChanges: false
+   };
 
-  // ==================== 环境变量描述字典 ====================
-  const ENV_DESCRIPTIONS = ${JSON.stringify(ENV_DESCRIPTIONS)};
-  
-  // ==================== 认证管理 ====================
-  function getAuthToken() {
-    return localStorage.getItem('auth_token');
-  }
-
-  function setAuthHeader(headers = {}) {
-    const token = getAuthToken();
-    if (token) {
-      headers['Authorization'] = 'Bearer ' + token;  // ✅ 修改这里
-    }
-    return headers;
-  }
-
-  async function handleChangePassword() {
-    const currentPassword = document.getElementById('currentPassword').value;
-    const newPassword = document.getElementById('newPassword').value;
-    const confirmPassword = document.getElementById('confirmPassword').value;
-
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      showToast('请填写所有字段', 'error');
-      return;
-    }
-
-    if (newPassword.length < 8) {
-      showToast('新密码长度至少为8位', 'error');
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      showToast('两次输入的新密码不一致', 'error');
-      return;
-    }
-
-    try {
-      const response = await fetch('/api/auth/change-password', {
-        method: 'POST',
-        headers: setAuthHeader({
-          'Content-Type': 'application/json'
-        }),
-        body: JSON.stringify({
-          currentPassword,
-          newPassword
-        })
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        showToast('密码修改成功,请重新登录', 'success');
-        setTimeout(() => {
-          handleLogout();
-        }, 1500);
-      } else {
-        showToast(result.errorMessage || '密码修改失败', 'error');
-      }
-    } catch (error) {
-      showToast('网络错误,请稍后重试', 'error');
-    }
-  }
-
-  async function handleLogout() {
-    if (!confirm('确定要退出登录吗？')) {
-      return;
-    }
-
-    try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        headers: setAuthHeader()
-      });
-    } catch (error) {
-      console.error('退出登录失败:', error);
-    }
-
-    localStorage.removeItem('auth_token');
-    window.location.href = '/';
-  }
-
-  // 拦截所有 fetch 请求,自动添加认证头
-  const originalFetch = window.fetch;
-  window.fetch = function(...args) {
-    const [url, options = {}] = args;
-    
-    // 为所有 API 请求自动添加认证头
-    if (typeof url === 'string' && url.startsWith('/api/')) {
-      options.headers = setAuthHeader(options.headers || {});
-    }
-    
-    return originalFetch(url, options).then(response => {
-      // 如果返回 401,自动跳转到登录页
-      if (response.status === 401) {
-        localStorage.removeItem('auth_token');
-        window.location.href = '/';
-        return Promise.reject(new Error('Unauthorized'));
-      }
-      return response;
-    });
-  };
-</script>
-
-
+   // ==================== 环境变量描述字典 ====================
+   const ENV_DESCRIPTIONS = ${JSON.stringify(ENV_DESCRIPTIONS)};
 
    // ==================== 初始化 ====================
    document.addEventListener('DOMContentLoaded', function() {
@@ -5174,10 +4456,6 @@ if (globals.databaseValid && deployPlatform !== 'vercel') {
       }, 500);
     }
   }
-  
-  // ========== Token 验证（必须在 switch 之后）==========
-
-  
  // --- 校验 token ---
 const parts = path.split("/").filter(Boolean);
 
@@ -5218,7 +4496,7 @@ if (currentToken === "87654321") {
 
   // 智能处理API路径前缀
   // 定义不需要添加 /api/v2 前缀的路径
-  const pathsWithoutPrefix = [  // 👈 改名
+  const excludedPaths = [
     '/',
     '/api/logs',
     '/api/config/save',
@@ -5227,8 +4505,7 @@ if (currentToken === "87654321") {
     '/robots.txt'
   ];
 
-  const shouldNormalizePath = !pathsWithoutPrefix.some(excluded => path === excluded || path.startsWith(excluded));
-
+  const shouldNormalizePath = !excludedPaths.some(excluded => path === excluded || path.startsWith(excluded));
 
   if (shouldNormalizePath) {
     log("info", `[Path Check] Starting path normalization for: "${path}"`);
@@ -5426,17 +4703,7 @@ if (currentToken === "87654321") {
   return jsonResponse({ message: "Not found" }, 404);
 }
 
-// ==================== 定时任务：清理过期 Session ====================
-if (globals.databaseValid && deployPlatform !== 'vercel') {
-  setInterval(async () => {
-    try {
-      await cleanupExpiredSessions();
-      log('info', '[auth] ✅ 定时清理过期 Session 完成');
-    } catch (error) {
-      log('error', `[auth] ❌ 清理过期 Session 失败: ${error.message}`);
-    }
-  }, 60 * 60 * 1000); // 每小时执行一次
-}
+
 // --- Cloudflare Workers 入口 ---
 export default {
   async fetch(request, env, ctx) {
