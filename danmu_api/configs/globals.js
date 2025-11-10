@@ -211,9 +211,10 @@ const Globals = {
       }
     }
 
-    // 🔥 添加 BILIBILI_COOKIE 处理
+    // 🔥 添加 BILIBILI_COOKIE 处理（兼容错误拼写）
     if (changedKeys.includes('BILIBILI_COOKIE')) {
       this.envs.bilibiliCookie = config.BILIBILI_COOKIE || '';
+      this.envs.bilibliCookie = config.BILIBILI_COOKIE || '';  // ← 兼容错误拼写
       this.envs.BILIBILI_COOKIE = config.BILIBILI_COOKIE || '';
       console.log(`[Globals] BILIBILI_COOKIE 已更新: ${config.BILIBILI_COOKIE ? '已设置' : '已清空'}`);
     }
