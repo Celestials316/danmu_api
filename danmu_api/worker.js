@@ -3565,14 +3565,6 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
      }
    }
 
-   function saveAllConfig() {
-     localStorage.setItem('danmu_api_config', JSON.stringify(AppState.config));
-     localStorage.setItem('danmu_api_vod_servers', JSON.stringify(AppState.vodServers));
-     localStorage.setItem('danmu_api_source_order', JSON.stringify(AppState.sourceOrder));
-     AppState.hasUnsavedChanges = false;
-     showToast('所有配置已保存到本地存储', 'success');
-   }
-
    function exportConfig() {
      const config = {
        envVars: AppState.config,
