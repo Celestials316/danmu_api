@@ -4,9 +4,6 @@ import { Envs } from './envs.js';
 async function importDbUtil() {
   return await import('../utils/db-util.js');
 }
-async function importDbUtil() {
-  return await import('../utils/db-util.js');
-}
 
 // 🔥 新增：auth-util 动态导入
 async function importAuthUtil() {
@@ -17,9 +14,6 @@ async function importRedisUtil() {
   return await import('../utils/redis-util.js');
 }
 
-async function importRedisUtil() {
-  return await import('../utils/redis-util.js');
-}
 
 /**
  * 全局变量管理模块
