@@ -54,6 +54,17 @@ async function applyConfigPatch(patch) {
     globals.token = patch.TOKEN;
   }
 
+  // 🔥 添加 WHITE_RATIO 即时刷新
+  if ('WHITE_RATIO' in patch) {
+    const ratio = parseFloat(patch.WHITE_RATIO);
+    if (!isNaN(ratio)) {
+      globals.whiteRatio = ratio;
+      globals.WHITE_RATIO = ratio;
+      log('info', `[config] WHITE_RATIO 已立即更新: ${ratio}`);
+    }
+  }
+
+
   // 3) 派生缓存重建（按需、存在才调用）
   const safeCall = async (fn, label) => {
     try { await fn(); log('info', `[config] 重建派生缓存成功: ${label}`); }
