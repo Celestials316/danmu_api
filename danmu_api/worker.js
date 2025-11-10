@@ -693,69 +693,206 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
 
   const url = new URL(req.url);
 
-  // ========== 认证检查（排除登录接口和静态资源）==========
-  const excludedPaths = [
-    '/api/auth/login',
-    '/api/auth/check',
-    '/favicon.ico',
-    '/robots.txt'
-  ];
+// ========== 登录接口（必须在认证检查之前！）==========
+if (path === '/api/auth/login' && method === 'POST') {
+  try {
+    const body = await req.json();
+    const { username, password } = body;
 
-  const needsAuth = !excludedPaths.some(p => url.pathname.startsWith(p));
+    log('info', `[auth] 登录请求 - 用户名: ${username}`);
 
-  if (needsAuth) {
-    let isAuthenticated = false;
-    let username = null;
-
-    // Docker 部署：优先检查 Session Cookie
-    if (globals.databaseValid && deployPlatform !== 'vercel') {
-      const cookies = req.headers.get('cookie');
-      if (cookies) {
-        const sessionMatch = cookies.match(/session_id=([^;]+)/);
-        if (sessionMatch) {
-          const sessionId = sessionMatch[1];
-          username = await verifySession(sessionId);
-          if (username) {
-            isAuthenticated = true;
-            log('info', `[auth] Session 验证成功: ${username}`);
-          }
-        }
-      }
-    }
-
-    // Vercel 部署或 Session 失效：检查 JWT Token
-    if (!isAuthenticated) {
-      const authHeader = req.headers.get('authorization');
-      if (authHeader && authHeader.startsWith('Bearer ')) {
-        const token = authHeader.substring(7);
-        const payload = verifyToken(token);
-        if (payload) {
-          isAuthenticated = true;
-          username = payload.username;
-          log('info', `[auth] JWT Token 验证成功: ${username}`);
-        }
-      }
-    }
-
-    // 未认证，返回 401
-    if (!isAuthenticated) {
-      log('warn', `[auth] 未授权访问: ${url.pathname}`);
-      
-      // 如果是首页，返回登录页面
-      if (url.pathname === '/') {
-        return handleLoginPage();
-      }
-      
+    // 验证输入
+    if (!username || !password) {
+      log('warn', '[auth] 登录失败 - 缺少用户名或密码');
       return jsonResponse({
-        errorCode: 401,
         success: false,
-        errorMessage: '未授权访问，请先登录'
-      }, 401);
+        errorMessage: '请输入用户名和密码'
+      }, 400);
     }
 
-    // 认证成功，将用户信息存储到 globals
-    globals.currentUser = username;
+    // 验证用户（数据库验证）
+    if (globals.databaseValid) {
+      try {
+        const isValid = await verifyUser(username, password);
+        
+        if (!isValid) {
+          log('warn', `[auth] 登录失败 - 用户名或密码错误: ${username}`);
+          return jsonResponse({
+            success: false,
+            errorMessage: '用户名或密码错误'
+          }, 401);
+        }
+
+        log('info', `[auth] ✅ 用户验证成功: ${username}`);
+
+        // Docker 部署：创建 Session
+        if (deployPlatform !== 'vercel') {
+          const sessionId = generateSessionId();
+          const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24小时
+
+          await createSession(sessionId, username, expiresAt);
+          
+          log('info', `[auth] ✅ Session 创建成功: ${sessionId.substring(0, 8)}...`);
+
+          return new Response(
+            JSON.stringify({
+              success: true,
+              message: '登录成功',
+              sessionId
+            }),
+            {
+              status: 200,
+              headers: {
+                'Content-Type': 'application/json',
+                'Set-Cookie': `session_id=${sessionId}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=86400`
+              }
+            }
+          );
+        }
+
+        // Vercel 部署：生成 JWT Token
+        const token = generateToken(username);
+        
+        log('info', `[auth] ✅ JWT Token 生成成功`);
+
+        return jsonResponse({
+          success: true,
+          message: '登录成功',
+          token
+        });
+
+      } catch (error) {
+        log('error', `[auth] 数据库验证失败: ${error.message}`);
+        return jsonResponse({
+          success: false,
+          errorMessage: '服务器错误，请稍后重试'
+        }, 500);
+      }
+    }
+
+    // 数据库不可用
+    log('error', '[auth] 数据库不可用');
+    return jsonResponse({
+      success: false,
+      errorMessage: '认证服务不可用'
+    }, 503);
+
+  } catch (error) {
+    log('error', `[auth] 登录接口错误: ${error.message}\n${error.stack}`);
+    return jsonResponse({
+      success: false,
+      errorMessage: '服务器错误'
+    }, 500);
   }
+}
+
+// 检查认证状态接口
+if (path === '/api/auth/check' && method === 'GET') {
+  return jsonResponse({
+    success: true,
+    authenticated: !!globals.currentUser,
+    username: globals.currentUser
+  });
+}
+
+// 退出登录接口
+if (path === '/api/auth/logout' && method === 'POST') {
+  if (deployPlatform !== 'vercel') {
+    const cookies = req.headers.get('cookie');
+    if (cookies) {
+      const sessionMatch = cookies.match(/session_id=([^;]+)/);
+      if (sessionMatch) {
+        try {
+          await deleteSession(sessionMatch[1]);
+          log('info', '[auth] Session 已删除');
+        } catch (error) {
+          log('error', `[auth] 删除 Session 失败: ${error.message}`);
+        }
+      }
+    }
+
+    return new Response(
+      JSON.stringify({ success: true, message: '已退出登录' }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Set-Cookie': 'session_id=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0'
+        }
+      }
+    );
+  }
+
+  return jsonResponse({
+    success: true,
+    message: '已退出登录'
+  });
+}
+
+// ========== 认证检查（排除登录接口和静态资源）==========
+const excludedPaths = [
+  '/api/auth/login',
+  '/api/auth/check',
+  '/api/auth/logout',
+  '/favicon.ico',
+  '/robots.txt'
+];
+
+const needsAuth = !excludedPaths.some(p => url.pathname.startsWith(p));
+
+if (needsAuth) {
+  let isAuthenticated = false;
+  let username = null;
+
+  // Docker 部署：优先检查 Session Cookie
+  if (globals.databaseValid && deployPlatform !== 'vercel') {
+    const cookies = req.headers.get('cookie');
+    if (cookies) {
+      const sessionMatch = cookies.match(/session_id=([^;]+)/);
+      if (sessionMatch) {
+        const sessionId = sessionMatch[1];
+        username = await verifySession(sessionId);
+        if (username) {
+          isAuthenticated = true;
+          log('info', `[auth] Session 验证成功: ${username}`);
+        }
+      }
+    }
+  }
+
+  // Vercel 部署或 Session 失效：检查 JWT Token
+  if (!isAuthenticated) {
+    const authHeader = req.headers.get('authorization');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      const payload = verifyToken(token);
+      if (payload) {
+        isAuthenticated = true;
+        username = payload.username;
+        log('info', `[auth] JWT Token 验证成功: ${username}`);
+      }
+    }
+  }
+
+  // 未认证，返回 401
+  if (!isAuthenticated) {
+    log('warn', `[auth] 未授权访问: ${url.pathname}`);
+    
+    // 如果是首页，返回登录页面
+    if (url.pathname === '/') {
+      return handleLoginPage();
+    }
+    
+    return jsonResponse({
+      errorCode: 401,
+      success: false,
+      errorMessage: '未授权访问，请先登录'
+    }, 401);
+  }
+
+  // 认证成功，将用户信息存储到 globals
+  globals.currentUser = username;
+}
   let path = url.pathname;
   const method = req.method;
 
