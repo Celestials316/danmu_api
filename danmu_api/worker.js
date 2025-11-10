@@ -9,6 +9,7 @@ import { getBangumi, getComment, getCommentByUrl, matchAnime, searchAnime, searc
 let globals;
 
 // 环境变量说明配置
+// 环境变量说明配置
 const ENV_DESCRIPTIONS = {
   // ========== 基础配置 ==========
   'TOKEN': '自定义API访问令牌，使用默认87654321可以不填写',
@@ -67,7 +68,6 @@ const ENV_DESCRIPTIONS = {
   'DATABASE_URL': '数据库连接URL，支持本地SQLite（file:/path/to/db）和Cloudflare D1（libsql://xxx），用于持久化存储缓存和配置数据',
   'DATABASE_AUTH_TOKEN': '数据库认证令牌，远程数据库（如Cloudflare D1）需要配置，本地SQLite文件可不填'
 };
-
 
 // 定义敏感字段列表
 const SENSITIVE_KEYS = [
@@ -4045,7 +4045,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
 
   // ========== 配置管理 API（在路径规范化之前处理）==========
   
-  // POST /api/config/save - 保存环境变量配置
+   // POST /api/config/save - 保存环境变量配置
   if (path === "/api/config/save" && method === "POST") {
     try {
       const body = await req.json();
@@ -4059,27 +4059,6 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       }
 
       log("info", `[config] 开始保存环境变量配置，共 ${Object.keys(config).length} 个`);
-
-      // 更新到全局变量
-      for (const [key, value] of Object.entries(config)) {
-        if (key in globals.accessedEnvVars) {
-          globals.accessedEnvVars[key] = value;
-          
-          // 同步更新到 envs
-          if (key in globals.envs) {
-            const oldValue = globals.envs[key];
-            globals.envs[key] = value;
-            log("info", `[config] 更新配置: ${key} (${oldValue} -> ${value})`);
-          }
-        }
-      }
-      
-      // 特别处理 token（因为它被 Proxy 访问）
-      if ('TOKEN' in config) {
-        globals.token = config.TOKEN;
-        log("info", `[config] TOKEN 已更新为: ${config.TOKEN}`);
-      }
-
 
       // 保存到数据库
       let dbSaved = false;
@@ -4095,17 +4074,63 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
         const configStr = JSON.stringify(config);
         const result = await setRedisKey('env_configs', configStr);
         redisSaved = result && result.result === 'OK';
+        
+        // 如果 Redis 保存成功，强制刷新哈希值
+        if (redisSaved) {
+          const { simpleHash } = await import('./utils/codec-util.js');
+          globals.lastHashes['env_configs'] = simpleHash(configStr);
+          log("info", `[config] Redis 哈希值已更新`);
+        }
       }
 
       const savedTo = [];
       if (dbSaved) savedTo.push('数据库');
       if (redisSaved) savedTo.push('Redis');
 
+      // 无论持久化是否成功，都更新到内存（立即生效）
+      for (const [key, value] of Object.entries(config)) {
+        // 更新 accessedEnvVars
+        globals.accessedEnvVars[key] = value;
+        
+        // 更新 envs
+        if (key in globals.envs) {
+          const oldValue = globals.envs[key];
+          globals.envs[key] = value;
+          log("info", `[config] 更新配置: ${key} = ${value} (旧值: ${oldValue})`);
+        } else {
+          // 如果 envs 中不存在，也添加进去
+          globals.envs[key] = value;
+          log("info", `[config] 新增配置: ${key} = ${value}`);
+        }
+      }
+      
+      // 特别处理 TOKEN
+      if ('TOKEN' in config) {
+        globals.token = config.TOKEN;
+        log("info", `[config] TOKEN 已更新为: ${config.TOKEN}`);
+      }
+
+      // 特别处理 VOD_SERVERS（需要重新解析）
+      if ('VOD_SERVERS' in config) {
+        const { Envs } = await import('./configs/envs.js');
+        Envs.env = globals.envs; // 更新 Envs 的环境引用
+        globals.vodServers = Envs.resolveVodServers(globals.envs);
+        log("info", `[config] VOD 服务器列表已更新，共 ${globals.vodServers.length} 个`);
+      }
+
+      // 特别处理 SOURCE_ORDER（需要重新解析）
+      if ('SOURCE_ORDER' in config) {
+        const { Envs } = await import('./configs/envs.js');
+        Envs.env = globals.envs;
+        globals.sourceOrderArr = Envs.resolveSourceOrder(globals.envs, deployPlatform);
+        log("info", `[config] 数据源顺序已更新: ${globals.sourceOrderArr.join(', ')}`);
+      }
+
       if (savedTo.length === 0) {
         log("warn", "[config] 配置仅保存到内存（持久化存储不可用）");
         return jsonResponse({
           success: true,
-          message: "配置已更新到内存（重启后会丢失，建议配置数据库或Redis）",
+          message: "配置已更新到内存并立即生效（重启后会丢失，建议配置数据库或Redis）",
           savedTo: ['内存']
         });
       }
@@ -4113,7 +4138,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       log("info", `[config] 配置保存成功: ${savedTo.join('、')}`);
       return jsonResponse({
         success: true,
-        message: `配置已成功保存到: ${savedTo.join('、')}`,
+        message: `配置已成功保存到: ${savedTo.join('、')}，并已立即生效`,
         savedTo
       });
 
