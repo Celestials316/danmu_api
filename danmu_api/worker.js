@@ -4207,7 +4207,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
         }, 400);
       }
 
-      log("info", `[config] 开始保存环境变量配置，共 ${Object.keys(config).length} 个`);
+      log("info", `[config] 开始保存环境变量配置，共 ${Object.keys(config).length} 个: ${Object.keys(config).join(', ')}`);
 
       // 1) 数据库（如有）
       let dbSaved = false;
@@ -4215,8 +4215,9 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
         try {
           const { saveEnvConfigs } = await import('./utils/db-util.js');
           dbSaved = await saveEnvConfigs(config);
+          log("info", `[config] 数据库保存${dbSaved ? '成功' : '失败'}`);
         } catch (e) {
-          log("warn", `[config] 保存到数据库失败（忽略继续）: ${e.message}`);
+          log("warn", `[config] 保存到数据库失败: ${e.message}`);
         }
       }
 
@@ -4224,35 +4225,44 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       let redisSaved = false;
       if (globals.redisValid) {
         redisSaved = await mergeSaveToRedis('env_configs', config);
-        if (!redisSaved) {
-          log("warn", "[config] 保存到 Redis 失败（忽略继续）");
-        }
+        log("info", `[config] Redis保存${redisSaved ? '成功' : '失败'}`);
       }
 
-      // 3) 🔥 立即应用到当前运行时的 Globals（关键步骤）
-      const { Globals } = await import('./configs/globals.js');
-      Globals.applyConfig(config);
-      log("info", `[config] 配置已应用到 Globals`);
+      // 3) 🔥 立即应用到当前运行时（关键步骤）
+      try {
+        // 直接调用 Globals 实例的 applyConfig
+        const { Globals } = await import('./configs/globals.js');
+        const globalsInstance = Globals.getInstance();
+        globalsInstance.applyConfig(config);
+        log("info", `[config] 配置已应用到运行时`);
+      } catch (e) {
+        log("error", `[config] 应用配置到运行时失败: ${e.message}`);
+        throw e;
+      }
 
-      // 4) 运行时立即生效（统一同步 + 派生缓存重建）
-      await applyConfigPatch(config);
-      log("info", `[config] 派生缓存已重建`);
+      // 4) 重建派生缓存（如果 applyConfigPatch 存在的话）
+      try {
+        await applyConfigPatch(config);
+        log("info", `[config] 派生缓存已重建`);
+      } catch (e) {
+        log("warn", `[config] 重建派生缓存失败（可忽略）: ${e.message}`);
+      }
 
       const savedTo = [];
       if (dbSaved) savedTo.push('数据库');
       if (redisSaved) savedTo.push('Redis');
-      if (savedTo.length === 0) savedTo.push('内存');
+      savedTo.push('运行时内存'); // 总是会应用到内存
 
-      log("info", `[config] 配置保存完成并已在运行时生效: ${savedTo.join('、')}`);
+      log("info", `[config] 配置保存完成: ${savedTo.join('、')}`);
       return jsonResponse({
         success: true,
-        message: `配置已保存至 ${savedTo.join('、')}，且已在内存中立即生效`,
+        message: `配置已保存至 ${savedTo.join('、')}，并立即生效`,
         savedTo,
-        appliedConfig: config // 返回实际应用的配置，方便前端确认
+        appliedConfig: config
       });
 
     } catch (error) {
-      log("error", `[config] 保存配置失败: ${error.message}`);
+      log("error", `[config] 保存配置失败: ${error.message}\n${error.stack}`);
       return jsonResponse({
         success: false,
         errorMessage: `保存失败: ${error.message}`
