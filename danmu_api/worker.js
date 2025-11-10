@@ -1,4 +1,4 @@
-import { Globals } from './configs/globals.js';
+import { Globals, globals } from './configs/globals.js';
 import { jsonResponse } from './utils/http-util.js';
 import { log, formatLogMessage } from './utils/log-util.js'
 import { getRedisCaches, judgeRedisValid } from "./utils/redis-util.js";
@@ -18,7 +18,6 @@ import {
   verifyToken, 
   generateSessionId 
 } from "./utils/auth-util.js";
-let globals;
 
 /**
  * 合并写入 Redis：读取现有 -> 合并 patch -> 写回
