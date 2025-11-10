@@ -137,14 +137,16 @@ const Globals = {
    * @param {Object} config 配置对象
    */
   applyConfig(config) {
+    console.log(`[Globals] 开始应用配置，共 ${Object.keys(config).length} 个`);
+    
     for (const [key, value] of Object.entries(config)) {
       const oldValue = this.envs[key];
       this.envs[key] = value;
       this.accessedEnvVars[key] = value;
-      console.log(`[Globals] 应用配置: ${key} = ${value} (旧值: ${oldValue})`);
+      console.log(`[Globals] 应用配置: ${key} = ${value !== oldValue ? `(旧值: ${oldValue})` : '(未变化)'}`);
     }
 
-    // 🔥 重要：更新 Envs 模块的静态变量
+    // 🔥 关键：更新 Envs 模块的静态变量（让其他模块能读到新值）
     Envs.env = this.envs;
 
     // 特别处理需要重新解析的配置
@@ -171,8 +173,10 @@ const Globals = {
       console.log(`[Globals] TOKEN 已更新`);
     }
 
-    // 🔥 更新所有需要重新计算的派生属性
+    // 更新其他派生属性
     this.updateDerivedProperties(config);
+    
+    console.log(`[Globals] 配置应用完成`);
   },
 
   /**
