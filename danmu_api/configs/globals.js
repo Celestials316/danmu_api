@@ -140,16 +140,22 @@ const Globals = {
     console.log(`[Globals] 开始应用配置，共 ${Object.keys(config).length} 个`);
 
     for (const [key, value] of Object.entries(config)) {
+      // 🔥 确保值不是 undefined 或 null，转换为空字符串
+      const safeValue = (value === null || value === undefined) ? '' : value;
+      
       const oldValue = this.envs[key];
-      const hasChanged = JSON.stringify(oldValue) !== JSON.stringify(value); // 🔥 深度比较
-      
-      this.envs[key] = value;
-      this.accessedEnvVars[key] = value;
-      
+      const hasChanged = JSON.stringify(oldValue) !== JSON.stringify(safeValue);
+
+      this.envs[key] = safeValue;
+      this.accessedEnvVars[key] = safeValue;
+
       if (hasChanged) {
-        console.log(`[Globals] 应用配置: ${key} = ${JSON.stringify(value).substring(0, 50)} (旧值: ${JSON.stringify(oldValue).substring(0, 50)})`);
+        const safeValueStr = String(safeValue);
+        const oldValueStr = String(oldValue);
+        console.log(`[Globals] 应用配置: ${key} = ${safeValueStr.substring(0, 50)} (旧值: ${oldValueStr.substring(0, 50)})`);
       } else {
-        console.log(`[Globals] 应用配置: ${key} = ${JSON.stringify(value).substring(0, 50)} (值未变化，但仍刷新)`);
+        const safeValueStr = String(safeValue);
+        console.log(`[Globals] 应用配置: ${key} = ${safeValueStr.substring(0, 50)} (值未变化，但仍刷新)`);
       }
     }
 
