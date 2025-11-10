@@ -26,7 +26,7 @@ const Globals = {
   configLoaded: false,
 
   // 静态常量
-  VERSION: '1.7.3',
+  VERSION: '1.7.4',
   MAX_LOGS: 500,
   MAX_ANIMES: 100,
   MAX_LAST_SELECT_MAP: 1000,
