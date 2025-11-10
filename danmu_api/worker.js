@@ -3556,64 +3556,38 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
      
      showToast('正在保存配置到服务器...', 'info', 1000);
 
-     // 准备要保存的完整配置
-     const fullConfig = {
-       ...AppState.config,
-       VOD_SERVERS: AppState.vodServers.map(s => {
-         if (typeof s === 'string') return s;
-         return `${s.name}@${s.url}`;
-       }).join(','),
-       SOURCE_ORDER: AppState.sourceOrder.join(',')
-     };
+     // 尝试保存到服务器
+     try {
+       const response = await fetch('/api/config/save', {
+         method: 'POST',
+         headers: {
+           'Content-Type': 'application/json'
+         },
+         body: JSON.stringify({
+           config: {
+             ...AppState.config,
+             VOD_SERVERS: AppState.vodServers.map(s => {
+               if (typeof s === 'string') return s;
+               return \`\${s.name}@\${s.url}\`;
+             }).join(','),
+             SOURCE_ORDER: AppState.sourceOrder.join(',')
+           }
+         })
+       });
 
-     // 逐个保存配置项
-     let successCount = 0;
-     let failCount = 0;
-     const failedKeys = [];
-     const savedTo = new Set();
-
-     for (const [key, value] of Object.entries(fullConfig)) {
-       try {
-         const response = await fetch('/api/config/save', {
-           method: 'POST',
-           headers: {
-             'Content-Type': 'application/json'
-           },
-           body: JSON.stringify({
-             config: { [key]: value }
-           })
-         });
-
-         const result = await response.json();
-         
-         if (result.success) {
-           successCount++;
-           result.savedTo?.forEach(location => savedTo.add(location));
-           console.log(`✅ ${key} 保存成功`);
-         } else {
-           failCount++;
-           failedKeys.push(key);
-           console.error(`❌ ${key} 保存失败: ${result.errorMessage}`);
-         }
-       } catch (error) {
-         failCount++;
-         failedKeys.push(key);
-         console.error(`❌ ${key} 保存失败:`, error);
+       const result = await response.json();
+       
+       if (result.success) {
+         AppState.hasUnsavedChanges = false;
+         showToast(\`所有配置已保存到: \${result.savedTo.join('、')}\`, 'success');
+       } else {
+         throw new Error(result.errorMessage || '保存失败');
        }
-     }
-
-     // 显示保存结果
-     AppState.hasUnsavedChanges = failCount > 0;
-     
-     if (failCount === 0) {
-       showToast(`所有配置已保存到: ${Array.from(savedTo).join('、')} (${successCount}/${successCount + failCount})`, 'success');
-     } else if (successCount > 0) {
-       showToast(`部分配置保存成功 (${successCount}/${successCount + failCount})，失败项: ${failedKeys.join(', ')}`, 'warning', 5000);
-     } else {
-       showToast(`配置保存失败，已保存到浏览器本地`, 'error', 5000);
+     } catch (error) {
+       console.error('保存到服务器失败:', error);
+       showToast(\`配置已保存到浏览器本地（服务器保存失败: \${error.message}）\`, 'warning');
      }
    }
-
 
    function updateConfigDisplay(key, value) {
      const configItem = document.querySelector(\`.config-item[data-key="\${key}"]\`);
@@ -4827,6 +4801,5 @@ export async function netlifyHandler(event, context) {
 }
 
 export { handleRequest };
-
 
 
