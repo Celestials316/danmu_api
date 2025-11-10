@@ -3333,65 +3333,65 @@ if (globals.databaseValid && deployPlatform !== 'vercel') {
  <div class="mobile-overlay" id="mobileOverlay" onclick="closeMobileMenu()"></div>
 
  <!-- 侧边栏 -->
- <aside class="sidebar" id="sidebar">
-   <div class="sidebar-logo">
-     <div class="logo-content">
-       <div class="logo-icon">🎬</div>
-       <div class="logo-text">
-         <h1>弹幕 API</h1>
-         <p>v${globals.VERSION}</p>
-       </div>
-     </div>
-   </div>
-   
-   <nav class="nav-menu">
-     <div class="nav-item active" onclick="switchPage('overview')">
-       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-         <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" stroke-width="2"/>
-       </svg>
-       <span>概览</span>
-     </div>
-     
-     <div class="nav-item" onclick="switchPage('config')">
-       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-         <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke-width="2"/>
-         <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-width="2"/>
-       </svg>
-       <span>环境配置</span>
-     </div>
-     
-     <div class="nav-item" onclick="switchPage('vod')">
-       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-         <path d="M5 3l14 9-14 9V3z" stroke-width="2"/>
-       </svg>
-       <span>VOD 采集站</span>
-     </div>
-     
-     <div class="nav-item" onclick="switchPage('sources')">
-       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-         <path d="M4 7h16M4 12h16M4 17h16" stroke-width="2" stroke-linecap="round"/>
-       </svg>
-       <span>数据源</span>
-     </div>
-   </nav>
- </aside>
-        
-        <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid var(--border-color);">
-          <div class="nav-item" onclick="showModal('changePasswordModal')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke-width="2"/>
-              <path d="M7 11V7a5 5 0 0110 0v4" stroke-width="2"/>
-            </svg>
-            <span>修改密码</span>
-          </div>
-          
-          <div class="nav-item" onclick="handleLogout()" style="color: var(--error);">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4m7 14l5-5m0 0l-5-5m5 5H9" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-            <span>退出登录</span>
-          </div>
-        </div>
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-content">
+      <div class="logo-icon">🎬</div>
+      <div class="logo-text">
+        <h1>弹幕 API</h1>
+        <p>v${globals.VERSION}</p>
+      </div>
+    </div>
+  </div>
+  
+  <nav class="nav-menu">
+    <div class="nav-item active" onclick="switchPage('overview')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" stroke-width="2"/>
+      </svg>
+      <span>概览</span>
+    </div>
+    
+    <div class="nav-item" onclick="switchPage('config')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke-width="2"/>
+        <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-width="2"/>
+      </svg>
+      <span>环境配置</span>
+    </div>
+    
+    <div class="nav-item" onclick="switchPage('vod')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <path d="M5 3l14 9-14 9V3z" stroke-width="2"/>
+      </svg>
+      <span>VOD 采集站</span>
+    </div>
+    
+    <div class="nav-item" onclick="switchPage('sources')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <path d="M4 7h16M4 12h16M4 17h16" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <span>数据源</span>
+    </div>
+  </nav>
+
+  <div style="margin-top: auto; padding: 12px; border-top: 1px solid var(--border-color);">
+    <div class="nav-item" onclick="showModal('changePasswordModal')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke-width="2"/>
+        <path d="M7 11V7a5 5 0 0110 0v4" stroke-width="2"/>
+      </svg>
+      <span>修改密码</span>
+    </div>
+    
+    <div class="nav-item" onclick="handleLogout()" style="color: var(--error);">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4m7 14l5-5m0 0l-5-5m5 5H9" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <span>退出登录</span>
+    </div>
+  </div>
+</aside>
 
  <!-- 主内容区 -->
  <main class="main-content">
