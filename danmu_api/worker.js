@@ -394,9 +394,16 @@ function getRealEnvValue(key) {
 }
 
 async function handleRequest(req, env, deployPlatform, clientIp) {
-  // 注意：这里改成 await
-  globals = await Globals.init(env, deployPlatform);
-  globals.deployPlatform = deployPlatform;  // 保存 deployPlatform 供后续使用
+  // 🔥 强制刷新全局配置（解决 TOKEN 缓存问题）
+  if (Globals.configLoaded) {
+    // 如果已加载过，从数据库/Redis 重新加载最新配置
+    await Globals.loadConfigFromStorage();
+  } else {
+    // 首次加载
+    globals = await Globals.init(env, deployPlatform);
+  }
+  
+  globals.deployPlatform = deployPlatform;
 
   const url = new URL(req.url);
   let path = url.pathname;
@@ -4450,33 +4457,37 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
     }
   }
  // --- 校验 token ---
- const parts = path.split("/").filter(Boolean);
+const parts = path.split("/").filter(Boolean);
 
- // 如果 token 是默认值 87654321
- if (globals.token === "87654321") {
-   const knownApiPaths = ["api", "v1", "v2"];
+// 🔥 强制从 globals 重新获取最新 token（避免缓存）
+const currentToken = String(globals.token || globals.envs.TOKEN || globals.accessedEnvVars.TOKEN || "87654321");
+log("info", `[Token Check] 当前 TOKEN: ${currentToken.substring(0, 3)}***`);
 
-   if (parts.length > 0) {
-     if (parts[0] === "87654321") {
-       path = "/" + parts.slice(1).join("/");
-     } else if (!knownApiPaths.includes(parts[0])) {
-       log("error", `Invalid token in path: ${path}`);
-       return jsonResponse(
-         { errorCode: 401, success: false, errorMessage: "Unauthorized" },
-         401
-       );
-     }
-   }
- } else {
-   if (parts.length < 1 || parts[0] !== globals.token) {
-     log("error", `Invalid or missing token in path: ${path}`);
-     return jsonResponse(
-       { errorCode: 401, success: false, errorMessage: "Unauthorized" },
-       401
-     );
-   }
-   path = "/" + parts.slice(1).join("/");
- }
+// 如果 token 是默认值 87654321
+if (currentToken === "87654321") {
+  const knownApiPaths = ["api", "v1", "v2"];
+
+  if (parts.length > 0) {
+    if (parts[0] === "87654321") {
+      path = "/" + parts.slice(1).join("/");
+    } else if (!knownApiPaths.includes(parts[0])) {
+      log("error", `Invalid token in path: ${path}`);
+      return jsonResponse(
+        { errorCode: 401, success: false, errorMessage: "Unauthorized" },
+        401
+      );
+    }
+  }
+} else {
+  if (parts.length < 1 || parts[0] !== currentToken) {
+    log("error", `Invalid or missing token in path: ${path}, expected: ${currentToken.substring(0, 3)}***, got: ${parts[0]?.substring(0, 3)}***`);
+    return jsonResponse(
+      { errorCode: 401, success: false, errorMessage: "Unauthorized" },
+      401
+    );
+  }
+  path = "/" + parts.slice(1).join("/");
+}
 
 
   log("info", path);
