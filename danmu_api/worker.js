@@ -58,10 +58,13 @@ async function applyConfigPatch(patch) {
   const ENV_VAR_HANDLERS = {
     'BILIBILI_COOKIE': (value) => {
       globals.bilibiliCookie = value || '';
+      globals.bilibliCookie = value || '';  // ← 兼容错误拼写
       globals.BILIBILI_COOKIE = value || '';
       globals.envs.bilibiliCookie = value || '';
+      globals.envs.bilibliCookie = value || '';  // ← 兼容错误拼写
       globals.envs.BILIBILI_COOKIE = value || '';
       Envs.env.bilibiliCookie = value || '';
+      Envs.env.bilibliCookie = value || '';  // ← 兼容错误拼写
       Envs.env.BILIBILI_COOKIE = value || '';
       return `${value ? '已设置' : '已清空'}`;
     },
