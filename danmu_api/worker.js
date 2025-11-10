@@ -5013,7 +5013,7 @@ if (currentToken === "87654321") {
 
   // 智能处理API路径前缀
   // 定义不需要添加 /api/v2 前缀的路径
-  const excludedPaths = [
+  const pathsWithoutPrefix = [  // 👈 改名
     '/',
     '/api/logs',
     '/api/config/save',
@@ -5022,7 +5022,8 @@ if (currentToken === "87654321") {
     '/robots.txt'
   ];
 
-  const shouldNormalizePath = !excludedPaths.some(excluded => path === excluded || path.startsWith(excluded));
+  const shouldNormalizePath = !pathsWithoutPrefix.some(excluded => path === excluded || path.startsWith(excluded));
+
 
   if (shouldNormalizePath) {
     log("info", `[Path Check] Starting path normalization for: "${path}"`);
