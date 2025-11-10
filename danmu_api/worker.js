@@ -897,14 +897,13 @@ if (needsAuth) {
   // 认证成功，将用户信息存储到 globals
   globals.currentUser = username;
 }
-  let path = url.pathname;
-  const method = req.method;
 
   await judgeRedisValid(path);
 
   log("info", `request url: ${JSON.stringify(url)}`);
   log("info", `request path: ${path}`);
   log("info", `client ip: ${clientIp}`);
+
 
   if (globals.redisValid && path !== "/favicon.ico" && path !== "/robots.txt") {
     await getRedisCaches();
