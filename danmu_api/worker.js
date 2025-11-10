@@ -1,30 +1,25 @@
 import { Globals, globals } from './configs/globals.js';
 import { jsonResponse } from './utils/http-util.js';
-import { log, formatLogMessage } from './utils/log-util.js';
+import { log, formatLogMessage } from './utils/log-util.js'
 import { getRedisCaches, judgeRedisValid } from "./utils/redis-util.js";
 import { cleanupExpiredIPs, findUrlById, getCommentCache } from "./utils/cache-util.js";
 import { formatDanmuResponse } from "./utils/danmu-util.js";
 import { getBangumi, getComment, getCommentByUrl, matchAnime, searchAnime, searchEpisodes } from "./apis/dandan-api.js";
-
-// ✅ 数据库操作 + Session 管理
 import { 
-  initDatabase,        
+  initDatabase,        // ✅ 添加
   initUserTable,
   verifyUser, 
-  changePassword,
-  createSession,
-  verifySession,
+  changePassword, 
+  createSession, 
+  verifySession, 
   deleteSession,
-  cleanupExpiredSessions
+  cleanupExpiredSessions 
 } from "./utils/db-util.js";
-
-// ✅ Token 生成 + 密码哈希
 import { 
   generateToken, 
   verifyToken, 
-  generateSessionId
+  generateSessionId 
 } from "./utils/auth-util.js";
-
 
 /**
  * 合并写入 Redis：读取现有 -> 合并 patch -> 写回
