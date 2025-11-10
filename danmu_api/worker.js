@@ -755,9 +755,10 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
 // Docker 部署:创建 Session
 if (deployPlatform !== 'vercel') {
   const sessionId = generateSessionId();
-  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24小时
+  const expiresInHours = 24; // 24小时有效期
 
-  await createSession(sessionId, username, expiresAt);
+  // 🔥 修复：参数顺序改为 (username, sessionId, expiresInHours)
+  await createSession(username, sessionId, expiresInHours);
   
   log('info', `[auth] ✅ Session 创建成功: ${sessionId.substring(0, 8)}...`);
 
@@ -768,7 +769,7 @@ if (deployPlatform !== 'vercel') {
   const cookieAttributes = [
     `session_id=${sessionId}`,
     'HttpOnly',
-    // 🔥 修复:如果是本地开发,移除 Secure 标志
+    // 🔥 如果是本地开发,移除 Secure 标志
     isHttps ? 'Secure' : '',  
     'SameSite=Lax',
     'Path=/',
@@ -791,6 +792,7 @@ if (deployPlatform !== 'vercel') {
     }
   );
 }
+
 
 
 
