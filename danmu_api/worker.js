@@ -403,7 +403,8 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
   
   // 后续请求直接使用已加载的 globals
   // 不再重复加载
-}
+
+
   
   globals.deployPlatform = deployPlatform;
 
