@@ -137,10 +137,10 @@ const Globals = {
    * @param {Object} config 配置对象
    */
   applyConfig(config) {
-    console.log(`[Globals] 开始应用配置,共 ${Object.keys(config).length} 个`);
+    console.log(`[Globals] 开始应用配置，共 ${Object.keys(config).length} 个`);
 
     for (const [key, value] of Object.entries(config)) {
-      // 🔥 跳过 null/undefined,但保留其他类型(包括正则表达式、对象等)
+      // 跳过 null 和 undefined
       if (value === null || value === undefined) {
         console.log(`[Globals] 跳过空值配置: ${key}`);
         continue;
@@ -148,43 +148,31 @@ const Globals = {
       
       const oldValue = this.envs[key];
       
-      // 🔥 对于正则表达式等特殊对象,直接赋值
-      let hasChanged;
-      if (value instanceof RegExp || typeof value === 'object') {
-        hasChanged = true; // 对象类型总是视为变化
-      } else {
-        hasChanged = JSON.stringify(oldValue) !== JSON.stringify(value);
-      }
-
+      // 直接赋值，保持原始类型
       this.envs[key] = value;
       this.accessedEnvVars[key] = value;
 
-      if (hasChanged) {
-        // 🔥 安全地转换为字符串用于日志
-        let valueStr;
-        if (value instanceof RegExp) {
-          valueStr = value.toString();
-        } else if (typeof value === 'object') {
-          valueStr = JSON.stringify(value).substring(0, 50);
-        } else {
-          valueStr = String(value).substring(0, 50);
-        }
-        
-        let oldValueStr;
-        if (oldValue instanceof RegExp) {
-          oldValueStr = oldValue.toString();
-        } else if (typeof oldValue === 'object') {
-          oldValueStr = JSON.stringify(oldValue).substring(0, 50);
-        } else {
-          oldValueStr = String(oldValue).substring(0, 50);
-        }
-        
-        console.log(`[Globals] 应用配置: ${key} = ${valueStr} (旧值: ${oldValueStr})`);
+      // 日志输出
+      let valueStr, oldValueStr;
+      if (value instanceof RegExp) {
+        valueStr = value.toString();
+      } else if (typeof value === 'object') {
+        valueStr = JSON.stringify(value).substring(0, 50);
       } else {
-        const valueStr = String(value).substring(0, 50);
-        console.log(`[Globals] 应用配置: ${key} = ${valueStr} (值未变化,但仍刷新)`);
+        valueStr = String(value).substring(0, 50);
       }
+      
+      if (oldValue instanceof RegExp) {
+        oldValueStr = oldValue.toString();
+      } else if (typeof oldValue === 'object' && oldValue !== null) {
+        oldValueStr = JSON.stringify(oldValue).substring(0, 50);
+      } else {
+        oldValueStr = String(oldValue).substring(0, 50);
+      }
+      
+      console.log(`[Globals] 应用配置: ${key} = ${valueStr} (旧值: ${oldValueStr})`);
     }
+  }
 
     // 🔥 强制更新 Envs 模块的静态变量
     Envs.env = { ...this.envs }; // 创建新对象引用，触发更新
