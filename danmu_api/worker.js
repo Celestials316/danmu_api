@@ -354,6 +354,9 @@ function isSensitiveKey(key) {
 /**
  * 获取环境变量的真实值(未加密) - 服务端版本
  */
+/**
+ * 获取环境变量的真实值(未加密) - 服务端版本
+ */
 function getRealEnvValue(key) {
   const keyMapping = {
     'redisUrl': 'UPSTASH_REDIS_REST_URL',
@@ -369,20 +372,21 @@ function getRealEnvValue(key) {
   // 优先从 globals.accessedEnvVars 获取（这是真实值）
   if (globals.accessedEnvVars && actualKey in globals.accessedEnvVars) {
     const value = globals.accessedEnvVars[actualKey];
-    // 如果值不是占位符，直接返回
-    if (value && (typeof value !== 'string' || !value.match(/^\*+$/))) {
-      return value;
+    // 🔥 确保返回字符串类型
+    if (value !== null && value !== undefined) {
+      return typeof value === 'string' ? value : String(value);
     }
   }
 
   // 备用方案：从 process.env 获取
   if (typeof process !== 'undefined' && process.env?.[actualKey]) {
-    return process.env[actualKey];
+    return String(process.env[actualKey]);
   }
 
   // 最后尝试从 Globals 获取默认值
   if (actualKey in Globals) {
-    return Globals[actualKey];
+    const value = Globals[actualKey];
+    return typeof value === 'string' ? value : String(value);
   }
 
   // 如果都没有，返回空字符串
@@ -466,12 +470,15 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
           const realValue = getRealEnvValue(key);
           const maskedValue = '•'.repeat(Math.min(String(realValue).length, 24));
 
-          const encodedRealValue = String(realValue)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
+        // 确保 realValue 是字符串类型
+        const safeRealValue = typeof realValue === 'string' ? realValue : JSON.stringify(realValue);
+        const encodedRealValue = safeRealValue
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+
 
           return `
             <div class="config-item" data-key="${key}">
