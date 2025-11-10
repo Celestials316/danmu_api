@@ -367,3 +367,256 @@ export async function checkDatabaseConnection() {
     return false;
   }
 }
+
+
+/**
+ * 初始化用户表
+ */
+export async function initUserTable() {
+  log("info", "[database] 开始创建用户表...");
+  
+  const client = getDbClient();
+  if (!client) {
+    log("warn", "[database] 数据库客户端不可用，跳过用户表创建");
+    return false;
+  }
+
+  try {
+    // 创建用户表
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS users (
+        username TEXT PRIMARY KEY,
+        password TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    `);
+    
+    // 创建 session 表（仅 Docker 部署使用）
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS sessions (
+        session_id TEXT PRIMARY KEY,
+        username TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        expires_at TEXT NOT NULL
+      )
+    `);
+    
+    log("info", "[database] ✅ 用户表创建成功");
+    return true;
+  } catch (error) {
+    log("error", `[database] ❌ 创建用户表失败: ${error.message}`);
+    return false;
+  }
+}
+
+/**
+ * 检查是否存在管理员用户
+ */
+export async function hasAdminUser() {
+  const client = getDbClient();
+  if (!client || !globals.databaseValid) {
+    return false;
+  }
+
+  try {
+    const result = await client.execute({
+      sql: 'SELECT COUNT(*) as count FROM users WHERE username = ?',
+      args: ['admin']
+    });
+    
+    return result.rows[0].count > 0;
+  } catch (error) {
+    log("error", `[database] 检查管理员用户失败: ${error.message}`);
+    return false;
+  }
+}
+
+/**
+ * 创建管理员用户
+ */
+export async function createAdminUser(password) {
+  const client = getDbClient();
+  if (!client || !globals.databaseValid) {
+    return false;
+  }
+
+  try {
+    const { hashPassword } = await import('./auth-util.js');
+    const hashedPassword = hashPassword(password);
+    const timestamp = new Date().toISOString();
+    
+    await client.execute({
+      sql: 'INSERT INTO users (username, password, created_at, updated_at) VALUES (?, ?, ?, ?)',
+      args: ['admin', hashedPassword, timestamp, timestamp]
+    });
+    
+    log("info", "[database] ✅ 管理员用户创建成功");
+    return true;
+  } catch (error) {
+    log("error", `[database] ❌ 创建管理员用户失败: ${error.message}`);
+    return false;
+  }
+}
+
+/**
+ * 验证用户登录
+ */
+export async function verifyUser(username, password) {
+  const client = getDbClient();
+  if (!client || !globals.databaseValid) {
+    return false;
+  }
+
+  try {
+    const result = await client.execute({
+      sql: 'SELECT password FROM users WHERE username = ?',
+      args: [username]
+    });
+    
+    if (result.rows.length === 0) {
+      return false;
+    }
+    
+    const { verifyPassword } = await import('./auth-util.js');
+    return verifyPassword(password, result.rows[0].password);
+  } catch (error) {
+    log("error", `[database] 验证用户失败: ${error.message}`);
+    return false;
+  }
+}
+
+/**
+ * 修改密码
+ */
+export async function changePassword(username, newPassword) {
+  const client = getDbClient();
+  if (!client || !globals.databaseValid) {
+    return false;
+  }
+
+  try {
+    const { hashPassword } = await import('./auth-util.js');
+    const hashedPassword = hashPassword(newPassword);
+    const timestamp = new Date().toISOString();
+    
+    await client.execute({
+      sql: 'UPDATE users SET password = ?, updated_at = ? WHERE username = ?',
+      args: [hashedPassword, timestamp, username]
+    });
+    
+    log("info", `[database] ✅ 用户 ${username} 密码修改成功`);
+    return true;
+  } catch (error) {
+    log("error", `[database] ❌ 修改密码失败: ${error.message}`);
+    return false;
+  }
+}
+
+/**
+ * 创建 Session
+ */
+export async function createSession(username, sessionId, expiresInHours = 24) {
+  const client = getDbClient();
+  if (!client || !globals.databaseValid) {
+    return false;
+  }
+
+  try {
+    const createdAt = new Date().toISOString();
+    const expiresAt = new Date(Date.now() + expiresInHours * 60 * 60 * 1000).toISOString();
+    
+    await client.execute({
+      sql: 'INSERT OR REPLACE INTO sessions (session_id, username, created_at, expires_at) VALUES (?, ?, ?, ?)',
+      args: [sessionId, username, createdAt, expiresAt]
+    });
+    
+    return true;
+  } catch (error) {
+    log("error", `[database] ❌ 创建 Session 失败: ${error.message}`);
+    return false;
+  }
+}
+
+/**
+ * 验证 Session
+ */
+export async function verifySession(sessionId) {
+  const client = getDbClient();
+  if (!client || !globals.databaseValid) {
+    return null;
+  }
+
+  try {
+    const result = await client.execute({
+      sql: 'SELECT username, expires_at FROM sessions WHERE session_id = ?',
+      args: [sessionId]
+    });
+    
+    if (result.rows.length === 0) {
+      return null;
+    }
+    
+    const session = result.rows[0];
+    const expiresAt = new Date(session.expires_at);
+    
+    if (expiresAt < new Date()) {
+      // Session 过期，删除
+      await client.execute({
+        sql: 'DELETE FROM sessions WHERE session_id = ?',
+        args: [sessionId]
+      });
+      return null;
+    }
+    
+    return session.username;
+  } catch (error) {
+    log("error", `[database] ❌ 验证 Session 失败: ${error.message}`);
+    return null;
+  }
+}
+
+/**
+ * 删除 Session
+ */
+export async function deleteSession(sessionId) {
+  const client = getDbClient();
+  if (!client || !globals.databaseValid) {
+    return false;
+  }
+
+  try {
+    await client.execute({
+      sql: 'DELETE FROM sessions WHERE session_id = ?',
+      args: [sessionId]
+    });
+    
+    return true;
+  } catch (error) {
+    log("error", `[database] ❌ 删除 Session 失败: ${error.message}`);
+    return false;
+  }
+}
+
+/**
+ * 清理过期 Session
+ */
+export async function cleanupExpiredSessions() {
+  const client = getDbClient();
+  if (!client || !globals.databaseValid) {
+    return false;
+  }
+
+  try {
+    const now = new Date().toISOString();
+    await client.execute({
+      sql: 'DELETE FROM sessions WHERE expires_at < ?',
+      args: [now]
+    });
+    
+    return true;
+  } catch (error) {
+    log("error", `[database] ❌ 清理过期 Session 失败: ${error.message}`);
+    return false;
+  }
+}
