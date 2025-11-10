@@ -141,13 +141,24 @@ const Globals = {
 
     for (const [key, value] of Object.entries(config)) {
       const oldValue = this.envs[key];
+      const hasChanged = JSON.stringify(oldValue) !== JSON.stringify(value); // 🔥 深度比较
+      
       this.envs[key] = value;
       this.accessedEnvVars[key] = value;
-      console.log(`[Globals] 应用配置: ${key} = ${value !== oldValue ? `(旧值: ${oldValue})` : '(未变化)'}`);
+      
+      if (hasChanged) {
+        console.log(`[Globals] 应用配置: ${key} = ${JSON.stringify(value).substring(0, 50)} (旧值: ${JSON.stringify(oldValue).substring(0, 50)})`);
+      } else {
+        console.log(`[Globals] 应用配置: ${key} = ${JSON.stringify(value).substring(0, 50)} (值未变化，但仍刷新)`);
+      }
     }
 
-    // 🔥 关键：更新 Envs 模块的静态变量（让其他模块能读到新值）
-    Envs.env = this.envs;
+    // 🔥 强制更新 Envs 模块的静态变量
+    Envs.env = { ...this.envs }; // 创建新对象引用，触发更新
+    Envs.accessedEnvVars.clear(); // 清空旧记录
+    Object.entries(this.accessedEnvVars).forEach(([k, v]) => {
+      Envs.accessedEnvVars.set(k, v); // 重新同步
+    });
 
     // 特别处理需要重新解析的配置
     if ('VOD_SERVERS' in config) {
