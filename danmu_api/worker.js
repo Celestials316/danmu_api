@@ -3747,116 +3747,119 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
  </button>
 
  <script>
-   // ==================== 全局状态管理 ====================
-   const AppState = {
-     currentEditingEnv: null,
-     currentEditingVodIndex: null,
-     sourceOrder: ${JSON.stringify(globals.sourceOrderArr)},
-     config: ${JSON.stringify(globals.accessedEnvVars)},
-     vodServers: ${JSON.stringify(globals.vodServers)},
-     hasUnsavedChanges: false
-   };
+  // ==================== 全局状态管理 ====================
+  const AppState = {
+    currentEditingEnv: null,
+    currentEditingVodIndex: null,
+    sourceOrder: ${JSON.stringify(globals.sourceOrderArr)},
+    config: ${JSON.stringify(globals.accessedEnvVars)},
+    vodServers: ${JSON.stringify(globals.vodServers)},
+    hasUnsavedChanges: false
+  };
 
-   // ==================== 环境变量描述字典 ====================
-   const ENV_DESCRIPTIONS = ${JSON.stringify(ENV_DESCRIPTIONS)};
-      // ==================== 认证管理 ====================
-      function getAuthToken() {
-        return localStorage.getItem('auth_token');
+  // ==================== 环境变量描述字典 ====================
+  const ENV_DESCRIPTIONS = ${JSON.stringify(ENV_DESCRIPTIONS)};
+  
+  // ==================== 认证管理 ====================
+  function getAuthToken() {
+    return localStorage.getItem('auth_token');
+  }
+
+  function setAuthHeader(headers = {}) {
+    const token = getAuthToken();
+    if (token) {
+      headers['Authorization'] = 'Bearer ' + token;  // ✅ 修改这里
+    }
+    return headers;
+  }
+
+  async function handleChangePassword() {
+    const currentPassword = document.getElementById('currentPassword').value;
+    const newPassword = document.getElementById('newPassword').value;
+    const confirmPassword = document.getElementById('confirmPassword').value;
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      showToast('请填写所有字段', 'error');
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      showToast('新密码长度至少为8位', 'error');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      showToast('两次输入的新密码不一致', 'error');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: setAuthHeader({
+          'Content-Type': 'application/json'
+        }),
+        body: JSON.stringify({
+          currentPassword,
+          newPassword
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        showToast('密码修改成功,请重新登录', 'success');
+        setTimeout(() => {
+          handleLogout();
+        }, 1500);
+      } else {
+        showToast(result.errorMessage || '密码修改失败', 'error');
       }
+    } catch (error) {
+      showToast('网络错误,请稍后重试', 'error');
+    }
+  }
 
-      function setAuthHeader(headers = {}) {
-        const token = getAuthToken();
-        if (token) {
-          headers['Authorization'] = `Bearer ${token}`;
-        }
-        return headers;
-      }
+  async function handleLogout() {
+    if (!confirm('确定要退出登录吗？')) {
+      return;
+    }
 
-      async function handleChangePassword() {
-        const currentPassword = document.getElementById('currentPassword').value;
-        const newPassword = document.getElementById('newPassword').value;
-        const confirmPassword = document.getElementById('confirmPassword').value;
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: setAuthHeader()
+      });
+    } catch (error) {
+      console.error('退出登录失败:', error);
+    }
 
-        if (!currentPassword || !newPassword || !confirmPassword) {
-          showToast('请填写所有字段', 'error');
-          return;
-        }
+    localStorage.removeItem('auth_token');
+    window.location.href = '/';
+  }
 
-        if (newPassword.length < 8) {
-          showToast('新密码长度至少为8位', 'error');
-          return;
-        }
-
-        if (newPassword !== confirmPassword) {
-          showToast('两次输入的新密码不一致', 'error');
-          return;
-        }
-
-        try {
-          const response = await fetch('/api/auth/change-password', {
-            method: 'POST',
-            headers: setAuthHeader({
-              'Content-Type': 'application/json'
-            }),
-            body: JSON.stringify({
-              currentPassword,
-              newPassword
-            })
-          });
-
-          const result = await response.json();
-
-          if (result.success) {
-            showToast('密码修改成功，请重新登录', 'success');
-            setTimeout(() => {
-              handleLogout();
-            }, 1500);
-          } else {
-            showToast(result.errorMessage || '密码修改失败', 'error');
-          }
-        } catch (error) {
-          showToast('网络错误，请稍后重试', 'error');
-        }
-      }
-
-      async function handleLogout() {
-        if (!confirm('确定要退出登录吗？')) {
-          return;
-        }
-
-        try {
-          await fetch('/api/auth/logout', {
-            method: 'POST',
-            headers: setAuthHeader()
-          });
-        } catch (error) {
-          console.error('退出登录失败:', error);
-        }
-
+  // 拦截所有 fetch 请求,自动添加认证头
+  const originalFetch = window.fetch;
+  window.fetch = function(...args) {
+    const [url, options = {}] = args;
+    
+    // 为所有 API 请求自动添加认证头
+    if (typeof url === 'string' && url.startsWith('/api/')) {
+      options.headers = setAuthHeader(options.headers || {});
+    }
+    
+    return originalFetch(url, options).then(response => {
+      // 如果返回 401,自动跳转到登录页
+      if (response.status === 401) {
         localStorage.removeItem('auth_token');
         window.location.href = '/';
+        return Promise.reject(new Error('Unauthorized'));
       }
+      return response;
+    });
+  };
+</script>
 
-      // 拦截所有 fetch 请求，自动添加认证头
-      const originalFetch = window.fetch;
-      window.fetch = function(...args) {
-        const [url, options = {}] = args;
-        
-        // 为所有 API 请求自动添加认证头
-        if (typeof url === 'string' && url.startsWith('/api/')) {
-          options.headers = setAuthHeader(options.headers || {});
-        }
-        
-        return originalFetch(url, options).then(response => {
-          // 如果返回 401，自动跳转到登录页
-          if (response.status === 401) {
-            localStorage.removeItem('auth_token');
-            window.location.href = '/';
-            return Promise.reject(new Error('Unauthorized'));
-          }
-          return response;
-        });
-      };
 
 
    // ==================== 初始化 ====================
