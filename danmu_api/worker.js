@@ -25,8 +25,6 @@ import {
   generateSessionId
 } from "./utils/auth-util.js";
 
-let globals;
-
 /**
  * 合并写入 Redis：读取现有 -> 合并 patch -> 写回
  */
