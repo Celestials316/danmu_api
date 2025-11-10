@@ -127,6 +127,31 @@ export async function saveEnvConfigs(configs) {
  * @returns {Object} 配置对象
  */
 export async function loadEnvConfigs() {
+  // ========== 定义默认值 ==========
+  const DEFAULT_VALUES = {
+    'TOKEN': '87654321',
+    'OTHER_SERVER': 'https://api.danmu.icu',
+    'VOD_SERVERS': '金蝉@https://zy.jinchancaiji.com,789@https://www.caiji.cyou,听风@https://gctf.tfdh.top',
+    'VOD_RETURN_MODE': 'fastest',
+    'VOD_REQUEST_TIMEOUT': '10000',
+    'YOUKU_CONCURRENCY': '8',
+    'SOURCE_ORDER': '360,vod,renren,hanjutv',
+    'EPISODE_TITLE_FILTER': '(特别|惊喜|纳凉)?企划|合伙人手记|超前(营业|vlog)?|速览|vlog|reaction|纯享|加更(版|篇)?|抢先(看|版|集|篇)?|抢鲜|预告|花絮(独家)?|特辑|彩蛋|专访|幕后(故事|花絮|独家)?|直播(陪看|回顾)?|未播(片段)?|衍生|番外|会员(专享|加长|尊享|专属|版)?|片花|精华|看点|速看|解读|影评|解说|吐槽|盘点|拍摄花絮|制作花絮|幕后花絮|未播花絮|独家花絮|花絮特辑|先导预告|终极预告|正式预告|官方预告|彩蛋片段|删减片段|未播片段|番外彩蛋|精彩片段|精彩看点|精彩回顾|精彩集锦|看点解析|看点预告|NG镜头|NG花絮|番外篇|番外特辑|制作特辑|拍摄特辑|幕后特辑|导演特辑|演员特辑|片尾曲|插曲|高光回顾|背景音乐|OST|音乐MV|歌曲MV|前季回顾|剧情回顾|往期回顾|内容总结|剧情盘点|精选合集|剪辑合集|混剪视频|独家专访|演员访谈|导演访谈|主创访谈|媒体采访|发布会采访|采访|陪看(记)?|试看版|短剧|精编|Plus|独家版|特别版|短片|发布会|解忧局|走心局|火锅局|巅峰时刻|坞里都知道|福持目标坞民|.{3,}篇|(?!.*(入局|破冰局|做局)).{2,}局|观察室|上班那点事儿|周top|赛段|直拍|REACTION|VLOG|全纪录|开播|先导|总宣|展演|集锦|旅行日记|精彩分享|剧情揭秘',
+    'ENABLE_EPISODE_FILTER': 'false',
+    'STRICT_TITLE_MATCH': 'false',
+    'CONVERT_TOP_BOTTOM_TO_SCROLL': 'false',
+    'CONVERT_COLOR_TO_WHITE': 'false',
+    'DANMU_OUTPUT_FORMAT': 'json',
+    'DANMU_SIMPLIFIED': 'true',
+    'REMEMBER_LAST_SELECT': 'true',
+    'MAX_LAST_SELECT_MAP': '100',
+    'RATE_LIMIT_MAX_REQUESTS': '3',
+    'LOG_LEVEL': 'info',
+    'SEARCH_CACHE_MINUTES': '1',
+    'COMMENT_CACHE_MINUTES': '1',
+    'GROUP_MINUTE': '1'
+  };
+
   const client = getDbClient();
   if (!client || !globals.databaseValid) {
     return {};
@@ -136,6 +161,7 @@ export async function loadEnvConfigs() {
     const result = await client.execute('SELECT key, value FROM env_configs');
     const configs = {};
 
+    // 从数据库加载已配置的值
     for (const row of result.rows) {
       try {
         const key = row.key;
@@ -153,6 +179,7 @@ export async function loadEnvConfigs() {
             }
           } catch (e) {
             log("warn", `[database] ⚠️ 正则解析失败 ${key}: ${e.message}`);
+            parsedValue = null;
           }
         }
 
@@ -160,6 +187,26 @@ export async function loadEnvConfigs() {
       } catch (e) {
         log("warn", `[database] 解析配置失败: ${row.key}`);
         configs[row.key] = row.value;
+      }
+    }
+
+    // ========== 补充默认值 ==========
+    for (const [key, defaultValue] of Object.entries(DEFAULT_VALUES)) {
+      if (configs[key] === undefined || configs[key] === null || configs[key] === '') {
+        let parsedValue = defaultValue;
+        
+        // 特殊处理：EPISODE_TITLE_FILTER 需要转换为正则对象
+        if (key === 'EPISODE_TITLE_FILTER' && typeof parsedValue === 'string' && parsedValue.length > 0) {
+          try {
+            parsedValue = new RegExp(parsedValue);
+          } catch (e) {
+            log("warn", `[database] ⚠️ 默认正则解析失败 ${key}: ${e.message}`);
+            parsedValue = null;
+          }
+        }
+        
+        configs[key] = parsedValue;
+        log("info", `[database] 📝 使用默认值: ${key}`);
       }
     }
 
