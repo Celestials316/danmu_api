@@ -4229,8 +4229,14 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
         }
       }
 
-      // 3) 运行时立即生效（统一同步 + 派生缓存重建）
+      // 3) 🔥 立即应用到当前运行时的 Globals（关键步骤）
+      const { Globals } = await import('./configs/globals.js');
+      Globals.applyConfig(config);
+      log("info", `[config] 配置已应用到 Globals`);
+
+      // 4) 运行时立即生效（统一同步 + 派生缓存重建）
       await applyConfigPatch(config);
+      log("info", `[config] 派生缓存已重建`);
 
       const savedTo = [];
       if (dbSaved) savedTo.push('数据库');
@@ -4241,7 +4247,8 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       return jsonResponse({
         success: true,
         message: `配置已保存至 ${savedTo.join('、')}，且已在内存中立即生效`,
-        savedTo
+        savedTo,
+        appliedConfig: config // 返回实际应用的配置，方便前端确认
       });
 
     } catch (error) {
