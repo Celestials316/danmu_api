@@ -4342,12 +4342,38 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
 
       log("info", `[config] 开始保存环境变量配置，共 ${Object.keys(config).length} 个: ${Object.keys(config).join(', ')}`);
 
+      // 🔥 过滤和规范化配置值，避免 undefined 导致的错误
+      const sanitizedConfig = {};
+      for (const [key, value] of Object.entries(config)) {
+        // 跳过 null 和 undefined 值
+        if (value === null || value === undefined) {
+          log("warn", `[config] 跳过空值配置: ${key}`);
+          continue;
+        }
+        
+        // 确保字符串类型
+        if (typeof value === 'string') {
+          sanitizedConfig[key] = value;
+        } else if (typeof value === 'boolean' || typeof value === 'number') {
+          sanitizedConfig[key] = String(value);
+        } else {
+          log("warn", `[config] 跳过无效类型配置: ${key} (${typeof value})`);
+        }
+      }
+
+      if (Object.keys(sanitizedConfig).length === 0) {
+        return jsonResponse({
+          success: false,
+          errorMessage: "没有有效的配置数据"
+        }, 400);
+      }
+
       // 1) 数据库（如有）
       let dbSaved = false;
       if (globals.databaseValid) {
         try {
           const { saveEnvConfigs } = await import('./utils/db-util.js');
-          dbSaved = await saveEnvConfigs(config);
+          dbSaved = await saveEnvConfigs(sanitizedConfig);
           log("info", `[config] 数据库保存${dbSaved ? '成功' : '失败'}`);
         } catch (e) {
           log("warn", `[config] 保存到数据库失败: ${e.message}`);
@@ -4357,7 +4383,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       // 2) Redis：合并而非覆盖
       let redisSaved = false;
       if (globals.redisValid) {
-        redisSaved = await mergeSaveToRedis('env_configs', config);
+        redisSaved = await mergeSaveToRedis('env_configs', sanitizedConfig);
         log("info", `[config] Redis保存${redisSaved ? '成功' : '失败'}`);
       }
 
@@ -4365,16 +4391,16 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       try {
         // 使用全局 Globals 对象应用配置
         const { Globals } = await import('./configs/globals.js');
-        Globals.applyConfig(config);
+        Globals.applyConfig(sanitizedConfig);
         log("info", `[config] 配置已应用到运行时`);
       } catch (e) {
         log("error", `[config] 应用配置到运行时失败: ${e.message}`);
-        throw e;
+        log("warn", `[config] 忽略运行时应用错误，继续保存流程`);
       }
 
       // 4) 重建派生缓存（如果 applyConfigPatch 存在的话）
       try {
-        await applyConfigPatch(config);
+        await applyConfigPatch(sanitizedConfig);
         log("info", `[config] 派生缓存已重建`);
       } catch (e) {
         log("warn", `[config] 重建派生缓存失败（可忽略）: ${e.message}`);
@@ -4390,7 +4416,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
         success: true,
         message: `配置已保存至 ${savedTo.join('、')}，并立即生效`,
         savedTo,
-        appliedConfig: config
+        appliedConfig: sanitizedConfig
       });
 
     } catch (error) {
