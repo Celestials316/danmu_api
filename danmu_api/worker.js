@@ -1,25 +1,30 @@
 import { Globals, globals } from './configs/globals.js';
 import { jsonResponse } from './utils/http-util.js';
-import { log, formatLogMessage } from './utils/log-util.js'
+import { log, formatLogMessage } from './utils/log-util.js';
 import { getRedisCaches, judgeRedisValid } from "./utils/redis-util.js";
 import { cleanupExpiredIPs, findUrlById, getCommentCache } from "./utils/cache-util.js";
 import { formatDanmuResponse } from "./utils/danmu-util.js";
 import { getBangumi, getComment, getCommentByUrl, matchAnime, searchAnime, searchEpisodes } from "./apis/dandan-api.js";
+
+// ✅ 数据库操作 + Session 管理
 import { 
-  initDatabase,        // ✅ 添加
+  initDatabase,        
   initUserTable,
   verifyUser, 
-  changePassword, 
-  createSession, 
-  verifySession, 
+  changePassword,
+  createSession,
+  verifySession,
   deleteSession,
-  cleanupExpiredSessions 
+  cleanupExpiredSessions
 } from "./utils/db-util.js";
+
+// ✅ Token 生成 + 密码哈希
 import { 
   generateToken, 
   verifyToken, 
-  generateSessionId 
+  generateSessionId
 } from "./utils/auth-util.js";
+
 
 /**
  * 合并写入 Redis：读取现有 -> 合并 patch -> 写回
@@ -629,46 +634,55 @@ function handleLoginPage() {
       }, 3000);
     }
 
-    async function handleLogin(event) {
-      event.preventDefault();
+async function handleLogin(event) {
+  event.preventDefault();
+  
+  const username = document.getElementById('username').value;
+  const password = document.getElementById('password').value;
+  const loginBtn = document.getElementById('loginBtn');
+  
+  loginBtn.disabled = true;
+  loginBtn.textContent = '登录中...';
+  
+  try {
+    const response = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      // 🔥 添加 credentials 确保Cookie被发送
+      credentials: 'same-origin',
+      body: JSON.stringify({ username, password })
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      // 🔥 检查是否成功设置Cookie
+      console.log('[Login] Set-Cookie:', response.headers.get('set-cookie'));
       
-      const username = document.getElementById('username').value;
-      const password = document.getElementById('password').value;
-      const loginBtn = document.getElementById('loginBtn');
-      
-      loginBtn.disabled = true;
-      loginBtn.textContent = '登录中...';
-      
-      try {
-        const response = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ username, password })
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-          // 存储 token 到 localStorage
-          if (result.token) {
-            localStorage.setItem('auth_token', result.token);
-          }
-          
-          // 刷新页面
-          window.location.href = '/';
-        } else {
-          showAlert(result.errorMessage || '登录失败');
-          loginBtn.disabled = false;
-          loginBtn.textContent = '登 录';
-        }
-      } catch (error) {
-        showAlert('网络错误，请稍后重试');
-        loginBtn.disabled = false;
-        loginBtn.textContent = '登 录';
+      // Docker部署不需要手动存储token
+      if (result.token) {
+        localStorage.setItem('auth_token', result.token);
       }
+      
+      // 🔥 延迟跳转,确保Cookie生效
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 100);
+    } else {
+      showAlert(result.errorMessage || '登录失败');
+      loginBtn.disabled = false;
+      loginBtn.textContent = '登 录';
     }
+  } catch (error) {
+    console.error('[Login] Error:', error);
+    showAlert('网络错误,请稍后重试');
+    loginBtn.disabled = false;
+    loginBtn.textContent = '登 录';
+  }
+}
+
   </script>
 </body>
 </html>
@@ -738,44 +752,46 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
 
           log('info', `[auth] ✅ 用户验证成功: ${username}`);
 
-// Docker 部署：创建 Session
-          if (deployPlatform !== 'vercel') {
-            const sessionId = generateSessionId();
-            const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24小时
+// Docker 部署:创建 Session
+if (deployPlatform !== 'vercel') {
+  const sessionId = generateSessionId();
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24小时
 
-            await createSession(sessionId, username, expiresAt);
-            
-            log('info', `[auth] ✅ Session 创建成功: ${sessionId.substring(0, 8)}...`);
+  await createSession(sessionId, username, expiresAt);
+  
+  log('info', `[auth] ✅ Session 创建成功: ${sessionId.substring(0, 8)}...`);
 
-            // 判断是否使用 HTTPS
-            const isHttps = req.headers.get('x-forwarded-proto') === 'https' || 
-                            req.url.startsWith('https://');
+  // 🔥 修复:强制使用HTTP协议(如果你的服务在本地或HTTP环境)
+  const isHttps = req.headers.get('x-forwarded-proto') === 'https' || 
+                  req.url.startsWith('https://');
 
-            const cookieAttributes = [
-              `session_id=${sessionId}`,
-              'HttpOnly',
-              isHttps ? 'Secure' : '',
-              'SameSite=Lax',
-              'Path=/',
-              'Max-Age=86400'
-            ].filter(Boolean).join('; ');
+  const cookieAttributes = [
+    `session_id=${sessionId}`,
+    'HttpOnly',
+    // 🔥 修复:如果是本地开发,移除 Secure 标志
+    isHttps ? 'Secure' : '',  
+    'SameSite=Lax',
+    'Path=/',
+    'Max-Age=86400'
+  ].filter(Boolean).join('; ');
 
-            log('info', `[auth] 设置 Cookie: ${cookieAttributes}`);
+  log('info', `[auth] 设置 Cookie: ${cookieAttributes}`);
 
-            return new Response(
-              JSON.stringify({
-                success: true,
-                message: '登录成功'
-              }),
-              {
-                status: 200,
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Set-Cookie': cookieAttributes
-                }
-              }
-            );
-          }
+  return new Response(
+    JSON.stringify({
+      success: true,
+      message: '登录成功'
+    }),
+    {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Set-Cookie': cookieAttributes
+      }
+    }
+  );
+}
+
 
 
           // Vercel 部署：生成 JWT Token
@@ -885,30 +901,33 @@ if (needsAuth) {
   let isAuthenticated = false;
   let username = null;
 
-  // Docker 部署：优先检查 Session Cookie
-  if (globals.databaseValid && deployPlatform !== 'vercel') {
-    const cookies = req.headers.get('cookie');
-    log('info', `[auth] 检查 Cookie: ${cookies ? '存在' : '不存在'}`);
+// Docker 部署:优先检查 Session Cookie
+if (globals.databaseValid && deployPlatform !== 'vercel') {
+  const cookies = req.headers.get('cookie');
+  log('info', `[auth] 检查 Cookie: ${cookies ? '存在' : '不存在'}`);
+  
+  if (cookies) {
+    // 🔥 添加调试日志
+    log('info', `[auth] Cookie 内容: ${cookies}`);
     
-    if (cookies) {
-      log('info', `[auth] Cookie 内容: ${cookies}`);
-      const sessionMatch = cookies.match(/session_id=([^;]+)/);
-      if (sessionMatch) {
-        const sessionId = sessionMatch[1];
-        log('info', `[auth] 找到 Session ID: ${sessionId.substring(0, 8)}...`);
-        
-        username = await verifySession(sessionId);
-        if (username) {
-          isAuthenticated = true;
-          log('info', `[auth] ✅ Session 验证成功: ${username}`);
-        } else {
-          log('warn', `[auth] ❌ Session 验证失败或已过期`);
-        }
+    const sessionMatch = cookies.match(/session_id=([^;]+)/);
+    if (sessionMatch) {
+      const sessionId = sessionMatch[1];
+      log('info', `[auth] 找到 Session ID: ${sessionId.substring(0, 8)}...`);
+      
+      username = await verifySession(sessionId);
+      if (username) {
+        isAuthenticated = true;
+        log('info', `[auth] ✅ Session 验证成功: ${username}`);
       } else {
-        log('warn', `[auth] Cookie 中没有找到 session_id`);
+        log('warn', `[auth] ❌ Session 验证失败或已过期`);
       }
+    } else {
+      log('warn', `[auth] Cookie 中没有找到 session_id`);
     }
   }
+}
+
 
 
   // Vercel 部署或 Session 失效：检查 JWT Token
