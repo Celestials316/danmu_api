@@ -4467,10 +4467,22 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
         loadedFrom.push('内存');
       }
 
+      // 🔥 新增：将正则表达式转换为字符串，避免前端显示 [object Object]
+      const serializedConfig = {};
+      for (const [key, value] of Object.entries(config)) {
+        if (value instanceof RegExp) {
+          // 转换为可读的正则字符串（仅保留源字符串，不含 / 和标志）
+          serializedConfig[key] = value.source;
+          log("info", `[config] 正则表达式 ${key} 已转换为字符串: ${value.source.substring(0, 50)}...`);
+        } else {
+          serializedConfig[key] = value;
+        }
+      }
+
       log("info", `[config] 配置加载成功，来源: ${loadedFrom.join('、')}`);
       return jsonResponse({
         success: true,
-        config,
+        config: serializedConfig,  // 🔥 返回序列化后的配置
         loadedFrom
       });
 
@@ -4482,6 +4494,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       }, 500);
     }
   }
+
  // --- 校验 token ---
 const parts = path.split("/").filter(Boolean);
 
