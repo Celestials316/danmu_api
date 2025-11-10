@@ -4,6 +4,18 @@ import { Envs } from './envs.js';
 async function importDbUtil() {
   return await import('../utils/db-util.js');
 }
+async function importDbUtil() {
+  return await import('../utils/db-util.js');
+}
+
+// 🔥 新增：auth-util 动态导入
+async function importAuthUtil() {
+  return await import('../utils/auth-util.js');
+}
+
+async function importRedisUtil() {
+  return await import('../utils/redis-util.js');
+}
 
 async function importRedisUtil() {
   return await import('../utils/redis-util.js');
@@ -24,6 +36,10 @@ const Globals = {
   redisValid: false,
   redisCacheInitialized: false,
   configLoaded: false,
+  
+  // 🔥 新增：认证状态
+  currentUser: null,  // 当前登录用户
+
 
   // 静态常量
   VERSION: '1.7.3',
@@ -71,6 +87,20 @@ const Globals = {
     this.configLoaded = true;
     console.log('[Globals] 配置初始化完成');
     console.log('[Globals] 当前 TOKEN:', this.envs.TOKEN);
+    // 标记配置已加载
+    this.configLoaded = true;
+    console.log('[Globals] 配置初始化完成');
+    console.log('[Globals] 当前 TOKEN:', this.envs.TOKEN);
+
+    // 🔥 新增：初始化管理员用户（仅 Docker 部署且数据库可用）
+    if (deployPlatform !== 'vercel' && this.envs.databaseUrl) {
+      try {
+        const { initAdminUser } = await importAuthUtil();
+        await initAdminUser();
+      } catch (error) {
+        console.error('[Globals] 初始化管理员用户失败:', error.message);
+      }
+    }
 
     return this.getConfig();
   },
