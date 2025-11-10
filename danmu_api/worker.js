@@ -5,7 +5,19 @@ import { getRedisCaches, judgeRedisValid } from "./utils/redis-util.js";
 import { cleanupExpiredIPs, findUrlById, getCommentCache } from "./utils/cache-util.js";
 import { formatDanmuResponse } from "./utils/danmu-util.js";
 import { getBangumi, getComment, getCommentByUrl, matchAnime, searchAnime, searchEpisodes } from "./apis/dandan-api.js";
-
+import { 
+  verifyUser, 
+  changePassword, 
+  createSession, 
+  verifySession, 
+  deleteSession,
+  cleanupExpiredSessions 
+} from "./utils/db-util.js";
+import { 
+  generateToken, 
+  verifyToken, 
+  generateSessionId 
+} from "./utils/auth-util.js";
 let globals;
 
 /**
@@ -392,7 +404,282 @@ function getRealEnvValue(key) {
   // 如果都没有，返回空字符串
   return '';
 }
+function handleLoginPage() {
+  const html = `
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>弹幕 API 管理后台 - 登录</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .login-container {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      padding: 50px 40px;
+      width: 100%;
+      max-width: 420px;
+      animation: slideIn 0.5s ease-out;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .login-header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .login-logo {
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40px;
+      margin: 0 auto 20px;
+      box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+    }
+
+    .login-title {
+      font-size: 28px;
+      font-weight: 700;
+      color: #2d3748;
+      margin-bottom: 8px;
+    }
+
+    .login-subtitle {
+      font-size: 14px;
+      color: #718096;
+    }
+
+    .form-group {
+      margin-bottom: 24px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      color: #2d3748;
+      margin-bottom: 8px;
+    }
+
+    .form-input {
+      width: 100%;
+      height: 50px;
+      padding: 0 16px;
+      background: #f7fafc;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      font-size: 15px;
+      color: #2d3748;
+      transition: all 0.3s ease;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: #667eea;
+      background: #fff;
+      box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+    }
+
+    .login-btn {
+      width: 100%;
+      height: 50px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .login-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+    }
+
+    .login-btn:active {
+      transform: translateY(0);
+    }
+
+    .login-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .alert {
+      padding: 12px 16px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      display: none;
+    }
+
+    .alert.show {
+      display: block;
+      animation: shake 0.5s ease;
+    }
+
+    .alert-error {
+      background: #fee;
+      color: #c53030;
+      border: 1px solid #fc8181;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-10px); }
+      75% { transform: translateX(10px); }
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 30px;
+      font-size: 13px;
+      color: #a0aec0;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <div class="login-header">
+      <div class="login-logo">🎬</div>
+      <h1 class="login-title">弹幕 API 管理后台</h1>
+      <p class="login-subtitle">请登录以继续</p>
+    </div>
+
+    <div id="alertBox" class="alert alert-error"></div>
+
+    <form id="loginForm" onsubmit="handleLogin(event)">
+      <div class="form-group">
+        <label class="form-label">用户名</label>
+        <input 
+          type="text" 
+          class="form-input" 
+          id="username" 
+          placeholder="请输入用户名"
+          required
+        >
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">密码</label>
+        <input 
+          type="password" 
+          class="form-input" 
+          id="password" 
+          placeholder="请输入密码"
+          required
+        >
+      </div>
+
+      <button type="submit" class="login-btn" id="loginBtn">
+        登 录
+      </button>
+    </form>
+
+    <div class="footer">
+      弹幕 API 服务 v${globals.VERSION}
+    </div>
+  </div>
+
+  <script>
+    function showAlert(message) {
+      const alertBox = document.getElementById('alertBox');
+      alertBox.textContent = message;
+      alertBox.classList.add('show');
+      
+      setTimeout(() => {
+        alertBox.classList.remove('show');
+      }, 3000);
+    }
+
+    async function handleLogin(event) {
+      event.preventDefault();
+      
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+      const loginBtn = document.getElementById('loginBtn');
+      
+      loginBtn.disabled = true;
+      loginBtn.textContent = '登录中...';
+      
+      try {
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ username, password })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          // 存储 token 到 localStorage
+          if (result.token) {
+            localStorage.setItem('auth_token', result.token);
+          }
+          
+          // 刷新页面
+          window.location.href = '/';
+        } else {
+          showAlert(result.errorMessage || '登录失败');
+          loginBtn.disabled = false;
+          loginBtn.textContent = '登 录';
+        }
+      } catch (error) {
+        showAlert('网络错误，请稍后重试');
+        loginBtn.disabled = false;
+        loginBtn.textContent = '登 录';
+      }
+    }
+  </script>
+</body>
+</html>
+  `;
+
+  return new Response(html, {
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-cache'
+    }
+  });
+}
 async function handleRequest(req, env, deployPlatform, clientIp) {
   // 🔥 强制刷新全局配置（解决 TOKEN 缓存问题）
   if (Globals.configLoaded) {
@@ -406,6 +693,70 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
   globals.deployPlatform = deployPlatform;
 
   const url = new URL(req.url);
+
+  // ========== 认证检查（排除登录接口和静态资源）==========
+  const excludedPaths = [
+    '/api/auth/login',
+    '/api/auth/check',
+    '/favicon.ico',
+    '/robots.txt'
+  ];
+
+  const needsAuth = !excludedPaths.some(p => url.pathname.startsWith(p));
+
+  if (needsAuth) {
+    let isAuthenticated = false;
+    let username = null;
+
+    // Docker 部署：优先检查 Session Cookie
+    if (globals.databaseValid && deployPlatform !== 'vercel') {
+      const cookies = req.headers.get('cookie');
+      if (cookies) {
+        const sessionMatch = cookies.match(/session_id=([^;]+)/);
+        if (sessionMatch) {
+          const sessionId = sessionMatch[1];
+          username = await verifySession(sessionId);
+          if (username) {
+            isAuthenticated = true;
+            log('info', `[auth] Session 验证成功: ${username}`);
+          }
+        }
+      }
+    }
+
+    // Vercel 部署或 Session 失效：检查 JWT Token
+    if (!isAuthenticated) {
+      const authHeader = req.headers.get('authorization');
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+        const payload = verifyToken(token);
+        if (payload) {
+          isAuthenticated = true;
+          username = payload.username;
+          log('info', `[auth] JWT Token 验证成功: ${username}`);
+        }
+      }
+    }
+
+    // 未认证，返回 401
+    if (!isAuthenticated) {
+      log('warn', `[auth] 未授权访问: ${url.pathname}`);
+      
+      // 如果是首页，返回登录页面
+      if (url.pathname === '/') {
+        return handleLoginPage();
+      }
+      
+      return jsonResponse({
+        errorCode: 401,
+        success: false,
+        errorMessage: '未授权访问，请先登录'
+      }, 401);
+    }
+
+    // 认证成功，将用户信息存储到 globals
+    globals.currentUser = username;
+  }
   let path = url.pathname;
   const method = req.method;
 
@@ -418,6 +769,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
   if (globals.redisValid && path !== "/favicon.ico" && path !== "/robots.txt") {
     await getRedisCaches();
   }
+
 
   function handleHomepage() {
     log("info", "Accessed homepage");
@@ -2818,6 +3170,23 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
      </div>
    </nav>
  </aside>
+        
+        <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid var(--border-color);">
+          <div class="nav-item" onclick="showModal('changePasswordModal')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke-width="2"/>
+              <path d="M7 11V7a5 5 0 0110 0v4" stroke-width="2"/>
+            </svg>
+            <span>修改密码</span>
+          </div>
+          
+          <div class="nav-item" onclick="handleLogout()" style="color: var(--error);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4m7 14l5-5m0 0l-5-5m5 5H9" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <span>退出登录</span>
+          </div>
+        </div>
 
  <!-- 主内容区 -->
  <main class="main-content">
@@ -3290,6 +3659,48 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
  </div>
 
  <!-- 编辑VOD服务器模态框 -->
+<!-- 修改密码模态框 -->
+    <div class="modal-overlay" id="changePasswordModal">
+      <div class="modal">
+        <div class="modal-header">
+          <h3 class="modal-title">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke-width="2"/>
+              <path d="M7 11V7a5 5 0 0110 0v4" stroke-width="2"/>
+            </svg>
+            修改密码
+          </h3>
+          <button class="modal-close" onclick="closeModal('changePasswordModal')">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor">
+              <path d="M6 18L18 6M6 6l12 12" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">当前密码</label>
+            <input type="password" class="form-input" id="currentPassword" placeholder="请输入当前密码">
+          </div>
+          <div class="form-group">
+            <label class="form-label">新密码</label>
+            <input type="password" class="form-input" id="newPassword" placeholder="请输入新密码（至少8位）">
+          </div>
+          <div class="form-group">
+            <label class="form-label">确认新密码</label>
+            <input type="password" class="form-input" id="confirmPassword" placeholder="请再次输入新密码">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="closeModal('changePasswordModal')">取消</button>
+          <button class="btn btn-primary" onclick="handleChangePassword()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path d="M5 13l4 4L19 7" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            确认修改
+          </button>
+        </div>
+      </div>
+    </div>
  <div class="modal-overlay" id="editVodModal">
    <div class="modal">
      <div class="modal-header">
@@ -3348,6 +3759,105 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
 
    // ==================== 环境变量描述字典 ====================
    const ENV_DESCRIPTIONS = ${JSON.stringify(ENV_DESCRIPTIONS)};
+      // ==================== 认证管理 ====================
+      function getAuthToken() {
+        return localStorage.getItem('auth_token');
+      }
+
+      function setAuthHeader(headers = {}) {
+        const token = getAuthToken();
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+        return headers;
+      }
+
+      async function handleChangePassword() {
+        const currentPassword = document.getElementById('currentPassword').value;
+        const newPassword = document.getElementById('newPassword').value;
+        const confirmPassword = document.getElementById('confirmPassword').value;
+
+        if (!currentPassword || !newPassword || !confirmPassword) {
+          showToast('请填写所有字段', 'error');
+          return;
+        }
+
+        if (newPassword.length < 8) {
+          showToast('新密码长度至少为8位', 'error');
+          return;
+        }
+
+        if (newPassword !== confirmPassword) {
+          showToast('两次输入的新密码不一致', 'error');
+          return;
+        }
+
+        try {
+          const response = await fetch('/api/auth/change-password', {
+            method: 'POST',
+            headers: setAuthHeader({
+              'Content-Type': 'application/json'
+            }),
+            body: JSON.stringify({
+              currentPassword,
+              newPassword
+            })
+          });
+
+          const result = await response.json();
+
+          if (result.success) {
+            showToast('密码修改成功，请重新登录', 'success');
+            setTimeout(() => {
+              handleLogout();
+            }, 1500);
+          } else {
+            showToast(result.errorMessage || '密码修改失败', 'error');
+          }
+        } catch (error) {
+          showToast('网络错误，请稍后重试', 'error');
+        }
+      }
+
+      async function handleLogout() {
+        if (!confirm('确定要退出登录吗？')) {
+          return;
+        }
+
+        try {
+          await fetch('/api/auth/logout', {
+            method: 'POST',
+            headers: setAuthHeader()
+          });
+        } catch (error) {
+          console.error('退出登录失败:', error);
+        }
+
+        localStorage.removeItem('auth_token');
+        window.location.href = '/';
+      }
+
+      // 拦截所有 fetch 请求，自动添加认证头
+      const originalFetch = window.fetch;
+      window.fetch = function(...args) {
+        const [url, options = {}] = args;
+        
+        // 为所有 API 请求自动添加认证头
+        if (typeof url === 'string' && url.startsWith('/api/')) {
+          options.headers = setAuthHeader(options.headers || {});
+        }
+        
+        return originalFetch(url, options).then(response => {
+          // 如果返回 401，自动跳转到登录页
+          if (response.status === 401) {
+            localStorage.removeItem('auth_token');
+            window.location.href = '/';
+            return Promise.reject(new Error('Unauthorized'));
+          }
+          return response;
+        });
+      };
+
 
    // ==================== 初始化 ====================
    document.addEventListener('DOMContentLoaded', function() {
@@ -4456,6 +4966,303 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       }, 500);
     }
   }
+  
+  // ========== 认证和配置 API（无需 Token 验证）==========
+  switch (path) {
+    case '/api/auth/login':
+      if (req.method !== 'POST') {
+        return jsonResponse({ success: false, errorCode: 405, errorMessage: '方法不允许' }, 405);
+      }
+      
+      try {
+        const { username, password } = await req.json();
+        
+        if (!username || !password) {
+          return jsonResponse({ 
+            success: false, 
+            errorCode: 400, 
+            errorMessage: '用户名和密码不能为空' 
+          });
+        }
+        
+        const isValid = await verifyUser(username, password);
+        if (!isValid) {
+          log('warn', `[auth] 登录失败: ${username}`);
+          return jsonResponse({ 
+            success: false, 
+            errorCode: 401, 
+            errorMessage: '用户名或密码错误' 
+          });
+        }
+        
+        log('info', `[auth] ✅ 登录成功: ${username}`);
+        
+        const response = jsonResponse({ 
+          success: true, 
+          errorCode: 0,
+          message: '登录成功'
+        });
+        
+        if (globals.databaseValid && deployPlatform !== 'vercel') {
+          const sessionId = generateSessionId();
+          await createSession(username, sessionId, 24);
+          
+          response.headers.set('Set-Cookie', 
+            `session_id=${sessionId}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${24 * 60 * 60}`
+          );
+          
+          log('info', `[auth] Session 创建成功: ${sessionId}`);
+        } else {
+          const token = generateToken(username);
+          const result = await response.json();
+          result.token = token;
+          
+          return jsonResponse(result);
+        }
+        
+        return response;
+      } catch (error) {
+        log('error', `[auth] 登录处理失败: ${error.message}`);
+        return jsonResponse({ 
+          success: false, 
+          errorCode: 500, 
+          errorMessage: '登录处理失败' 
+        });
+      }
+
+    case '/api/auth/logout':
+      if (req.method !== 'POST') {
+        return jsonResponse({ success: false, errorCode: 405, errorMessage: '方法不允许' }, 405);
+      }
+      
+      try {
+        if (globals.databaseValid && deployPlatform !== 'vercel') {
+          const cookies = req.headers.get('cookie');
+          if (cookies) {
+            const sessionMatch = cookies.match(/session_id=([^;]+)/);
+            if (sessionMatch) {
+              await deleteSession(sessionMatch[1]);
+            }
+          }
+        }
+        
+        const response = jsonResponse({ 
+          success: true, 
+          errorCode: 0,
+          message: '退出成功' 
+        });
+        
+        response.headers.set('Set-Cookie', 
+          'session_id=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0'
+        );
+        
+        log('info', `[auth] ✅ 退出登录: ${globals.currentUser}`);
+        return response;
+      } catch (error) {
+        log('error', `[auth] 退出登录失败: ${error.message}`);
+        return jsonResponse({ 
+          success: false, 
+          errorCode: 500, 
+          errorMessage: '退出登录失败' 
+        });
+      }
+
+    case '/api/auth/check':
+      return jsonResponse({ 
+        success: true, 
+        errorCode: 0,
+        isAuthenticated: !!globals.currentUser,
+        username: globals.currentUser 
+      });
+
+    case '/api/auth/change-password':
+      if (req.method !== 'POST') {
+        return jsonResponse({ success: false, errorCode: 405, errorMessage: '方法不允许' }, 405);
+      }
+      
+      try {
+        const { currentPassword, newPassword } = await req.json();
+        
+        if (!currentPassword || !newPassword) {
+          return jsonResponse({ 
+            success: false, 
+            errorCode: 400, 
+            errorMessage: '当前密码和新密码不能为空' 
+          });
+        }
+        
+        if (newPassword.length < 8) {
+          return jsonResponse({ 
+            success: false, 
+            errorCode: 400, 
+            errorMessage: '新密码长度至少为8位' 
+          });
+        }
+        
+        const isValid = await verifyUser(globals.currentUser, currentPassword);
+        if (!isValid) {
+          return jsonResponse({ 
+            success: false, 
+            errorCode: 401, 
+            errorMessage: '当前密码错误' 
+          });
+        }
+        
+        const success = await changePassword(globals.currentUser, newPassword);
+        if (!success) {
+          return jsonResponse({ 
+            success: false, 
+            errorCode: 500, 
+            errorMessage: '密码修改失败' 
+          });
+        }
+        
+        log('info', `[auth] ✅ 密码修改成功: ${globals.currentUser}`);
+        
+        if (globals.databaseValid && deployPlatform !== 'vercel') {
+          await cleanupExpiredSessions();
+        }
+        
+        return jsonResponse({ 
+          success: true, 
+          errorCode: 0,
+          message: '密码修改成功，请重新登录' 
+        });
+      } catch (error) {
+        log('error', `[auth] 修改密码失败: ${error.message}`);
+        return jsonResponse({ 
+          success: false, 
+          errorCode: 500, 
+          errorMessage: '密码修改失败' 
+        });
+      }
+
+    case '/api/config/save':
+      if (method !== 'POST') break;
+      
+      try {
+        const body = await req.json();
+        const { config } = body;
+
+        if (!config || typeof config !== 'object') {
+          return jsonResponse({
+            success: false,
+            errorMessage: "无效的配置数据"
+          }, 400);
+        }
+
+        log("info", `[config] 开始保存环境变量配置，共 ${Object.keys(config).length} 个: ${Object.keys(config).join(', ')}`);
+
+        let dbSaved = false;
+        if (globals.databaseValid) {
+          try {
+            const { saveEnvConfigs } = await import('./utils/db-util.js');
+            dbSaved = await saveEnvConfigs(config);
+            log("info", `[config] 数据库保存${dbSaved ? '成功' : '失败'}`);
+          } catch (e) {
+            log("warn", `[config] 保存到数据库失败: ${e.message}`);
+          }
+        }
+
+        let redisSaved = false;
+        if (globals.redisValid) {
+          redisSaved = await mergeSaveToRedis('env_configs', config);
+          log("info", `[config] Redis保存${redisSaved ? '成功' : '失败'}`);
+        }
+
+        try {
+          const { Globals } = await import('./configs/globals.js');
+          Globals.applyConfig(config);
+          log("info", `[config] 配置已应用到运行时`);
+        } catch (e) {
+          log("error", `[config] 应用配置到运行时失败: ${e.message}`);
+          throw e;
+        }
+
+        try {
+          await applyConfigPatch(config);
+          log("info", `[config] 派生缓存已重建`);
+        } catch (e) {
+          log("warn", `[config] 重建派生缓存失败（可忽略）: ${e.message}`);
+        }
+
+        const savedTo = [];
+        if (dbSaved) savedTo.push('数据库');
+        if (redisSaved) savedTo.push('Redis');
+        savedTo.push('运行时内存');
+
+        log("info", `[config] 配置保存完成: ${savedTo.join('、')}`);
+        return jsonResponse({
+          success: true,
+          message: `配置已保存至 ${savedTo.join('、')}，并立即生效`,
+          savedTo,
+          appliedConfig: config
+        });
+
+      } catch (error) {
+        log("error", `[config] 保存配置失败: ${error.message}\n${error.stack}`);
+        return jsonResponse({
+          success: false,
+          errorMessage: `保存失败: ${error.message}`
+        }, 500);
+      }
+
+    case '/api/config/load':
+      if (method !== 'GET') break;
+      
+      try {
+        log("info", "[config] 开始加载环境变量配置");
+
+        let config = {};
+        let loadedFrom = [];
+
+        if (globals.databaseValid) {
+          const { loadEnvConfigs } = await import('./utils/db-util.js');
+          const dbConfig = await loadEnvConfigs();
+          if (Object.keys(dbConfig).length > 0) {
+            config = { ...config, ...dbConfig };
+            loadedFrom.push('数据库');
+          }
+        }
+
+        if (globals.redisValid && Object.keys(config).length === 0) {
+          const { getRedisKey } = await import('./utils/redis-util.js');
+          const result = await getRedisKey('env_configs');
+          if (result && result.result) {
+            try {
+              const redisConfig = JSON.parse(result.result);
+              config = { ...config, ...redisConfig };
+              loadedFrom.push('Redis');
+            } catch (e) {
+              log("warn", "[config] Redis 配置解析失败");
+            }
+          }
+        }
+
+        if (Object.keys(config).length === 0) {
+          config = globals.accessedEnvVars;
+          loadedFrom.push('内存');
+        }
+
+        log("info", `[config] 配置加载成功，来源: ${loadedFrom.join('、')}`);
+        return jsonResponse({
+          success: true,
+          config,
+          loadedFrom
+        });
+
+      } catch (error) {
+        log("error", `[config] 加载配置失败: ${error.message}`);
+        return jsonResponse({
+          success: false,
+          errorMessage: `加载失败: ${error.message}`
+        }, 500);
+      }
+  }
+
+  // ========== Token 验证（必须在 switch 之后）==========
+
+  
  // --- 校验 token ---
 const parts = path.split("/").filter(Boolean);
 
@@ -4703,7 +5510,17 @@ if (currentToken === "87654321") {
   return jsonResponse({ message: "Not found" }, 404);
 }
 
-
+// ==================== 定时任务：清理过期 Session ====================
+if (globals.databaseValid && deployPlatform !== 'vercel') {
+  setInterval(async () => {
+    try {
+      await cleanupExpiredSessions();
+      log('info', '[auth] ✅ 定时清理过期 Session 完成');
+    } catch (error) {
+      log('error', `[auth] ❌ 清理过期 Session 失败: ${error.message}`);
+    }
+  }, 60 * 60 * 1000); // 每小时执行一次
+}
 // --- Cloudflare Workers 入口 ---
 export default {
   async fetch(request, env, ctx) {
