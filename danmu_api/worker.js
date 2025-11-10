@@ -279,7 +279,8 @@ function getRealEnvValue(key) {
 async function handleRequest(req, env, deployPlatform, clientIp) {
   // 注意：这里改成 await
   globals = await Globals.init(env, deployPlatform);
-
+  globals.deployPlatform = deployPlatform;  // 保存 deployPlatform 供后续使用
+  
   const url = new URL(req.url);
   let path = url.pathname;
   const method = req.method;
@@ -4226,7 +4227,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       }
 
       // 3) 运行时立即生效（统一同步 + 派生缓存重建）
-      await applyConfigPatch(config, deployPlatform);
+      await applyConfigPatch(config, globals.deployPlatform || 'unknown');
 
       const savedTo = [];
       if (dbSaved) savedTo.push('数据库');
