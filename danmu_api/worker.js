@@ -681,6 +681,72 @@ function handleLoginPage() {
     }
   });
 }
+
+// ========== Session 验证函数 ==========
+async function verifySession(sessionId) {
+  log('info', `[Session] 🔍 开始验证 Session: ${sessionId.substring(0, 8)}...`);
+  
+  // 检查数据库状态
+  if (!globals.db || !globals.databaseValid) {
+    log('error', '[Session] ❌ 数据库连接不存在！');
+    return null;
+  }
+
+  try {
+    // 🔥 先查询所有 Session（调试用）
+    const allSessions = await globals.db
+      .selectFrom('sessions')
+      .selectAll()
+      .execute();
+    
+    log('info', `[Session] 📊 数据库中共有 ${allSessions.length} 个 Session`);
+    if (allSessions.length > 0) {
+      allSessions.forEach(s => {
+        log('info', `[Session]   - ${s.session_id.substring(0, 8)}... (${s.username}, 过期: ${s.expires_at})`);
+      });
+    }
+
+    // 查询当前 Session
+    log('info', `[Session] 🔎 查询 Session: ${sessionId}`);
+    const session = await globals.db
+      .selectFrom('sessions')
+      .selectAll()
+      .where('session_id', '=', sessionId)
+      .executeTakeFirst();
+
+    if (!session) {
+      log('error', `[Session] ❌ 未找到 Session: ${sessionId.substring(0, 8)}...`);
+      return null;
+    }
+
+    log('info', `[Session] ✅ 找到 Session: ${JSON.stringify(session)}`);
+
+    // 检查过期时间
+    const now = new Date();
+    const expiresAt = new Date(session.expires_at);
+    log('info', `[Session] ⏰ 当前时间: ${now.toISOString()}`);
+    log('info', `[Session] ⏰ 过期时间: ${expiresAt.toISOString()}`);
+    
+    if (now > expiresAt) {
+      log('warn', `[Session] ⏰ Session 已过期`);
+      // 删除过期 Session
+      await globals.db
+        .deleteFrom('sessions')
+        .where('session_id', '=', sessionId)
+        .execute();
+      return null;
+    }
+
+    log('info', `[Session] ✅ Session 验证成功，返回用户名: ${session.username}`);
+    return session.username; // 🔥 返回用户名，不是 session 对象
+
+  } catch (error) {
+    log('error', `[Session] ❌ 验证失败: ${error.message}`);
+    log('error', `[Session] ❌ 错误堆栈: ${error.stack}`);
+    return null;
+  }
+}
+
 async function handleRequest(req, env, deployPlatform, clientIp) {
   // 🔥 只在首次初始化，不要每次请求都重载
   if (!Globals.configLoaded) {
@@ -705,6 +771,111 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
   const path = url.pathname;
   const method = req.method;
 
+
+// ========== Session 管理函数 ==========
+
+// 创建 Session
+async function createSession(username) {
+  const sessionId = crypto.randomBytes(32).toString('hex');
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24小时
+  
+  log('info', `[Session] 📝 创建 Session: ${sessionId.substring(0, 8)}...`);
+  log('info', `[Session] 👤 用户: ${username}`);
+  log('info', `[Session] ⏰ 过期时间: ${expiresAt.toISOString()}`);
+
+  try {
+    await globals.db
+      .insertInto('sessions')
+      .values({
+        session_id: sessionId,
+        username: username,
+        created_at: new Date(),
+        expires_at: expiresAt
+      })
+      .execute();
+
+    log('info', `[Session] ✅ Session 写入数据库成功`);
+
+    // 立即验证写入
+    const verify = await globals.db
+      .selectFrom('sessions')
+      .selectAll()
+      .where('session_id', '=', sessionId)
+      .executeTakeFirst();
+
+    if (verify) {
+      log('info', `[Session] ✅ 写入验证成功: ${JSON.stringify(verify)}`);
+    } else {
+      log('error', `[Session] ❌ 写入验证失败`);
+    }
+
+    return sessionId;
+  } catch (error) {
+    log('error', `[Session] ❌ 创建失败: ${error.message}`);
+    throw error;
+  }
+}
+
+// 验证 Session
+async function verifySession(sessionId) {
+  log('info', `[Session] 🔍 开始验证 Session: ${sessionId.substring(0, 8)}...`);
+  
+  if (!globals.db || !globals.databaseValid) {
+    log('error', '[Session] ❌ 数据库连接不存在');
+    return null;
+  }
+
+  try {
+    // 查询所有 Session（调试）
+    const allSessions = await globals.db
+      .selectFrom('sessions')
+      .selectAll()
+      .execute();
+    
+    log('info', `[Session] 📊 数据库中共有 ${allSessions.length} 个 Session`);
+    if (allSessions.length > 0) {
+      allSessions.forEach(s => {
+        log('info', `[Session]   - ${s.session_id.substring(0, 8)}... (${s.username}, 过期: ${s.expires_at})`);
+      });
+    }
+
+    // 查询当前 Session
+    const session = await globals.db
+      .selectFrom('sessions')
+      .selectAll()
+      .where('session_id', '=', sessionId)
+      .executeTakeFirst();
+
+    if (!session) {
+      log('error', `[Session] ❌ 未找到 Session`);
+      return null;
+    }
+
+    log('info', `[Session] ✅ 找到 Session: ${JSON.stringify(session)}`);
+
+    // 检查过期
+    const now = new Date();
+    const expiresAt = new Date(session.expires_at);
+    log('info', `[Session] ⏰ 当前: ${now.toISOString()}, 过期: ${expiresAt.toISOString()}`);
+    
+    if (now > expiresAt) {
+      log('warn', `[Session] ⏰ Session 已过期`);
+      await globals.db
+        .deleteFrom('sessions')
+        .where('session_id', '=', sessionId)
+        .execute();
+      return null;
+    }
+
+    log('info', `[Session] ✅ 验证成功，返回用户名: ${session.username}`);
+    return session.username;
+
+  } catch (error) {
+    log('error', `[Session] ❌ 验证失败: ${error.message}`);
+    log('error', `[Session] 堆栈: ${error.stack}`);
+    return null;
+  }
+}
 
   // ========== 登录接口（必须在认证检查之前！）==========
   if (path === '/api/auth/login' && method === 'POST') {
