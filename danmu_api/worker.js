@@ -39,7 +39,7 @@ async function mergeSaveToRedis(key, patch) {
 async function applyConfigPatch(patch) {
   // 从 globals 获取 deployPlatform（已在 handleRequest 中设置）
   const deployPlatform = globals.deployPlatform || 'unknown';
-  
+
   // 1) 更新运行时快照
   for (const [k, v] of Object.entries(patch)) {
     globals.envs[k] = v;
@@ -273,27 +273,27 @@ const ENV_DESCRIPTIONS = {
   'TOKEN': '自定义API访问令牌，使用默认87654321可以不填写',
   'VERSION': '当前服务版本号（自动生成）',
   'LOG_LEVEL': '日志级别：error（仅错误）/ warn（警告+错误）/ info（全部日志），默认info',
-  
+
   // ========== 数据源配置 ==========
   'OTHER_SERVER': '兜底第三方弹幕服务器，当所有平台都获取失败时使用，默认api.danmu.icu',
   'VOD_SERVERS': 'VOD影视采集站列表，格式：名称@URL,名称@URL...（多个用逗号分隔）',
   'VOD_RETURN_MODE': 'VOD返回模式：all（返回所有站点结果）/ fastest（仅返回最快响应的站点），默认all',
   'VOD_REQUEST_TIMEOUT': 'VOD单个请求超时时间（毫秒），默认10000（10秒）',
-  
+
   // ========== 平台认证配置 ==========
   'BILIBILI_COOKIE': 'B站Cookie，用于获取完整弹幕数据（最少需要SESSDATA字段）',
   'TMDB_API_KEY': 'TMDB API密钥，用于将外语标题转换为中文标题，提升巴哈姆特搜索准确度',
-  
+
   // ========== 数据源优先级 ==========
   'SOURCE_ORDER': '数据源优先级排序，影响自动匹配时的搜索顺序（如：bilibili,iqiyi,youku）',
   'PLATFORM_ORDER': '弹幕平台优先级，优先返回指定平台的弹幕数据',
-  
+
   // ========== 标题匹配配置 ==========
   'TITLE_TO_CHINESE': '在match接口自动匹配时，是否将外语标题转换成中文标题（需配合TMDB_API_KEY使用），默认false',
   'STRICT_TITLE_MATCH': '严格标题匹配模式：仅匹配剧名开头或完全匹配，过滤不相关结果，默认false',
   'EPISODE_TITLE_FILTER': '剧集标题正则过滤表达式，用于过滤预告、花絮等非正片内容',
   'ENABLE_EPISODE_FILTER': '手动选择接口（select）是否启用集标题过滤，默认false',
-  
+
   // ========== 弹幕处理配置 ==========
   'DANMU_OUTPUT_FORMAT': '弹幕输出格式：json（JSON格式）/ xml（Bilibili XML格式），默认json',
   'DANMU_SIMPLIFIED': '是否将繁体弹幕转换为简体中文（主要用于巴哈姆特），默认true',
@@ -302,18 +302,18 @@ const ENV_DESCRIPTIONS = {
   'GROUP_MINUTE': '弹幕合并去重时间窗口（分钟），相同内容在该时间内只保留一条，默认1',
   'CONVERT_TOP_BOTTOM_TO_SCROLL': '是否将顶部/底部弹幕转换为滚动弹幕，默认false',
   'WHITE_RATIO': '白色弹幕占比（0-100），-1表示不转换颜色，其他值表示将指定比例弹幕转为白色',
-  
+
   // ========== 性能优化配置 ==========
   'YOUKU_CONCURRENCY': '优酷弹幕请求并发数，默认8，最高16（并发数越高速度越快但资源消耗越大）',
   'SEARCH_CACHE_MINUTES': '搜索结果缓存时间（分钟），减少重复搜索请求，默认1',
   'COMMENT_CACHE_MINUTES': '弹幕数据缓存时间（分钟），减少重复弹幕获取，默认1',
   'REMEMBER_LAST_SELECT': '是否记住用户手动选择结果，优化后续自动匹配准确度，默认true',
   'MAX_LAST_SELECT_MAP': '最后选择映射的缓存大小限制，默认100条（超出后会删除最旧的记录）',
-  
+
   // ========== 网络配置 ==========
   'PROXY_URL': '代理/反代地址，用于访问巴哈姆特和TMDB（支持混合配置，如：bahamut=proxy1,tmdb=proxy2）',
   'RATE_LIMIT_MAX_REQUESTS': '限流配置：同一IP在1分钟内允许的最大请求次数，默认3（防止滥用）',
-  
+
   // ========== 持久化存储配置 ==========
   // Upstash Redis（适用于无服务器平台）
   'UPSTASH_REDIS_REST_URL': 'Upstash Redis服务URL，用于持久化存储防止冷启动数据丢失（适用于Vercel/Netlify等平台）',
@@ -321,7 +321,7 @@ const ENV_DESCRIPTIONS = {
   'redisValid': 'Redis连接状态：已连接 / 未连接（自动检测）',
   'redisUrl': 'Redis服务器地址（显示配置的URL，隐藏敏感信息）',
   'redisToken': 'Redis访问令牌状态（显示是否已配置，隐藏实际令牌）',
-  
+
   // SQLite数据库（通用持久化方案）
   'DATABASE_URL': '数据库连接URL，支持本地SQLite（file:/path/to/db）和Cloudflare D1（libsql://xxx），用于持久化存储缓存和配置数据',
   'DATABASE_AUTH_TOKEN': '数据库认证令牌，远程数据库（如Cloudflare D1）需要配置，本地SQLite文件可不填'
@@ -397,7 +397,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
   // 注意：这里改成 await
   globals = await Globals.init(env, deployPlatform);
   globals.deployPlatform = deployPlatform;  // 保存 deployPlatform 供后续使用
-  
+
   const url = new URL(req.url);
   let path = url.pathname;
   const method = req.method;
@@ -4319,7 +4319,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
  }
 
   // ========== 配置管理 API（在路径规范化之前处理）==========
-  
+
   // POST /api/config/save - 保存环境变量配置（合并持久化 + 运行时立即生效）
   if (path === "/api/config/save" && method === "POST") {
     try {
@@ -4478,7 +4478,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
    path = "/" + parts.slice(1).join("/");
  }
 
- 
+
   log("info", path);
   // ========== 路径规范化开始 ==========
 
@@ -4801,4 +4801,3 @@ export async function netlifyHandler(event, context) {
 }
 
 export { handleRequest };
-
