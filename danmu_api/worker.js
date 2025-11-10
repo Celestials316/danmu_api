@@ -728,7 +728,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
 
           log('info', `[auth] ✅ 用户验证成功: ${username}`);
 
-          // Docker 部署：创建 Session
+// Docker 部署：创建 Session
           if (deployPlatform !== 'vercel') {
             const sessionId = generateSessionId();
             const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24小时
@@ -737,21 +737,36 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
             
             log('info', `[auth] ✅ Session 创建成功: ${sessionId.substring(0, 8)}...`);
 
+            // 判断是否使用 HTTPS
+            const isHttps = req.headers.get('x-forwarded-proto') === 'https' || 
+                            req.url.startsWith('https://');
+
+            const cookieAttributes = [
+              `session_id=${sessionId}`,
+              'HttpOnly',
+              isHttps ? 'Secure' : '',
+              'SameSite=Lax',
+              'Path=/',
+              'Max-Age=86400'
+            ].filter(Boolean).join('; ');
+
+            log('info', `[auth] 设置 Cookie: ${cookieAttributes}`);
+
             return new Response(
               JSON.stringify({
                 success: true,
-                message: '登录成功',
-                sessionId
+                message: '登录成功'
               }),
               {
                 status: 200,
                 headers: {
                   'Content-Type': 'application/json',
-                  'Set-Cookie': `session_id=${sessionId}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=86400`
+                  'Set-Cookie': cookieAttributes
                 }
               }
             );
           }
+
 
           // Vercel 部署：生成 JWT Token
           const token = generateToken(username);
@@ -814,16 +829,28 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
         }
       }
 
-      return new Response(
-        JSON.stringify({ success: true, message: '已退出登录' }),
-        {
-          status: 200,
-          headers: {
-            'Content-Type': 'application/json',
-            'Set-Cookie': 'session_id=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0'
+        const isHttps = req.headers.get('x-forwarded-proto') === 'https' || 
+                        req.url.startsWith('https://');
+
+        const clearCookie = [
+          'session_id=',
+          'HttpOnly',
+          isHttps ? 'Secure' : '',
+          'SameSite=Lax',
+          'Path=/',
+          'Max-Age=0'
+        ].filter(Boolean).join('; ');
+
+        return new Response(
+          JSON.stringify({ success: true, message: '已退出登录' }),
+          {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/json',
+              'Set-Cookie': clearCookie
+            }
           }
-        }
-      );
+        );
     }
 
     return jsonResponse({
