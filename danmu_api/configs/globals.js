@@ -138,7 +138,7 @@ const Globals = {
    */
   applyConfig(config) {
     console.log(`[Globals] 开始应用配置，共 ${Object.keys(config).length} 个`);
-    
+
     for (const [key, value] of Object.entries(config)) {
       const oldValue = this.envs[key];
       this.envs[key] = value;
@@ -175,7 +175,7 @@ const Globals = {
 
     // 更新其他派生属性
     this.updateDerivedProperties(config);
-    
+
     console.log(`[Globals] 配置应用完成`);
   },
 
@@ -184,7 +184,7 @@ const Globals = {
    */
   updateDerivedProperties(config) {
     const changedKeys = Object.keys(config);
-    
+
     // 更新搜索缓存时间
     if (changedKeys.includes('SEARCH_CACHE_MINUTES')) {
       const minutes = parseInt(config.SEARCH_CACHE_MINUTES) || 1;
@@ -197,6 +197,18 @@ const Globals = {
       const minutes = parseInt(config.COMMENT_CACHE_MINUTES) || 1;
       this.envs.commentCacheMinutes = minutes;
       console.log(`[Globals] 评论缓存时间已更新: ${minutes} 分钟`);
+    }
+
+    // 🔥 添加 WHITE_RATIO 处理
+    if (changedKeys.includes('WHITE_RATIO')) {
+      const ratio = parseFloat(config.WHITE_RATIO);
+      if (!isNaN(ratio)) {
+        this.envs.whiteRatio = ratio;
+        this.envs.WHITE_RATIO = ratio; // 同时更新大写版本
+        console.log(`[Globals] WHITE_RATIO 已更新: ${ratio}`);
+      } else {
+        console.warn(`[Globals] WHITE_RATIO 值无效 (${config.WHITE_RATIO})，保持原值`);
+      }
     }
 
     // 更新弹幕限制
@@ -271,7 +283,7 @@ const Globals = {
     if (!platformOrder || platformOrder.trim() === '') {
       return [];
     }
-    
+
     return platformOrder
       .split(',')
       .map(s => s.trim())
