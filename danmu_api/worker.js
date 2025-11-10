@@ -2892,19 +2892,24 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
            </div>
          </div>
          
-         <div class="stat-card">
-           <div class="stat-header">
-             <span class="stat-title">Redis 缓存</span>
-             <div class="stat-icon warning">💾</div>
-           </div>
-           <div class="stat-value">${redisConfigured ? (globals.redisValid ? '在线' : '离线') : '未配置'}</div>
-           <div class="stat-footer">
-             ${redisConfigured 
-               ? (globals.redisValid ? '✅ 持久化存储' : '⚠️ 连接失败') 
-               : '📝 仅内存缓存'}
-           </div>
-         </div>
-       </div>
+            <div class="stat-card">
+              <div class="stat-header">
+                <span class="stat-title">持久化存储</span>
+                <div class="stat-icon warning">💾</div>
+              </div>
+              <div class="stat-value">${
+                globals.databaseValid ? '数据库' : 
+                (redisConfigured && globals.redisValid) ? 'Redis' : 
+                '内存模式'
+              }</div>
+              <div class="stat-footer">
+                ${
+                  globals.databaseValid ? '✅ 数据库存储' : 
+                  (redisConfigured && globals.redisValid) ? '✅ Redis存储' : 
+                  '📝 仅内存缓存'
+                }
+              </div>
+            </div>
 
        <div class="card">
          <div class="card-header">
@@ -2919,24 +2924,36 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
            </span>
          </div>
          <div class="config-grid">
-           <div class="config-item">
-             <div class="config-header">
-               <span class="config-label">Redis 缓存</span>
-               <span class="badge ${redisStatusClass}">
-                 <span class="status-dot"></span>
-                 <span>${redisStatusText}</span>
-               </span>
-             </div>
-             <div class="config-value" style="background: none; border: none; padding: 0;">
-               <code style="color: var(--text-secondary); font-size: 13px;">
-                 ${redisConfigured 
-                   ? (globals.redisValid 
-                     ? '✅ 缓存服务运行正常，已启用持久化存储' 
-                     : '⚠️ 已配置但连接失败，请检查配置信息')
-                   : '📝 未配置，数据仅保存在内存中（重启后丢失）'}
-               </code>
-             </div>
-           </div>
+              <div class="config-item">
+                <div class="config-header">
+                  <span class="config-label">持久化存储</span>
+                  <span class="badge ${
+                    globals.databaseValid ? 'badge-success' : 
+                    (redisConfigured && globals.redisValid) ? 'badge-success' : 
+                    'badge-secondary'
+                  }">
+                    <span class="status-dot"></span>
+                    <span>${
+                      globals.databaseValid ? '数据库在线' : 
+                      (redisConfigured && globals.redisValid) ? 'Redis在线' : 
+                      '未启用'
+                    }</span>
+                  </span>
+                </div>
+                <div class="config-value" style="background: none; border: none; padding: 0;">
+                  <code style="color: var(--text-secondary); font-size: 13px;">
+                    ${
+                      globals.databaseValid 
+                        ? '✅ 数据库存储已启用，配置和缓存将持久化保存' 
+                        : (redisConfigured && globals.redisValid)
+                          ? '✅ Redis存储已启用,配置和缓存将持久化保存'
+                          : (redisConfigured && !globals.redisValid)
+                            ? '⚠️ Redis已配置但连接失败，请检查配置信息'
+                            : '📝 未配置持久化存储，数据仅保存在内存中（重启后丢失）'
+                    }
+                  </code>
+                </div>
+              </div>
            
            <div class="config-item">
              <div class="config-header">
