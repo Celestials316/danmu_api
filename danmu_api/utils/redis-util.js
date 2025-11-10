@@ -57,18 +57,18 @@ export async function getRedisKey(key) {
 }
 
 // 使用 POST 发送 SET 命令，仅在值变化时更新
-export async function setRedisKey(key, value) {
+export async function setRedisKey(key, value, forceUpdate = false) {
   const serializedValue = serializeValue(key, value);
   const currentHash = simpleHash(serializedValue);
 
-  // 检查值是否变化
-  if (globals.lastHashes[key] === currentHash) {
+  // 检查值是否变化（除非强制更新）
+  if (!forceUpdate && globals.lastHashes[key] === currentHash) {
     log("info", `[redis] 键 ${key} 无变化，跳过 SET 请求`);
     return { result: "OK" }; // 模拟成功响应
   }
 
   const url = `${globals.redisUrl}/set/${key}`;
-  log("info", `[redis] 开始发送 SET 请求:`, url);
+  log("info", `[redis] 开始发送 SET 请求: ${url} (强制更新: ${forceUpdate})`);
   try {
     const response = await fetch(url, {
       method: 'POST',
@@ -81,7 +81,7 @@ export async function setRedisKey(key, value) {
     const result = await response.json();
     globals.lastHashes[key] = currentHash; // 更新哈希值
     log("info", `[redis] 键 ${key} 更新成功`);
-    return result; // 预期: ["OK"]
+    return result; // 预期: {result: "OK"}
   } catch (error) {
     log("error", `[redis] SET 请求失败:`, error.message);
     log("error", '- 错误类型:', error.name);
@@ -89,6 +89,7 @@ export async function setRedisKey(key, value) {
       log("error", '- 码:', error.cause.code);
       log("error", '- 原因:', error.cause.message);
     }
+    return null;
   }
 }
 
