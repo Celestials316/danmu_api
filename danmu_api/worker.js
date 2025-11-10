@@ -36,7 +36,10 @@ async function mergeSaveToRedis(key, patch) {
 /**
  * 应用配置补丁到运行时：同步快照 + 按需重建派生缓存
  */
-async function applyConfigPatch(patch, deployPlatform) {
+async function applyConfigPatch(patch) {
+  // 从 globals 获取 deployPlatform（已在 handleRequest 中设置）
+  const deployPlatform = globals.deployPlatform || 'unknown';
+  
   // 1) 更新运行时快照
   for (const [k, v] of Object.entries(patch)) {
     globals.envs[k] = v;
@@ -4227,7 +4230,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       }
 
       // 3) 运行时立即生效（统一同步 + 派生缓存重建）
-      await applyConfigPatch(config, globals.deployPlatform || 'unknown');
+      await applyConfigPatch(config);
 
       const savedTo = [];
       if (dbSaved) savedTo.push('数据库');
