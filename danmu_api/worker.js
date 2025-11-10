@@ -4291,10 +4291,9 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
 
       // 3) 🔥 立即应用到当前运行时（关键步骤）
       try {
-        // 直接调用 Globals 实例的 applyConfig
+        // 使用全局 Globals 对象应用配置
         const { Globals } = await import('./configs/globals.js');
-        const globalsInstance = Globals.getInstance();
-        globalsInstance.applyConfig(config);
+        Globals.applyConfig(config);
         log("info", `[config] 配置已应用到运行时`);
       } catch (e) {
         log("error", `[config] 应用配置到运行时失败: ${e.message}`);
