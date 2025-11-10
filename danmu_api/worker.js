@@ -8,6 +8,151 @@ import { getBangumi, getComment, getCommentByUrl, matchAnime, searchAnime, searc
 
 let globals;
 
+/**
+ * 合并写入 Redis：读取现有 -> 合并 patch -> 写回
+ */
+async function mergeSaveToRedis(key, patch) {
+  try {
+    const { getRedisKey, setRedisKey } = await import('./utils/redis-util.js');
+    const existing = await getRedisKey(key);
+    let base = {};
+    if (existing && existing.result) {
+      try { base = JSON.parse(existing.result) || {}; } catch (_) { base = {}; }
+    }
+    const merged = { ...base, ...patch };
+    const res = await setRedisKey(key, JSON.stringify(merged), true);
+    if (res && res.result === 'OK') {
+      const { simpleHash } = await import('./utils/codec-util.js');
+      globals.lastHashes[key] = simpleHash(JSON.stringify(merged));
+      return true;
+    }
+    return false;
+  } catch (e) {
+    log('warn', `[config] mergeSaveToRedis 失败: ${e.message}`);
+    return false;
+  }
+}
+
+/**
+ * 应用配置补丁到运行时：同步快照 + 按需重建派生缓存
+ */
+async function applyConfigPatch(patch, deployPlatform) {
+  // 1) 更新运行时快照
+  for (const [k, v] of Object.entries(patch)) {
+    globals.envs[k] = v;
+    if (globals.accessedEnvVars) globals.accessedEnvVars[k] = v;
+  }
+
+  const { Envs } = await import('./configs/envs.js');
+  Envs.env = globals.envs;
+
+  // 2) 特殊变量即时刷新
+  if ('TOKEN' in patch) {
+    globals.token = patch.TOKEN;
+  }
+
+  // 3) 派生缓存重建（按需、存在才调用）
+  const safeCall = async (fn, label) => {
+    try { await fn(); log('info', `[config] 重建派生缓存成功: ${label}`); }
+    catch (e) { log('warn', `[config] 重建派生缓存失败: ${label}: ${e.message}`); }
+  };
+
+  const need = new Set(Object.keys(patch));
+
+  // VOD 采集站解析
+  if (need.has('VOD_SERVERS') || need.has('PROXY_URL') || need.has('VOD_REQUEST_TIMEOUT')) {
+    await safeCall(async () => {
+      const { Envs } = await import('./configs/envs.js');
+      Envs.env = globals.envs;
+      if (typeof Envs.resolveVodServers === 'function') {
+        globals.vodServers = Envs.resolveVodServers(globals.envs);
+      }
+    }, 'VOD_SERVERS');
+  }
+
+  // 数据源排序
+  if (need.has('SOURCE_ORDER') || need.has('PLATFORM_ORDER')) {
+    await safeCall(async () => {
+      const { Envs } = await import('./configs/envs.js');
+      Envs.env = globals.envs;
+      if (typeof Envs.resolveSourceOrder === 'function') {
+        globals.sourceOrderArr = Envs.resolveSourceOrder(globals.envs, deployPlatform);
+      }
+      if (typeof Envs.resolvePlatformOrder === 'function') {
+        globals.platformOrderArr = Envs.resolvePlatformOrder(globals.envs, deployPlatform);
+      }
+    }, 'SOURCE_ORDER/PLATFORM_ORDER');
+  }
+
+  // 代理
+  if (need.has('PROXY_URL')) {
+    await safeCall(async () => {
+      try {
+        const { buildProxyAgent } = await import('./utils/net-util.js');
+        if (typeof buildProxyAgent === 'function') {
+          globals.proxyAgent = buildProxyAgent(globals.envs.PROXY_URL);
+        }
+      } catch (_) {}
+    }, 'PROXY_URL');
+  }
+
+  // 限流
+  if (need.has('RATE_LIMIT_MAX_REQUESTS')) {
+    await safeCall(async () => {
+      try {
+        const { setRateLimitMax } = await import('./utils/rate-limit.js');
+        if (typeof setRateLimitMax === 'function') {
+          setRateLimitMax(parseInt(globals.envs.RATE_LIMIT_MAX_REQUESTS, 10));
+        } else if (globals.rateLimiter && typeof globals.rateLimiter.setMax === 'function') {
+          globals.rateLimiter.setMax(parseInt(globals.envs.RATE_LIMIT_MAX_REQUESTS, 10));
+        }
+      } catch (_) {}
+    }, 'RATE_LIMIT_MAX_REQUESTS');
+  }
+
+  // 缓存策略
+  if (
+    need.has('SEARCH_CACHE_MINUTES') ||
+    need.has('COMMENT_CACHE_MINUTES') ||
+    need.has('REMEMBER_LAST_SELECT') ||
+    need.has('MAX_LAST_SELECT_MAP')
+  ) {
+    await safeCall(async () => {
+      try {
+        if (globals.caches?.search && typeof globals.caches.search.setTTL === 'function') {
+          globals.caches.search.setTTL(parseInt(globals.envs.SEARCH_CACHE_MINUTES || '1', 10) * 60);
+        }
+        if (globals.caches?.comment && typeof globals.caches.comment.setTTL === 'function') {
+          globals.caches.comment.setTTL(parseInt(globals.envs.COMMENT_CACHE_MINUTES || '1', 10) * 60);
+        }
+        if (globals.lastSelectMap && typeof globals.lastSelectMap.resize === 'function' && globals.envs.MAX_LAST_SELECT_MAP) {
+          globals.lastSelectMap.resize(parseInt(globals.envs.MAX_LAST_SELECT_MAP, 10));
+        }
+        if (typeof globals.setRememberLastSelect === 'function' && typeof globals.envs.REMEMBER_LAST_SELECT !== 'undefined') {
+          const on = String(globals.envs.REMEMBER_LAST_SELECT).toLowerCase() === 'true';
+          globals.setRememberLastSelect(on);
+        }
+      } catch (_) {}
+    }, '缓存策略');
+  }
+
+  // 文本处理相关钩子（若你的项目有）
+  if (
+    need.has('DANMU_SIMPLIFIED') ||
+    need.has('WHITE_RATIO') ||
+    need.has('CONVERT_TOP_BOTTOM_TO_SCROLL') ||
+    need.has('EPISODE_TITLE_FILTER')
+  ) {
+    await safeCall(async () => {
+      try {
+        if (typeof globals.reconfigureTextPipeline === 'function') {
+          globals.reconfigureTextPipeline(globals.envs);
+        }
+      } catch (_) {}
+    }, '弹幕文本处理');
+  }
+}
+
 // 环境变量说明配置
 // 环境变量说明配置
 const ENV_DESCRIPTIONS = {
@@ -4045,7 +4190,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
 
   // ========== 配置管理 API（在路径规范化之前处理）==========
   
-     // POST /api/config/save - 保存环境变量配置
+  // POST /api/config/save - 保存环境变量配置（合并持久化 + 运行时立即生效）
   if (path === "/api/config/save" && method === "POST") {
     try {
       const body = await req.json();
@@ -4060,104 +4205,38 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
 
       log("info", `[config] 开始保存环境变量配置，共 ${Object.keys(config).length} 个`);
 
-      // 保存到数据库
+      // 1) 数据库（如有）
       let dbSaved = false;
       if (globals.databaseValid) {
-        const { saveEnvConfigs } = await import('./utils/db-util.js');
-        dbSaved = await saveEnvConfigs(config);
+        try {
+          const { saveEnvConfigs } = await import('./utils/db-util.js');
+          dbSaved = await saveEnvConfigs(config);
+        } catch (e) {
+          log("warn", `[config] 保存到数据库失败（忽略继续）: ${e.message}`);
+        }
       }
 
-      // 保存到 Redis（修复：先读取现有配置，合并后再保存）
+      // 2) Redis：合并而非覆盖
       let redisSaved = false;
       if (globals.redisValid) {
-        const { getRedisKey, setRedisKey } = await import('./utils/redis-util.js');
-        
-        // 1. 读取现有配置
-        const existingResult = await getRedisKey('env_configs');
-        let existingConfig = {};
-        
-        if (existingResult && existingResult.result) {
-          try {
-            existingConfig = JSON.parse(existingResult.result);
-            log("info", `[config] 读取到现有配置，共 ${Object.keys(existingConfig).length} 个`);
-          } catch (e) {
-            log("warn", `[config] 解析现有配置失败，将使用空对象: ${e.message}`);
-          }
-        }
-        
-        // 2. 合并配置（新配置覆盖旧配置）
-        const mergedConfig = { ...existingConfig, ...config };
-        log("info", `[config] 合并后配置共 ${Object.keys(mergedConfig).length} 个`);
-        
-        // 3. 保存合并后的完整配置
-        const configStr = JSON.stringify(mergedConfig);
-        const result = await setRedisKey('env_configs', configStr, true); // 强制更新
-        redisSaved = result && result.result === 'OK';
-
-        // 如果 Redis 保存成功，强制刷新哈希值
-        if (redisSaved) {
-          const { simpleHash } = await import('./utils/codec-util.js');
-          globals.lastHashes['env_configs'] = simpleHash(configStr);
-          log("info", `[config] Redis 哈希值已更新`);
+        redisSaved = await mergeSaveToRedis('env_configs', config);
+        if (!redisSaved) {
+          log("warn", "[config] 保存到 Redis 失败（忽略继续）");
         }
       }
+
+      // 3) 运行时立即生效（统一同步 + 派生缓存重建）
+      await applyConfigPatch(config, deployPlatform);
 
       const savedTo = [];
       if (dbSaved) savedTo.push('数据库');
       if (redisSaved) savedTo.push('Redis');
+      if (savedTo.length === 0) savedTo.push('内存');
 
-      // 无论持久化是否成功，都更新到内存（立即生效）
-      for (const [key, value] of Object.entries(config)) {
-        // 更新 accessedEnvVars
-        globals.accessedEnvVars[key] = value;
-
-        // 更新 envs
-        if (key in globals.envs) {
-          const oldValue = globals.envs[key];
-          globals.envs[key] = value;
-          log("info", `[config] 更新配置: ${key} = ${value} (旧值: ${oldValue})`);
-        } else {
-          // 如果 envs 中不存在，也添加进去
-          globals.envs[key] = value;
-          log("info", `[config] 新增配置: ${key} = ${value}`);
-        }
-      }
-
-      // 特别处理 TOKEN
-      if ('TOKEN' in config) {
-        globals.token = config.TOKEN;
-        log("info", `[config] TOKEN 已更新为: ${config.TOKEN}`);
-      }
-
-      // 特别处理 VOD_SERVERS（需要重新解析）
-      if ('VOD_SERVERS' in config) {
-        const { Envs } = await import('./configs/envs.js');
-        Envs.env = globals.envs; // 更新 Envs 的环境引用
-        globals.vodServers = Envs.resolveVodServers(globals.envs);
-        log("info", `[config] VOD 服务器列表已更新，共 ${globals.vodServers.length} 个`);
-      }
-
-      // 特别处理 SOURCE_ORDER（需要重新解析）
-      if ('SOURCE_ORDER' in config) {
-        const { Envs } = await import('./configs/envs.js');
-        Envs.env = globals.envs;
-        globals.sourceOrderArr = Envs.resolveSourceOrder(globals.envs, deployPlatform);
-        log("info", `[config] 数据源顺序已更新: ${globals.sourceOrderArr.join(', ')}`);
-      }
-
-      if (savedTo.length === 0) {
-        log("warn", "[config] 配置仅保存到内存（持久化存储不可用）");
-        return jsonResponse({
-          success: true,
-          message: "配置已更新到内存并立即生效（重启后会丢失，建议配置数据库或Redis）",
-          savedTo: ['内存']
-        });
-      }
-
-      log("info", `[config] 配置保存成功: ${savedTo.join('、')}`);
+      log("info", `[config] 配置保存完成并已在运行时生效: ${savedTo.join('、')}`);
       return jsonResponse({
         success: true,
-        message: `配置已成功保存到: ${savedTo.join('、')}，并已立即生效`,
+        message: `配置已保存至 ${savedTo.join('、')}，且已在内存中立即生效`,
         savedTo
       });
 
@@ -4169,7 +4248,6 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       }, 500);
     }
   }
-
 
   // GET /api/config/load - 加载环境变量配置
   if (path === "/api/config/load" && method === "GET") {
