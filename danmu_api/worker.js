@@ -4045,7 +4045,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
 
   // ========== 配置管理 API（在路径规范化之前处理）==========
   
-   // POST /api/config/save - 保存环境变量配置
+     // POST /api/config/save - 保存环境变量配置
   if (path === "/api/config/save" && method === "POST") {
     try {
       const body = await req.json();
@@ -4067,14 +4067,33 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
         dbSaved = await saveEnvConfigs(config);
       }
 
-      // 保存到 Redis
+      // 保存到 Redis（修复：先读取现有配置，合并后再保存）
       let redisSaved = false;
       if (globals.redisValid) {
-        const { setRedisKey } = await import('./utils/redis-util.js');
-        const configStr = JSON.stringify(config);
-        const result = await setRedisKey('env_configs', configStr);
-        redisSaved = result && result.result === 'OK';
+        const { getRedisKey, setRedisKey } = await import('./utils/redis-util.js');
         
+        // 1. 读取现有配置
+        const existingResult = await getRedisKey('env_configs');
+        let existingConfig = {};
+        
+        if (existingResult && existingResult.result) {
+          try {
+            existingConfig = JSON.parse(existingResult.result);
+            log("info", `[config] 读取到现有配置，共 ${Object.keys(existingConfig).length} 个`);
+          } catch (e) {
+            log("warn", `[config] 解析现有配置失败，将使用空对象: ${e.message}`);
+          }
+        }
+        
+        // 2. 合并配置（新配置覆盖旧配置）
+        const mergedConfig = { ...existingConfig, ...config };
+        log("info", `[config] 合并后配置共 ${Object.keys(mergedConfig).length} 个`);
+        
+        // 3. 保存合并后的完整配置
+        const configStr = JSON.stringify(mergedConfig);
+        const result = await setRedisKey('env_configs', configStr, true); // 强制更新
+        redisSaved = result && result.result === 'OK';
+
         // 如果 Redis 保存成功，强制刷新哈希值
         if (redisSaved) {
           const { simpleHash } = await import('./utils/codec-util.js');
@@ -4091,7 +4110,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       for (const [key, value] of Object.entries(config)) {
         // 更新 accessedEnvVars
         globals.accessedEnvVars[key] = value;
-        
+
         // 更新 envs
         if (key in globals.envs) {
           const oldValue = globals.envs[key];
@@ -4103,7 +4122,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
           log("info", `[config] 新增配置: ${key} = ${value}`);
         }
       }
-      
+
       // 特别处理 TOKEN
       if ('TOKEN' in config) {
         globals.token = config.TOKEN;
@@ -4150,6 +4169,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       }, 500);
     }
   }
+
 
   // GET /api/config/load - 加载环境变量配置
   if (path === "/api/config/load" && method === "GET") {
