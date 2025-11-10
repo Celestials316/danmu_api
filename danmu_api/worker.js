@@ -6,6 +6,8 @@ import { cleanupExpiredIPs, findUrlById, getCommentCache } from "./utils/cache-u
 import { formatDanmuResponse } from "./utils/danmu-util.js";
 import { getBangumi, getComment, getCommentByUrl, matchAnime, searchAnime, searchEpisodes } from "./apis/dandan-api.js";
 import { 
+  initDatabase,        // ✅ 添加
+  initUserTable,
   verifyUser, 
   changePassword, 
   createSession, 
@@ -690,6 +692,18 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
   }
   
   globals.deployPlatform = deployPlatform;
+
+  // ========== 🔥 初始化用户表（关键！）==========
+  if (globals.databaseValid && !globals.userTableInitialized) {
+    try {
+      const { initUserTable } = await import('./utils/db-util.js');
+      await initUserTable();
+      globals.userTableInitialized = true;
+      log('info', '[init] ✅ 用户表初始化完成');
+    } catch (error) {
+      log('error', `[init] ❌ 用户表初始化失败: ${error.message}`);
+    }
+  }
 
   // ========== 初始化基本变量 ==========
   const url = new URL(req.url);
