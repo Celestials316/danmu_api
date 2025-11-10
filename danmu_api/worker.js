@@ -25,6 +25,7 @@ import {
   generateSessionId
 } from "./utils/auth-util.js";
 
+let globals;
 
 /**
  * 合并写入 Redis：读取现有 -> 合并 patch -> 写回
@@ -696,9 +697,9 @@ async function handleLogin(event) {
   });
 }
 async function handleRequest(req, env, deployPlatform, clientIp) {
-  // 🔥 只在首次初始化，不要每次请求都重载
+  // 🔥 修复：不要重新赋值 globals，而是确保初始化
   if (!Globals.configLoaded) {
-    globals = await Globals.init(env, deployPlatform);
+    await Globals.init(env, deployPlatform);  // ← 移除 globals = 
   }
   
   globals.deployPlatform = deployPlatform;
