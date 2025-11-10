@@ -25,6 +25,7 @@ import {
   generateSessionId
 } from "./utils/auth-util.js";
 
+
 /**
  * 合并写入 Redis：读取现有 -> 合并 patch -> 写回
  */
@@ -695,9 +696,9 @@ async function handleLogin(event) {
   });
 }
 async function handleRequest(req, env, deployPlatform, clientIp) {
-  // 🔥 修复：不要重新赋值 globals，而是确保初始化
+  // 🔥 只在首次初始化，不要每次请求都重载
   if (!Globals.configLoaded) {
-    await Globals.init(env, deployPlatform);  // ← 移除 globals = 
+    globals = await Globals.init(env, deployPlatform);
   }
   
   globals.deployPlatform = deployPlatform;
@@ -754,10 +755,9 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
 // Docker 部署:创建 Session
 if (deployPlatform !== 'vercel') {
   const sessionId = generateSessionId();
-  const expiresInHours = 24; // 24小时有效期
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24小时
 
-  // 🔥 修复：参数顺序改为 (username, sessionId, expiresInHours)
-  await createSession(username, sessionId, expiresInHours);
+  await createSession(sessionId, username, expiresAt);
   
   log('info', `[auth] ✅ Session 创建成功: ${sessionId.substring(0, 8)}...`);
 
@@ -768,7 +768,7 @@ if (deployPlatform !== 'vercel') {
   const cookieAttributes = [
     `session_id=${sessionId}`,
     'HttpOnly',
-    // 🔥 如果是本地开发,移除 Secure 标志
+    // 🔥 修复:如果是本地开发,移除 Secure 标志
     isHttps ? 'Secure' : '',  
     'SameSite=Lax',
     'Path=/',
@@ -791,7 +791,6 @@ if (deployPlatform !== 'vercel') {
     }
   );
 }
-
 
 
 
