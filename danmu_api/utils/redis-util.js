@@ -9,10 +9,10 @@ import {
 } from './db-util.js';
 
 // =====================
-// upstash redis 读写请求 （先简单实现，不加锁）
+// upstash redis 读写请求 （先简单实现,不加锁）
 // =====================
 
-// 使用 GET 发送简单命令（如 PING 检查连接）
+// 使用 GET 发送简单命令(如 PING 检查连接)
 export async function pingRedis() {
   const url = `${globals.redisUrl}/ping`;
   log("info", `[redis] 开始发送 PING 请求:`, url);
@@ -34,7 +34,7 @@ export async function pingRedis() {
   }
 }
 
-// 使用 GET 发送 GET 命令（读取键值）
+// 使用 GET 发送 GET 命令(读取键值)
 export async function getRedisKey(key) {
   const url = `${globals.redisUrl}/get/${key}`;
   log("info", `[redis] 开始发送 GET 请求:`, url);
@@ -56,14 +56,14 @@ export async function getRedisKey(key) {
   }
 }
 
-// 使用 POST 发送 SET 命令，仅在值变化时更新
+// 使用 POST 发送 SET 命令,仅在值变化时更新
 export async function setRedisKey(key, value, forceUpdate = false) {
   const serializedValue = serializeValue(key, value);
   const currentHash = simpleHash(serializedValue);
 
-  // 检查值是否变化（除非强制更新）
+  // 检查值是否变化(除非强制更新)
   if (!forceUpdate && globals.lastHashes[key] === currentHash) {
-    log("info", `[redis] 键 ${key} 无变化，跳过 SET 请求`);
+    log("info", `[redis] 键 ${key} 无变化,跳过 SET 请求`);
     return { result: "OK" }; // 模拟成功响应
   }
 
@@ -93,14 +93,14 @@ export async function setRedisKey(key, value, forceUpdate = false) {
   }
 }
 
-// 使用 POST 发送 SETEX 命令，仅在值变化时更新
+// 使用 POST 发送 SETEX 命令,仅在值变化时更新
 export async function setRedisKeyWithExpiry(key, value, expirySeconds) {
   const serializedValue = serializeValue(key, value);
   const currentHash = simpleHash(serializedValue);
 
   // 检查值是否变化
   if (globals.lastHashes[key] === currentHash) {
-    log("info", `[redis] 键 ${key} 无变化，跳过 SETEX 请求`);
+    log("info", `[redis] 键 ${key} 无变化,跳过 SETEX 请求`);
     return { result: "OK" }; // 模拟成功响应
   }
 
@@ -117,7 +117,7 @@ export async function setRedisKeyWithExpiry(key, value, expirySeconds) {
     });
     const result = await response.json();
     globals.lastHashes[key] = currentHash; // 更新哈希值
-    log("info", `[redis] 键 ${key} 更新成功（带过期时间 ${expirySeconds}s）`);
+    log("info", `[redis] 键 ${key} 更新成功(带过期时间 ${expirySeconds}s)`);
     return result;
   } catch (error) {
     log("error", `[redis] SETEX 请求失败:`, error.message);
@@ -140,10 +140,10 @@ export async function runPipeline(commands) {
         'Authorization': `Bearer ${globals.redisToken}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(commands) // commands 是一个数组，包含多个 Redis 命令
+      body: JSON.stringify(commands) // commands 是一个数组,包含多个 Redis 命令
     });
     const result = await response.json();
-    return result; // 返回结果数组，按命令顺序
+    return result; // 返回结果数组,按命令顺序
   } catch (error) {
     log("error", `[redis] Pipeline 请求失败:`, error.message);
     log("error", '- 错误类型:', error.name);
@@ -154,7 +154,7 @@ export async function runPipeline(commands) {
   }
 }
 
-// 优化后的 getRedisCaches，支持从数据库或 Redis 加载
+// 优化后的 getRedisCaches,支持从数据库或 Redis 加载
 export async function getRedisCaches() {
   if (!globals.redisCacheInitialized) {
     try {
@@ -188,7 +188,7 @@ export async function getRedisCaches() {
         }
       }
 
-      // 如果数据库不可用或无数据，尝试 Redis
+      // 如果数据库不可用或无数据,尝试 Redis
       if (globals.redisValid) {
         log("info", '[cache] 尝试从 Redis 加载缓存...');
         const keys = ['animes', 'episodeIds', 'episodeNum', 'lastSelectMap'];
@@ -223,7 +223,7 @@ export async function getRedisCaches() {
   }
 }
 
-// 优化后的 updateRedisCaches，支持更新到数据库和 Redis
+// 优化后的 updateRedisCaches,支持更新到数据库和 Redis
 export async function updateRedisCaches() {
   try {
     log("info", 'updateCaches start.');
@@ -301,9 +301,15 @@ async function updateRedis(variables, updates) {
   }
 }
 
-// 判断持久化存储是否可用（Redis 或数据库）
+// 判断持久化存储是否可用(Redis 或数据库)
 export async function judgeRedisValid(path) {
+  // 🔥 跳过特殊路径
   if (path === "/favicon.ico" || path === "/robots.txt") {
+    return;
+  }
+
+  // 🔥 如果已经检查过,直接返回
+  if (globals.storageChecked) {
     return;
   }
 
@@ -311,10 +317,10 @@ export async function judgeRedisValid(path) {
 
   // 检查数据库
   if (!globals.databaseValid && globals.databaseUrl) {
-    log("info", "[storage] 检测到数据库配置，开始检查数据库连接...");
+    log("info", "[storage] 检测到数据库配置,开始检查数据库连接...");
     await checkDatabaseConnection();
     if (globals.databaseValid) {
-      log("info", "[storage] 数据库连接成功，开始初始化数据库表...");
+      log("info", "[storage] 数据库连接成功,开始初始化数据库表...");
       await initDatabase();
     } else {
       log("warn", "[storage] 数据库连接失败");
@@ -327,7 +333,7 @@ export async function judgeRedisValid(path) {
 
   // 检查 Redis
   if (!globals.redisValid && globals.redisUrl && globals.redisToken) {
-    log("info", "[storage] 检测到 Redis 配置，开始检查 Redis 连接...");
+    log("info", "[storage] 检测到 Redis 配置,开始检查 Redis 连接...");
     const res = await pingRedis();
     if (res && res.result && res.result === "PONG") {
       globals.redisValid = true;
@@ -342,4 +348,7 @@ export async function judgeRedisValid(path) {
   }
 
   log("info", `[storage] 持久化存储总结 - 数据库: ${globals.databaseValid ? '✅' : '❌'}, Redis: ${globals.redisValid ? '✅' : '❌'}`);
+
+  // 🔥 标记为已检查,避免后续请求重复检查
+  globals.storageChecked = true;
 }
