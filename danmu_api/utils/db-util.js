@@ -60,7 +60,7 @@ function getDbClient() {
  */
 export async function initDatabase() {
   log("info", "[database] ========== 开始初始化数据库 ==========");
-  
+
   const client = getDbClient();
   if (!client) {
     log("warn", "[database] 数据库客户端不可用，跳过初始化");
@@ -111,7 +111,7 @@ export async function initDatabase() {
 export async function saveEnvConfigs(configs) {
   log("info", "[database] ========== 开始保存环境变量配置 ==========");
   log("info", `[database] 准备保存 ${Object.keys(configs).length} 个配置项`);
-  
+
   const client = getDbClient();
   if (!client) {
     log("warn", "[database] 数据库客户端不可用，无法保存配置");
@@ -128,9 +128,16 @@ export async function saveEnvConfigs(configs) {
     const statements = [];
 
     for (const [key, value] of Object.entries(configs)) {
-      const valueStr = JSON.stringify(value);
-      log("info", `[database] 准备保存配置: ${key} = ${valueStr.substring(0, 50)}...`);
+      // 🔥 特殊处理：如果是正则表达式，转换为字符串格式存储
+      let saveValue = value;
+      if (value instanceof RegExp) {
+        saveValue = value.toString();
+        log("info", `[database] 正则表达式转换为字符串: ${key} = ${saveValue}`);
+      }
       
+      const valueStr = JSON.stringify(saveValue);
+      log("info", `[database] 准备保存配置: ${key} = ${valueStr.substring(0, 50)}...`);
+
       statements.push({
         sql: 'INSERT OR REPLACE INTO env_configs (key, value, updated_at) VALUES (?, ?, ?)',
         args: [key, valueStr, timestamp]
@@ -159,7 +166,7 @@ export async function saveEnvConfigs(configs) {
  */
 export async function loadEnvConfigs() {
   log("info", "[database] ========== 开始加载环境变量配置 ==========");
-  
+
   const client = getDbClient();
   if (!client) {
     log("warn", "[database] 数据库客户端不可用，无法加载配置");
@@ -175,7 +182,7 @@ export async function loadEnvConfigs() {
     log("info", "[database] 开始查询 env_configs 表");
     const result = await client.execute('SELECT key, value FROM env_configs');
     log("info", `[database] 查询返回 ${result.rows.length} 行数据`);
-    
+
     const configs = {};
 
     for (const row of result.rows) {
@@ -183,7 +190,29 @@ export async function loadEnvConfigs() {
         const key = row.key;
         const valueStr = row.value;
         log("info", `[database] 解析配置: ${key}`);
-        configs[key] = JSON.parse(valueStr);
+        
+        let parsedValue = JSON.parse(valueStr);
+        
+        // 🔥 特殊处理：如果是 EPISODE_TITLE_FILTER，检查是否需要重建为正则表达式
+        if (key === 'EPISODE_TITLE_FILTER' && typeof parsedValue === 'string' && parsedValue.length > 0) {
+          try {
+            // 检查是否是正则表达式字符串格式 (例如: "/pattern/flags")
+            const regexMatch = parsedValue.match(/^\/(.+)\/([gimuy]*)$/);
+            if (regexMatch) {
+              // 从 /pattern/flags 格式重建正则表达式
+              parsedValue = new RegExp(regexMatch[1], regexMatch[2]);
+              log("info", `[database] ✅ 重建正则表达式: ${key} = ${parsedValue}`);
+            } else {
+              // 纯文本模式，当作正则表达式模式处理
+              parsedValue = new RegExp(parsedValue);
+              log("info", `[database] ✅ 从文本创建正则表达式: ${key} = ${parsedValue}`);
+            }
+          } catch (e) {
+            log("warn", `[database] ⚠️ 无法解析正则表达式 ${key}: ${e.message}，保持原字符串值`);
+          }
+        }
+        
+        configs[key] = parsedValue;
       } catch (e) {
         log("warn", `[database] 配置 ${row.key} 解析失败，使用原始字符串: ${e.message}`);
         configs[row.key] = row.value;
@@ -271,7 +300,7 @@ export async function loadCacheData(key) {
 export async function saveCacheBatch(cacheMap) {
   log("info", "[database] ========== 开始批量保存缓存 ==========");
   log("info", `[database] 准备保存 ${Object.keys(cacheMap).length} 个缓存项`);
-  
+
   const client = getDbClient();
   if (!client || !globals.databaseValid) {
     log("warn", "[database] 数据库不可用，无法批量保存缓存");
@@ -309,7 +338,7 @@ export async function saveCacheBatch(cacheMap) {
  */
 export async function loadCacheBatch() {
   log("info", "[database] ========== 开始批量加载缓存 ==========");
-  
+
   const client = getDbClient();
   if (!client || !globals.databaseValid) {
     log("warn", "[database] 数据库不可用，无法批量加载缓存");
@@ -319,7 +348,7 @@ export async function loadCacheBatch() {
   try {
     const result = await client.execute('SELECT key, value FROM cache_data');
     log("info", `[database] 查询返回 ${result.rows.length} 条缓存数据`);
-    
+
     const cacheMap = {};
 
     for (const row of result.rows) {
@@ -346,7 +375,7 @@ export async function loadCacheBatch() {
  */
 export async function checkDatabaseConnection() {
   log("info", "[database] ========== 检查数据库连接 ==========");
-  
+
   const client = getDbClient();
   if (!client) {
     log("warn", "[database] 数据库客户端未初始化");
