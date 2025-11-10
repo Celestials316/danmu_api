@@ -682,18 +682,14 @@ function handleLoginPage() {
   });
 }
 async function handleRequest(req, env, deployPlatform, clientIp) {
-  // 🔥 强制刷新全局配置（解决 TOKEN 缓存问题）
-  if (Globals.configLoaded) {
-    // 如果已加载过，从数据库/Redis 重新加载最新配置
-    await Globals.loadConfigFromStorage();
-  } else {
-    // 首次加载
+  // 🔥 只在首次初始化，不要每次请求都重载
+  if (!Globals.configLoaded) {
     globals = await Globals.init(env, deployPlatform);
   }
   
   globals.deployPlatform = deployPlatform;
 
-  // ========== 🔥 初始化用户表（关键！）==========
+  // 初始化用户表
   if (globals.databaseValid && !globals.userTableInitialized) {
     try {
       const { initUserTable } = await import('./utils/db-util.js');
@@ -705,10 +701,10 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
     }
   }
 
-  // ========== 初始化基本变量 ==========
   const url = new URL(req.url);
   const path = url.pathname;
   const method = req.method;
+
 
   // ========== 登录接口（必须在认证检查之前！）==========
   if (path === '/api/auth/login' && method === 'POST') {
