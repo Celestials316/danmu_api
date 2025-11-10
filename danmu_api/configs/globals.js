@@ -144,6 +144,9 @@ const Globals = {
       console.log(`[Globals] 应用配置: ${key} = ${value} (旧值: ${oldValue})`);
     }
 
+    // 🔥 重要：更新 Envs 模块的静态变量
+    Envs.env = this.envs;
+
     // 特别处理需要重新解析的配置
     if ('VOD_SERVERS' in config) {
       const vodServersConfig = config.VOD_SERVERS;
@@ -157,10 +160,118 @@ const Globals = {
       console.log(`[Globals] 数据源顺序已更新: ${this.envs.sourceOrderArr.join(', ')}`);
     }
 
+    if ('PLATFORM_ORDER' in config) {
+      const platformOrder = config.PLATFORM_ORDER;
+      this.envs.platformOrderArr = this.parsePlatformOrder(platformOrder);
+      console.log(`[Globals] 平台顺序已更新: ${this.envs.platformOrderArr.join(', ')}`);
+    }
+
     if ('TOKEN' in config) {
       this.envs.token = config.TOKEN;
       console.log(`[Globals] TOKEN 已更新`);
     }
+
+    // 🔥 更新所有需要重新计算的派生属性
+    this.updateDerivedProperties(config);
+  },
+
+  /**
+   * 更新派生属性（基于配置变化）
+   */
+  updateDerivedProperties(config) {
+    const changedKeys = Object.keys(config);
+    
+    // 更新搜索缓存时间
+    if (changedKeys.includes('SEARCH_CACHE_MINUTES')) {
+      const minutes = parseInt(config.SEARCH_CACHE_MINUTES) || 1;
+      this.envs.searchCacheMinutes = minutes;
+      console.log(`[Globals] 搜索缓存时间已更新: ${minutes} 分钟`);
+    }
+
+    // 更新评论缓存时间
+    if (changedKeys.includes('COMMENT_CACHE_MINUTES')) {
+      const minutes = parseInt(config.COMMENT_CACHE_MINUTES) || 1;
+      this.envs.commentCacheMinutes = minutes;
+      console.log(`[Globals] 评论缓存时间已更新: ${minutes} 分钟`);
+    }
+
+    // 更新弹幕限制
+    if (changedKeys.includes('DANMU_LIMIT')) {
+      const limit = parseInt(config.DANMU_LIMIT) || -1;
+      this.envs.danmuLimit = limit;
+      console.log(`[Globals] 弹幕限制已更新: ${limit}`);
+    }
+
+    // 更新限流配置
+    if (changedKeys.includes('RATE_LIMIT_MAX_REQUESTS')) {
+      const maxRequests = parseInt(config.RATE_LIMIT_MAX_REQUESTS) || 0;
+      this.envs.rateLimitMaxRequests = maxRequests;
+      console.log(`[Globals] 限流配置已更新: ${maxRequests} 次/分钟`);
+    }
+
+    // 更新 VOD 返回模式
+    if (changedKeys.includes('VOD_RETURN_MODE')) {
+      this.envs.vodReturnMode = config.VOD_RETURN_MODE;
+      console.log(`[Globals] VOD 返回模式已更新: ${config.VOD_RETURN_MODE}`);
+    }
+
+    // 更新 VOD 请求超时
+    if (changedKeys.includes('VOD_REQUEST_TIMEOUT')) {
+      const timeout = parseInt(config.VOD_REQUEST_TIMEOUT) || 10000;
+      this.envs.vodRequestTimeout = timeout;
+      console.log(`[Globals] VOD 请求超时已更新: ${timeout} 毫秒`);
+    }
+
+    // 更新弹幕输出格式
+    if (changedKeys.includes('DANMU_OUTPUT_FORMAT')) {
+      this.envs.danmuOutputFormat = config.DANMU_OUTPUT_FORMAT || 'json';
+      console.log(`[Globals] 弹幕输出格式已更新: ${this.envs.danmuOutputFormat}`);
+    }
+
+    // 更新繁简转换设置
+    if (changedKeys.includes('DANMU_SIMPLIFIED')) {
+      this.envs.danmuSimplified = String(config.DANMU_SIMPLIFIED).toLowerCase() === 'true';
+      console.log(`[Globals] 繁简转换已更新: ${this.envs.danmuSimplified}`);
+    }
+
+    // 更新记住选择设置
+    if (changedKeys.includes('REMEMBER_LAST_SELECT')) {
+      this.envs.rememberLastSelect = String(config.REMEMBER_LAST_SELECT).toLowerCase() === 'true';
+      console.log(`[Globals] 记住选择已更新: ${this.envs.rememberLastSelect}`);
+    }
+
+    // 更新严格匹配设置
+    if (changedKeys.includes('STRICT_TITLE_MATCH')) {
+      this.envs.strictTitleMatch = String(config.STRICT_TITLE_MATCH).toLowerCase() === 'true';
+      console.log(`[Globals] 严格匹配已更新: ${this.envs.strictTitleMatch}`);
+    }
+
+    // 更新优酷并发数
+    if (changedKeys.includes('YOUKU_CONCURRENCY')) {
+      const concurrency = parseInt(config.YOUKU_CONCURRENCY) || 8;
+      this.envs.youkuConcurrency = Math.min(concurrency, 16);
+      console.log(`[Globals] 优酷并发数已更新: ${this.envs.youkuConcurrency}`);
+    }
+
+    // 更新日志级别
+    if (changedKeys.includes('LOG_LEVEL')) {
+      this.envs.logLevel = config.LOG_LEVEL || 'info';
+      console.log(`[Globals] 日志级别已更新: ${this.envs.logLevel}`);
+    }
+  },
+
+  /**
+   * 解析平台顺序
+   */
+  parsePlatformOrder(platformOrder) {
+    if (!platformOrder || platformOrder.trim() === '') {
+      return [];
+    }
+    
+    return platformOrder
+      .split(',')
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
   },
 
   /**
