@@ -54,7 +54,20 @@ async function applyConfigPatch(patch) {
     globals.token = patch.TOKEN;
   }
 
-  // 🔥 添加 WHITE_RATIO 即时刷新
+  // 🔥 立即刷新所有认证相关配置
+  if ('BILIBILI_COOKIE' in patch) {
+    globals.bilibiliCookie = patch.BILIBILI_COOKIE || '';
+    globals.BILIBILI_COOKIE = patch.BILIBILI_COOKIE || '';
+    log('info', `[config] BILIBILI_COOKIE 已立即更新: ${patch.BILIBILI_COOKIE ? '已设置' : '已清空'}`);
+  }
+
+  if ('TMDB_API_KEY' in patch) {
+    globals.tmdbApiKey = patch.TMDB_API_KEY || '';
+    globals.TMDB_API_KEY = patch.TMDB_API_KEY || '';
+    log('info', `[config] TMDB_API_KEY 已立即更新: ${patch.TMDB_API_KEY ? '已设置' : '已清空'}`);
+  }
+
+  // 🔥 立即刷新弹幕处理相关配置
   if ('WHITE_RATIO' in patch) {
     const ratio = parseFloat(patch.WHITE_RATIO);
     if (!isNaN(ratio)) {
@@ -64,6 +77,53 @@ async function applyConfigPatch(patch) {
     }
   }
 
+  if ('BLOCKED_WORDS' in patch) {
+    globals.blockedWords = patch.BLOCKED_WORDS || '';
+    globals.BLOCKED_WORDS = patch.BLOCKED_WORDS || '';
+    if (patch.BLOCKED_WORDS) {
+      globals.blockedWordsArr = patch.BLOCKED_WORDS
+        .split(',')
+        .map(w => w.trim())
+        .filter(w => w.length > 0);
+    } else {
+      globals.blockedWordsArr = [];
+    }
+    log('info', `[config] BLOCKED_WORDS 已立即更新: ${globals.blockedWordsArr.length} 个屏蔽词`);
+  }
+
+  if ('GROUP_MINUTE' in patch) {
+    const minutes = parseInt(patch.GROUP_MINUTE) || 1;
+    globals.groupMinute = minutes;
+    globals.GROUP_MINUTE = minutes;
+    log('info', `[config] GROUP_MINUTE 已立即更新: ${minutes} 分钟`);
+  }
+
+  if ('CONVERT_TOP_BOTTOM_TO_SCROLL' in patch) {
+    const enabled = String(patch.CONVERT_TOP_BOTTOM_TO_SCROLL).toLowerCase() === 'true';
+    globals.convertTopBottomToScroll = enabled;
+    globals.CONVERT_TOP_BOTTOM_TO_SCROLL = enabled;
+    log('info', `[config] CONVERT_TOP_BOTTOM_TO_SCROLL 已立即更新: ${enabled}`);
+  }
+
+  if ('DANMU_SIMPLIFIED' in patch) {
+    const enabled = String(patch.DANMU_SIMPLIFIED).toLowerCase() === 'true';
+    globals.danmuSimplified = enabled;
+    globals.DANMU_SIMPLIFIED = enabled;
+    log('info', `[config] DANMU_SIMPLIFIED 已立即更新: ${enabled}`);
+  }
+
+  if ('DANMU_LIMIT' in patch) {
+    const limit = parseInt(patch.DANMU_LIMIT) || -1;
+    globals.danmuLimit = limit;
+    globals.DANMU_LIMIT = limit;
+    log('info', `[config] DANMU_LIMIT 已立即更新: ${limit}`);
+  }
+
+  if ('DANMU_OUTPUT_FORMAT' in patch) {
+    globals.danmuOutputFormat = patch.DANMU_OUTPUT_FORMAT || 'json';
+    globals.DANMU_OUTPUT_FORMAT = patch.DANMU_OUTPUT_FORMAT || 'json';
+    log('info', `[config] DANMU_OUTPUT_FORMAT 已立即更新: ${globals.danmuOutputFormat}`);
+  }
 
   // 3) 派生缓存重建（按需、存在才调用）
   const safeCall = async (fn, label) => {
