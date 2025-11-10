@@ -204,11 +204,57 @@ const Globals = {
       const ratio = parseFloat(config.WHITE_RATIO);
       if (!isNaN(ratio)) {
         this.envs.whiteRatio = ratio;
-        this.envs.WHITE_RATIO = ratio; // 同时更新大写版本
+        this.envs.WHITE_RATIO = ratio;
         console.log(`[Globals] WHITE_RATIO 已更新: ${ratio}`);
       } else {
         console.warn(`[Globals] WHITE_RATIO 值无效 (${config.WHITE_RATIO})，保持原值`);
       }
+    }
+
+    // 🔥 添加 BILIBILI_COOKIE 处理
+    if (changedKeys.includes('BILIBILI_COOKIE')) {
+      this.envs.bilibiliCookie = config.BILIBILI_COOKIE || '';
+      this.envs.BILIBILI_COOKIE = config.BILIBILI_COOKIE || '';
+      console.log(`[Globals] BILIBILI_COOKIE 已更新: ${config.BILIBILI_COOKIE ? '已设置' : '已清空'}`);
+    }
+
+    // 🔥 添加 TMDB_API_KEY 处理
+    if (changedKeys.includes('TMDB_API_KEY')) {
+      this.envs.tmdbApiKey = config.TMDB_API_KEY || '';
+      this.envs.TMDB_API_KEY = config.TMDB_API_KEY || '';
+      console.log(`[Globals] TMDB_API_KEY 已更新: ${config.TMDB_API_KEY ? '已设置' : '已清空'}`);
+    }
+
+    // 🔥 添加 BLOCKED_WORDS 处理
+    if (changedKeys.includes('BLOCKED_WORDS')) {
+      this.envs.blockedWords = config.BLOCKED_WORDS || '';
+      this.envs.BLOCKED_WORDS = config.BLOCKED_WORDS || '';
+      // 解析为数组
+      if (config.BLOCKED_WORDS) {
+        this.envs.blockedWordsArr = config.BLOCKED_WORDS
+          .split(',')
+          .map(w => w.trim())
+          .filter(w => w.length > 0);
+      } else {
+        this.envs.blockedWordsArr = [];
+      }
+      console.log(`[Globals] BLOCKED_WORDS 已更新: ${this.envs.blockedWordsArr.length} 个屏蔽词`);
+    }
+
+    // 🔥 添加 GROUP_MINUTE 处理
+    if (changedKeys.includes('GROUP_MINUTE')) {
+      const minutes = parseInt(config.GROUP_MINUTE) || 1;
+      this.envs.groupMinute = minutes;
+      this.envs.GROUP_MINUTE = minutes;
+      console.log(`[Globals] GROUP_MINUTE 已更新: ${minutes} 分钟`);
+    }
+
+    // 🔥 添加 CONVERT_TOP_BOTTOM_TO_SCROLL 处理
+    if (changedKeys.includes('CONVERT_TOP_BOTTOM_TO_SCROLL')) {
+      const enabled = String(config.CONVERT_TOP_BOTTOM_TO_SCROLL).toLowerCase() === 'true';
+      this.envs.convertTopBottomToScroll = enabled;
+      this.envs.CONVERT_TOP_BOTTOM_TO_SCROLL = enabled;
+      console.log(`[Globals] CONVERT_TOP_BOTTOM_TO_SCROLL 已更新: ${enabled}`);
     }
 
     // 更新弹幕限制
@@ -273,6 +319,29 @@ const Globals = {
     if (changedKeys.includes('LOG_LEVEL')) {
       this.envs.logLevel = config.LOG_LEVEL || 'info';
       console.log(`[Globals] 日志级别已更新: ${this.envs.logLevel}`);
+    }
+
+    // 🔥 添加 TITLE_TO_CHINESE 处理
+    if (changedKeys.includes('TITLE_TO_CHINESE')) {
+      const enabled = String(config.TITLE_TO_CHINESE).toLowerCase() === 'true';
+      this.envs.titleToChinese = enabled;
+      this.envs.TITLE_TO_CHINESE = enabled;
+      console.log(`[Globals] TITLE_TO_CHINESE 已更新: ${enabled}`);
+    }
+
+    // 🔥 添加 EPISODE_TITLE_FILTER 处理
+    if (changedKeys.includes('EPISODE_TITLE_FILTER')) {
+      this.envs.episodeTitleFilter = config.EPISODE_TITLE_FILTER || '';
+      this.envs.EPISODE_TITLE_FILTER = config.EPISODE_TITLE_FILTER || '';
+      console.log(`[Globals] EPISODE_TITLE_FILTER 已更新`);
+    }
+
+    // 🔥 添加 ENABLE_EPISODE_FILTER 处理
+    if (changedKeys.includes('ENABLE_EPISODE_FILTER')) {
+      const enabled = String(config.ENABLE_EPISODE_FILTER).toLowerCase() === 'true';
+      this.envs.enableEpisodeFilter = enabled;
+      this.envs.ENABLE_EPISODE_FILTER = enabled;
+      console.log(`[Globals] ENABLE_EPISODE_FILTER 已更新: ${enabled}`);
     }
   },
 
