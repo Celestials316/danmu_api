@@ -132,84 +132,83 @@ const Globals = {
     }
   },
 
-  /**
-   * 应用配置到 envs 和 accessedEnvVars
-   * @param {Object} config 配置对象
-   */
-  applyConfig(config) {
-    console.log(`[Globals] 开始应用配置，共 ${Object.keys(config).length} 个`);
+/**
+ * 应用配置到 envs 和 accessedEnvVars
+ * @param {Object} config 配置对象
+ */
+applyConfig(config) {
+  console.log(`[Globals] 开始应用配置，共 ${Object.keys(config).length} 个`);
 
-    for (const [key, value] of Object.entries(config)) {
-      // 跳过 null 和 undefined
-      if (value === null || value === undefined) {
-        console.log(`[Globals] 跳过空值配置: ${key}`);
-        continue;
-      }
-      
-      const oldValue = this.envs[key];
-      
-      // 直接赋值，保持原始类型
-      this.envs[key] = value;
-      this.accessedEnvVars[key] = value;
-
-      // 日志输出
-      let valueStr, oldValueStr;
-      if (value instanceof RegExp) {
-        valueStr = value.toString();
-      } else if (typeof value === 'object') {
-        valueStr = JSON.stringify(value).substring(0, 50);
-      } else {
-        valueStr = String(value).substring(0, 50);
-      }
-      
-      if (oldValue instanceof RegExp) {
-        oldValueStr = oldValue.toString();
-      } else if (typeof oldValue === 'object' && oldValue !== null) {
-        oldValueStr = JSON.stringify(oldValue).substring(0, 50);
-      } else {
-        oldValueStr = String(oldValue).substring(0, 50);
-      }
-      
-      console.log(`[Globals] 应用配置: ${key} = ${valueStr} (旧值: ${oldValueStr})`);
+  for (const [key, value] of Object.entries(config)) {
+    // 跳过 null 和 undefined
+    if (value === null || value === undefined) {
+      console.log(`[Globals] 跳过空值配置: ${key}`);
+      continue;
     }
+    
+    const oldValue = this.envs[key];
+    
+    // 直接赋值，保持原始类型
+    this.envs[key] = value;
+    this.accessedEnvVars[key] = value;
+
+    // 日志输出
+    let valueStr, oldValueStr;
+    if (value instanceof RegExp) {
+      valueStr = value.toString();
+    } else if (typeof value === 'object') {
+      valueStr = JSON.stringify(value).substring(0, 50);
+    } else {
+      valueStr = String(value).substring(0, 50);
+    }
+    
+    if (oldValue instanceof RegExp) {
+      oldValueStr = oldValue.toString();
+    } else if (typeof oldValue === 'object' && oldValue !== null) {
+      oldValueStr = JSON.stringify(oldValue).substring(0, 50);
+    } else {
+      oldValueStr = String(oldValue).substring(0, 50);
+    }
+    
+    console.log(`[Globals] 应用配置: ${key} = ${valueStr} (旧值: ${oldValueStr})`);
   }
 
-    // 🔥 强制更新 Envs 模块的静态变量
-    Envs.env = { ...this.envs }; // 创建新对象引用，触发更新
-    Envs.accessedEnvVars.clear(); // 清空旧记录
-    Object.entries(this.accessedEnvVars).forEach(([k, v]) => {
-      Envs.accessedEnvVars.set(k, v); // 重新同步
-    });
+  // 🔥 强制更新 Envs 模块的静态变量
+  Envs.env = { ...this.envs }; // 创建新对象引用，触发更新
+  Envs.accessedEnvVars.clear(); // 清空旧记录
+  Object.entries(this.accessedEnvVars).forEach(([k, v]) => {
+    Envs.accessedEnvVars.set(k, v); // 重新同步
+  });
 
-    // 特别处理需要重新解析的配置
-    if ('VOD_SERVERS' in config) {
-      const vodServersConfig = config.VOD_SERVERS;
-      this.envs.vodServers = this.parseVodServers(vodServersConfig);
-      console.log(`[Globals] VOD 服务器列表已更新，共 ${this.envs.vodServers.length} 个`);
-    }
+  // 特别处理需要重新解析的配置
+  if ('VOD_SERVERS' in config) {
+    const vodServersConfig = config.VOD_SERVERS;
+    this.envs.vodServers = this.parseVodServers(vodServersConfig);
+    console.log(`[Globals] VOD 服务器列表已更新，共 ${this.envs.vodServers.length} 个`);
+  }
 
-    if ('SOURCE_ORDER' in config) {
-      const sourceOrder = config.SOURCE_ORDER;
-      this.envs.sourceOrderArr = this.parseSourceOrder(sourceOrder);
-      console.log(`[Globals] 数据源顺序已更新: ${this.envs.sourceOrderArr.join(', ')}`);
-    }
+  if ('SOURCE_ORDER' in config) {
+    const sourceOrder = config.SOURCE_ORDER;
+    this.envs.sourceOrderArr = this.parseSourceOrder(sourceOrder);
+    console.log(`[Globals] 数据源顺序已更新: ${this.envs.sourceOrderArr.join(', ')}`);
+  }
 
-    if ('PLATFORM_ORDER' in config) {
-      const platformOrder = config.PLATFORM_ORDER;
-      this.envs.platformOrderArr = this.parsePlatformOrder(platformOrder);
-      console.log(`[Globals] 平台顺序已更新: ${this.envs.platformOrderArr.join(', ')}`);
-    }
+  if ('PLATFORM_ORDER' in config) {
+    const platformOrder = config.PLATFORM_ORDER;
+    this.envs.platformOrderArr = this.parsePlatformOrder(platformOrder);
+    console.log(`[Globals] 平台顺序已更新: ${this.envs.platformOrderArr.join(', ')}`);
+  }
 
-    if ('TOKEN' in config) {
-      this.envs.token = config.TOKEN;
-      console.log(`[Globals] TOKEN 已更新`);
-    }
+  if ('TOKEN' in config) {
+    this.envs.token = config.TOKEN;
+    console.log(`[Globals] TOKEN 已更新`);
+  }
 
-    // 更新其他派生属性
-    this.updateDerivedProperties(config);
+  // 更新其他派生属性
+  this.updateDerivedProperties(config);
 
-    console.log(`[Globals] 配置应用完成`);
-  },
+  console.log(`[Globals] 配置应用完成`);
+},
 
   /**
    * 更新派生属性（基于配置变化）
