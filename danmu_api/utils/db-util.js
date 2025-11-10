@@ -60,7 +60,7 @@ function getDbClient() {
  */
 export async function initDatabase() {
   log("info", "[database] ========== 开始初始化数据库 ==========");
-
+  
   const client = getDbClient();
   if (!client) {
     log("warn", "[database] 数据库客户端不可用，跳过初始化");
@@ -111,7 +111,7 @@ export async function initDatabase() {
 export async function saveEnvConfigs(configs) {
   log("info", "[database] ========== 开始保存环境变量配置 ==========");
   log("info", `[database] 准备保存 ${Object.keys(configs).length} 个配置项`);
-
+  
   const client = getDbClient();
   if (!client) {
     log("warn", "[database] 数据库客户端不可用，无法保存配置");
@@ -130,7 +130,7 @@ export async function saveEnvConfigs(configs) {
     for (const [key, value] of Object.entries(configs)) {
       const valueStr = JSON.stringify(value);
       log("info", `[database] 准备保存配置: ${key} = ${valueStr.substring(0, 50)}...`);
-
+      
       statements.push({
         sql: 'INSERT OR REPLACE INTO env_configs (key, value, updated_at) VALUES (?, ?, ?)',
         args: [key, valueStr, timestamp]
@@ -159,7 +159,7 @@ export async function saveEnvConfigs(configs) {
  */
 export async function loadEnvConfigs() {
   log("info", "[database] ========== 开始加载环境变量配置 ==========");
-
+  
   const client = getDbClient();
   if (!client) {
     log("warn", "[database] 数据库客户端不可用，无法加载配置");
@@ -175,7 +175,7 @@ export async function loadEnvConfigs() {
     log("info", "[database] 开始查询 env_configs 表");
     const result = await client.execute('SELECT key, value FROM env_configs');
     log("info", `[database] 查询返回 ${result.rows.length} 行数据`);
-
+    
     const configs = {};
 
     for (const row of result.rows) {
@@ -271,7 +271,7 @@ export async function loadCacheData(key) {
 export async function saveCacheBatch(cacheMap) {
   log("info", "[database] ========== 开始批量保存缓存 ==========");
   log("info", `[database] 准备保存 ${Object.keys(cacheMap).length} 个缓存项`);
-
+  
   const client = getDbClient();
   if (!client || !globals.databaseValid) {
     log("warn", "[database] 数据库不可用，无法批量保存缓存");
@@ -309,7 +309,7 @@ export async function saveCacheBatch(cacheMap) {
  */
 export async function loadCacheBatch() {
   log("info", "[database] ========== 开始批量加载缓存 ==========");
-
+  
   const client = getDbClient();
   if (!client || !globals.databaseValid) {
     log("warn", "[database] 数据库不可用，无法批量加载缓存");
@@ -319,7 +319,7 @@ export async function loadCacheBatch() {
   try {
     const result = await client.execute('SELECT key, value FROM cache_data');
     log("info", `[database] 查询返回 ${result.rows.length} 条缓存数据`);
-
+    
     const cacheMap = {};
 
     for (const row of result.rows) {
@@ -346,7 +346,7 @@ export async function loadCacheBatch() {
  */
 export async function checkDatabaseConnection() {
   log("info", "[database] ========== 检查数据库连接 ==========");
-
+  
   const client = getDbClient();
   if (!client) {
     log("warn", "[database] 数据库客户端未初始化");
@@ -364,357 +364,6 @@ export async function checkDatabaseConnection() {
     globals.databaseValid = false;
     log("error", `[database] ❌ 数据库连接失败: ${error.message}`);
     log("error", `[database] 错误堆栈: ${error.stack}`);
-    return false;
-  }
-}
-
-/**
- * 初始化用户表
- */
-export async function initUserTable() {
-  log("info", "[database] 开始创建用户表...");
-
-  const client = getDbClient();
-  if (!client) {
-    log("warn", "[database] 数据库客户端不可用，跳过用户表创建");
-    return false;
-  }
-
-  try {
-    // 创建用户表
-    await client.execute(`
-      CREATE TABLE IF NOT EXISTS users (
-        username TEXT PRIMARY KEY,
-        password TEXT NOT NULL,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
-      )
-    `);
-
-    // 🔥 修复：创建 session 表，使用 INTEGER 存储 Unix 时间戳
-    await client.execute(`
-      CREATE TABLE IF NOT EXISTS sessions (
-        session_id TEXT PRIMARY KEY,
-        username TEXT NOT NULL,
-        created_at INTEGER NOT NULL,
-        expires_at INTEGER NOT NULL
-      )
-    `);
-
-    // 创建索引优化查询
-    await client.execute(`
-      CREATE INDEX IF NOT EXISTS idx_session_expires ON sessions(expires_at)
-    `);
-
-    log("info", "[database] ✅ 用户表和 Session 表创建成功");
-    return true;
-  } catch (error) {
-    log("error", `[database] ❌ 创建用户表失败: ${error.message}`);
-    log("error", `[database] 错误堆栈: ${error.stack}`);
-    return false;
-  }
-}
-
-/**
- * 检查是否存在管理员用户
- */
-export async function hasAdminUser() {
-  const client = getDbClient();
-  if (!client || !globals.databaseValid) {
-    return false;
-  }
-
-  try {
-    const result = await client.execute({
-      sql: 'SELECT COUNT(*) as count FROM users WHERE username = ?',
-      args: ['admin']
-    });
-
-    const hasAdmin = result.rows[0].count > 0;
-    log("info", `[database] 管理员用户存在: ${hasAdmin}`);
-    return hasAdmin;
-  } catch (error) {
-    log("error", `[database] 检查管理员用户失败: ${error.message}`);
-    return false;
-  }
-}
-
-/**
- * 创建管理员用户
- */
-export async function createAdminUser(password) {
-  const client = getDbClient();
-  if (!client || !globals.databaseValid) {
-    return false;
-  }
-
-  try {
-    const { hashPassword } = await import('./auth-util.js');
-    const hashedPassword = hashPassword(password);
-    const timestamp = new Date().toISOString();
-
-    await client.execute({
-      sql: 'INSERT INTO users (username, password, created_at, updated_at) VALUES (?, ?, ?, ?)',
-      args: ['admin', hashedPassword, timestamp, timestamp]
-    });
-
-    log("info", "[database] ✅ 管理员用户创建成功");
-    return true;
-  } catch (error) {
-    log("error", `[database] ❌ 创建管理员用户失败: ${error.message}`);
-    return false;
-  }
-}
-
-/**
- * 验证用户登录
- */
-export async function verifyUser(username, password) {
-  const client = getDbClient();
-  if (!client || !globals.databaseValid) {
-    log("warn", "[database] 数据库不可用，无法验证用户");
-    return false;
-  }
-
-  try {
-    log("info", `[database] 🔐 验证用户: ${username}`);
-    
-    const result = await client.execute({
-      sql: 'SELECT password FROM users WHERE username = ?',
-      args: [username]
-    });
-
-    if (result.rows.length === 0) {
-      log("warn", `[database] ⚠️ 用户不存在: ${username}`);
-      return false;
-    }
-
-    const { verifyPassword } = await import('./auth-util.js');
-    const isValid = verifyPassword(password, result.rows[0].password);
-    
-    if (isValid) {
-      log("info", `[database] ✅ 用户验证成功: ${username}`);
-    } else {
-      log("warn", `[database] ❌ 密码验证失败: ${username}`);
-    }
-    
-    return isValid;
-  } catch (error) {
-    log("error", `[database] 验证用户失败: ${error.message}`);
-    log("error", `[database] 错误堆栈: ${error.stack}`);
-    return false;
-  }
-}
-
-/**
- * 修改密码
- */
-export async function changePassword(username, newPassword) {
-  const client = getDbClient();
-  if (!client || !globals.databaseValid) {
-    return false;
-  }
-
-  try {
-    const { hashPassword } = await import('./auth-util.js');
-    const hashedPassword = hashPassword(newPassword);
-    const timestamp = new Date().toISOString();
-
-    await client.execute({
-      sql: 'UPDATE users SET password = ?, updated_at = ? WHERE username = ?',
-      args: [hashedPassword, timestamp, username]
-    });
-
-    log("info", `[database] ✅ 用户 ${username} 密码修改成功`);
-    return true;
-  } catch (error) {
-    log("error", `[database] ❌ 修改密码失败: ${error.message}`);
-    return false;
-  }
-}
-
-/**
- * 🔥 修复：创建 Session（使用 Unix 时间戳）
- */
-export async function createSession(username, sessionId, expiresInHours = 24) {
-  const client = getDbClient();
-  if (!client || !globals.databaseValid) {
-    log("error", "[database] 创建 Session 失败: 数据库不可用");
-    return false;
-  }
-
-  try {
-    // 使用 Unix 时间戳（秒）
-    const createdAtUnix = Math.floor(Date.now() / 1000);
-    const expiresAtUnix = Math.floor(Date.now() / 1000) + (expiresInHours * 3600);
-
-    log("info", `[database] 📝 创建 Session: ${sessionId.substring(0, 8)}...`);
-    log("info", `[database]   用户: ${username}`);
-    log("info", `[database]   创建时间: ${new Date(createdAtUnix * 1000).toISOString()}`);
-    log("info", `[database]   过期时间: ${new Date(expiresAtUnix * 1000).toISOString()}`);
-    log("info", `[database]   Unix 时间戳: created=${createdAtUnix}, expires=${expiresAtUnix}`);
-
-    const result = await client.execute({
-      sql: 'INSERT OR REPLACE INTO sessions (session_id, username, created_at, expires_at) VALUES (?, ?, ?, ?)',
-      args: [sessionId, username, createdAtUnix, expiresAtUnix]
-    });
-
-    log("info", `[database] ✅ Session 插入成功，影响行数: ${result.rowsAffected || 1}`);
-
-    // 立即查询验证
-    const verify = await client.execute({
-      sql: 'SELECT session_id, username, created_at, expires_at FROM sessions WHERE session_id = ?',
-      args: [sessionId]
-    });
-
-    if (verify.rows.length === 0) {
-      log("error", "[database] ❌ Session 写入后立即查询失败！");
-      return false;
-    }
-
-    const verifyData = verify.rows[0];
-    log("info", `[database] ✅ Session 写入验证成功:`);
-    log("info", `[database]   - session_id: ${verifyData.session_id.substring(0, 8)}...`);
-    log("info", `[database]   - username: ${verifyData.username}`);
-    log("info", `[database]   - created_at: ${verifyData.created_at} (${new Date(verifyData.created_at * 1000).toISOString()})`);
-    log("info", `[database]   - expires_at: ${verifyData.expires_at} (${new Date(verifyData.expires_at * 1000).toISOString()})`);
-
-    return true;
-  } catch (error) {
-    log("error", `[database] ❌ 创建 Session 失败: ${error.message}`);
-    log("error", `[database] 错误堆栈: ${error.stack}`);
-    return false;
-  }
-}
-
-/**
- * 🔥 修复：验证 Session（使用 Unix 时间戳）
- */
-export async function verifySession(sessionId) {
-  const client = getDbClient();
-  if (!client || !globals.databaseValid) {
-    log("error", "[database] Session 验证失败: 数据库不可用");
-    return null;
-  }
-
-  try {
-    log("info", `[database] 🔍 验证 Session: ${sessionId.substring(0, 8)}...`);
-
-    const result = await client.execute({
-      sql: 'SELECT username, expires_at, created_at FROM sessions WHERE session_id = ?',
-      args: [sessionId]
-    });
-
-    log("info", `[database] 📊 查询结果: ${result.rows.length} 行`);
-
-    if (result.rows.length === 0) {
-      log("warn", `[database] ⚠️ Session 不存在: ${sessionId.substring(0, 8)}...`);
-
-      // 查询所有 Session 用于调试
-      const allSessions = await client.execute({
-        sql: 'SELECT session_id, username, created_at, expires_at FROM sessions ORDER BY expires_at DESC LIMIT 10'
-      });
-
-      log("info", `[database] 📋 当前数据库中的 Session (${allSessions.rows.length} 条):`);
-      allSessions.rows.forEach(row => {
-        const createdDate = new Date(row.created_at * 1000);
-        const expiresDate = new Date(row.expires_at * 1000);
-        log("info", `  - ${row.session_id.substring(0, 8)}... | ${row.username} | 创建:${createdDate.toISOString()} | 过期:${expiresDate.toISOString()}`);
-      });
-
-      return null;
-    }
-
-    const session = result.rows[0];
-    const expiresAtUnix = session.expires_at;
-    const createdAtUnix = session.created_at;
-    const nowUnix = Math.floor(Date.now() / 1000);
-
-    // 转换为日期对象用于日志显示
-    const expiresAt = new Date(expiresAtUnix * 1000);
-    const createdAt = new Date(createdAtUnix * 1000);
-    const now = new Date(nowUnix * 1000);
-
-    log("info", `[database] ⏰ Session 信息:`);
-    log("info", `[database]   - 用户: ${session.username}`);
-    log("info", `[database]   - 创建时间: ${createdAt.toISOString()} (Unix: ${createdAtUnix})`);
-    log("info", `[database]   - 过期时间: ${expiresAt.toISOString()} (Unix: ${expiresAtUnix})`);
-    log("info", `[database]   - 当前时间: ${now.toISOString()} (Unix: ${nowUnix})`);
-    log("info", `[database]   - 剩余时间: ${Math.round((expiresAtUnix - nowUnix) / 60)} 分钟`);
-
-    if (expiresAtUnix < nowUnix) {
-      log("warn", `[database] ⏳ Session 已过期，删除: ${sessionId.substring(0, 8)}...`);
-      await client.execute({
-        sql: 'DELETE FROM sessions WHERE session_id = ?',
-        args: [sessionId]
-      });
-      return null;
-    }
-
-    log("info", `[database] ✅ Session 验证成功: 用户=${session.username}`);
-    return session.username;
-
-  } catch (error) {
-    log("error", `[database] ❌ 验证 Session 异常: ${error.message}`);
-    log("error", `[database] 错误堆栈: ${error.stack}`);
-    return null;
-  }
-}
-
-/**
- * 删除 Session
- */
-export async function deleteSession(sessionId) {
-  const client = getDbClient();
-  if (!client || !globals.databaseValid) {
-    return false;
-  }
-
-  try {
-    log("info", `[database] 🗑️ 删除 Session: ${sessionId.substring(0, 8)}...`);
-
-    const result = await client.execute({
-      sql: 'DELETE FROM sessions WHERE session_id = ?',
-      args: [sessionId]
-    });
-
-    if (result.rowsAffected > 0) {
-      log("info", `[database] ✅ Session 删除成功`);
-      return true;
-    } else {
-      log("warn", `[database] ⚠️ Session 不存在，无需删除`);
-      return false;
-    }
-  } catch (error) {
-    log("error", `[database] ❌ 删除 Session 失败: ${error.message}`);
-    return false;
-  }
-}
-
-/**
- * 清理过期 Session
- */
-export async function cleanupExpiredSessions() {
-  const client = getDbClient();
-  if (!client || !globals.databaseValid) {
-    return false;
-  }
-
-  try {
-    const nowUnix = Math.floor(Date.now() / 1000);
-    
-    const result = await client.execute({
-      sql: 'DELETE FROM sessions WHERE expires_at < ?',
-      args: [nowUnix]
-    });
-
-    if (result.rowsAffected > 0) {
-      log("info", `[database] 🧹 清理过期 Session: ${result.rowsAffected} 条`);
-    }
-
-    return true;
-  } catch (error) {
-    log("error", `[database] ❌ 清理过期 Session 失败: ${error.message}`);
     return false;
   }
 }
