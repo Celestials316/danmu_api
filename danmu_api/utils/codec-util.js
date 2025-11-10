@@ -15,14 +15,29 @@ export function simpleHash(str) {
   return hash.toString(16); // 转换为十六进制
 }
 
-// 辅助函数：序列化值，处理 Map 对象
+// 辅助函数:序列化值,处理 Map 对象
 export function serializeValue(key, value) {
-  // 对于 lastSelectMap（Map 对象），需要转换为普通对象后再序列化
+  // 特殊处理: 如果 value 已经是 JSON 字符串,直接返回
+  if (typeof value === 'string') {
+    try {
+      // 尝试解析,如果能解析说明已经是 JSON 字符串
+      JSON.parse(value);
+      return value;
+    } catch (e) {
+      // 解析失败说明是普通字符串,需要序列化
+      return JSON.stringify(value);
+    }
+  }
+  
+  // 对于 lastSelectMap(Map 对象),需要转换为普通对象后再序列化
   if (key === 'lastSelectMap' && value instanceof Map) {
     return JSON.stringify(Object.fromEntries(value));
   }
+  
+  // 其他类型统一序列化
   return JSON.stringify(value);
 }
+
 
 // md5.js 本地版本
 export function md5(message) {
