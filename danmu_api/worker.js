@@ -1373,7 +1373,7 @@ function handleHomepage(req) {
     }
 
     function updateEnvDisplay(key, value) {
-      const item = document.querySelector(`.env-item[data-key="${key}"]`);
+      const item = document.querySelector('.env-item[data-key="' + key + '"]');
       if (!item) return;
       
       const valueEl = item.querySelector('.env-value');
