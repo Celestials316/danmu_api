@@ -24,7 +24,7 @@ function validateSession(sessionId) {
   if (!sessionId) return false;
   const session = sessions.get(sessionId);
   if (!session) return false;
-
+  
   // 检查是否过期
   if (Date.now() - session.createdAt > SESSION_TIMEOUT) {
     sessions.delete(sessionId);
@@ -459,12 +459,12 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
 
 function handleHomepage(req) {
   log("info", "Accessed homepage");
-
+  
   // 检查登录状态
   const cookies = req.headers.get('cookie') || '';
   const sessionMatch = cookies.match(/session=([^;]+)/);
   const sessionId = sessionMatch ? sessionMatch[1] : null;
-
+  
   if (!validateSession(sessionId)) {
     return getLoginPage();
   }
@@ -3791,304 +3791,470 @@ function handleHomepage(req) {
      showModal('editVodModal');
    }
 
-   function saveVodServer() {
-     const name = document.getElementById('vodServerName').value.trim();
-     const url = document.getElementById('vodServerUrl').value.trim();
+async function saveVodServer() {
+  const name = document.getElementById('vodServerName').value.trim();
+  const url = document.getElementById('vodServerUrl').value.trim();
 
-     if (!name) {
-       showToast('请输入服务器名称', 'error');
-       return;
-     }
+  if (!name) {
+    showToast('请输入服务器名称', 'error');
+    return;
+  }
 
-     if (!url) {
-       showToast('请输入服务器地址', 'error');
-       return;
-     }
+  if (!url) {
+    showToast('请输入服务器地址', 'error');
+    return;
+  }
 
-     try {
-       new URL(url);
-     } catch (e) {
-       showToast('服务器地址格式不正确', 'error');
-       return;
-     }
+  try {
+    new URL(url);
+  } catch (e) {
+    showToast('服务器地址格式不正确', 'error');
+    return;
+  }
 
-     const serverString = \`\${name}@\${url}\`;
+  const serverString = `${name}@${url}`;
 
-     if (AppState.currentEditingVodIndex === null) {
-       AppState.vodServers.push(serverString);
-     } else {
-       AppState.vodServers[AppState.currentEditingVodIndex] = serverString;
-     }
+  if (AppState.currentEditingVodIndex === null) {
+    AppState.vodServers.push(serverString);
+  } else {
+    AppState.vodServers[AppState.currentEditingVodIndex] = serverString;
+  }
 
-     localStorage.setItem('danmu_api_vod_servers', JSON.stringify(AppState.vodServers));
-     AppState.hasUnsavedChanges = true;
-     refreshVodServerList();
-     closeModal('editVodModal');
-     showToast(AppState.currentEditingVodIndex === null ? 'VOD服务器已添加' : 'VOD服务器已更新', 'success');
-   }
+  localStorage.setItem('danmu_api_vod_servers', JSON.stringify(AppState.vodServers));
+  
+  // 🔥 保存到服务器
+  try {
+    showToast('正在保存到服务器...', 'info', 1000);
+    const response = await fetch('/api/config/save', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        config: {
+          VOD_SERVERS: AppState.vodServers.map(s => {
+            if (typeof s === 'string') return s;
+            return `${s.name}@${s.url}`;
+          }).join(',')
+        }
+      })
+    });
 
-   function deleteVodServer(index) {
-     if (!confirm('确定要删除这个VOD服务器吗？')) {
-       return;
-     }
+    const result = await response.json();
+    
+    if (result.success) {
+      AppState.hasUnsavedChanges = false;
+      showToast(`VOD服务器已保存到: ${result.savedTo.join('、')}`, 'success');
+    } else {
+      throw new Error(result.errorMessage || '保存失败');
+    }
+  } catch (error) {
+    console.error('保存到服务器失败:', error);
+    showToast(`VOD服务器已保存到浏览器本地（服务器保存失败: ${error.message}）`, 'warning');
+  }
+  
+  refreshVodServerList();
+  closeModal('editVodModal');
+}
 
-     AppState.vodServers.splice(index, 1);
-     localStorage.setItem('danmu_api_vod_servers', JSON.stringify(AppState.vodServers));
-     AppState.hasUnsavedChanges = true;
-     refreshVodServerList();
-     showToast('VOD服务器已删除', 'success');
-   }
 
-   function refreshVodServerList() {
-     const grid = document.getElementById('vodServerGrid');
-     if (!grid) return;
+async function deleteVodServer(index) {
+  if (!confirm('确定要删除这个VOD服务器吗？')) {
+    return;
+  }
 
-     grid.innerHTML = AppState.vodServers.map((server, index) => {
-       let serverName = \`服务器 #\${index + 1}\`;
-       let serverUrl = '';
+  AppState.vodServers.splice(index, 1);
+  localStorage.setItem('danmu_api_vod_servers', JSON.stringify(AppState.vodServers));
+  
+  // 🔥 保存到服务器
+  try {
+    showToast('正在保存到服务器...', 'info', 1000);
+    const response = await fetch('/api/config/save', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        config: {
+          VOD_SERVERS: AppState.vodServers.map(s => {
+            if (typeof s === 'string') return s;
+            return `${s.name}@${s.url}`;
+          }).join(',')
+        }
+      })
+    });
 
-       if (typeof server === 'string') {
-         serverUrl = server;
-         if (server.includes('@')) {
-           const parts = server.split('@');
-           serverName = parts[0];
-           serverUrl = parts.slice(1).join('@');
-         }
-       } else if (typeof server === 'object' && server !== null) {
-         serverName = server.name || server.title || serverName;
-         serverUrl = server.url || server.baseUrl || server.address || JSON.stringify(server);
-       }
+    const result = await response.json();
+    
+    if (result.success) {
+      AppState.hasUnsavedChanges = false;
+      showToast(`VOD服务器已删除并同步到: ${result.savedTo.join('、')}`, 'success');
+    } else {
+      throw new Error(result.errorMessage || '保存失败');
+    }
+  } catch (error) {
+    console.error('保存到服务器失败:', error);
+    showToast(`VOD服务器已删除并保存到浏览器本地（服务器保存失败: ${error.message}）`, 'warning');
+  }
+  
+  refreshVodServerList();
+}
 
-       return \`
-         <div class="server-item" data-index="\${index}">
-           <div class="server-badge">\${index + 1}</div>
-           <div class="server-info">
-             <div class="server-name">\${serverName}</div>
-             <div class="server-url">\${serverUrl}</div>
-           </div>
-           <div class="server-actions">
-             <button class="icon-btn" onclick="editVodServer(\${index})" title="编辑">
-               <svg viewBox="0 0 24 24" width="16" height="16">
-                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" fill="none"/>
-                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" fill="none"/>
-               </svg>
-             </button>
-             <button class="icon-btn delete-btn" onclick="deleteVodServer(\${index})" title="删除">
-               <svg viewBox="0 0 24 24" width="16" height="16">
-                 <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="currentColor" stroke-width="2" fill="none"/>
-               </svg>
-             </button>
-           </div>
-         </div>
-       \`;
-     }).join('');
-   }
 
-   function toggleVodReturnMode(checkbox) {
-     const mode = checkbox.checked ? 'all' : 'fastest';
-     AppState.config.VOD_RETURN_MODE = mode;
-     localStorage.setItem('danmu_api_config', JSON.stringify(AppState.config));
-     AppState.hasUnsavedChanges = true;
+function refreshVodServerList() {
+  const grid = document.getElementById('vodServerGrid');
+  if (!grid) return;
 
-     const configValue = checkbox.closest('.config-item').querySelector('.config-value code');
-     configValue.textContent = checkbox.checked ? '返回所有站点结果' : '仅返回最快响应站点';
-     showToast(\`VOD返回模式已切换为: \${checkbox.checked ? '返回所有' : '仅返回最快'}\`, 'success');
-   }
+  grid.innerHTML = AppState.vodServers.map((server, index) => {
+    let serverName = `服务器 #${index + 1}`;
+    let serverUrl = '';
 
-   function editVodTimeout() {
-     const currentTimeout = AppState.config.VOD_REQUEST_TIMEOUT || 10000;
-     const newTimeout = prompt('请输入VOD请求超时时间(毫秒):', currentTimeout);
-     
-     if (newTimeout === null) return;
-     
-     const timeoutValue = parseInt(newTimeout);
-     if (isNaN(timeoutValue) || timeoutValue < 1000) {
-       showToast('超时时间必须大于等于1000毫秒', 'error');
-       return;
-     }
+    if (typeof server === 'string') {
+      serverUrl = server;
+      if (server.includes('@')) {
+        const parts = server.split('@');
+        serverName = parts[0];
+        serverUrl = parts.slice(1).join('@');
+      }
+    } else if (typeof server === 'object' && server !== null) {
+      serverName = server.name || server.title || serverName;
+      serverUrl = server.url || server.baseUrl || server.address || JSON.stringify(server);
+    }
 
-     AppState.config.VOD_REQUEST_TIMEOUT = timeoutValue;
-     localStorage.setItem('danmu_api_config', JSON.stringify(AppState.config));
-     AppState.hasUnsavedChanges = true;
+    return `
+      <div class="server-item" data-index="${index}">
+        <div class="server-badge">${index + 1}</div>
+        <div class="server-info">
+          <div class="server-name">${serverName}</div>
+          <div class="server-url">${serverUrl}</div>
+        </div>
+        <div class="server-actions">
+          <button class="icon-btn" onclick="editVodServer(${index})" title="编辑">
+            <svg viewBox="0 0 24 24" width="16" height="16">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" fill="none"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" fill="none"/>
+            </svg>
+          </button>
+          <button class="icon-btn delete-btn" onclick="deleteVodServer(${index})" title="删除">
+            <svg viewBox="0 0 24 24" width="16" height="16">
+              <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="currentColor" stroke-width="2" fill="none"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
 
-     const configItems = document.querySelectorAll('#vod-page .config-item');
-     configItems.forEach(item => {
-       const label = item.querySelector('.config-label');
-       if (label && label.textContent === '请求超时') {
-         const codeElement = item.querySelector('.config-value code');
-         if (codeElement) {
-           codeElement.textContent = \`\${timeoutValue} 毫秒\`;
-         }
-       }
-     });
+async function toggleVodReturnMode(checkbox) {
+  const mode = checkbox.checked ? 'all' : 'fastest';
+  AppState.config.VOD_RETURN_MODE = mode;
+  localStorage.setItem('danmu_api_config', JSON.stringify(AppState.config));
 
-     showToast('VOD请求超时时间已更新', 'success');
-   }
+  const configValue = checkbox.closest('.config-item').querySelector('.config-value code');
+  configValue.textContent = checkbox.checked ? '返回所有站点结果' : '仅返回最快响应站点';
+  
+  // 🔥 保存到服务器
+  try {
+    const response = await fetch('/api/config/save', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        config: {
+          VOD_RETURN_MODE: mode
+        }
+      })
+    });
 
-   function initializeDragAndDrop() {
-     const sourceGrid = document.getElementById('sourceGrid');
-     if (!sourceGrid) return;
+    const result = await response.json();
+    
+    if (result.success) {
+      AppState.hasUnsavedChanges = false;
+      showToast(`VOD返回模式已保存: ${checkbox.checked ? '返回所有' : '仅返回最快'}`, 'success');
+    } else {
+      throw new Error(result.errorMessage || '保存失败');
+    }
+  } catch (error) {
+    console.error('保存到服务器失败:', error);
+    showToast(`VOD返回模式已保存到浏览器本地（服务器保存失败: ${error.message}）`, 'warning');
+  }
+}
 
-     const isMobile = window.innerWidth <= 768;
 
-     if (isMobile) {
-       setupMobileSourceReorder();
-       return;
-     }
+async function editVodTimeout() {
+  const currentTimeout = AppState.config.VOD_REQUEST_TIMEOUT || 10000;
+  const newTimeout = prompt('请输入VOD请求超时时间(毫秒):', currentTimeout);
+  
+  if (newTimeout === null) return;
+  
+  const timeoutValue = parseInt(newTimeout);
+  if (isNaN(timeoutValue) || timeoutValue < 1000) {
+    showToast('超时时间必须大于等于1000毫秒', 'error');
+    return;
+  }
 
-     let draggedElement = null;
-     let draggedIndex = null;
+  AppState.config.VOD_REQUEST_TIMEOUT = timeoutValue;
+  localStorage.setItem('danmu_api_config', JSON.stringify(AppState.config));
 
-     sourceGrid.addEventListener('dragstart', function(e) {
-       if (!e.target.classList.contains('source-item')) return;
-       draggedElement = e.target;
-       draggedIndex = parseInt(e.target.dataset.index);
-       e.target.classList.add('dragging');
-       e.dataTransfer.effectAllowed = 'move';
-     });
+  const configItems = document.querySelectorAll('#vod-page .config-item');
+  configItems.forEach(item => {
+    const label = item.querySelector('.config-label');
+    if (label && label.textContent === '请求超时') {
+      const codeElement = item.querySelector('.config-value code');
+      if (codeElement) {
+        codeElement.textContent = `${timeoutValue} 毫秒`;
+      }
+    }
+  });
 
-     sourceGrid.addEventListener('dragend', function(e) {
-       if (!e.target.classList.contains('source-item')) return;
-       e.target.classList.remove('dragging');
-     });
+  // 🔥 保存到服务器
+  try {
+    const response = await fetch('/api/config/save', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        config: {
+          VOD_REQUEST_TIMEOUT: String(timeoutValue)
+        }
+      })
+    });
 
-     sourceGrid.addEventListener('dragover', function(e) {
-       e.preventDefault();
-       e.dataTransfer.dropEffect = 'move';
-       const afterElement = getDragAfterElement(sourceGrid, e.clientY);
-       const dragging = document.querySelector('.dragging');
-       if (afterElement == null) {
-         sourceGrid.appendChild(dragging);
-       } else {
-         sourceGrid.insertBefore(dragging, afterElement);
-       }
-     });
+    const result = await response.json();
+    
+    if (result.success) {
+      AppState.hasUnsavedChanges = false;
+      showToast(`VOD请求超时已保存到: ${result.savedTo.join('、')}`, 'success');
+    } else {
+      throw new Error(result.errorMessage || '保存失败');
+    }
+  } catch (error) {
+    console.error('保存到服务器失败:', error);
+    showToast(`VOD请求超时已保存到浏览器本地（服务器保存失败: ${error.message}）`, 'warning');
+  }
+}
 
-     sourceGrid.addEventListener('drop', function(e) {
-       e.preventDefault();
-       const items = Array.from(sourceGrid.querySelectorAll('.source-item'));
-       const newOrder = items.map(item => item.dataset.source);
-       AppState.sourceOrder = newOrder;
-       AppState.hasUnsavedChanges = true;
-       items.forEach((item, index) => {
-         item.dataset.index = index;
-         const priority = item.querySelector('.source-priority');
-         if (priority) priority.textContent = index + 1;
-       });
-       showToast('数据源顺序已调整，记得保存', 'info');
-     });
-   }
 
-   function setupMobileSourceReorder() {
-     const sourceGrid = document.getElementById('sourceGrid');
-     if (!sourceGrid) return;
+function initializeDragAndDrop() {
+  const sourceGrid = document.getElementById('sourceGrid');
+  if (!sourceGrid) return;
 
-     const items = sourceGrid.querySelectorAll('.source-item');
-     items.forEach((item, index) => {
-       item.removeAttribute('draggable');
-       const moveButtons = document.createElement('div');
-       moveButtons.style.cssText = 'display:flex;flex-direction:column;gap:4px;margin-left:auto;';
+  const isMobile = window.innerWidth <= 768;
 
-       const upBtn = document.createElement('button');
-       upBtn.className = 'icon-btn';
-       upBtn.style.cssText = 'width:32px;height:32px;padding:0;';
-       upBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"><path d="M18 15l-6-6-6 6" stroke-width="2" stroke-linecap="round"/></svg>';
-       upBtn.onclick = (e) => { e.stopPropagation(); moveSourceUp(index); };
+  if (isMobile) {
+    setupMobileSourceReorder();
+    return;
+  }
 
-       const downBtn = document.createElement('button');
-       downBtn.className = 'icon-btn';
-       downBtn.style.cssText = 'width:32px;height:32px;padding:0;';
-       downBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"><path d="M6 9l6 6 6-6" stroke-width="2" stroke-linecap="round"/></svg>';
-       downBtn.onclick = (e) => { e.stopPropagation(); moveSourceDown(index); };
+  let draggedElement = null;
+  let draggedIndex = null;
 
-       if (index === 0) upBtn.disabled = true;
-       if (index === items.length - 1) downBtn.disabled = true;
+  sourceGrid.addEventListener('dragstart', function(e) {
+    if (!e.target.classList.contains('source-item')) return;
+    draggedElement = e.target;
+    draggedIndex = parseInt(e.target.dataset.index);
+    e.target.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+  });
 
-       moveButtons.appendChild(upBtn);
-       moveButtons.appendChild(downBtn);
-       item.appendChild(moveButtons);
-     });
-   }
+  sourceGrid.addEventListener('dragend', function(e) {
+    if (!e.target.classList.contains('source-item')) return;
+    e.target.classList.remove('dragging');
+  });
 
-   function moveSourceUp(index) {
-     if (index === 0) return;
-     const temp = AppState.sourceOrder[index];
-     AppState.sourceOrder[index] = AppState.sourceOrder[index - 1];
-     AppState.sourceOrder[index - 1] = temp;
-     AppState.hasUnsavedChanges = true;
-     refreshSourceGrid();
-     showToast('已上移，记得保存', 'info');
-   }
+  sourceGrid.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const afterElement = getDragAfterElement(sourceGrid, e.clientY);
+    const dragging = document.querySelector('.dragging');
+    if (afterElement == null) {
+      sourceGrid.appendChild(dragging);
+    } else {
+      sourceGrid.insertBefore(dragging, afterElement);
+    }
+  });
 
-   function moveSourceDown(index) {
-     if (index >= AppState.sourceOrder.length - 1) return;
-     const temp = AppState.sourceOrder[index];
-     AppState.sourceOrder[index] = AppState.sourceOrder[index + 1];
-     AppState.sourceOrder[index + 1] = temp;
-     AppState.hasUnsavedChanges = true;
-     refreshSourceGrid();
-     showToast('已下移，记得保存', 'info');
-   }
+  sourceGrid.addEventListener('drop', function(e) {
+    e.preventDefault();
+    const items = Array.from(sourceGrid.querySelectorAll('.source-item'));
+    const newOrder = items.map(item => item.dataset.source);
+    AppState.sourceOrder = newOrder;
+    AppState.hasUnsavedChanges = true;
+    items.forEach((item, index) => {
+      item.dataset.index = index;
+      const priority = item.querySelector('.source-priority');
+      if (priority) priority.textContent = index + 1;
+    });
+    showToast('数据源顺序已调整,记得保存', 'info');
+  });
+}
 
-   function refreshSourceGrid() {
-     const sourceGrid = document.getElementById('sourceGrid');
-     if (!sourceGrid) return;
+function setupMobileSourceReorder() {
+  const sourceGrid = document.getElementById('sourceGrid');
+  if (!sourceGrid) return;
 
-     const sourceIcons = { 'dandan': 'D', 'bilibili': 'B', 'iqiyi': 'I', 'youku': 'Y', 'tencent': 'T', 'mgtv': 'M', 'bahamut': 'BH' };
+  const items = sourceGrid.querySelectorAll('.source-item');
+  items.forEach((item, index) => {
+    item.removeAttribute('draggable');
+    const moveButtons = document.createElement('div');
+    moveButtons.style.cssText = 'display:flex;flex-direction:column;gap:4px;margin-left:auto;';
 
-     sourceGrid.innerHTML = AppState.sourceOrder.map((source, index) => {
-       const icon = sourceIcons[source.toLowerCase()] || source.charAt(0).toUpperCase();
-       return \`
-         <div class="source-item" draggable="\${window.innerWidth > 768}" data-index="\${index}" data-source="\${source}">
-           \${window.innerWidth > 768 ? '<div class="drag-handle"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M9 5h2v2H9V5zm0 6h2v2H9v-2zm0 6h2v2H9v-2zm4-12h2v2h-2V5zm0 6h2v2h-2v-2zm0 6h2v2h-2v-2z" fill="currentColor"/></svg></div>' : ''}
-           <div class="source-priority">\${index + 1}</div>
-           <div class="source-icon">\${icon}</div>
-           <div class="source-name">\${source}</div>
-         </div>
-       \`;
-     }).join('');
+    const upBtn = document.createElement('button');
+    upBtn.className = 'icon-btn';
+    upBtn.style.cssText = 'width:32px;height:32px;padding:0;';
+    upBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"><path d="M18 15l-6-6-6 6" stroke-width="2" stroke-linecap="round"/></svg>';
+    upBtn.onclick = (e) => { e.stopPropagation(); moveSourceUp(index); };
 
-     initializeDragAndDrop();
-   }
+    const downBtn = document.createElement('button');
+    downBtn.className = 'icon-btn';
+    downBtn.style.cssText = 'width:32px;height:32px;padding:0;';
+    downBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"><path d="M6 9l6 6 6-6" stroke-width="2" stroke-linecap="round"/></svg>';
+    downBtn.onclick = (e) => { e.stopPropagation(); moveSourceDown(index); };
 
-   function getDragAfterElement(container, y) {
-     const draggableElements = [...container.querySelectorAll('.source-item:not(.dragging)')];
-     return draggableElements.reduce((closest, child) => {
-       const box = child.getBoundingClientRect();
-       const offset = y - box.top - box.height / 2;
-       if (offset < 0 && offset > closest.offset) {
-         return { offset: offset, element: child };
-       } else {
-         return closest;
-       }
-     }, { offset: Number.NEGATIVE_INFINITY }).element;
-   }
+    if (index === 0) upBtn.disabled = true;
+    if (index === items.length - 1) downBtn.disabled = true;
 
-   function saveSourceOrder() {
-     localStorage.setItem('danmu_api_source_order', JSON.stringify(AppState.sourceOrder));
-     AppState.hasUnsavedChanges = false;
-     showToast('数据源优先级已保存', 'success');
-   }
+    moveButtons.appendChild(upBtn);
+    moveButtons.appendChild(downBtn);
+    item.appendChild(moveButtons);
+  });
+}
 
-   function resetSourceOrder() {
-     if (!confirm('确定要重置数据源顺序为默认值吗？')) return;
-     const defaultOrder = ['dandan', 'bilibili', 'iqiyi', 'youku', 'tencent', 'mgtv', 'bahamut'];
-     AppState.sourceOrder = defaultOrder;
-     localStorage.setItem('danmu_api_source_order', JSON.stringify(defaultOrder));
-     AppState.hasUnsavedChanges = false;
-     location.reload();
-   }
+function moveSourceUp(index) {
+  if (index === 0) return;
+  const temp = AppState.sourceOrder[index];
+  AppState.sourceOrder[index] = AppState.sourceOrder[index - 1];
+  AppState.sourceOrder[index - 1] = temp;
+  AppState.hasUnsavedChanges = true;
+  refreshSourceGrid();
+  showToast('已上移,记得保存', 'info');
+}
 
-   function toggleStrictMatch(checkbox) {
-     AppState.config.STRICT_TITLE_MATCH = checkbox.checked;
-     localStorage.setItem('danmu_api_config', JSON.stringify(AppState.config));
-     AppState.hasUnsavedChanges = true;
-     const configValue = checkbox.closest('.config-item').querySelector('.config-value');
-     configValue.classList.toggle('value-enabled', checkbox.checked);
-     configValue.classList.toggle('value-disabled', !checkbox.checked);
-     configValue.querySelector('code').textContent = checkbox.checked ? '已启用 - 减少误匹配' : '已禁用 - 宽松匹配';
-     showToast(\`严格匹配模式已\${checkbox.checked ? '启用' : '禁用'}\`, 'success');
-   }
+function moveSourceDown(index) {
+  if (index >= AppState.sourceOrder.length - 1) return;
+  const temp = AppState.sourceOrder[index];
+  AppState.sourceOrder[index] = AppState.sourceOrder[index + 1];
+  AppState.sourceOrder[index + 1] = temp;
+  AppState.hasUnsavedChanges = true;
+  refreshSourceGrid();
+  showToast('已下移,记得保存', 'info');
+}
+
+function refreshSourceGrid() {
+  const sourceGrid = document.getElementById('sourceGrid');
+  if (!sourceGrid) return;
+
+  const sourceIcons = { 'dandan': 'D', 'bilibili': 'B', 'iqiyi': 'I', 'youku': 'Y', 'tencent': 'T', 'mgtv': 'M', 'bahamut': 'BH' };
+
+  sourceGrid.innerHTML = AppState.sourceOrder.map((source, index) => {
+    const icon = sourceIcons[source.toLowerCase()] || source.charAt(0).toUpperCase();
+    return `
+      <div class="source-item" draggable="${window.innerWidth > 768}" data-index="${index}" data-source="${source}">
+        ${window.innerWidth > 768 ? '<div class="drag-handle"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M9 5h2v2H9V5zm0 6h2v2H9v-2zm0 6h2v2H9v-2zm4-12h2v2h-2V5zm0 6h2v2h-2v-2zm0 6h2v2h-2v-2z" fill="currentColor"/></svg></div>' : ''}
+        <div class="source-priority">${index + 1}</div>
+        <div class="source-icon">${icon}</div>
+        <div class="source-name">${source}</div>
+      </div>
+    `;
+  }).join('');
+
+  initializeDragAndDrop();
+}
+
+function getDragAfterElement(container, y) {
+  const draggableElements = [...container.querySelectorAll('.source-item:not(.dragging)')];
+  return draggableElements.reduce((closest, child) => {
+    const box = child.getBoundingClientRect();
+    const offset = y - box.top - box.height / 2;
+    if (offset < 0 && offset > closest.offset) {
+      return { offset: offset, element: child };
+    } else {
+      return closest;
+    }
+  }, { offset: Number.NEGATIVE_INFINITY }).element;
+}
+
+async function saveSourceOrder() {
+  localStorage.setItem('danmu_api_source_order', JSON.stringify(AppState.sourceOrder));
+  
+  // 🔥 保存到服务器
+  try {
+    showToast('正在保存到服务器...', 'info', 1000);
+    const response = await fetch('/api/config/save', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        config: {
+          SOURCE_ORDER: AppState.sourceOrder.join(',')
+        }
+      })
+    });
+
+    const result = await response.json();
+    
+    if (result.success) {
+      AppState.hasUnsavedChanges = false;
+      showToast(`数据源顺序已保存到: ${result.savedTo.join('、')}`, 'success');
+    } else {
+      throw new Error(result.errorMessage || '保存失败');
+    }
+  } catch (error) {
+    console.error('保存到服务器失败:', error);
+    showToast(`数据源顺序已保存到浏览器本地（服务器保存失败: ${error.message}）`, 'warning');
+  }
+}
+
+
+function resetSourceOrder() {
+  if (!confirm('确定要重置数据源顺序为默认值吗？')) return;
+  const defaultOrder = ['dandan', 'bilibili', 'iqiyi', 'youku', 'tencent', 'mgtv', 'bahamut'];
+  AppState.sourceOrder = defaultOrder;
+  localStorage.setItem('danmu_api_source_order', JSON.stringify(defaultOrder));
+  AppState.hasUnsavedChanges = false;
+  location.reload();
+}
+
+async function toggleStrictMatch(checkbox) {
+  AppState.config.STRICT_TITLE_MATCH = checkbox.checked;
+  localStorage.setItem('danmu_api_config', JSON.stringify(AppState.config));
+  const configValue = checkbox.closest('.config-item').querySelector('.config-value');
+  configValue.classList.toggle('value-enabled', checkbox.checked);
+  configValue.classList.toggle('value-disabled', !checkbox.checked);
+  configValue.querySelector('code').textContent = checkbox.checked ? '已启用 - 减少误匹配' : '已禁用 - 宽松匹配';
+  
+  // 🔥 保存到服务器
+  try {
+    const response = await fetch('/api/config/save', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        config: {
+          STRICT_TITLE_MATCH: String(checkbox.checked)
+        }
+      })
+    });
+
+    const result = await response.json();
+    
+    if (result.success) {
+      AppState.hasUnsavedChanges = false;
+      showToast(`严格匹配模式已${checkbox.checked ? '启用' : '禁用'}并保存`, 'success');
+    } else {
+      throw new Error(result.errorMessage || '保存失败');
+    }
+  } catch (error) {
+    console.error('保存到服务器失败:', error);
+    showToast(`严格匹配模式已${checkbox.checked ? '启用' : '禁用'}（保存到本地）`, 'warning');
+  }
+}
+
 
    function toggleRememberSelect(checkbox) {
      AppState.config.REMEMBER_LAST_SELECT = checkbox.checked;
@@ -4770,11 +4936,11 @@ if (currentToken === "87654321") {
     try {
       const body = await req.json();
       const { username, password } = body;
-
+      
       // 从 Redis/数据库加载账号密码，默认 admin/admin
       let storedUsername = 'admin';
       let storedPassword = 'admin';
-
+      
       try {
         if (globals.redisValid) {
           const { getRedisKey } = await import('./utils/redis-util.js');
@@ -4791,14 +4957,14 @@ if (currentToken === "87654321") {
       } catch (e) {
         log("warn", "[login] 加载账号密码失败，使用默认值");
       }
-
+      
       if (username === storedUsername && password === storedPassword) {
         const sessionId = generateSessionId();
         sessions.set(sessionId, { 
           username, 
           createdAt: Date.now() 
         });
-
+        
         return new Response(JSON.stringify({ success: true }), {
           headers: {
             'Content-Type': 'application/json',
@@ -4806,7 +4972,7 @@ if (currentToken === "87654321") {
           }
         });
       }
-
+      
       return jsonResponse({ success: false, message: '用户名或密码错误' }, 401);
     } catch (error) {
       return jsonResponse({ success: false, message: '登录失败' }, 500);
@@ -4820,7 +4986,7 @@ if (currentToken === "87654321") {
     if (sessionMatch) {
       sessions.delete(sessionMatch[1]);
     }
-
+    
     return new Response(JSON.stringify({ success: true }), {
       headers: {
         'Content-Type': 'application/json',
@@ -4834,19 +5000,19 @@ if (currentToken === "87654321") {
     const cookies = req.headers.get('cookie') || '';
     const sessionMatch = cookies.match(/session=([^;]+)/);
     const sessionId = sessionMatch ? sessionMatch[1] : null;
-
+    
     if (!validateSession(sessionId)) {
       return jsonResponse({ success: false, message: '未登录' }, 401);
     }
-
+    
     try {
       const body = await req.json();
       const { oldPassword, newPassword, newUsername } = body;
-
+      
       // 验证旧密码
       let storedUsername = 'admin';
       let storedPassword = 'admin';
-
+      
       try {
         if (globals.redisValid) {
           const { getRedisKey } = await import('./utils/redis-util.js');
@@ -4863,14 +5029,14 @@ if (currentToken === "87654321") {
       } catch (e) {
         log("warn", "[change-password] 加载账号密码失败");
       }
-
+      
       if (oldPassword !== storedPassword) {
         return jsonResponse({ success: false, message: '旧密码错误' }, 400);
       }
-
+      
       // 保存新密码
       const saveSuccess = await saveAdminCredentials(newUsername || storedUsername, newPassword);
-
+      
       if (saveSuccess) {
         return jsonResponse({ success: true, message: '密码修改成功，请重新登录' });
       } else {
@@ -5372,7 +5538,7 @@ function getLoginPage() {
 async function saveAdminCredentials(username, password) {
   try {
     let saved = false;
-
+    
     // 保存到 Redis
     if (globals.redisValid) {
       const { setRedisKey } = await import('./utils/redis-util.js');
@@ -5380,7 +5546,7 @@ async function saveAdminCredentials(username, password) {
       const passResult = await setRedisKey('admin_password', password, true);
       saved = userResult?.result === 'OK' && passResult?.result === 'OK';
     }
-
+    
     // 保存到数据库
     if (globals.databaseValid) {
       const { saveEnvConfigs } = await import('./utils/db-util.js');
@@ -5390,7 +5556,7 @@ async function saveAdminCredentials(username, password) {
       });
       saved = saved || dbSaved;
     }
-
+    
     return saved;
   } catch (error) {
     log("error", `[save-credentials] 保存失败: ${error.message}`);
