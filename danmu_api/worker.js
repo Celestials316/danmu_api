@@ -441,7 +441,7 @@ function handleHomepage(req) {
           displayValue = '未配置';
         } else if (isSensitive && typeof value === 'string' && value.length > 0) {
           const realValue = getRealEnvValue(key);
-          const maskedValue = '●'.repeat(Math.min(String(realValue).length, 32));
+          const maskedValue = '*'.repeat(Math.min(String(realValue).length, 32));
           const safeRealValue = typeof realValue === 'string' ? realValue : JSON.stringify(realValue);
           const encodedRealValue = safeRealValue
             .replace(/&/g, '&amp;')
@@ -456,7 +456,7 @@ function handleHomepage(req) {
                 <span class="env-label">${key}</span>
                 <button class="edit-btn" onclick="editEnv('${key}')" title="编辑">✏️</button>
               </div>
-              <div class="env-value sensitive" data-real="${encodedRealValue}" onclick="toggleSensitive(this)">
+              <div class="env-value sensitive" data-real="${encodedRealValue}" onclick="toggleSensitive(this)" ondblclick="copySensitiveValue(this, event)">
                 ${maskedValue} <span class="eye-icon">👁️</span>
               </div>
               <div class="env-desc">${description}</div>
@@ -810,12 +810,14 @@ function handleHomepage(req) {
       justify-content: space-between;
       align-items: center;
       user-select: none;
+      font-family: 'Courier New', monospace;
     }
 
     .env-value.sensitive:hover {
       background: var(--bg-tertiary);
       border-color: var(--accent-primary);
     }
+
 
     .env-value.sensitive.revealed {
       user-select: text;
@@ -1266,30 +1268,49 @@ function handleHomepage(req) {
       const real = element.dataset.real;
       const key = element.closest('.env-item').dataset.key;
       
-      if (element.classList.contains('revealed')) {
-        // 隐藏
-        element.innerHTML = '●'.repeat(32) + ' <span class="eye-icon">👁️</span>';
-        element.classList.remove('revealed');
-        if (AppState.revealedSecrets.has(key)) {
-          clearTimeout(AppState.revealedSecrets.get(key));
-          AppState.revealedSecrets.delete(key);
-        }
-      } else {
-        // 显示
-        const textarea = document.createElement('textarea');
-        textarea.innerHTML = real;
-        element.innerHTML = textarea.value + ' <span class="eye-icon">🔓</span>';
-        element.classList.add('revealed');
-        
-        // 3秒后自动隐藏
-        const timeoutId = setTimeout(() => {
-          element.innerHTML = '●'.repeat(32) + ' <span class="eye-icon">👁️</span>';
-          element.classList.remove('revealed');
-          AppState.revealedSecrets.delete(key);
-        }, 3000);
-        
-        AppState.revealedSecrets.set(key, timeoutId);
+      // 清除之前的定时器
+      if (AppState.revealedSecrets.has(key)) {
+        clearTimeout(AppState.revealedSecrets.get(key));
+        AppState.revealedSecrets.delete(key);
       }
+      
+      // 显示真实值
+      const textarea = document.createElement('textarea');
+      textarea.innerHTML = real;
+      const realValue = textarea.value;
+      element.innerHTML = realValue + ' <span class="eye-icon">🔓</span>';
+      element.classList.add('revealed');
+      
+      // 3秒后自动隐藏
+      const timeoutId = setTimeout(() => {
+        const maskedLength = Math.min(realValue.length, 32);
+        element.innerHTML = '*'.repeat(maskedLength) + ' <span class="eye-icon">👁️</span>';
+        element.classList.remove('revealed');
+        AppState.revealedSecrets.delete(key);
+      }, 3000);
+      
+      AppState.revealedSecrets.set(key, timeoutId);
+    }
+
+    function copySensitiveValue(element, event) {
+      event.stopPropagation();
+      const real = element.dataset.real;
+      const textarea = document.createElement('textarea');
+      textarea.innerHTML = real;
+      const text = textarea.value;
+      
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(text);
+      } else {
+        const temp = document.createElement('textarea');
+        temp.value = text;
+        document.body.appendChild(temp);
+        temp.select();
+        document.execCommand('copy');
+        document.body.removeChild(temp);
+      }
+      
+      showToast('📋 已复制到剪贴板', 'success');
     }
 
     function editEnv(key) {
