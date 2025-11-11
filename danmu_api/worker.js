@@ -1562,18 +1562,18 @@ function handleHomepage(req) {
            </div>
          </div>
 
-                <div class="stat-card">
-                    <div class="stat-header">
-                        <div class="stat-icon">🚀</div>
-                        <span class="stat-badge badge-success" id="versionBadge">检查中</span>
-                    </div>
-                    <div class="stat-title">服务版本</div>
-                    <div class="stat-value" id="currentVersion">${globals.VERSION || 'v1.0'}</div>
-                    <div class="stat-footer">
-                        <span id="versionIcon">📦</span>
-                        <span id="versionStatus">检查更新中...</span>
-                    </div>
-                </div>
+         <div class="stat-card">
+           <div class="stat-header">
+             <div class="stat-icon">🚀</div>
+             <span class="stat-badge badge-success" id="versionBadge">检查中</span>
+           </div>
+           <div class="stat-title">服务版本</div>
+           <div class="stat-value" id="currentVersion">${globals.VERSION || 'v1.0'}</div>
+           <div class="stat-footer">
+             <span id="versionIcon">📦</span>
+             <span id="versionStatus">检查更新中...</span>
+           </div>
+         </div>
 
 
        <!-- 快速配置 -->
@@ -2227,84 +2227,83 @@ function handleHomepage(req) {
      }
    });
 
-        // ========== Docker 版本检查 ==========
-        async function checkDockerVersion() {
-            const username = 'w254992';
-            const repository = 'danmu-api';
-            const currentVersion = '${globals.VERSION || 'v1.0'}';
-            
-            try {
-                const response = await fetch(\`https://hub.docker.com/v2/repositories/\${username}/\${repository}/tags\`);
-                const data = await response.json();
-                
-                if (data && data.results && data.results.length > 0) {
-                    // 过滤出版本号标签（排除 latest）
-                    const versionTags = data.results
-                        .filter(tag => tag.name !== 'latest' && /^\d+\.\d+\.\d+$/.test(tag.name))
-                        .sort((a, b) => {
-                            const versionA = a.name.split('.').map(Number);
-                            const versionB = b.name.split('.').map(Number);
-                            for (let i = 0; i < 3; i++) {
-                                if (versionA[i] !== versionB[i]) {
-                                    return versionB[i] - versionA[i];
-                                }
-                            }
-                            return 0;
-                        });
-                    
-                    if (versionTags.length > 0) {
-                        const latestVersion = versionTags[0].name;
-                        const latestDate = new Date(versionTags[0].last_updated).toLocaleDateString('zh-CN');
-                        
-                        // 更新页面显示
-                        document.getElementById('versionStatus').innerHTML = 
-                            \`最新版本: <strong>\${latestVersion}</strong> (发布于 \${latestDate})\`;
-                        
-                        // 比较版本号
-                        const current = currentVersion.replace(/^v/, '').split('.').map(Number);
-                        const latest = latestVersion.split('.').map(Number);
-                        let isLatest = true;
-                        
-                        for (let i = 0; i < 3; i++) {
-                            if (current[i] < latest[i]) {
-                                isLatest = false;
-                                break;
-                            } else if (current[i] > latest[i]) {
-                                break;
-                            }
-                        }
-                        
-                        const badge = document.getElementById('versionBadge');
-                        const icon = document.getElementById('versionIcon');
-                        
-                        if (isLatest) {
-                            badge.textContent = '最新';
-                            badge.className = 'stat-badge badge-success';
-                            icon.textContent = '✅';
-                        } else {
-                            badge.textContent = '有更新';
-                            badge.className = 'stat-badge badge-warning';
-                            icon.textContent = '🔔';
-                            document.getElementById('versionStatus').innerHTML += 
-                                \` <a href="https://hub.docker.com/r/\${username}/\${repository}/tags" target="_blank" style="color: var(--accent-primary); text-decoration: none; font-weight: 600;">→ 查看更新</a>\`;
-                        }
-                        
-                        return;
-                    }
-                }
-                
-                // 如果获取失败，显示默认信息
-                throw new Error('无法获取版本信息');
-                
-            } catch (error) {
-                console.error('检查版本失败:', error);
-                document.getElementById('versionBadge').textContent = '稳定';
-                document.getElementById('versionBadge').className = 'stat-badge badge-success';
-                document.getElementById('versionIcon').textContent = '📦';
-                document.getElementById('versionStatus').textContent = '版本检查失败';
-            }
-        }
-
+   // ========== Docker 版本检查 ==========
+   async function checkDockerVersion() {
+     const username = 'w254992';
+     const repository = 'danmu-api';
+     const currentVersion = '${globals.VERSION || 'v1.0'}';
+     
+     try {
+       const response = await fetch(\`https://hub.docker.com/v2/repositories/\${username}/\${repository}/tags\`);
+       const data = await response.json();
+       
+       if (data && data.results && data.results.length > 0) {
+         // 过滤出版本号标签（排除 latest）
+         const versionTags = data.results
+           .filter(tag => tag.name !== 'latest' && /^\d+\.\d+\.\d+$/.test(tag.name))
+           .sort((a, b) => {
+             const versionA = a.name.split('.').map(Number);
+             const versionB = b.name.split('.').map(Number);
+             for (let i = 0; i < 3; i++) {
+               if (versionA[i] !== versionB[i]) {
+                 return versionB[i] - versionA[i];
+               }
+             }
+             return 0;
+           });
+         
+         if (versionTags.length > 0) {
+           const latestVersion = versionTags[0].name;
+           const latestDate = new Date(versionTags[0].last_updated).toLocaleDateString('zh-CN');
+           
+           // 更新页面显示
+           document.getElementById('versionStatus').innerHTML = 
+             \`最新版本: <strong>\${latestVersion}</strong> (发布于 \${latestDate})\`;
+           
+           // 比较版本号
+           const current = currentVersion.replace(/^v/, '').split('.').map(Number);
+           const latest = latestVersion.split('.').map(Number);
+           let isLatest = true;
+           
+           for (let i = 0; i < 3; i++) {
+             if (current[i] < latest[i]) {
+               isLatest = false;
+               break;
+             } else if (current[i] > latest[i]) {
+               break;
+             }
+           }
+           
+           const badge = document.getElementById('versionBadge');
+           const icon = document.getElementById('versionIcon');
+           
+           if (isLatest) {
+             badge.textContent = '最新';
+             badge.className = 'stat-badge badge-success';
+             icon.textContent = '✅';
+           } else {
+             badge.textContent = '有更新';
+             badge.className = 'stat-badge badge-warning';
+             icon.textContent = '🔔';
+             document.getElementById('versionStatus').innerHTML += 
+               \` <a href="https://hub.docker.com/r/\${username}/\${repository}/tags" target="_blank" style="color: var(--accent-primary); text-decoration: none; font-weight: 600;">→ 查看更新</a>\`;
+           }
+           
+           return;
+         }
+       }
+       
+       // 如果获取失败，显示默认信息
+       throw new Error('无法获取版本信息');
+       
+     } catch (error) {
+       console.error('检查版本失败:', error);
+       document.getElementById('versionBadge').textContent = '稳定';
+       document.getElementById('versionBadge').className = 'stat-badge badge-success';
+       document.getElementById('versionIcon').textContent = '📦';
+       document.getElementById('versionStatus').textContent = '版本检查失败';
+     }
+   }
 
    // ========== 初始化加载 ==========
    async function loadConfig() {
