@@ -456,7 +456,7 @@ function handleHomepage(req) {
                 <span class="env-label">${key}</span>
                 <button class="edit-btn" onclick="editEnv('${key}')" title="编辑">✏️</button>
               </div>
-              <div class="env-value sensitive" data-real="${encodedRealValue}" onclick="toggleSensitive(this)" ondblclick="copySensitiveValue(this, event)">
+              <div class="env-value sensitive" data-real="${encodedRealValue}" data-masked="${maskedValue}" onclick="toggleSensitive(this)" ondblclick="copySensitiveValue(this, event)">
                 ${maskedValue} <span class="eye-icon">👁️</span>
               </div>
               <div class="env-desc">${description}</div>
@@ -1266,6 +1266,7 @@ function handleHomepage(req) {
 
     function toggleSensitive(element) {
       const real = element.dataset.real;
+      const masked = element.dataset.masked;
       const key = element.closest('.env-item').dataset.key;
       
       // 清除之前的定时器
@@ -1283,8 +1284,7 @@ function handleHomepage(req) {
       
       // 3秒后自动隐藏
       const timeoutId = setTimeout(() => {
-        const maskedLength = Math.min(realValue.length, 32);
-        element.innerHTML = '*'.repeat(maskedLength) + ' <span class="eye-icon">👁️</span>';
+        element.innerHTML = masked + ' <span class="eye-icon">👁️</span>';
         element.classList.remove('revealed');
         AppState.revealedSecrets.delete(key);
       }, 3000);
