@@ -1,363 +1,227 @@
-import { createClient } from '@libsql/client';
-import { globals } from '../configs/globals.js';
-import { log } from './log-util.js';
+import { Envs } from './envs.js';
 
-let dbClient = null;
+// 动态导入函数(避免循环依赖)
+async function importDbUtil() {
+  return await import('../utils/db-util.js');
+}
 
-/**
- * 获取数据库客户端
- * @returns {Object} 数据库客户端
- */
-function getDbClient() {
-  if (dbClient) {
-    return dbClient;
-  }
-
-  try {
-    const dbUrl = globals.databaseUrl;
-    const authToken = globals.databaseAuthToken;
-
-    if (!dbUrl) {
-      log("warn", "[database] 未配置数据库 URL，数据库功能将不可用");
-      return null;
-    }
-
-    // 本地 SQLite 文件
-    if (dbUrl.startsWith('file:')) {
-      dbClient = createClient({ url: dbUrl });
-      log("info", "[database] ✅ 本地 SQLite 客户端已创建");
-    }
-    // Turso 远程数据库
-    else if (authToken) {
-      dbClient = createClient({ url: dbUrl, authToken: authToken });
-      log("info", "[database] ✅ Turso 远程客户端已创建");
-    } else {
-      log("error", "[database] ❌ 远程数据库需要 DATABASE_AUTH_TOKEN");
-      return null;
-    }
-
-    return dbClient;
-  } catch (error) {
-    log("error", `[database] ❌ 初始化客户端失败: ${error.message}`);
-    return null;
-  }
+async function importRedisUtil() {
+  return await import('../utils/redis-util.js');
 }
 
 /**
- * 初始化数据库表
+ * 全局变量管理模块
+ * 集中管理项目中的静态常量和运行时共享变量
+ * ⚠️不是持久化存储,每次冷启动会丢失
  */
-export async function initDatabase() {
-  const client = getDbClient();
-  if (!client) {
-    globals.databaseValid = false;
-    return false;
-  }
+const Globals = {
+  // 环境变量相关
+  envs: {},
+  accessedEnvVars: {},
 
-  try {
-    // 创建 env_configs 表（存储环境变量配置）
-    await client.execute(`
-      CREATE TABLE IF NOT EXISTS env_configs (
-        key TEXT PRIMARY KEY,
-        value TEXT NOT NULL,
-        updated_at TEXT NOT NULL
-      )
-    `);
+  // 持久化存储状态
+  databaseValid: false,
+  redisValid: false,
+  redisCacheInitialized: false,
+  configLoaded: false,
+  storageChecked: false, // 🔥 新增:标记是否已检查存储连接
 
-    // 创建 cache_data 表（存储缓存数据）
-    await client.execute(`
-      CREATE TABLE IF NOT EXISTS cache_data (
-        key TEXT PRIMARY KEY,
-        value TEXT NOT NULL,
-        updated_at TEXT NOT NULL
-      )
-    `);
+  // 静态常量
+  VERSION: '1.7.4',
+  MAX_LOGS: 500,
+  MAX_ANIMES: 100,
+  MAX_LAST_SELECT_MAP: 1000,
 
-    globals.databaseValid = true;
-    log("info", "[database] ✅ 数据库表初始化完成");
-    return true;
-  } catch (error) {
-    globals.databaseValid = false;
-    log("error", `[database] ❌ 初始化表失败: ${error.message}`);
-    return false;
-  }
-}
+  // 运行时状态
+  animes: [],
+  episodeIds: [],
+  episodeNum: 10001,
+  logBuffer: [],
+  requestHistory: new Map(),
+  lastSelectMap: new Map(),
+  lastHashes: {
+    animes: null,
+    episodeIds: null,
+    episodeNum: null,
+    lastSelectMap: null
+  },
+  searchCache: new Map(),
+  commentCache: new Map(),
 
-/**
- * 保存环境变量配置到数据库
- * @param {Object} configs 配置对象
- */
-export async function saveEnvConfigs(configs) {
-  const client = getDbClient();
-  if (!client || !globals.databaseValid) {
-    return false;
-  }
-
-  try {
-    const timestamp = new Date().toISOString();
-    const statements = [];
-
-    for (const [key, value] of Object.entries(configs)) {
-      // 特殊处理：如果是正则表达式，转换为字符串格式存储
-      let saveValue = value;
-      if (value instanceof RegExp) {
-        saveValue = value.toString();
-      }
-
-      const valueStr = JSON.stringify(saveValue);
-      statements.push({
-        sql: 'INSERT OR REPLACE INTO env_configs (key, value, updated_at) VALUES (?, ?, ?)',
-        args: [key, valueStr, timestamp]
-      });
+  /**
+   * 初始化全局变量,加载环境变量依赖
+   * @param {Object} env 环境对象
+   * @param {string} deployPlatform 部署平台
+   * @returns {Object} 全局配置对象
+   */
+  async init(env = {}, deployPlatform = 'node') {
+    // 如果已经加载过,直接返回
+    if (this.configLoaded) {
+      console.log('[Globals] 配置已加载,跳过重复初始化');
+      return this.getConfig();
     }
 
-    if (statements.length > 0) {
-      await client.batch(statements, 'write');
-      log("info", `[database] ✅ 保存配置完成 (${statements.length} 项)`);
-      return true;
-    }
-    return false;
-  } catch (error) {
-    log("error", `[database] ❌ 保存配置失败: ${error.message}`);
-    return false;
-  }
-}
+    console.log('[Globals] 开始初始化配置...');
+    this.envs = Envs.load(env, deployPlatform);
+    this.accessedEnvVars = Object.fromEntries(Envs.getAccessedEnvVars());
 
-/**
- * 从数据库加载环境变量配置
- * @returns {Object} 配置对象
- */
-export async function loadEnvConfigs() {
-  // ========== 定义默认值 ==========
-  const DEFAULT_VALUES = {
-    'TOKEN': '87654321',
-    'OTHER_SERVER': 'https://api.danmu.icu',
-    'VOD_SERVERS': '金蝉@https://zy.jinchancaiji.com,789@https://www.caiji.cyou,听风@https://gctf.tfdh.top',
-    'VOD_RETURN_MODE': 'fastest',
-    'VOD_REQUEST_TIMEOUT': '10000',
-    'YOUKU_CONCURRENCY': '8',
-    'SOURCE_ORDER': '360,vod,renren,hanjutv',
-    'EPISODE_TITLE_FILTER': '(特别|惊喜|纳凉)?企划|合伙人手记|超前(营业|vlog)?|速览|vlog|reaction|纯享|加更(版|篇)?|抢先(看|版|集|篇)?|抢鲜|预告|花絮(独家)?|特辑|彩蛋|专访|幕后(故事|花絮|独家)?|直播(陪看|回顾)?|未播(片段)?|衍生|番外|会员(专享|加长|尊享|专属|版)?|片花|精华|看点|速看|解读|影评|解说|吐槽|盘点|拍摄花絮|制作花絮|幕后花絮|未播花絮|独家花絮|花絮特辑|先导预告|终极预告|正式预告|官方预告|彩蛋片段|删减片段|未播片段|番外彩蛋|精彩片段|精彩看点|精彩回顾|精彩集锦|看点解析|看点预告|NG镜头|NG花絮|番外篇|番外特辑|制作特辑|拍摄特辑|幕后特辑|导演特辑|演员特辑|片尾曲|插曲|高光回顾|背景音乐|OST|音乐MV|歌曲MV|前季回顾|剧情回顾|往期回顾|内容总结|剧情盘点|精选合集|剪辑合集|混剪视频|独家专访|演员访谈|导演访谈|主创访谈|媒体采访|发布会采访|采访|陪看(记)?|试看版|短剧|精编|Plus|独家版|特别版|短片|发布会|解忧局|走心局|火锅局|巅峰时刻|坞里都知道|福持目标坞民|.{3,}篇|(?!.*(入局|破冰局|做局)).{2,}局|观察室|上班那点事儿|周top|赛段|直拍|REACTION|VLOG|全纪录|开播|先导|总宣|展演|集锦|旅行日记|精彩分享|剧情揭秘',
-    'ENABLE_EPISODE_FILTER': 'false',
-    'STRICT_TITLE_MATCH': 'false',
-    'CONVERT_TOP_BOTTOM_TO_SCROLL': 'false',
-    'CONVERT_COLOR_TO_WHITE': 'false',
-    'DANMU_OUTPUT_FORMAT': 'json',
-    'DANMU_SIMPLIFIED': 'true',
-    'REMEMBER_LAST_SELECT': 'true',
-    'MAX_LAST_SELECT_MAP': '100',
-    'RATE_LIMIT_MAX_REQUESTS': '3',
-    'LOG_LEVEL': 'info',
-    'SEARCH_CACHE_MINUTES': '1',
-    'COMMENT_CACHE_MINUTES': '1',
-    'GROUP_MINUTE': '1'
-  };
+    // 尝试从数据库加载配置并覆盖
+    await this.loadConfigFromStorage();
 
-  const client = getDbClient();
-  if (!client || !globals.databaseValid) {
-    return {};
-  }
+    // 标记配置已加载
+    this.configLoaded = true;
+    console.log('[Globals] 配置初始化完成');
 
-  try {
-    const result = await client.execute('SELECT key, value FROM env_configs');
-    const configs = {};
+    return this.getConfig();
+  },
 
-    // 从数据库加载已配置的值
-    for (const row of result.rows) {
-      try {
-        const key = row.key;
-        const valueStr = row.value;
-        let parsedValue = JSON.parse(valueStr);
+  /**
+   * 从持久化存储加载配置
+   */
+  async loadConfigFromStorage() {
+    try {
+      // 首先检查数据库连接
+      if (this.envs.databaseUrl) {
+        try {
+          const { checkDatabaseConnection, initDatabase, loadEnvConfigs } = await importDbUtil();
 
-        // 特殊处理：如果是 EPISODE_TITLE_FILTER，检查是否需要重建为正则表达式
-        if (key === 'EPISODE_TITLE_FILTER' && typeof parsedValue === 'string' && parsedValue.length > 0) {
-          try {
-            const regexMatch = parsedValue.match(/^\/(.+)\/([gimuy]*)$/);
-            if (regexMatch) {
-              parsedValue = new RegExp(regexMatch[1], regexMatch[2]);
-            } else {
-              parsedValue = new RegExp(parsedValue);
+          const isConnected = await checkDatabaseConnection();
+          if (isConnected) {
+            await initDatabase();
+
+            const dbConfig = await loadEnvConfigs();
+            if (Object.keys(dbConfig).length > 0) {
+              console.log(`[Globals] ✅ 从数据库加载了 ${Object.keys(dbConfig).length} 个配置`);
+
+              // 应用数据库配置,覆盖默认值
+              this.applyConfig(dbConfig);
+              return;
             }
-          } catch (e) {
-            log("warn", `[database] ⚠️ 正则解析失败 ${key}: ${e.message}`);
-            parsedValue = null;
           }
+        } catch (error) {
+          console.error('[Globals] ❌ 数据库加载失败:', error.message);
         }
-
-        configs[key] = parsedValue;
-      } catch (e) {
-        log("warn", `[database] 解析配置失败: ${row.key}`);
-        configs[row.key] = row.value;
       }
-    }
 
-    // ========== 补充默认值 ==========
-    for (const [key, defaultValue] of Object.entries(DEFAULT_VALUES)) {
-      if (configs[key] === undefined || configs[key] === null || configs[key] === '') {
-        let parsedValue = defaultValue;
-        
-        // 特殊处理：EPISODE_TITLE_FILTER 需要转换为正则对象
-        if (key === 'EPISODE_TITLE_FILTER' && typeof parsedValue === 'string' && parsedValue.length > 0) {
-          try {
-            parsedValue = new RegExp(parsedValue);
-          } catch (e) {
-            log("warn", `[database] ⚠️ 默认正则解析失败 ${key}: ${e.message}`);
-            parsedValue = null;
+      // 如果数据库不可用,尝试 Redis
+      if (this.envs.redisUrl && this.envs.redisToken) {
+        try {
+          const { pingRedis, getRedisKey } = await importRedisUtil();
+
+          const pingResult = await pingRedis();
+          if (pingResult && pingResult.result === "PONG") {
+            const result = await getRedisKey('env_configs');
+            if (result && result.result) {
+              try {
+                const redisConfig = JSON.parse(result.result);
+                console.log(`[Globals] ✅ 从 Redis 加载了 ${Object.keys(redisConfig).length} 个配置`);
+
+                // 应用 Redis 配置
+                this.applyConfig(redisConfig);
+              } catch (e) {
+                console.error('[Globals] ❌ 解析 Redis 配置失败:', e.message);
+              }
+            }
           }
+        } catch (error) {
+          console.error('[Globals] ❌ Redis 加载失败:', error.message);
         }
-        
-        configs[key] = parsedValue;
-        log("info", `[database] 📝 使用默认值: ${key}`);
       }
+    } catch (error) {
+      console.error('[Globals] ❌ 加载存储配置失败:', error.message);
+    }
+  },
+
+  /**
+   * 应用配置到 envs 和 accessedEnvVars
+   * @param {Object} config 配置对象
+   */
+  applyConfig(config) {
+    const configCount = Object.keys(config).length;
+
+    for (const [key, value] of Object.entries(config)) {
+      // 跳过 null 和 undefined
+      if (value === null || value === undefined) {
+        continue;
+      }
+
+      // 直接赋值,保持原始类型
+      this.envs[key] = value;
+      this.accessedEnvVars[key] = value;
     }
 
-    if (Object.keys(configs).length > 0) {
-      log("info", `[database] ✅ 加载配置完成 (${Object.keys(configs).length} 项)`);
-    }
-    return configs;
-  } catch (error) {
-    log("error", `[database] ❌ 加载配置失败: ${error.message}`);
-    return {};
-  }
-}
-
-/**
- * 保存缓存数据到数据库
- * @param {string} key 缓存键
- * @param {any} value 缓存值
- */
-export async function saveCacheData(key, value) {
-  const client = getDbClient();
-  if (!client || !globals.databaseValid) {
-    return false;
-  }
-
-  try {
-    const timestamp = new Date().toISOString();
-    const serializedValue = JSON.stringify(value);
-
-    await client.execute({
-      sql: 'INSERT OR REPLACE INTO cache_data (key, value, updated_at) VALUES (?, ?, ?)',
-      args: [key, serializedValue, timestamp]
+    // 🔥 强制更新 Envs 模块的静态变量
+    Envs.env = { ...this.envs };
+    Envs.accessedEnvVars.clear();
+    Object.entries(this.accessedEnvVars).forEach(([k, v]) => {
+      Envs.accessedEnvVars.set(k, v);
     });
 
-    return true;
-  } catch (error) {
-    log("error", `[database] ❌ 保存缓存失败 (${key}): ${error.message}`);
-    return false;
-  }
-}
-
-/**
- * 从数据库加载缓存数据
- * @param {string} key 缓存键
- * @returns {any} 缓存值
- */
-export async function loadCacheData(key) {
-  const client = getDbClient();
-  if (!client || !globals.databaseValid) {
-    return null;
-  }
-
-  try {
-    const result = await client.execute({
-      sql: 'SELECT value FROM cache_data WHERE key = ?',
-      args: [key]
-    });
-
-    if (result.rows.length > 0) {
-      return JSON.parse(result.rows[0].value);
-    }
-    return null;
-  } catch (error) {
-    log("error", `[database] ❌ 加载缓存失败 (${key}): ${error.message}`);
-    return null;
-  }
-}
-
-/**
- * 批量保存缓存数据
- * @param {Object} cacheMap 缓存映射对象
- */
-export async function saveCacheBatch(cacheMap) {
-  const client = getDbClient();
-  if (!client || !globals.databaseValid) {
-    return false;
-  }
-
-  try {
-    const timestamp = new Date().toISOString();
-    const statements = [];
-
-    for (const [key, value] of Object.entries(cacheMap)) {
-      const serializedValue = JSON.stringify(value);
-      statements.push({
-        sql: 'INSERT OR REPLACE INTO cache_data (key, value, updated_at) VALUES (?, ?, ?)',
-        args: [key, serializedValue, timestamp]
-      });
+    // 特别处理需要重新解析的配置
+    if ('VOD_SERVERS' in config) {
+      this.envs.vodServers = this.parseVodServers(config.VOD_SERVERS);
     }
 
-    if (statements.length > 0) {
-      await client.batch(statements, 'write');
-      log("info", `[database] ✅ 批量保存缓存完成 (${statements.length} 项)`);
-      return true;
+    if ('SOURCE_ORDER' in config) {
+      this.envs.sourceOrderArr = this.parseSourceOrder(config.SOURCE_ORDER);
     }
-    return false;
-  } catch (error) {
-    log("error", `[database] ❌ 批量保存缓存失败: ${error.message}`);
-    return false;
-  }
-}
 
-/**
- * 批量加载缓存数据
- * @returns {Object} 缓存数据映射
- */
-export async function loadCacheBatch() {
-  const client = getDbClient();
-  if (!client || !globals.databaseValid) {
-    return {};
-  }
+    if ('PLATFORM_ORDER' in config) {
+      this.envs.platformOrderArr = this.parsePlatformOrder(config.PLATFORM_ORDER);
+    }
 
-  try {
-    const result = await client.execute('SELECT key, value FROM cache_data');
-    const cacheMap = {};
+    if ('TOKEN' in config) {
+      this.envs.token = config.TOKEN;
+    }
 
-    for (const row of result.rows) {
-      try {
-        cacheMap[row.key] = JSON.parse(row.value);
-      } catch (e) {
-        log("warn", `[database] 解析缓存失败: ${row.key}`);
+    // 更新其他派生属性
+    this.updateDerivedProperties(config);
+
+    console.log(`[Globals] ✅ 配置应用完成 (${configCount} 项)`);
+  },
+
+  /**
+   * 更新派生属性(基于配置变化)
+   */
+  updateDerivedProperties(config) {
+    const changedKeys = Object.keys(config);
+
+    // 更新搜索缓存时间
+    if (changedKeys.includes('SEARCH_CACHE_MINUTES')) {
+      const minutes = parseInt(config.SEARCH_CACHE_MINUTES);
+      this.envs.searchCacheMinutes = isNaN(minutes) || minutes < 0 ? 5 : minutes;
+    }
+
+    // 更新评论缓存时间
+    if (changedKeys.includes('COMMENT_CACHE_MINUTES')) {
+      const minutes = parseInt(config.COMMENT_CACHE_MINUTES);
+      this.envs.commentCacheMinutes = isNaN(minutes) || minutes < 0 ? 5 : minutes;
+    }
+
+    // WHITE_RATIO 处理
+    if (changedKeys.includes('WHITE_RATIO')) {
+      const ratio = parseFloat(config.WHITE_RATIO);
+      if (!isNaN(ratio)) {
+        this.envs.whiteRatio = ratio;
+        this.envs.WHITE_RATIO = ratio;
       }
     }
 
-    if (Object.keys(cacheMap).length > 0) {
-      log("info", `[database] ✅ 批量加载缓存完成 (${Object.keys(cacheMap).length} 项)`);
+    // BILIBILI_COOKIE 处理(兼容错误拼写)
+    if (changedKeys.includes('BILIBILI_COOKIE')) {
+      this.envs.bilibiliCookie = config.BILIBILI_COOKIE || '';
+      this.envs.bilibliCookie = config.BILIBILI_COOKIE || '';
+      this.envs.BILIBILI_COOKIE = config.BILIBILI_COOKIE || '';
     }
-    return cacheMap;
-  } catch (error) {
-    log("error", `[database] ❌ 批量加载缓存失败: ${error.message}`);
-    return {};
-  }
-}
 
-/**
- * 判断数据库是否可用
- */
-export async function checkDatabaseConnection() {
-  const client = getDbClient();
-  if (!client) {
-    globals.databaseValid = false;
-    return false;
-  }
+    // TMDB_API_KEY 处理
+    if (changedKeys.includes('TMDB_API_KEY')) {
+      this.envs.tmdbApiKey = config.TMDB_API_KEY || '';
+      this.envs.TMDB_API_KEY = config.TMDB_API_KEY || '';
+    }
 
-  try {
-    await client.execute('SELECT 1');
-    globals.databaseValid = true;
-    log("info", "[database] ✅ 数据库连接正常");
-    return true;
-  } catch (error) {
-    globals.databaseValid = false;
-    log("error", `[database] ❌ 数据库连接失败: ${error.message}`);
-    return false;
-  }
-}
+    // BLOCKED_WORDS 处理
+    if (changedKeys.includes('BLOCKED_WORDS')) {
+      this.envs.blockedWords = config.BLOCKED_WORDS || '';
+      this.envs.BLOCKED_WORDS = config.BLOCKED_WORDS || '';
+      if
