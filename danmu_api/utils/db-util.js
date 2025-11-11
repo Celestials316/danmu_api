@@ -147,8 +147,8 @@ export async function loadEnvConfigs() {
     'MAX_LAST_SELECT_MAP': '100',
     'RATE_LIMIT_MAX_REQUESTS': '3',
     'LOG_LEVEL': 'info',
-    'SEARCH_CACHE_MINUTES': '1',
-    'COMMENT_CACHE_MINUTES': '1',
+    'SEARCH_CACHE_MINUTES': '5',
+    'COMMENT_CACHE_MINUTES': '5',
     'GROUP_MINUTE': '1'
   };
 
@@ -168,7 +168,7 @@ export async function loadEnvConfigs() {
         const valueStr = row.value;
         let parsedValue = JSON.parse(valueStr);
 
-        // 特殊处理：如果是 EPISODE_TITLE_FILTER，检查是否需要重建为正则表达式
+        // ✅ 特殊处理：如果是 EPISODE_TITLE_FILTER，检查是否需要重建为正则表达式
         if (key === 'EPISODE_TITLE_FILTER' && typeof parsedValue === 'string' && parsedValue.length > 0) {
           try {
             const regexMatch = parsedValue.match(/^\/(.+)\/([gimuy]*)$/);
@@ -177,9 +177,11 @@ export async function loadEnvConfigs() {
             } else {
               parsedValue = new RegExp(parsedValue);
             }
+            log("info", `[database] ✅ 正则表达式已重建: ${key}`);
           } catch (e) {
-            log("warn", `[database] ⚠️ 正则解析失败 ${key}: ${e.message}`);
-            parsedValue = null;
+            log("warn", `[database] ⚠️ 正则解析失败 ${key}: ${e.message}，使用默认值`);
+            // ✅ 解析失败时跳过，让后面的默认值逻辑处理
+            continue;
           }
         }
 
@@ -194,7 +196,7 @@ export async function loadEnvConfigs() {
     for (const [key, defaultValue] of Object.entries(DEFAULT_VALUES)) {
       if (configs[key] === undefined || configs[key] === null || configs[key] === '') {
         let parsedValue = defaultValue;
-        
+
         // 特殊处理：EPISODE_TITLE_FILTER 需要转换为正则对象
         if (key === 'EPISODE_TITLE_FILTER' && typeof parsedValue === 'string' && parsedValue.length > 0) {
           try {
@@ -204,7 +206,7 @@ export async function loadEnvConfigs() {
             parsedValue = null;
           }
         }
-        
+
         configs[key] = parsedValue;
         log("info", `[database] 📝 使用默认值: ${key}`);
       }
