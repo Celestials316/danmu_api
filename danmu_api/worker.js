@@ -8,6 +8,41 @@ import { getBangumi, getComment, getCommentByUrl, matchAnime, searchAnime, searc
 
 let globals;
 
+// ========== 登录会话管理 ==========
+const sessions = new Map(); // 存储登录会话
+const SESSION_TIMEOUT = 24 * 60 * 60 * 1000; // 24小时过期
+
+// 生成随机会话ID
+function generateSessionId() {
+  return Array.from(crypto.getRandomValues(new Uint8Array(32)))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+// 验证会话
+function validateSession(sessionId) {
+  if (!sessionId) return false;
+  const session = sessions.get(sessionId);
+  if (!session) return false;
+  
+  // 检查是否过期
+  if (Date.now() - session.createdAt > SESSION_TIMEOUT) {
+    sessions.delete(sessionId);
+    return false;
+  }
+  return true;
+}
+
+// 清理过期会话
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, session] of sessions.entries()) {
+    if (now - session.createdAt > SESSION_TIMEOUT) {
+      sessions.delete(id);
+    }
+  }
+}, 60 * 60 * 1000); // 每小时清理一次
+
 /**
  * 合并写入 Redis：读取现有 -> 合并 patch -> 写回
  */
@@ -400,12 +435,12 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
     globals = await Globals.init(env, deployPlatform);
     log("info", "[init] ✅ 全局配置初始化完成");
   }
-  
+
   // 后续请求直接使用已加载的 globals
   // 不再重复加载
 
 
-  
+
   globals.deployPlatform = deployPlatform;
 
   const url = new URL(req.url);
@@ -422,8 +457,18 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
     await getRedisCaches();
   }
 
-  function handleHomepage() {
-    log("info", "Accessed homepage");
+function handleHomepage(req) {
+  log("info", "Accessed homepage");
+  
+  // 检查登录状态
+  const cookies = req.headers.get('cookie') || '';
+  const sessionMatch = cookies.match(/session=([^;]+)/);
+  const sessionId = sessionMatch ? sessionMatch[1] : null;
+  
+  if (!validateSession(sessionId)) {
+    return getLoginPage();
+  }
+
 
     const redisConfigured = !!(globals.redisUrl && globals.redisToken);
     const redisStatusText = redisConfigured 
@@ -2861,6 +2906,16 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" stroke-width="2"/>
            </svg>
          </button>
+         <button class="icon-btn" onclick="showChangePasswordModal()" title="修改密码">
+           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+             <path d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" stroke-width="2"/>
+           </svg>
+         </button>
+         <button class="icon-btn" onclick="logout()" title="退出登录">
+           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+             <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+         </button>
        </div>
    </header>
 
@@ -3330,6 +3385,53 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
      </div>
    </div>
  </div>
+
+<!-- 修改密码模态框 -->
+<div class="modal-overlay" id="changePasswordModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor">
+          <path d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" stroke-width="2"/>
+        </svg>
+        修改密码
+      </h3>
+      <button class="modal-close" onclick="closeModal('changePasswordModal')">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor">
+          <path d="M6 18L18 6M6 6l12 12" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">新用户名（可选）</label>
+        <input type="text" class="form-input" id="newUsername" placeholder="留空则不修改用户名">
+      </div>
+      <div class="form-group">
+        <label class="form-label">旧密码</label>
+        <input type="password" class="form-input" id="oldPassword" placeholder="请输入当前密码" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">新密码</label>
+        <input type="password" class="form-input" id="newPassword" placeholder="请输入新密码" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">确认新密码</label>
+        <input type="password" class="form-input" id="confirmPassword" placeholder="请再次输入新密码" required>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('changePasswordModal')">取消</button>
+      <button class="btn btn-primary" onclick="changePassword()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M5 13l4 4L19 7" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        确认修改
+      </button>
+    </div>
+  </div>
+</div>
+
 
  <!-- 快捷操作按钮 -->
  <button class="fab" onclick="saveAllConfig()" title="保存所有配置 (Ctrl+S)">
@@ -4296,6 +4398,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
        });
      }
    });
+   
 
    window.addEventListener('beforeunload', function(e) {
      if (AppState.hasUnsavedChanges) {
@@ -4305,8 +4408,86 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
      }
    });
 
+   // ========== 登录相关功能 ==========
+   // 退出登录
+   async function logout() {
+     if (!confirm('确定要退出登录吗？')) return;
+     
+     try {
+       await fetch('/api/logout', { method: 'POST' });
+       window.location.href = '/';
+     } catch (error) {
+       showToast('退出失败', 'error');
+     }
+   }
+
+   // 显示修改密码弹窗
+   function showChangePasswordModal() {
+     document.getElementById('newUsername').value = '';
+     document.getElementById('oldPassword').value = '';
+     document.getElementById('newPassword').value = '';
+     document.getElementById('confirmPassword').value = '';
+     showModal('changePasswordModal');
+   }
+
+   // 修改密码
+   async function changePassword() {
+     const newUsername = document.getElementById('newUsername').value.trim();
+     const oldPassword = document.getElementById('oldPassword').value;
+     const newPassword = document.getElementById('newPassword').value;
+     const confirmPassword = document.getElementById('confirmPassword').value;
+     
+     if (!oldPassword) {
+       showToast('请输入旧密码', 'error');
+       return;
+     }
+     
+     if (!newPassword) {
+       showToast('请输入新密码', 'error');
+       return;
+     }
+     
+     if (newPassword !== confirmPassword) {
+       showToast('两次输入的密码不一致', 'error');
+       return;
+     }
+     
+     if (newPassword.length < 4) {
+       showToast('密码长度至少为4位', 'error');
+       return;
+     }
+     
+     try {
+       const response = await fetch('/api/change-password', {
+         method: 'POST',
+         headers: {
+           'Content-Type': 'application/json'
+         },
+         body: JSON.stringify({
+           oldPassword,
+           newPassword,
+           newUsername: newUsername || undefined
+         })
+       });
+       
+       const result = await response.json();
+       
+       if (result.success) {
+         showToast('密码修改成功，请重新登录', 'success');
+         closeModal('changePasswordModal');
+         setTimeout(() => {
+           logout();
+         }, 1500);
+       } else {
+         showToast(result.message || '修改失败', 'error');
+       }
+     } catch (error) {
+       showToast('修改失败，请稍后重试', 'error');
+     }
+   }
 
  </script>
+
 </body>
 </html>
    `;
@@ -4353,7 +4534,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
           log("warn", `[config] 跳过空值配置: ${key}`);
           continue;
         }
-        
+
         // 确保字符串类型
         if (typeof value === 'string') {
           sanitizedConfig[key] = value;
@@ -4579,10 +4760,127 @@ if (currentToken === "87654321") {
     log("info", `[Path Check] Path "${path}" is excluded from normalization`);
   }
 
-  // GET /
+  // GET / - 首页（需要登录）
   if (path === "/" && method === "GET") {
-    return handleHomepage();
+    return handleHomepage(req);
   }
+
+  // POST /api/login - 登录
+  if (path === "/api/login" && method === "POST") {
+    try {
+      const body = await req.json();
+      const { username, password } = body;
+      
+      // 从 Redis/数据库加载账号密码，默认 admin/admin
+      let storedUsername = 'admin';
+      let storedPassword = 'admin';
+      
+      try {
+        if (globals.redisValid) {
+          const { getRedisKey } = await import('./utils/redis-util.js');
+          const userResult = await getRedisKey('admin_username');
+          const passResult = await getRedisKey('admin_password');
+          if (userResult?.result) storedUsername = userResult.result;
+          if (passResult?.result) storedPassword = passResult.result;
+        } else if (globals.databaseValid) {
+          const { loadEnvConfigs } = await import('./utils/db-util.js');
+          const configs = await loadEnvConfigs();
+          if (configs.ADMIN_USERNAME) storedUsername = configs.ADMIN_USERNAME;
+          if (configs.ADMIN_PASSWORD) storedPassword = configs.ADMIN_PASSWORD;
+        }
+      } catch (e) {
+        log("warn", "[login] 加载账号密码失败，使用默认值");
+      }
+      
+      if (username === storedUsername && password === storedPassword) {
+        const sessionId = generateSessionId();
+        sessions.set(sessionId, { 
+          username, 
+          createdAt: Date.now() 
+        });
+        
+        return new Response(JSON.stringify({ success: true }), {
+          headers: {
+            'Content-Type': 'application/json',
+            'Set-Cookie': `session=${sessionId}; Path=/; Max-Age=${SESSION_TIMEOUT / 1000}; HttpOnly; SameSite=Strict`
+          }
+        });
+      }
+      
+      return jsonResponse({ success: false, message: '用户名或密码错误' }, 401);
+    } catch (error) {
+      return jsonResponse({ success: false, message: '登录失败' }, 500);
+    }
+  }
+
+  // POST /api/logout - 退出登录
+  if (path === "/api/logout" && method === "POST") {
+    const cookies = req.headers.get('cookie') || '';
+    const sessionMatch = cookies.match(/session=([^;]+)/);
+    if (sessionMatch) {
+      sessions.delete(sessionMatch[1]);
+    }
+    
+    return new Response(JSON.stringify({ success: true }), {
+      headers: {
+        'Content-Type': 'application/json',
+        'Set-Cookie': 'session=; Path=/; Max-Age=0'
+      }
+    });
+  }
+
+  // POST /api/change-password - 修改密码
+  if (path === "/api/change-password" && method === "POST") {
+    const cookies = req.headers.get('cookie') || '';
+    const sessionMatch = cookies.match(/session=([^;]+)/);
+    const sessionId = sessionMatch ? sessionMatch[1] : null;
+    
+    if (!validateSession(sessionId)) {
+      return jsonResponse({ success: false, message: '未登录' }, 401);
+    }
+    
+    try {
+      const body = await req.json();
+      const { oldPassword, newPassword, newUsername } = body;
+      
+      // 验证旧密码
+      let storedUsername = 'admin';
+      let storedPassword = 'admin';
+      
+      try {
+        if (globals.redisValid) {
+          const { getRedisKey } = await import('./utils/redis-util.js');
+          const userResult = await getRedisKey('admin_username');
+          const passResult = await getRedisKey('admin_password');
+          if (userResult?.result) storedUsername = userResult.result;
+          if (passResult?.result) storedPassword = passResult.result;
+        } else if (globals.databaseValid) {
+          const { loadEnvConfigs } = await import('./utils/db-util.js');
+          const configs = await loadEnvConfigs();
+          if (configs.ADMIN_USERNAME) storedUsername = configs.ADMIN_USERNAME;
+          if (configs.ADMIN_PASSWORD) storedPassword = configs.ADMIN_PASSWORD;
+        }
+      } catch (e) {
+        log("warn", "[change-password] 加载账号密码失败");
+      }
+      
+      if (oldPassword !== storedPassword) {
+        return jsonResponse({ success: false, message: '旧密码错误' }, 400);
+      }
+      
+      // 保存新密码
+      const saveSuccess = await saveAdminCredentials(newUsername || storedUsername, newPassword);
+      
+      if (saveSuccess) {
+        return jsonResponse({ success: true, message: '密码修改成功，请重新登录' });
+      } else {
+        return jsonResponse({ success: false, message: '密码修改失败' }, 500);
+      }
+    } catch (error) {
+      return jsonResponse({ success: false, message: '修改失败' }, 500);
+    }
+  }
+
 
   // GET /api/v2/search/anime
   if (path === "/api/v2/search/anime" && method === "GET") {
@@ -4743,6 +5041,361 @@ if (currentToken === "87654321") {
 
 
   return jsonResponse({ message: "Not found" }, 404);
+}
+
+
+// ========== 登录页面 HTML ==========
+function getLoginPage() {
+  const html = `
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>登录 - 弹幕 API 管理后台</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --primary-500: #6366f1;
+      --primary-600: #4f46e5;
+      --bg-primary: #0a0a0f;
+      --bg-secondary: #13131a;
+      --text-primary: #e5e7eb;
+      --text-secondary: #9ca3af;
+      --border-color: #2d2d3f;
+      --error: #ef4444;
+      --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.6);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: 
+        radial-gradient(circle at 20% 50%, rgba(99, 102, 241, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.1) 0%, transparent 50%);
+      pointer-events: none;
+      animation: bgFloat 20s ease-in-out infinite;
+    }
+
+    @keyframes bgFloat {
+      0%, 100% { transform: translate(0, 0); }
+      33% { transform: translate(30px, -30px); }
+      66% { transform: translate(-20px, 20px); }
+    }
+
+    .login-container {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 420px;
+      padding: 20px;
+    }
+
+    .login-card {
+      background: rgba(28, 28, 39, 0.7);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      padding: 48px 40px;
+      box-shadow: var(--shadow-xl);
+      animation: slideInUp 0.5s ease-out;
+    }
+
+    @keyframes slideInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .login-header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .logo-icon {
+      width: 64px;
+      height: 64px;
+      background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      margin: 0 auto 20px;
+      box-shadow: 0 0 30px rgba(99, 102, 241, 0.5);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+
+    .login-title {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .login-subtitle {
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    .form-group {
+      margin-bottom: 24px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 10px;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 14px 16px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      color: var(--text-primary);
+      font-size: 14px;
+      transition: all 0.3s;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: var(--primary-500);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+
+    .btn-primary {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+    }
+
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .error-message {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid var(--error);
+      color: var(--error);
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 14px;
+      margin-bottom: 20px;
+      display: none;
+      animation: shake 0.5s;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-10px); }
+      75% { transform: translateX(10px); }
+    }
+
+    .login-footer {
+      text-align: center;
+      margin-top: 30px;
+      color: var(--text-secondary);
+      font-size: 13px;
+    }
+
+    .default-hint {
+      background: rgba(99, 102, 241, 0.1);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      color: var(--primary-500);
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 24px;
+      text-align: center;
+    }
+
+    @media (max-width: 480px) {
+      .login-card {
+        padding: 36px 28px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <div class="login-card">
+      <div class="login-header">
+        <div class="logo-icon">🎬</div>
+        <h1 class="login-title">弹幕 API</h1>
+        <p class="login-subtitle">管理后台登录</p>
+      </div>
+
+      <div class="default-hint">
+        💡 默认账号密码均为 <strong>admin</strong>
+      </div>
+
+      <div id="errorMessage" class="error-message"></div>
+
+      <form id="loginForm">
+        <div class="form-group">
+          <label class="form-label">用户名</label>
+          <input type="text" class="form-input" id="username" placeholder="请输入用户名" required autocomplete="username">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">密码</label>
+          <input type="password" class="form-input" id="password" placeholder="请输入密码" required autocomplete="current-password">
+        </div>
+
+        <button type="submit" class="btn-primary" id="loginBtn">
+          登录
+        </button>
+      </form>
+
+      <div class="login-footer">
+        <p>弹幕 API 服务 | 请妥善保管登录凭证</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const loginForm = document.getElementById('loginForm');
+    const errorMessage = document.getElementById('errorMessage');
+    const loginBtn = document.getElementById('loginBtn');
+
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+
+      errorMessage.style.display = 'none';
+      loginBtn.disabled = true;
+      loginBtn.textContent = '登录中...';
+
+      try {
+        const response = await fetch('/api/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ username, password })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          window.location.href = '/';
+        } else {
+          errorMessage.textContent = result.message || '登录失败，请检查用户名和密码';
+          errorMessage.style.display = 'block';
+        }
+      } catch (error) {
+        errorMessage.textContent = '网络错误，请稍后重试';
+        errorMessage.style.display = 'block';
+      } finally {
+        loginBtn.disabled = false;
+        loginBtn.textContent = '登录';
+      }
+    });
+
+    // 回车登录
+    document.getElementById('password').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        loginForm.dispatchEvent(new Event('submit'));
+      }
+    });
+  </script>
+</body>
+</html>
+  `;
+
+  return new Response(html, {
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-cache'
+    }
+  });
+}
+
+// 保存管理员账号密码
+async function saveAdminCredentials(username, password) {
+  try {
+    let saved = false;
+    
+    // 保存到 Redis
+    if (globals.redisValid) {
+      const { setRedisKey } = await import('./utils/redis-util.js');
+      const userResult = await setRedisKey('admin_username', username, true);
+      const passResult = await setRedisKey('admin_password', password, true);
+      saved = userResult?.result === 'OK' && passResult?.result === 'OK';
+    }
+    
+    // 保存到数据库
+    if (globals.databaseValid) {
+      const { saveEnvConfigs } = await import('./utils/db-util.js');
+      const dbSaved = await saveEnvConfigs({
+        ADMIN_USERNAME: username,
+        ADMIN_PASSWORD: password
+      });
+      saved = saved || dbSaved;
+    }
+    
+    return saved;
+  } catch (error) {
+    log("error", `[save-credentials] 保存失败: ${error.message}`);
+    return false;
+  }
 }
 
 
