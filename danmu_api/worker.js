@@ -3901,50 +3901,50 @@ function handleHomepage(req) {
   }
 
 
-   function refreshVodServerList() {
-     const grid = document.getElementById('vodServerGrid');
-     if (!grid) return;
+  function refreshVodServerList() {
+    const grid = document.getElementById('vodServerGrid');
+    if (!grid) return;
 
-     grid.innerHTML = AppState.vodServers.map((server, index) => {
-       let serverName = \`服务器 #\${index + 1}\`;
-       let serverUrl = '';
+    grid.innerHTML = AppState.vodServers.map((server, index) => {
+      let serverName = `服务器 #${index + 1}`;
+      let serverUrl = '';
 
-       if (typeof server === 'string') {
-         serverUrl = server;
-         if (server.includes('@')) {
-           const parts = server.split('@');
-           serverName = parts[0];
-           serverUrl = parts.slice(1).join('@');
-         }
-       } else if (typeof server === 'object' && server !== null) {
-         serverName = server.name || server.title || serverName;
-         serverUrl = server.url || server.baseUrl || server.address || JSON.stringify(server);
-       }
+      if (typeof server === 'string') {
+        serverUrl = server;
+        if (server.includes('@')) {
+          const parts = server.split('@');
+          serverName = parts[0];
+          serverUrl = parts.slice(1).join('@');
+        }
+      } else if (typeof server === 'object' && server !== null) {
+        serverName = server.name || server.title || serverName;
+        serverUrl = server.url || server.baseUrl || server.address || JSON.stringify(server);
+      }
 
-       return \`
-         <div class="server-item" data-index="\${index}">
-           <div class="server-badge">\${index + 1}</div>
-           <div class="server-info">
-             <div class="server-name">\${serverName}</div>
-             <div class="server-url">\${serverUrl}</div>
-           </div>
-           <div class="server-actions">
-             <button class="icon-btn" onclick="editVodServer(\${index})" title="编辑">
-               <svg viewBox="0 0 24 24" width="16" height="16">
-                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" fill="none"/>
-                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" fill="none"/>
-               </svg>
-             </button>
-             <button class="icon-btn delete-btn" onclick="deleteVodServer(\${index})" title="删除">
-               <svg viewBox="0 0 24 24" width="16" height="16">
-                 <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="currentColor" stroke-width="2" fill="none"/>
-               </svg>
-             </button>
-           </div>
-         </div>
-       \`;
-     }).join('');
-   }
+      return `
+        <div class="server-item" data-index="${index}">
+          <div class="server-badge">${index + 1}</div>
+          <div class="server-info">
+            <div class="server-name">${serverName}</div>
+            <div class="server-url">${serverUrl}</div>
+          </div>
+          <div class="server-actions">
+            <button class="icon-btn" onclick="editVodServer(${index})" title="编辑">
+              <svg viewBox="0 0 24 24" width="16" height="16">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" fill="none"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" fill="none"/>
+              </svg>
+            </button>
+            <button class="icon-btn delete-btn" onclick="deleteVodServer(${index})" title="删除">
+              <svg viewBox="0 0 24 24" width="16" height="16">
+                <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="currentColor" stroke-width="2" fill="none"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
 
   async function toggleVodReturnMode(checkbox) {
     const mode = checkbox.checked ? 'all' : 'fastest';
@@ -4038,144 +4038,144 @@ function handleHomepage(req) {
   }
 
 
-   function initializeDragAndDrop() {
-     const sourceGrid = document.getElementById('sourceGrid');
-     if (!sourceGrid) return;
+  function initializeDragAndDrop() {
+    const sourceGrid = document.getElementById('sourceGrid');
+    if (!sourceGrid) return;
 
-     const isMobile = window.innerWidth <= 768;
+    const isMobile = window.innerWidth <= 768;
 
-     if (isMobile) {
-       setupMobileSourceReorder();
-       return;
-     }
+    if (isMobile) {
+      setupMobileSourceReorder();
+      return;
+    }
 
-     let draggedElement = null;
-     let draggedIndex = null;
+    let draggedElement = null;
+    let draggedIndex = null;
 
-     sourceGrid.addEventListener('dragstart', function(e) {
-       if (!e.target.classList.contains('source-item')) return;
-       draggedElement = e.target;
-       draggedIndex = parseInt(e.target.dataset.index);
-       e.target.classList.add('dragging');
-       e.dataTransfer.effectAllowed = 'move';
-     });
+    sourceGrid.addEventListener('dragstart', function(e) {
+      if (!e.target.classList.contains('source-item')) return;
+      draggedElement = e.target;
+      draggedIndex = parseInt(e.target.dataset.index);
+      e.target.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
 
-     sourceGrid.addEventListener('dragend', function(e) {
-       if (!e.target.classList.contains('source-item')) return;
-       e.target.classList.remove('dragging');
-     });
+    sourceGrid.addEventListener('dragend', function(e) {
+      if (!e.target.classList.contains('source-item')) return;
+      e.target.classList.remove('dragging');
+    });
 
-     sourceGrid.addEventListener('dragover', function(e) {
-       e.preventDefault();
-       e.dataTransfer.dropEffect = 'move';
-       const afterElement = getDragAfterElement(sourceGrid, e.clientY);
-       const dragging = document.querySelector('.dragging');
-       if (afterElement == null) {
-         sourceGrid.appendChild(dragging);
-       } else {
-         sourceGrid.insertBefore(dragging, afterElement);
-       }
-     });
+    sourceGrid.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      const afterElement = getDragAfterElement(sourceGrid, e.clientY);
+      const dragging = document.querySelector('.dragging');
+      if (afterElement == null) {
+        sourceGrid.appendChild(dragging);
+      } else {
+        sourceGrid.insertBefore(dragging, afterElement);
+      }
+    });
 
-     sourceGrid.addEventListener('drop', function(e) {
-       e.preventDefault();
-       const items = Array.from(sourceGrid.querySelectorAll('.source-item'));
-       const newOrder = items.map(item => item.dataset.source);
-       AppState.sourceOrder = newOrder;
-       AppState.hasUnsavedChanges = true;
-       items.forEach((item, index) => {
-         item.dataset.index = index;
-         const priority = item.querySelector('.source-priority');
-         if (priority) priority.textContent = index + 1;
-       });
-       showToast('数据源顺序已调整，记得保存', 'info');
-     });
-   }
+    sourceGrid.addEventListener('drop', function(e) {
+      e.preventDefault();
+      const items = Array.from(sourceGrid.querySelectorAll('.source-item'));
+      const newOrder = items.map(item => item.dataset.source);
+      AppState.sourceOrder = newOrder;
+      AppState.hasUnsavedChanges = true;
+      items.forEach((item, index) => {
+        item.dataset.index = index;
+        const priority = item.querySelector('.source-priority');
+        if (priority) priority.textContent = index + 1;
+      });
+      showToast('数据源顺序已调整,记得保存', 'info');
+    });
+  }
 
-   function setupMobileSourceReorder() {
-     const sourceGrid = document.getElementById('sourceGrid');
-     if (!sourceGrid) return;
+  function setupMobileSourceReorder() {
+    const sourceGrid = document.getElementById('sourceGrid');
+    if (!sourceGrid) return;
 
-     const items = sourceGrid.querySelectorAll('.source-item');
-     items.forEach((item, index) => {
-       item.removeAttribute('draggable');
-       const moveButtons = document.createElement('div');
-       moveButtons.style.cssText = 'display:flex;flex-direction:column;gap:4px;margin-left:auto;';
+    const items = sourceGrid.querySelectorAll('.source-item');
+    items.forEach((item, index) => {
+      item.removeAttribute('draggable');
+      const moveButtons = document.createElement('div');
+      moveButtons.style.cssText = 'display:flex;flex-direction:column;gap:4px;margin-left:auto;';
 
-       const upBtn = document.createElement('button');
-       upBtn.className = 'icon-btn';
-       upBtn.style.cssText = 'width:32px;height:32px;padding:0;';
-       upBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"><path d="M18 15l-6-6-6 6" stroke-width="2" stroke-linecap="round"/></svg>';
-       upBtn.onclick = (e) => { e.stopPropagation(); moveSourceUp(index); };
+      const upBtn = document.createElement('button');
+      upBtn.className = 'icon-btn';
+      upBtn.style.cssText = 'width:32px;height:32px;padding:0;';
+      upBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"><path d="M18 15l-6-6-6 6" stroke-width="2" stroke-linecap="round"/></svg>';
+      upBtn.onclick = (e) => { e.stopPropagation(); moveSourceUp(index); };
 
-       const downBtn = document.createElement('button');
-       downBtn.className = 'icon-btn';
-       downBtn.style.cssText = 'width:32px;height:32px;padding:0;';
-       downBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"><path d="M6 9l6 6 6-6" stroke-width="2" stroke-linecap="round"/></svg>';
-       downBtn.onclick = (e) => { e.stopPropagation(); moveSourceDown(index); };
+      const downBtn = document.createElement('button');
+      downBtn.className = 'icon-btn';
+      downBtn.style.cssText = 'width:32px;height:32px;padding:0;';
+      downBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"><path d="M6 9l6 6 6-6" stroke-width="2" stroke-linecap="round"/></svg>';
+      downBtn.onclick = (e) => { e.stopPropagation(); moveSourceDown(index); };
 
-       if (index === 0) upBtn.disabled = true;
-       if (index === items.length - 1) downBtn.disabled = true;
+      if (index === 0) upBtn.disabled = true;
+      if (index === items.length - 1) downBtn.disabled = true;
 
-       moveButtons.appendChild(upBtn);
-       moveButtons.appendChild(downBtn);
-       item.appendChild(moveButtons);
-     });
-   }
+      moveButtons.appendChild(upBtn);
+      moveButtons.appendChild(downBtn);
+      item.appendChild(moveButtons);
+    });
+  }
 
-   function moveSourceUp(index) {
-     if (index === 0) return;
-     const temp = AppState.sourceOrder[index];
-     AppState.sourceOrder[index] = AppState.sourceOrder[index - 1];
-     AppState.sourceOrder[index - 1] = temp;
-     AppState.hasUnsavedChanges = true;
-     refreshSourceGrid();
-     showToast('已上移，记得保存', 'info');
-   }
+  function moveSourceUp(index) {
+    if (index === 0) return;
+    const temp = AppState.sourceOrder[index];
+    AppState.sourceOrder[index] = AppState.sourceOrder[index - 1];
+    AppState.sourceOrder[index - 1] = temp;
+    AppState.hasUnsavedChanges = true;
+    refreshSourceGrid();
+    showToast('已上移,记得保存', 'info');
+  }
 
-   function moveSourceDown(index) {
-     if (index >= AppState.sourceOrder.length - 1) return;
-     const temp = AppState.sourceOrder[index];
-     AppState.sourceOrder[index] = AppState.sourceOrder[index + 1];
-     AppState.sourceOrder[index + 1] = temp;
-     AppState.hasUnsavedChanges = true;
-     refreshSourceGrid();
-     showToast('已下移，记得保存', 'info');
-   }
+  function moveSourceDown(index) {
+    if (index >= AppState.sourceOrder.length - 1) return;
+    const temp = AppState.sourceOrder[index];
+    AppState.sourceOrder[index] = AppState.sourceOrder[index + 1];
+    AppState.sourceOrder[index + 1] = temp;
+    AppState.hasUnsavedChanges = true;
+    refreshSourceGrid();
+    showToast('已下移,记得保存', 'info');
+  }
 
-   function refreshSourceGrid() {
-     const sourceGrid = document.getElementById('sourceGrid');
-     if (!sourceGrid) return;
+  function refreshSourceGrid() {
+    const sourceGrid = document.getElementById('sourceGrid');
+    if (!sourceGrid) return;
 
-     const sourceIcons = { 'dandan': 'D', 'bilibili': 'B', 'iqiyi': 'I', 'youku': 'Y', 'tencent': 'T', 'mgtv': 'M', 'bahamut': 'BH' };
+    const sourceIcons = { 'dandan': 'D', 'bilibili': 'B', 'iqiyi': 'I', 'youku': 'Y', 'tencent': 'T', 'mgtv': 'M', 'bahamut': 'BH' };
 
-     sourceGrid.innerHTML = AppState.sourceOrder.map((source, index) => {
-       const icon = sourceIcons[source.toLowerCase()] || source.charAt(0).toUpperCase();
-       return \`
-         <div class="source-item" draggable="\${window.innerWidth > 768}" data-index="\${index}" data-source="\${source}">
-           \${window.innerWidth > 768 ? '<div class="drag-handle"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M9 5h2v2H9V5zm0 6h2v2H9v-2zm0 6h2v2H9v-2zm4-12h2v2h-2V5zm0 6h2v2h-2v-2zm0 6h2v2h-2v-2z" fill="currentColor"/></svg></div>' : ''}
-           <div class="source-priority">\${index + 1}</div>
-           <div class="source-icon">\${icon}</div>
-           <div class="source-name">\${source}</div>
-         </div>
-       \`;
-     }).join('');
+    sourceGrid.innerHTML = AppState.sourceOrder.map((source, index) => {
+      const icon = sourceIcons[source.toLowerCase()] || source.charAt(0).toUpperCase();
+      return `
+        <div class="source-item" draggable="${window.innerWidth > 768}" data-index="${index}" data-source="${source}">
+          ${window.innerWidth > 768 ? '<div class="drag-handle"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M9 5h2v2H9V5zm0 6h2v2H9v-2zm0 6h2v2H9v-2zm4-12h2v2h-2V5zm0 6h2v2h-2v-2zm0 6h2v2h-2v-2z" fill="currentColor"/></svg></div>' : ''}
+          <div class="source-priority">${index + 1}</div>
+          <div class="source-icon">${icon}</div>
+          <div class="source-name">${source}</div>
+        </div>
+      `;
+    }).join('');
 
-     initializeDragAndDrop();
-   }
+    initializeDragAndDrop();
+  }
 
-   function getDragAfterElement(container, y) {
-     const draggableElements = [...container.querySelectorAll('.source-item:not(.dragging)')];
-     return draggableElements.reduce((closest, child) => {
-       const box = child.getBoundingClientRect();
-       const offset = y - box.top - box.height / 2;
-       if (offset < 0 && offset > closest.offset) {
-         return { offset: offset, element: child };
-       } else {
-         return closest;
-       }
-     }, { offset: Number.NEGATIVE_INFINITY }).element;
-   }
+  function getDragAfterElement(container, y) {
+    const draggableElements = [...container.querySelectorAll('.source-item:not(.dragging)')];
+    return draggableElements.reduce((closest, child) => {
+      const box = child.getBoundingClientRect();
+      const offset = y - box.top - box.height / 2;
+      if (offset < 0 && offset > closest.offset) {
+        return { offset: offset, element: child };
+      } else {
+        return closest;
+      }
+    }, { offset: Number.NEGATIVE_INFINITY }).element;
+  }
 
   async function saveSourceOrder() {
     localStorage.setItem('danmu_api_source_order', JSON.stringify(AppState.sourceOrder));
@@ -4210,14 +4210,14 @@ function handleHomepage(req) {
   }
 
 
-   function resetSourceOrder() {
-     if (!confirm('确定要重置数据源顺序为默认值吗？')) return;
-     const defaultOrder = ['dandan', 'bilibili', 'iqiyi', 'youku', 'tencent', 'mgtv', 'bahamut'];
-     AppState.sourceOrder = defaultOrder;
-     localStorage.setItem('danmu_api_source_order', JSON.stringify(defaultOrder));
-     AppState.hasUnsavedChanges = false;
-     location.reload();
-   }
+  function resetSourceOrder() {
+    if (!confirm('确定要重置数据源顺序为默认值吗？')) return;
+    const defaultOrder = ['dandan', 'bilibili', 'iqiyi', 'youku', 'tencent', 'mgtv', 'bahamut'];
+    AppState.sourceOrder = defaultOrder;
+    localStorage.setItem('danmu_api_source_order', JSON.stringify(defaultOrder));
+    AppState.hasUnsavedChanges = false;
+    location.reload();
+  }
 
   async function toggleStrictMatch(checkbox) {
     AppState.config.STRICT_TITLE_MATCH = checkbox.checked;
@@ -4254,6 +4254,7 @@ function handleHomepage(req) {
       showToast(`严格匹配模式已${checkbox.checked ? '启用' : '禁用'}（保存到本地）`, 'warning');
     }
   }
+
 
   async function toggleRememberSelect(checkbox) {
     AppState.config.REMEMBER_LAST_SELECT = checkbox.checked;
