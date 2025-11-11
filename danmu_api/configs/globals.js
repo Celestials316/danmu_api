@@ -188,14 +188,14 @@ const Globals = {
 
     // 更新搜索缓存时间
     if (changedKeys.includes('SEARCH_CACHE_MINUTES')) {
-      const minutes = parseInt(config.SEARCH_CACHE_MINUTES) || 1;
-      this.envs.searchCacheMinutes = minutes;
+      const minutes = parseInt(config.SEARCH_CACHE_MINUTES);
+      this.envs.searchCacheMinutes = isNaN(minutes) || minutes < 0 ? 5 : minutes;
     }
 
     // 更新评论缓存时间
     if (changedKeys.includes('COMMENT_CACHE_MINUTES')) {
-      const minutes = parseInt(config.COMMENT_CACHE_MINUTES) || 1;
-      this.envs.commentCacheMinutes = minutes;
+      const minutes = parseInt(config.COMMENT_CACHE_MINUTES);
+      this.envs.commentCacheMinutes = isNaN(minutes) || minutes < 0 ? 5 : minutes;
     }
 
     // WHITE_RATIO 处理
@@ -309,10 +309,28 @@ const Globals = {
       this.envs.TITLE_TO_CHINESE = enabled;
     }
 
-    // EPISODE_TITLE_FILTER 处理
+    // ✅ EPISODE_TITLE_FILTER 处理 - 确保转换为正则对象
     if (changedKeys.includes('EPISODE_TITLE_FILTER')) {
-      this.envs.episodeTitleFilter = config.EPISODE_TITLE_FILTER || '';
-      this.envs.EPISODE_TITLE_FILTER = config.EPISODE_TITLE_FILTER || '';
+      let filterValue = config.EPISODE_TITLE_FILTER;
+      
+      // 如果是字符串，转换为正则表达式
+      if (typeof filterValue === 'string' && filterValue.length > 0) {
+        try {
+          const regexMatch = filterValue.match(/^\/(.+)\/([gimuy]*)$/);
+          if (regexMatch) {
+            filterValue = new RegExp(regexMatch[1], regexMatch[2]);
+          } else {
+            filterValue = new RegExp(filterValue);
+          }
+          console.log('[Globals] ✅ EPISODE_TITLE_FILTER 已转换为正则对象');
+        } catch (e) {
+          console.warn(`[Globals] ⚠️ 正则转换失败: ${e.message}`);
+          filterValue = null;
+        }
+      }
+      
+      this.envs.episodeTitleFilter = filterValue;
+      this.envs.EPISODE_TITLE_FILTER = filterValue;
     }
 
     // ENABLE_EPISODE_FILTER 处理
@@ -337,105 +355,104 @@ const Globals = {
       .filter(s => s.length > 0);
   },
 
- /**
-  * 解析 VOD 服务器配置
-  */
- parseVodServers(vodServersConfig) {
-   if (!vodServersConfig || vodServersConfig.trim() === '') {
-     return [];
-   }
+  /**
+   * 解析 VOD 服务器配置
+   */
+  parseVodServers(vodServersConfig) {
+    if (!vodServersConfig || vodServersConfig.trim() === '') {
+      return [];
+    }
 
-   return vodServersConfig
-     .split(',')
-     .map(s => s.trim())
-     .filter(s => s.length > 0)
-     .map((item, index) => {
-       if (item.includes('@')) {
-         const [name, url] = item.split('@').map(s => s.trim());
-         return { name: name || `vod-${index + 1}`, url };
-       }
-       return { name: `vod-${index + 1}`, url: item };
-     })
-     .filter(server => server.url && server.url.length > 0);
- },
+    return vodServersConfig
+      .split(',')
+      .map(s => s.trim())
+      .filter(s => s.length > 0)
+      .map((item, index) => {
+        if (item.includes('@')) {
+          const [name, url] = item.split('@').map(s => s.trim());
+          return { name: name || `vod-${index + 1}`, url };
+        }
+        return { name: `vod-${index + 1}`, url: item };
+      })
+      .filter(server => server.url && server.url.length > 0);
+  },
 
- /**
-  * 解析数据源顺序
-  */
- parseSourceOrder(sourceOrder) {
-   const ALLOWED_SOURCES = ['360', 'vod', 'tmdb', 'douban', 'tencent', 'youku', 'iqiyi', 'imgo', 'bilibili', 'renren', 'hanjutv', 'bahamut'];
-   const orderArr = sourceOrder
-     .split(',')
-     .map(s => s.trim())
-     .filter(s => ALLOWED_SOURCES.includes(s));
+  /**
+   * 解析数据源顺序
+   */
+  parseSourceOrder(sourceOrder) {
+    const ALLOWED_SOURCES = ['360', 'vod', 'tmdb', 'douban', 'tencent', 'youku', 'iqiyi', 'imgo', 'bilibili', 'renren', 'hanjutv', 'bahamut'];
+    const orderArr = sourceOrder
+      .split(',')
+      .map(s => s.trim())
+      .filter(s => ALLOWED_SOURCES.includes(s));
 
-   return orderArr.length > 0 ? orderArr : ['360', 'vod', 'renren', 'hanjutv'];
- },
+    return orderArr.length > 0 ? orderArr : ['360', 'vod', 'renren', 'hanjutv'];
+  },
 
- /**
-  * 获取全局配置对象(单例,可修改)
-  * @returns {Object} 全局配置对象本身
-  */
- getConfig() {
-   const self = this;
-   return new Proxy({}, {
-     get(target, prop) {
-       // 优先返回 envs 中的属性
-       if (prop in self.envs) {
-         return self.envs[prop];
-       }
-       // 映射大写常量到小写
-       if (prop === 'version') return self.VERSION;
-       if (prop === 'maxLogs') return self.MAX_LOGS;
-       if (prop === 'maxAnimes') return self.MAX_ANIMES;
-       if (prop === 'maxLastSelectMap') return self.MAX_LAST_SELECT_MAP;
+  /**
+   * 获取全局配置对象(单例,可修改)
+   * @returns {Object} 全局配置对象本身
+   */
+  getConfig() {
+    const self = this;
+    return new Proxy({}, {
+      get(target, prop) {
+        // 优先返回 envs 中的属性
+        if (prop in self.envs) {
+          return self.envs[prop];
+        }
+        // 映射大写常量到小写
+        if (prop === 'version') return self.VERSION;
+        if (prop === 'maxLogs') return self.MAX_LOGS;
+        if (prop === 'maxAnimes') return self.MAX_ANIMES;
+        if (prop === 'maxLastSelectMap') return self.MAX_LAST_SELECT_MAP;
 
-       // 其他属性直接返回
-       return self[prop];
-     },
-     set(target, prop, value) {
-       // 写操作同步到 Globals
-       if (prop in self.envs) {
-         self.envs[prop] = value;
-       } else {
-         self[prop] = value;
-       }
-       return true;
-     }
-   });
- },
+        // 其他属性直接返回
+        return self[prop];
+      },
+      set(target, prop, value) {
+        // 写操作同步到 Globals
+        if (prop in self.envs) {
+          self.envs[prop] = value;
+        } else {
+          self[prop] = value;
+        }
+        return true;
+      }
+    });
+  },
 
- /**
-  * 获取 Globals 实例(用于直接访问内部状态)
-  */
- getInstance() {
-   return this;
- }
+  /**
+   * 获取 Globals 实例(用于直接访问内部状态)
+   */
+  getInstance() {
+    return this;
+  }
 };
 
 /**
-* 全局配置代理对象
-* 自动转发所有属性访问到 Globals.getConfig()
-*/
+ * 全局配置代理对象
+ * 自动转发所有属性访问到 Globals.getConfig()
+ */
 export const globals = new Proxy({}, {
- get(target, prop) {
-   return Globals.getConfig()[prop];
- },
- set(target, prop, value) {
-   Globals.getConfig()[prop] = value;
-   return true;
- },
- has(target, prop) {
-   return prop in Globals.getConfig();
- },
- ownKeys(target) {
-   return Reflect.ownKeys(Globals.getConfig());
- },
- getOwnPropertyDescriptor(target, prop) {
-   return Object.getOwnPropertyDescriptor(Globals.getConfig(), prop);
- }
+  get(target, prop) {
+    return Globals.getConfig()[prop];
+  },
+  set(target, prop, value) {
+    Globals.getConfig()[prop] = value;
+    return true;
+  },
+  has(target, prop) {
+    return prop in Globals.getConfig();
+  },
+  ownKeys(target) {
+    return Reflect.ownKeys(Globals.getConfig());
+  },
+  getOwnPropertyDescriptor(target, prop) {
+    return Object.getOwnPropertyDescriptor(Globals.getConfig(), prop);
+  }
 });
 
 // 导出 Globals 对象(用于初始化)
 export { Globals };
-
