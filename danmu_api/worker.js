@@ -2227,20 +2227,20 @@ function handleHomepage(req) {
      }
    });
 
+
    // ========== Docker 版本检查 ==========
    async function checkDockerVersion() {
      const username = 'w254992';
      const repository = 'danmu-api';
-     const currentVersion = '${globals.VERSION || 'v1.0'}';
+     const currentVersion = '${globals.VERSION || "v1.0"}';
      
      try {
        const response = await fetch(\`https://hub.docker.com/v2/repositories/\${username}/\${repository}/tags\`);
        const data = await response.json();
        
        if (data && data.results && data.results.length > 0) {
-         // 过滤出版本号标签（排除 latest）
          const versionTags = data.results
-           .filter(tag => tag.name !== 'latest' && /^\d+\.\d+\.\d+$/.test(tag.name))
+           .filter(tag => tag.name !== 'latest' && /^\\d+\\.\\d+\\.\\d+$/.test(tag.name))
            .sort((a, b) => {
              const versionA = a.name.split('.').map(Number);
              const versionB = b.name.split('.').map(Number);
@@ -2256,11 +2256,9 @@ function handleHomepage(req) {
            const latestVersion = versionTags[0].name;
            const latestDate = new Date(versionTags[0].last_updated).toLocaleDateString('zh-CN');
            
-           // 更新页面显示
            document.getElementById('versionStatus').innerHTML = 
              \`最新版本: <strong>\${latestVersion}</strong> (发布于 \${latestDate})\`;
            
-           // 比较版本号
            const current = currentVersion.replace(/^v/, '').split('.').map(Number);
            const latest = latestVersion.split('.').map(Number);
            let isLatest = true;
@@ -2288,12 +2286,10 @@ function handleHomepage(req) {
              document.getElementById('versionStatus').innerHTML += 
                \` <a href="https://hub.docker.com/r/\${username}/\${repository}/tags" target="_blank" style="color: var(--accent-primary); text-decoration: none; font-weight: 600;">→ 查看更新</a>\`;
            }
-           
            return;
          }
        }
        
-       // 如果获取失败，显示默认信息
        throw new Error('无法获取版本信息');
        
      } catch (error) {
@@ -2306,6 +2302,26 @@ function handleHomepage(req) {
    }
 
    // ========== 初始化加载 ==========
+   async function loadConfig() {
+     try {
+       const response = await fetch('/api/config/load');
+       const result = await response.json();
+       
+       if (result.success && result.config) {
+         AppState.config = { ...AppState.config, ...result.config };
+         for (const [key, value] of Object.entries(result.config)) {
+           updateEnvDisplay(key, value);
+         }
+         showToast(\`✅ 配置已从 \${result.loadedFrom.join('、')} 加载\`, 'success');
+       }
+     } catch (error) {
+       console.error('加载配置失败:', error);
+     }
+   }
+
+
+   // ========== 初始化加载 ==========
+
    async function loadConfig() {
 
      try {
