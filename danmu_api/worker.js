@@ -1565,16 +1565,16 @@ function handleHomepage(req) {
          <div class="stat-card">
            <div class="stat-header">
              <div class="stat-icon">🚀</div>
-             <span class="stat-badge badge-success" id="versionBadge">检查中</span>
+             <span class="stat-badge badge-success">稳定</span>
            </div>
            <div class="stat-title">服务版本</div>
-           <div class="stat-value" id="currentVersion">${globals.VERSION || 'v1.0'}</div>
+           <div class="stat-value">${globals.VERSION || 'v1.0'}</div>
            <div class="stat-footer">
-             <span id="versionIcon">📦</span>
-             <span id="versionStatus">检查更新中...</span>
+             <span>📦</span>
+             <span>最新版本</span>
            </div>
          </div>
-
+       </div>
 
        <!-- 快速配置 -->
        <div class="card">
@@ -2227,84 +2227,7 @@ function handleHomepage(req) {
      }
    });
 
-
-   // ========== Docker 版本检查 ==========
-   async function checkDockerVersion() {
-     const username = 'w254992';
-     const repository = 'danmu-api';
-     // 修复：使用反引号模板字符串
-     const currentVersion = `${globals.VERSION || "v1.0"}`;
-     
-     try {
-       const response = await fetch(`https://hub.docker.com/v2/repositories/${username}/${repository}/tags`);
-       const data = await response.json();
-       
-       if (data && data.results && data.results.length > 0) {
-         const versionTags = data.results
-           .filter(tag => tag.name !== 'latest' && /^\d+\.\d+\.\d+$/.test(tag.name))
-           .sort((a, b) => {
-             const versionA = a.name.split('.').map(Number);
-             const versionB = b.name.split('.').map(Number);
-             for (let i = 0; i < 3; i++) {
-               if (versionA[i] !== versionB[i]) {
-                 return versionB[i] - versionA[i];
-               }
-             }
-             return 0;
-           });
-         
-         if (versionTags.length > 0) {
-           const latestVersion = versionTags[0].name;
-           const latestDate = new Date(versionTags[0].last_updated).toLocaleDateString('zh-CN');
-           
-           document.getElementById('versionStatus').innerHTML = 
-             `最新版本: <strong>${latestVersion}</strong> (发布于 ${latestDate})`;
-           
-           const current = currentVersion.replace(/^v/, '').split('.').map(Number);
-           const latest = latestVersion.split('.').map(Number);
-           let isLatest = true;
-           
-           for (let i = 0; i < 3; i++) {
-             if (current[i] < latest[i]) {
-               isLatest = false;
-               break;
-             } else if (current[i] > latest[i]) {
-               break;
-             }
-           }
-           
-           const badge = document.getElementById('versionBadge');
-           const icon = document.getElementById('versionIcon');
-           
-           if (isLatest) {
-             badge.textContent = '最新';
-             badge.className = 'stat-badge badge-success';
-             icon.textContent = '✅';
-           } else {
-             badge.textContent = '有更新';
-             badge.className = 'stat-badge badge-warning';
-             icon.textContent = '🔔';
-             document.getElementById('versionStatus').innerHTML += 
-               ` <a href="https://hub.docker.com/r/${username}/${repository}/tags" target="_blank" style="color: var(--accent-primary); text-decoration: none; font-weight: 600;">→ 查看更新</a>`;
-           }
-           return;
-         }
-       }
-       
-       throw new Error('无法获取版本信息');
-       
-     } catch (error) {
-       console.error('检查版本失败:', error);
-       document.getElementById('versionBadge').textContent = '稳定';
-       document.getElementById('versionBadge').className = 'stat-badge badge-success';
-       document.getElementById('versionIcon').textContent = '📦';
-       document.getElementById('versionStatus').textContent = '版本检查失败';
-     }
-   }
-
-
    // ========== 初始化加载 ==========
-
    async function loadConfig() {
 
      try {
@@ -2349,7 +2272,6 @@ function handleHomepage(req) {
    // ========== 初始化 ==========
    initTheme();
    loadConfig();
-   checkDockerVersion();
  </script>
 </body>
 </html>
