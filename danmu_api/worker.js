@@ -3499,7 +3499,7 @@ function handleHomepage(req) {
            updateConfigDisplay(key, value);
          }
          
-         showToast(\`配置已从 \${result.loadedFrom.join('、')} 加载\`, 'success');
+         showToast(\`配置已从 ${result.loadedFrom.join('、')} 加载\`, 'success');
        } else {
          showToast('欢迎回来! 弹幕 API 管理后台已就绪', 'success');
        }
@@ -3547,7 +3547,7 @@ function handleHomepage(req) {
      const isLight = body.classList.toggle('light');
      updateThemeIcon(isLight);
      localStorage.setItem('theme', isLight ? 'light' : 'dark');
-     showToast(\`已切换到\${isLight ? '浅色' : '深色'}主题\`, 'info');
+     showToast(\`已切换到${isLight ? '浅色' : '深色'}主题\`, 'info');
    }
 
    function updateThemeIcon(isLight) {
@@ -3648,7 +3648,7 @@ function handleHomepage(req) {
          AppState.hasUnsavedChanges = false;
          updateConfigDisplay(key, value);
          closeModal('editEnvModal');
-         showToast(\`环境变量 \${key} 已保存到: \${result.savedTo.join('、')}\`, 'success');
+         showToast(\`环境变量 ${key} 已保存到: ${result.savedTo.join('、')}\`, 'success');
        } else {
          throw new Error(result.errorMessage || '保存失败');
        }
@@ -3656,7 +3656,7 @@ function handleHomepage(req) {
        console.error('保存到服务器失败:', error);
        updateConfigDisplay(key, value);
        closeModal('editEnvModal');
-       showToast(\`环境变量 \${key} 已保存到浏览器本地（服务器保存失败: \${error.message}）\`, 'warning');
+       showToast(\`环境变量 ${key} 已保存到浏览器本地（服务器保存失败: ${error.message}）\`, 'warning');
      }
    }
 
@@ -3680,7 +3680,7 @@ function handleHomepage(req) {
              ...AppState.config,
              VOD_SERVERS: AppState.vodServers.map(s => {
                if (typeof s === 'string') return s;
-               return \`\${s.name}@\${s.url}\`;
+               return \`${s.name}@${s.url}\`;
              }).join(','),
              SOURCE_ORDER: AppState.sourceOrder.join(',')
            }
@@ -3691,18 +3691,18 @@ function handleHomepage(req) {
        
        if (result.success) {
          AppState.hasUnsavedChanges = false;
-         showToast(\`所有配置已保存到: \${result.savedTo.join('、')}\`, 'success');
+         showToast(\`所有配置已保存到: ${result.savedTo.join('、')}\`, 'success');
        } else {
          throw new Error(result.errorMessage || '保存失败');
        }
      } catch (error) {
        console.error('保存到服务器失败:', error);
-       showToast(\`配置已保存到浏览器本地（服务器保存失败: \${error.message}）\`, 'warning');
+       showToast(\`配置已保存到浏览器本地（服务器保存失败: ${error.message}）\`, 'warning');
      }
    }
 
    function updateConfigDisplay(key, value) {
-     const configItem = document.querySelector(\`.config-item[data-key="\${key}"]\`);
+     const configItem = document.querySelector(\`.config-item[data-key="${key}"]\`);
      if (!configItem) return;
 
      const valueElement = configItem.querySelector('.config-value code');
@@ -3752,7 +3752,7 @@ function handleHomepage(req) {
      const url = URL.createObjectURL(blob);
      const a = document.createElement('a');
      a.href = url;
-     a.download = \`danmu-api-config-\${new Date().getTime()}.json\`;
+     a.download = \`danmu-api-config-${new Date().getTime()}.json\`;
      a.click();
      URL.revokeObjectURL(url);
      showToast('配置已导出', 'success');
@@ -3770,7 +3770,7 @@ function handleHomepage(req) {
      AppState.currentEditingVodIndex = index;
      const server = AppState.vodServers[index];
      
-     let serverName = \`服务器 #\${index + 1}\`;
+     let serverName = \`服务器 #${index + 1}\`;
      let serverUrl = '';
 
      if (typeof server === 'string') {
@@ -4325,12 +4325,12 @@ function handleHomepage(req) {
      };
 
      const toast = document.createElement('div');
-     toast.className = \`toast toast-\${type}\`;
+     toast.className = \`toast toast-${type}\`;
      toast.innerHTML = \`
        <svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-         \${icons[type] || icons.info}
+         ${icons[type] || icons.info}
        </svg>
-       <div class="toast-content">\${message}</div>
+       <div class="toast-content">${message}</div>
        <button class="toast-close" onclick="this.parentElement.remove()">
          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor">
            <path d="M6 18L18 6M6 6l12 12" stroke-width="2" stroke-linecap="round"/>
