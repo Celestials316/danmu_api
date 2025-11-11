@@ -4502,7 +4502,7 @@ function handleHomepage(req) {
 
  // GET /
  if (path === "/" && method === "GET") {
-   return handleHomepage();
+   return handleHomepage(req);
  }
 
  if (path === "/favicon.ico" || path === "/robots.txt") {
