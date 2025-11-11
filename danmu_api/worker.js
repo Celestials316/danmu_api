@@ -561,9 +561,28 @@ function handleHomepage(req) {
       transition: transform 0.3s ease;
     }
 
-    .sidebar.hidden {
-      transform: translateX(-100%);
-    }
+   .sidebar.hidden {
+     transform: translateX(-100%);
+   }
+
+   .sidebar-overlay {
+     display: none;
+     position: fixed;
+     top: 0;
+     left: 0;
+     width: 100%;
+     height: 100%;
+     background-color: rgba(0, 0, 0, 0.5);
+     z-index: 99;
+     opacity: 0;
+     transition: opacity 0.3s ease;
+   }
+
+   .sidebar-overlay.show {
+     display: block;
+     opacity: 1;
+   }
+
 
     .logo-section {
       padding: 0 20px 24px;
@@ -1493,10 +1512,13 @@ function handleHomepage(req) {
        </a>
      </li>
    </ul>
- </aside>
+</aside>
 
- <!-- 主内容区 -->
- <div class="main-content" id="mainContent">
+   <!-- 侧边栏遮罩层 -->
+   <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+   <!-- 主内容区 -->
+   <div class="main-content" id="mainContent">
    <!-- 顶部栏 -->
    <div class="top-bar">
      <div class="top-bar-left">
@@ -1839,14 +1861,17 @@ function handleHomepage(req) {
    function toggleSidebar() {
      const sidebar = document.getElementById('sidebar');
      const mainContent = document.getElementById('mainContent');
+     const overlay = document.getElementById('sidebarOverlay');
      
      if (window.innerWidth <= 1024) {
        sidebar.classList.toggle('show');
+       overlay.classList.toggle('show');
      } else {
        sidebar.classList.toggle('hidden');
        mainContent.classList.toggle('expanded');
      }
    }
+
 
    // ========== 页面切换 ==========
    function showPage(pageName) {
@@ -2209,8 +2234,21 @@ function handleHomepage(req) {
      }
    }
 
+   // ========== 遮罩层点击关闭侧边栏 ==========
+   document.addEventListener('DOMContentLoaded', function() {
+     const overlay = document.getElementById('sidebarOverlay');
+     if (overlay) {
+       overlay.addEventListener('click', function() {
+         if (window.innerWidth <= 1024) {
+           toggleSidebar();
+         }
+       });
+     }
+   });
+
    // ========== 初始化加载 ==========
    async function loadConfig() {
+
      try {
        const response = await fetch('/api/config/load');
        const result = await response.json();
