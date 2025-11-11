@@ -1725,11 +1725,46 @@ function handleHomepage(req) {
              <span class="card-title-icon">📝</span>
              运行日志
            </h3>
-           <button class="btn btn-secondary btn-sm" onclick="refreshLogs()">🔄 刷新</button>
+           <div style="display: flex; gap: 12px; align-items: center;">
+             <select class="setting-input" id="logLevelFilter" onchange="filterLogs()" style="width: auto; padding: 8px 12px;">
+               <option value="">全部级别</option>
+               <option value="info">信息</option>
+               <option value="warn">警告</option>
+               <option value="error">错误</option>
+             </select>
+             <button class="btn btn-secondary btn-sm" onclick="clearLogs()">🗑️ 清空</button>
+             <button class="btn btn-secondary btn-sm" onclick="refreshLogs()">🔄 刷新</button>
+           </div>
          </div>
          
-         <div style="background: var(--bg-tertiary); border-radius: 8px; padding: 20px; min-height: 400px; font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.6; color: var(--text-primary); overflow-x: auto;">
-           <div id="logContent">加载中...</div>
+         <!-- 日志统计 -->
+         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px;">
+           <div style="background: var(--bg-tertiary); padding: 12px 16px; border-radius: 8px; border-left: 4px solid #4299e1;">
+             <div style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">总日志数</div>
+             <div style="font-size: 20px; font-weight: 700;" id="logTotal">0</div>
+           </div>
+           <div style="background: var(--bg-tertiary); padding: 12px 16px; border-radius: 8px; border-left: 4px solid #48bb78;">
+             <div style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">信息</div>
+             <div style="font-size: 20px; font-weight: 700; color: #48bb78;" id="logInfo">0</div>
+           </div>
+           <div style="background: var(--bg-tertiary); padding: 12px 16px; border-radius: 8px; border-left: 4px solid #ed8936;">
+             <div style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">警告</div>
+             <div style="font-size: 20px; font-weight: 700; color: #ed8936;" id="logWarn">0</div>
+           </div>
+           <div style="background: var(--bg-tertiary); padding: 12px 16px; border-radius: 8px; border-left: 4px solid #f56565;">
+             <div style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">错误</div>
+             <div style="font-size: 20px; font-weight: 700; color: #f56565;" id="logError">0</div>
+           </div>
+         </div>
+
+         <!-- 搜索框 -->
+         <div class="search-box">
+           <input type="text" class="search-input" placeholder="搜索日志内容..." id="logSearchInput" oninput="searchLogs()">
+         </div>
+         
+         <!-- 日志容器 -->
+         <div class="log-container" id="logContainer">
+           <div class="log-loading">加载中...</div>
          </div>
        </div>
      </div>
@@ -2199,13 +2234,137 @@ function handleHomepage(req) {
    }
 
    // ========== 日志管理 ==========
+   let allLogs = [];
+
    async function refreshLogs() {
+     const container = document.getElementById('logContainer');
+     container.innerHTML = '<div class="log-loading">🔄 加载中...</div>';
+     
      try {
-       const response = await fetch('/api/logs?format=text&limit=1000');
-       const logs = await response.text();
-       document.getElementById('logContent').textContent = logs || '暂无日志';
+       const response = await fetch('/api/logs?format=json&limit=1000');
+       const result = await response.json();
+       
+       if (result.success && result.logs) {
+         allLogs = result.logs;
+         renderLogs(allLogs);
+         updateLogStats(allLogs);
+       } else {
+         container.innerHTML = '<div class="log-empty">📭 暂无日志</div>';
+       }
      } catch (error) {
-       document.getElementById('logContent').textContent = '加载失败: ' + error.message;
+       container.innerHTML = `<div class="log-empty">❌ 加载失败: ${error.message}</div>`;
+     }
+   }
+
+   function renderLogs(logs) {
+     const container = document.getElementById('logContainer');
+     
+     if (!logs || logs.length === 0) {
+       container.innerHTML = '<div class="log-empty">📭 暂无日志</div>';
+       return;
+     }
+     
+     const html = logs.map(log => {
+       const time = new Date(log.timestamp).toLocaleTimeString('zh-CN', { 
+         hour12: false, 
+         hour: '2-digit', 
+         minute: '2-digit', 
+         second: '2-digit' 
+       });
+       
+       // 提取标签
+       let message = log.message;
+       let badge = '';
+       
+       if (message.includes('[config]')) {
+         badge = '<span class="log-badge config">CONFIG</span>';
+         message = message.replace(/\[config\]/g, '');
+       } else if (message.includes('[init]')) {
+         badge = '<span class="log-badge init">INIT</span>';
+         message = message.replace(/\[init\]/g, '');
+       } else if (message.includes('[request]') || message.includes('request')) {
+         badge = '<span class="log-badge request">REQUEST</span>';
+         message = message.replace(/\[request\]/g, '');
+       } else if (message.includes('[redis]') || message.includes('Redis')) {
+         badge = '<span class="log-badge redis">REDIS</span>';
+         message = message.replace(/\[redis\]/g, '');
+       }
+       
+       // 高亮关键信息
+       message = message
+         .replace(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/g, '<code>$1</code>')
+         .replace(/(\/[^\s]+)/g, '<code>$1</code>')
+         .replace(/(".*?")/g, '<code>$1</code>');
+       
+       return `
+         <div class="log-item ${log.level}" data-level="${log.level}">
+           <span class="log-time">${time}</span>
+           <span class="log-level ${log.level}">${log.level}</span>
+           <span class="log-message">${badge}${message.trim()}</span>
+         </div>
+       `;
+     }).join('');
+     
+     container.innerHTML = html;
+     
+     // 滚动到底部
+     container.scrollTop = container.scrollHeight;
+   }
+
+   function updateLogStats(logs) {
+     const stats = {
+       total: logs.length,
+       info: logs.filter(l => l.level === 'info').length,
+       warn: logs.filter(l => l.level === 'warn').length,
+       error: logs.filter(l => l.level === 'error').length
+     };
+     
+     document.getElementById('logTotal').textContent = stats.total;
+     document.getElementById('logInfo').textContent = stats.info;
+     document.getElementById('logWarn').textContent = stats.warn;
+     document.getElementById('logError').textContent = stats.error;
+   }
+
+   function filterLogs() {
+     const level = document.getElementById('logLevelFilter').value;
+     const searchText = document.getElementById('logSearchInput').value.toLowerCase();
+     
+     let filtered = allLogs;
+     
+     if (level) {
+       filtered = filtered.filter(log => log.level === level);
+     }
+     
+     if (searchText) {
+       filtered = filtered.filter(log => 
+         log.message.toLowerCase().includes(searchText)
+       );
+     }
+     
+     renderLogs(filtered);
+   }
+
+   function searchLogs() {
+     filterLogs();
+   }
+
+   async function clearLogs() {
+     if (!confirm('确定要清空所有日志吗?')) return;
+     
+     try {
+       const response = await fetch('/api/logs/clear', { method: 'POST' });
+       const result = await response.json();
+       
+       if (result.success) {
+         showToast('✅ 日志已清空', 'success');
+         allLogs = [];
+         renderLogs([]);
+         updateLogStats([]);
+       } else {
+         showToast('清空失败', 'error');
+       }
+     } catch (error) {
+       showToast('清空失败: ' + error.message, 'error');
      }
    }
 
@@ -2755,6 +2914,15 @@ function handleHomepage(req) {
     return new Response(logText, { headers: { "Content-Type": "text/plain; charset=utf-8" } });
   }
 
+  if (path === "/api/logs/clear" && method === "POST") {
+    globals.logBuffer = [];
+    return jsonResponse({
+      success: true,
+      message: "日志已清空"
+    });
+  }
+
+
   return jsonResponse({ message: "Not found" }, 404);
 }
 
@@ -2871,6 +3039,103 @@ function getLoginPage() {
       font-size: 14px;
       color: var(--text-secondary);
     }
+   /* 日志容器样式 */
+   .log-container {
+     background: var(--bg-tertiary);
+     border-radius: 8px;
+     padding: 16px;
+     min-height: 500px;
+     max-height: 600px;
+     overflow-y: auto;
+     font-family: 'Courier New', monospace;
+     font-size: 13px;
+     line-height: 1.6;
+   }
+
+   .log-loading {
+     text-align: center;
+     color: var(--text-tertiary);
+     padding: 40px;
+   }
+
+   .log-empty {
+     text-align: center;
+     color: var(--text-tertiary);
+     padding: 40px;
+   }
+
+   .log-item {
+     display: flex;
+     gap: 12px;
+     padding: 10px 12px;
+     border-radius: 6px;
+     margin-bottom: 4px;
+     transition: all 0.2s ease;
+     border-left: 3px solid transparent;
+   }
+
+   .log-item:hover {
+     background: var(--bg-secondary);
+   }
+
+   .log-item.info {
+     border-left-color: #4299e1;
+   }
+
+   .log-item.warn {
+     border-left-color: #ed8936;
+     background: rgba(237, 137, 54, 0.05);
+   }
+
+   .log-item.error {
+     border-left-color: #f56565;
+     background: rgba(245, 101, 101, 0.05);
+   }
+
+   .log-time {
+     color: var(--text-tertiary);
+     font-size: 11px;
+     min-width: 80px;
+     white-space: nowrap;
+   }
+
+   .log-level {
+     min-width: 50px;
+     font-weight: 600;
+     font-size: 11px;
+     text-transform: uppercase;
+   }
+
+   .log-level.info { color: #4299e1; }
+   .log-level.warn { color: #ed8936; }
+   .log-level.error { color: #f56565; }
+
+   .log-message {
+     flex: 1;
+     color: var(--text-primary);
+     word-break: break-word;
+   }
+
+   .log-message code {
+     background: var(--bg-secondary);
+     padding: 2px 6px;
+     border-radius: 4px;
+     font-size: 12px;
+   }
+
+   .log-badge {
+     display: inline-block;
+     padding: 2px 8px;
+     border-radius: 4px;
+     font-size: 10px;
+     font-weight: 600;
+     margin-right: 6px;
+   }
+
+   .log-badge.config { background: rgba(102, 126, 234, 0.1); color: var(--accent-primary); }
+   .log-badge.init { background: rgba(72, 187, 120, 0.1); color: var(--accent-success); }
+   .log-badge.request { background: rgba(66, 153, 225, 0.1); color: #4299e1; }
+   .log-badge.redis { background: rgba(237, 137, 54, 0.1); color: var(--accent-warning); }
 
     .hint {
       background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
