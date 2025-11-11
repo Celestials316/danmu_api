@@ -1446,7 +1446,80 @@ function handleHomepage(req) {
    ::-webkit-scrollbar-thumb:hover {
      background: var(--text-tertiary);
    }
+
+   /* 日志样式 */
+   .log-entry {
+     padding: 10px 12px;
+     margin-bottom: 4px;
+     border-radius: 6px;
+     border-left: 3px solid transparent;
+     transition: all 0.2s ease;
+     cursor: pointer;
+   }
+
+   .log-entry:hover {
+     background: var(--bg-secondary);
+   }
+
+   .log-entry.error {
+     border-left-color: #f56565;
+     background: rgba(245, 101, 101, 0.05);
+   }
+
+   .log-entry.warn {
+     border-left-color: #ed8936;
+     background: rgba(237, 137, 54, 0.05);
+   }
+
+   .log-entry.info {
+     border-left-color: #4299e1;
+     background: rgba(66, 153, 225, 0.05);
+   }
+
+   .log-time {
+     color: var(--text-tertiary);
+     font-size: 11px;
+     margin-right: 12px;
+   }
+
+   .log-level {
+     display: inline-block;
+     padding: 2px 8px;
+     border-radius: 4px;
+     font-size: 10px;
+     font-weight: 600;
+     text-transform: uppercase;
+     margin-right: 12px;
+   }
+
+   .log-level.error {
+     background: rgba(245, 101, 101, 0.15);
+     color: #c53030;
+   }
+
+   .log-level.warn {
+     background: rgba(237, 137, 54, 0.15);
+     color: #c05621;
+   }
+
+   .log-level.info {
+     background: rgba(66, 153, 225, 0.15);
+     color: #2c5282;
+   }
+
+   .log-message {
+     color: var(--text-primary);
+     word-break: break-word;
+   }
+
+   .log-message.collapsed {
+     display: -webkit-box;
+     -webkit-line-clamp: 2;
+     -webkit-box-orient: vertical;
+     overflow: hidden;
+   }
  </style>
+
 </head>
 <body>
  <!-- 侧边栏 -->
@@ -1725,14 +1798,28 @@ function handleHomepage(req) {
              <span class="card-title-icon">📝</span>
              运行日志
            </h3>
-           <button class="btn btn-secondary btn-sm" onclick="refreshLogs()">🔄 刷新</button>
+           <div style="display: flex; gap: 8px;">
+             <select class="setting-input" id="logLevelFilter" onchange="filterLogs()" style="width: 120px; padding: 8px 12px;">
+               <option value="">全部级别</option>
+               <option value="error">错误</option>
+               <option value="warn">警告</option>
+               <option value="info">信息</option>
+             </select>
+             <button class="btn btn-secondary btn-sm" onclick="clearLogs()">🗑️ 清空</button>
+             <button class="btn btn-secondary btn-sm" onclick="refreshLogs()">🔄 刷新</button>
+           </div>
          </div>
          
-         <div style="background: var(--bg-tertiary); border-radius: 8px; padding: 20px; min-height: 400px; font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.6; color: var(--text-primary); overflow-x: auto;">
-           <div id="logContent">加载中...</div>
+         <div class="search-box">
+           <input type="text" class="search-input" placeholder="搜索日志内容..." id="logSearch" oninput="filterLogs()">
+         </div>
+
+         <div id="logContent" style="background: var(--bg-tertiary); border-radius: 8px; padding: 16px; min-height: 400px; max-height: 600px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.8;">
+           <div style="text-align: center; color: var(--text-tertiary); padding: 40px;">加载中...</div>
          </div>
        </div>
      </div>
+
    </div>
  </div>
 
@@ -2199,13 +2286,87 @@ function handleHomepage(req) {
    }
 
    // ========== 日志管理 ==========
+   let logsData = [];
+
    async function refreshLogs() {
      try {
-       const response = await fetch('/api/logs?format=text&limit=1000');
-       const logs = await response.text();
-       document.getElementById('logContent').textContent = logs || '暂无日志';
+       const response = await fetch('/api/logs?format=json&limit=500');
+       const result = await response.json();
+       
+       if (result.success && result.logs) {
+         logsData = result.logs;
+         renderLogs();
+         showToast('✅ 日志已刷新', 'success');
+       }
      } catch (error) {
-       document.getElementById('logContent').textContent = '加载失败: ' + error.message;
+       document.getElementById('logContent').innerHTML = 
+         '<div style="text-align: center; color: var(--accent-danger); padding: 40px;">加载失败: ' + error.message + '</div>';
+     }
+   }
+
+   function renderLogs() {
+     const container = document.getElementById('logContent');
+     const levelFilter = document.getElementById('logLevelFilter')?.value || '';
+     const searchText = document.getElementById('logSearch')?.value.toLowerCase() || '';
+     
+     let filtered = logsData;
+     
+     if (levelFilter) {
+       filtered = filtered.filter(log => log.level === levelFilter);
+     }
+     
+     if (searchText) {
+       filtered = filtered.filter(log => 
+         (log.message || '').toLowerCase().includes(searchText) ||
+         (log.level || '').toLowerCase().includes(searchText)
+       );
+     }
+     
+     if (filtered.length === 0) {
+       container.innerHTML = '<div style="text-align: center; color: var(--text-tertiary); padding: 40px;">暂无日志</div>';
+       return;
+     }
+     
+     const html = filtered.reverse().map((log, index) => {
+       const time = new Date(log.timestamp).toLocaleString('zh-CN', { 
+         month: '2-digit', 
+         day: '2-digit', 
+         hour: '2-digit', 
+         minute: '2-digit', 
+         second: '2-digit' 
+       });
+       const message = typeof log.message === 'string' ? log.message : JSON.stringify(log.message);
+       const isLong = message.length > 150;
+       
+       return `
+         <div class="log-entry ${log.level}" onclick="toggleLogExpand(${index})">
+           <span class="log-time">${time}</span>
+           <span class="log-level ${log.level}">${log.level}</span>
+           <span class="log-message ${isLong ? 'collapsed' : ''}" id="logMsg${index}">${message}</span>
+         </div>
+       `;
+     }).join('');
+     
+     container.innerHTML = html;
+   }
+
+   function toggleLogExpand(index) {
+     const msg = document.getElementById('logMsg' + index);
+     if (msg) {
+       msg.classList.toggle('collapsed');
+     }
+   }
+
+   function filterLogs() {
+     renderLogs();
+   }
+
+   function clearLogs() {
+     if (confirm('确定要清空所有日志吗?')) {
+       logsData = [];
+       document.getElementById('logContent').innerHTML = 
+         '<div style="text-align: center; color: var(--text-tertiary); padding: 40px;">暂无日志</div>';
+       showToast('🗑️ 日志已清空', 'info');
      }
    }
 
