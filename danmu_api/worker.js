@@ -3791,53 +3791,115 @@ function handleHomepage(req) {
      showModal('editVodModal');
    }
 
-   function saveVodServer() {
-     const name = document.getElementById('vodServerName').value.trim();
-     const url = document.getElementById('vodServerUrl').value.trim();
+  async function saveVodServer() {
+    const name = document.getElementById('vodServerName').value.trim();
+    const url = document.getElementById('vodServerUrl').value.trim();
 
-     if (!name) {
-       showToast('请输入服务器名称', 'error');
-       return;
-     }
+    if (!name) {
+      showToast('请输入服务器名称', 'error');
+      return;
+    }
 
-     if (!url) {
-       showToast('请输入服务器地址', 'error');
-       return;
-     }
+    if (!url) {
+      showToast('请输入服务器地址', 'error');
+      return;
+    }
 
-     try {
-       new URL(url);
-     } catch (e) {
-       showToast('服务器地址格式不正确', 'error');
-       return;
-     }
+    try {
+      new URL(url);
+    } catch (e) {
+      showToast('服务器地址格式不正确', 'error');
+      return;
+    }
 
-     const serverString = \`\${name}@\${url}\`;
+    const serverString = `${name}@${url}`;
 
-     if (AppState.currentEditingVodIndex === null) {
-       AppState.vodServers.push(serverString);
-     } else {
-       AppState.vodServers[AppState.currentEditingVodIndex] = serverString;
-     }
+    if (AppState.currentEditingVodIndex === null) {
+      AppState.vodServers.push(serverString);
+    } else {
+      AppState.vodServers[AppState.currentEditingVodIndex] = serverString;
+    }
 
-     localStorage.setItem('danmu_api_vod_servers', JSON.stringify(AppState.vodServers));
-     AppState.hasUnsavedChanges = true;
-     refreshVodServerList();
-     closeModal('editVodModal');
-     showToast(AppState.currentEditingVodIndex === null ? 'VOD服务器已添加' : 'VOD服务器已更新', 'success');
-   }
+    localStorage.setItem('danmu_api_vod_servers', JSON.stringify(AppState.vodServers));
+    
+    // 🔥 保存到服务器
+    try {
+      showToast('正在保存到服务器...', 'info', 1000);
+      const response = await fetch('/api/config/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          config: {
+            VOD_SERVERS: AppState.vodServers.map(s => {
+              if (typeof s === 'string') return s;
+              return `${s.name}@${s.url}`;
+            }).join(',')
+          }
+        })
+      });
 
-   function deleteVodServer(index) {
-     if (!confirm('确定要删除这个VOD服务器吗？')) {
-       return;
-     }
+      const result = await response.json();
+      
+      if (result.success) {
+        AppState.hasUnsavedChanges = false;
+        showToast(`VOD服务器已保存到: ${result.savedTo.join('、')}`, 'success');
+      } else {
+        throw new Error(result.errorMessage || '保存失败');
+      }
+    } catch (error) {
+      console.error('保存到服务器失败:', error);
+      showToast(`VOD服务器已保存到浏览器本地（服务器保存失败: ${error.message}）`, 'warning');
+    }
+    
+    refreshVodServerList();
+    closeModal('editVodModal');
+  }
 
-     AppState.vodServers.splice(index, 1);
-     localStorage.setItem('danmu_api_vod_servers', JSON.stringify(AppState.vodServers));
-     AppState.hasUnsavedChanges = true;
-     refreshVodServerList();
-     showToast('VOD服务器已删除', 'success');
-   }
+
+  async function deleteVodServer(index) {
+    if (!confirm('确定要删除这个VOD服务器吗？')) {
+      return;
+    }
+
+    AppState.vodServers.splice(index, 1);
+    localStorage.setItem('danmu_api_vod_servers', JSON.stringify(AppState.vodServers));
+    
+    // 🔥 保存到服务器
+    try {
+      showToast('正在保存到服务器...', 'info', 1000);
+      const response = await fetch('/api/config/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          config: {
+            VOD_SERVERS: AppState.vodServers.map(s => {
+              if (typeof s === 'string') return s;
+              return `${s.name}@${s.url}`;
+            }).join(',')
+          }
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        AppState.hasUnsavedChanges = false;
+        showToast(`VOD服务器已删除并同步到: ${result.savedTo.join('、')}`, 'success');
+      } else {
+        throw new Error(result.errorMessage || '保存失败');
+      }
+    } catch (error) {
+      console.error('保存到服务器失败:', error);
+      showToast(`VOD服务器已删除并保存到浏览器本地（服务器保存失败: ${error.message}）`, 'warning');
+    }
+    
+    refreshVodServerList();
+  }
+
 
    function refreshVodServerList() {
      const grid = document.getElementById('vodServerGrid');
@@ -3884,46 +3946,97 @@ function handleHomepage(req) {
      }).join('');
    }
 
-   function toggleVodReturnMode(checkbox) {
-     const mode = checkbox.checked ? 'all' : 'fastest';
-     AppState.config.VOD_RETURN_MODE = mode;
-     localStorage.setItem('danmu_api_config', JSON.stringify(AppState.config));
-     AppState.hasUnsavedChanges = true;
+  async function toggleVodReturnMode(checkbox) {
+    const mode = checkbox.checked ? 'all' : 'fastest';
+    AppState.config.VOD_RETURN_MODE = mode;
+    localStorage.setItem('danmu_api_config', JSON.stringify(AppState.config));
 
-     const configValue = checkbox.closest('.config-item').querySelector('.config-value code');
-     configValue.textContent = checkbox.checked ? '返回所有站点结果' : '仅返回最快响应站点';
-     showToast(\`VOD返回模式已切换为: \${checkbox.checked ? '返回所有' : '仅返回最快'}\`, 'success');
-   }
+    const configValue = checkbox.closest('.config-item').querySelector('.config-value code');
+    configValue.textContent = checkbox.checked ? '返回所有站点结果' : '仅返回最快响应站点';
+    
+    // 🔥 保存到服务器
+    try {
+      const response = await fetch('/api/config/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          config: {
+            VOD_RETURN_MODE: mode
+          }
+        })
+      });
 
-   function editVodTimeout() {
-     const currentTimeout = AppState.config.VOD_REQUEST_TIMEOUT || 10000;
-     const newTimeout = prompt('请输入VOD请求超时时间(毫秒):', currentTimeout);
-     
-     if (newTimeout === null) return;
-     
-     const timeoutValue = parseInt(newTimeout);
-     if (isNaN(timeoutValue) || timeoutValue < 1000) {
-       showToast('超时时间必须大于等于1000毫秒', 'error');
-       return;
-     }
+      const result = await response.json();
+      
+      if (result.success) {
+        AppState.hasUnsavedChanges = false;
+        showToast(`VOD返回模式已保存: ${checkbox.checked ? '返回所有' : '仅返回最快'}`, 'success');
+      } else {
+        throw new Error(result.errorMessage || '保存失败');
+      }
+    } catch (error) {
+      console.error('保存到服务器失败:', error);
+      showToast(`VOD返回模式已保存到浏览器本地（服务器保存失败: ${error.message}）`, 'warning');
+    }
+  }
 
-     AppState.config.VOD_REQUEST_TIMEOUT = timeoutValue;
-     localStorage.setItem('danmu_api_config', JSON.stringify(AppState.config));
-     AppState.hasUnsavedChanges = true;
 
-     const configItems = document.querySelectorAll('#vod-page .config-item');
-     configItems.forEach(item => {
-       const label = item.querySelector('.config-label');
-       if (label && label.textContent === '请求超时') {
-         const codeElement = item.querySelector('.config-value code');
-         if (codeElement) {
-           codeElement.textContent = \`\${timeoutValue} 毫秒\`;
-         }
-       }
-     });
+  async function editVodTimeout() {
+    const currentTimeout = AppState.config.VOD_REQUEST_TIMEOUT || 10000;
+    const newTimeout = prompt('请输入VOD请求超时时间(毫秒):', currentTimeout);
+    
+    if (newTimeout === null) return;
+    
+    const timeoutValue = parseInt(newTimeout);
+    if (isNaN(timeoutValue) || timeoutValue < 1000) {
+      showToast('超时时间必须大于等于1000毫秒', 'error');
+      return;
+    }
 
-     showToast('VOD请求超时时间已更新', 'success');
-   }
+    AppState.config.VOD_REQUEST_TIMEOUT = timeoutValue;
+    localStorage.setItem('danmu_api_config', JSON.stringify(AppState.config));
+
+    const configItems = document.querySelectorAll('#vod-page .config-item');
+    configItems.forEach(item => {
+      const label = item.querySelector('.config-label');
+      if (label && label.textContent === '请求超时') {
+        const codeElement = item.querySelector('.config-value code');
+        if (codeElement) {
+          codeElement.textContent = `${timeoutValue} 毫秒`;
+        }
+      }
+    });
+
+    // 🔥 保存到服务器
+    try {
+      const response = await fetch('/api/config/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          config: {
+            VOD_REQUEST_TIMEOUT: String(timeoutValue)
+          }
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        AppState.hasUnsavedChanges = false;
+        showToast(`VOD请求超时已保存到: ${result.savedTo.join('、')}`, 'success');
+      } else {
+        throw new Error(result.errorMessage || '保存失败');
+      }
+    } catch (error) {
+      console.error('保存到服务器失败:', error);
+      showToast(`VOD请求超时已保存到浏览器本地（服务器保存失败: ${error.message}）`, 'warning');
+    }
+  }
+
 
    function initializeDragAndDrop() {
      const sourceGrid = document.getElementById('sourceGrid');
@@ -4064,11 +4177,38 @@ function handleHomepage(req) {
      }, { offset: Number.NEGATIVE_INFINITY }).element;
    }
 
-   function saveSourceOrder() {
-     localStorage.setItem('danmu_api_source_order', JSON.stringify(AppState.sourceOrder));
-     AppState.hasUnsavedChanges = false;
-     showToast('数据源优先级已保存', 'success');
-   }
+  async function saveSourceOrder() {
+    localStorage.setItem('danmu_api_source_order', JSON.stringify(AppState.sourceOrder));
+    
+    // 🔥 保存到服务器
+    try {
+      showToast('正在保存到服务器...', 'info', 1000);
+      const response = await fetch('/api/config/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          config: {
+            SOURCE_ORDER: AppState.sourceOrder.join(',')
+          }
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        AppState.hasUnsavedChanges = false;
+        showToast(`数据源顺序已保存到: ${result.savedTo.join('、')}`, 'success');
+      } else {
+        throw new Error(result.errorMessage || '保存失败');
+      }
+    } catch (error) {
+      console.error('保存到服务器失败:', error);
+      showToast(`数据源顺序已保存到浏览器本地（服务器保存失败: ${error.message}）`, 'warning');
+    }
+  }
+
 
    function resetSourceOrder() {
      if (!confirm('确定要重置数据源顺序为默认值吗？')) return;
@@ -4079,27 +4219,78 @@ function handleHomepage(req) {
      location.reload();
    }
 
-   function toggleStrictMatch(checkbox) {
-     AppState.config.STRICT_TITLE_MATCH = checkbox.checked;
-     localStorage.setItem('danmu_api_config', JSON.stringify(AppState.config));
-     AppState.hasUnsavedChanges = true;
-     const configValue = checkbox.closest('.config-item').querySelector('.config-value');
-     configValue.classList.toggle('value-enabled', checkbox.checked);
-     configValue.classList.toggle('value-disabled', !checkbox.checked);
-     configValue.querySelector('code').textContent = checkbox.checked ? '已启用 - 减少误匹配' : '已禁用 - 宽松匹配';
-     showToast(\`严格匹配模式已\${checkbox.checked ? '启用' : '禁用'}\`, 'success');
-   }
+  async function toggleStrictMatch(checkbox) {
+    AppState.config.STRICT_TITLE_MATCH = checkbox.checked;
+    localStorage.setItem('danmu_api_config', JSON.stringify(AppState.config));
+    const configValue = checkbox.closest('.config-item').querySelector('.config-value');
+    configValue.classList.toggle('value-enabled', checkbox.checked);
+    configValue.classList.toggle('value-disabled', !checkbox.checked);
+    configValue.querySelector('code').textContent = checkbox.checked ? '已启用 - 减少误匹配' : '已禁用 - 宽松匹配';
+    
+    // 🔥 保存到服务器
+    try {
+      const response = await fetch('/api/config/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          config: {
+            STRICT_TITLE_MATCH: String(checkbox.checked)
+          }
+        })
+      });
 
-   function toggleRememberSelect(checkbox) {
-     AppState.config.REMEMBER_LAST_SELECT = checkbox.checked;
-     localStorage.setItem('danmu_api_config', JSON.stringify(AppState.config));
-     AppState.hasUnsavedChanges = true;
-     const configValue = checkbox.closest('.config-item').querySelector('.config-value');
-     configValue.classList.toggle('value-enabled', checkbox.checked);
-     configValue.classList.toggle('value-disabled', !checkbox.checked);
-     configValue.querySelector('code').textContent = checkbox.checked ? '已启用 - 优化匹配准确度' : '已禁用';
-     showToast(\`记住手动选择已\${checkbox.checked ? '启用' : '禁用'}\`, 'success');
-   }
+      const result = await response.json();
+      
+      if (result.success) {
+        AppState.hasUnsavedChanges = false;
+        showToast(`严格匹配模式已${checkbox.checked ? '启用' : '禁用'}并保存`, 'success');
+      } else {
+        throw new Error(result.errorMessage || '保存失败');
+      }
+    } catch (error) {
+      console.error('保存到服务器失败:', error);
+      showToast(`严格匹配模式已${checkbox.checked ? '启用' : '禁用'}（保存到本地）`, 'warning');
+    }
+  }
+
+  async function toggleRememberSelect(checkbox) {
+    AppState.config.REMEMBER_LAST_SELECT = checkbox.checked;
+    localStorage.setItem('danmu_api_config', JSON.stringify(AppState.config));
+    const configValue = checkbox.closest('.config-item').querySelector('.config-value');
+    configValue.classList.toggle('value-enabled', checkbox.checked);
+    configValue.classList.toggle('value-disabled', !checkbox.checked);
+    configValue.querySelector('code').textContent = checkbox.checked ? '已启用 - 优化匹配准确度' : '已禁用';
+    
+    // 🔥 保存到服务器
+    try {
+      const response = await fetch('/api/config/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          config: {
+            REMEMBER_LAST_SELECT: String(checkbox.checked)
+          }
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        AppState.hasUnsavedChanges = false;
+        showToast(`记住手动选择已${checkbox.checked ? '启用' : '禁用'}并保存`, 'success');
+      } else {
+        throw new Error(result.errorMessage || '保存失败');
+      }
+    } catch (error) {
+      console.error('保存到服务器失败:', error);
+      showToast(`记住手动选择已${checkbox.checked ? '启用' : '禁用'}（保存到本地）`, 'warning');
+    }
+  }
+
 
    function showModal(modalId) {
      const modal = document.getElementById(modalId);
