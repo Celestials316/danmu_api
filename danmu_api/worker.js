@@ -1728,12 +1728,11 @@ function handleHomepage(req) {
            <button class="btn btn-secondary btn-sm" onclick="refreshLogs()">🔄 刷新</button>
          </div>
          
-         <div style="background: var(--bg-tertiary); border-radius: 8px; padding: 20px; min-height: 400px; max-height: 600px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.8; color: var(--text-primary);">
-           <pre id="logContent" style="margin: 0; white-space: pre-wrap; word-wrap: break-word;">加载中...</pre>
+         <div style="background: var(--bg-tertiary); border-radius: 8px; padding: 20px; min-height: 400px; font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.6; color: var(--text-primary); overflow-x: auto;">
+           <div id="logContent">加载中...</div>
          </div>
        </div>
      </div>
-
    </div>
  </div>
 
@@ -2201,36 +2200,12 @@ function handleHomepage(req) {
 
    // ========== 日志管理 ==========
    async function refreshLogs() {
-     const logEl = document.getElementById('logContent');
      try {
        const response = await fetch('/api/logs?format=text&limit=1000');
        const logs = await response.text();
-       
-       if (!logs || logs.trim() === '') {
-         logEl.textContent = '暂无日志';
-         return;
-       }
-       
-       // 简单的颜色高亮
-       const lines = logs.split('\n');
-       const coloredLines = lines.map(line => {
-         if (line.includes('ERROR') || line.includes('error')) {
-           return `\x1b[31m${line}\x1b[0m`; // 红色
-         } else if (line.includes('WARN') || line.includes('warn')) {
-           return `\x1b[33m${line}\x1b[0m`; // 黄色
-         } else if (line.includes('INFO') || line.includes('info')) {
-           return `\x1b[36m${line}\x1b[0m`; // 青色
-         }
-         return line;
-       });
-       
-       logEl.textContent = coloredLines.join('\n');
-       
-       // 自动滚动到底部
-       logEl.parentElement.scrollTop = logEl.parentElement.scrollHeight;
-       
+       document.getElementById('logContent').textContent = logs || '暂无日志';
      } catch (error) {
-       logEl.textContent = '❌ 加载失败: ' + error.message;
+       document.getElementById('logContent').textContent = '加载失败: ' + error.message;
      }
    }
 
