@@ -1373,10 +1373,31 @@ function handleHomepage(req) {
     }
 
     function updateEnvDisplay(key, value) {
-      const item = document.querySelector(\`.env-item[data-key="\${key}"]\`);
+      const item = document.querySelector(`.env-item[data-key="${key}"]`);
       if (!item) return;
       
       const valueEl = item.querySelector('.env-value');
+      
+      // 如果是敏感字段，保持星号显示
+      if (valueEl.classList.contains('sensitive')) {
+        const realValue = typeof value === 'string' ? value : String(value);
+        const maskedValue = '*'.repeat(Math.min(realValue.length, 32));
+        
+        const encodedRealValue = realValue
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+        
+        valueEl.dataset.real = encodedRealValue;
+        valueEl.dataset.masked = maskedValue;
+        valueEl.innerHTML = maskedValue + ' <span class="eye-icon">👁️</span>';
+        valueEl.classList.remove('revealed');
+        return;
+      }
+      
+      // 普通字段正常显示
       if (typeof value === 'boolean') {
         valueEl.textContent = value ? '✅ 已启用' : '❌ 已禁用';
       } else if (!value) {
