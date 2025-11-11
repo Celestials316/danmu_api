@@ -420,84 +420,16 @@ function handleHomepage(req) {
       globals.sourceOrderArr = [];
     }
 
-    const configuredEnvCount = Object.entries(globals.accessedEnvVars).filter(([key, value]) => {
-      if (value === null || value === undefined) return false;
-      if (typeof value === 'string' && value.length === 0) return false;
-      if (Array.isArray(value) && value.length === 0) return false;
-      return true;
-    }).length;
+    const whiteRatio = parseFloat(globals.whiteRatio || globals.envs?.WHITE_RATIO || globals.accessedEnvVars?.WHITE_RATIO || -1);
+    const danmuLimit = parseInt(globals.danmuLimit || globals.envs?.DANMU_LIMIT || globals.accessedEnvVars?.DANMU_LIMIT || -1);
+    const blockedWordsCount = (globals.blockedWordsArr || []).length;
 
-    const totalEnvCount = Object.keys(globals.accessedEnvVars).length;
-
-    const envItemsHtml = Object.entries(globals.accessedEnvVars)
-      .map(([key, value]) => {
-        let displayValue = value;
-        const description = ENV_DESCRIPTIONS[key] || '环境变量';
-        const isSensitive = isSensitiveKey(key);
-
-        if (typeof value === 'boolean') {
-          displayValue = value ? '✅ 已启用' : '❌ 已禁用';
-        } else if (value === null || value === undefined || (typeof value === 'string' && value.length === 0)) {
-          displayValue = '未配置';
-        } else if (isSensitive && typeof value === 'string' && value.length > 0) {
-          const realValue = getRealEnvValue(key);
-          const maskedValue = '*'.repeat(Math.min(String(realValue).length, 32));
-          const safeRealValue = typeof realValue === 'string' ? realValue : JSON.stringify(realValue);
-          const encodedRealValue = safeRealValue
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
-
-          return `
-            <div class="env-item" data-key="${key}">
-              <div class="env-header">
-                <span class="env-label">${key}</span>
-                <button class="edit-btn" onclick="editEnv('${key}')" title="编辑">✏️</button>
-              </div>
-              <div class="env-value sensitive" data-real="${encodedRealValue}" data-masked="${maskedValue}" onclick="toggleSensitive(this)" ondblclick="copySensitiveValue(this, event)">
-                ${maskedValue} <span class="eye-icon">👁️</span>
-              </div>
-              <div class="env-desc">${description}</div>
-            </div>
-          `;
-        } else if (Array.isArray(value)) {
-          displayValue = value.length > 0 ? value.join(', ') : '默认值';
-        } else if (typeof value === 'string' && value.length > 80) {
-          displayValue = value.substring(0, 80) + '...';
-        }
-
-        const realValue = getRealEnvValue(key);
-        const encodedOriginal = String(realValue || value)
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/"/g, '&quot;')
-          .replace(/'/g, '&#39;');
-
-        return `
-          <div class="env-item" data-key="${key}">
-            <div class="env-header">
-              <span class="env-label">${key}</span>
-              <button class="edit-btn" onclick="editEnv('${key}')" title="编辑">✏️</button>
-            </div>
-            <div class="env-value" data-original="${encodedOriginal}" ondblclick="copyValue(this)">
-              ${displayValue}
-            </div>
-            <div class="env-desc">${description}</div>
-          </div>
-        `;
-      })
-      .join('');
-
-    const html = `
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>弹幕 API 管理后台</title>
+  <title>弹幕 API 控制中心</title>
   <style>
     :root {
       --bg-primary: #f8fafc;
@@ -509,6 +441,9 @@ function handleHomepage(req) {
       --border-color: #e2e8f0;
       --accent-primary: #6366f1;
       --accent-secondary: #8b5cf6;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
       --shadow-sm: 0 1px 3px rgba(0,0,0,0.1);
       --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
       --shadow-lg: 0 10px 15px rgba(0,0,0,0.1);
@@ -530,7 +465,7 @@ function handleHomepage(req) {
     * { margin: 0; padding: 0; box-sizing: border-box; }
     
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
       background: var(--bg-primary);
       color: var(--text-primary);
       min-height: 100vh;
@@ -539,15 +474,16 @@ function handleHomepage(req) {
     }
 
     .container {
-      max-width: 1400px;
+      max-width: 1600px;
       margin: 0 auto;
     }
 
+    /* Header */
     .header {
       background: var(--bg-secondary);
-      border-radius: 16px;
-      padding: 24px 32px;
-      margin-bottom: 24px;
+      border-radius: 20px;
+      padding: 32px 40px;
+      margin-bottom: 32px;
       box-shadow: var(--shadow-md);
       display: flex;
       justify-content: space-between;
@@ -558,27 +494,32 @@ function handleHomepage(req) {
     .logo {
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 20px;
     }
 
     .logo-icon {
-      font-size: 36px;
-      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+      font-size: 48px;
+      animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
     }
 
     .logo-text h1 {
-      font-size: 24px;
-      font-weight: 700;
+      font-size: 28px;
+      font-weight: 800;
       background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
+      margin-bottom: 4px;
     }
 
     .logo-text p {
-      font-size: 13px;
+      font-size: 14px;
       color: var(--text-tertiary);
-      margin-top: 4px;
     }
 
     .header-actions {
@@ -595,7 +536,7 @@ function handleHomepage(req) {
       background: var(--bg-tertiary);
       color: var(--text-primary);
       cursor: pointer;
-      font-size: 20px;
+      font-size: 22px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -603,9 +544,10 @@ function handleHomepage(req) {
     }
 
     .theme-toggle:hover {
-      transform: scale(1.05);
+      transform: scale(1.1) rotate(15deg);
       background: var(--accent-primary);
       border-color: var(--accent-primary);
+      color: white;
     }
 
     .btn {
@@ -640,19 +582,21 @@ function handleHomepage(req) {
 
     .btn-secondary:hover {
       background: var(--border-color);
+      transform: translateY(-2px);
     }
 
-    .stats {
+    /* Stats Grid */
+    .stats-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 20px;
-      margin-bottom: 24px;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+      margin-bottom: 32px;
     }
 
     .stat-card {
       background: var(--bg-secondary);
-      border-radius: 16px;
-      padding: 24px;
+      border-radius: 20px;
+      padding: 28px;
       box-shadow: var(--shadow-md);
       border: 1px solid var(--border-color);
       position: relative;
@@ -666,65 +610,267 @@ function handleHomepage(req) {
       top: 0;
       left: 0;
       right: 0;
-      height: 3px;
+      height: 4px;
       background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
     }
 
     .stat-card:hover {
-      transform: translateY(-4px);
+      transform: translateY(-8px);
       box-shadow: var(--shadow-lg);
     }
 
+    .stat-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 16px;
+    }
+
     .stat-icon {
-      font-size: 28px;
-      margin-bottom: 12px;
+      font-size: 36px;
+      line-height: 1;
     }
 
     .stat-title {
       font-size: 13px;
       color: var(--text-tertiary);
-      margin-bottom: 8px;
       font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
 
     .stat-value {
-      font-size: 32px;
+      font-size: 36px;
       font-weight: 700;
       color: var(--text-primary);
       margin-bottom: 8px;
+      line-height: 1.2;
     }
 
     .stat-footer {
-      font-size: 12px;
+      font-size: 13px;
       color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
 
-    .card {
+    .stat-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .badge-success {
+      background: rgba(16, 185, 129, 0.1);
+      color: var(--success);
+    }
+
+    .badge-warning {
+      background: rgba(245, 158, 11, 0.1);
+      color: var(--warning);
+    }
+
+    .badge-danger {
+      background: rgba(239, 68, 68, 0.1);
+      color: var(--danger);
+    }
+
+    /* Quick Settings */
+    .quick-settings {
       background: var(--bg-secondary);
+      border-radius: 20px;
+      padding: 32px;
+      box-shadow: var(--shadow-md);
+      border: 1px solid var(--border-color);
+      margin-bottom: 32px;
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 28px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid var(--border-color);
+    }
+
+    .section-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .section-icon {
+      font-size: 28px;
+    }
+
+    .settings-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 24px;
+    }
+
+    .setting-item {
+      background: var(--bg-tertiary);
       border-radius: 16px;
-      padding: 28px;
+      padding: 24px;
+      border: 1px solid var(--border-color);
+      transition: all 0.3s ease;
+    }
+
+    .setting-item:hover {
+      border-color: var(--accent-primary);
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.1);
+    }
+
+    .setting-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .setting-label {
+      font-weight: 600;
+      color: var(--text-primary);
+      font-size: 15px;
+    }
+
+    .setting-input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid var(--border-color);
+      border-radius: 10px;
+      font-size: 14px;
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      transition: all 0.3s ease;
+      font-family: 'Courier New', monospace;
+    }
+
+    .setting-input:focus {
+      outline: none;
+      border-color: var(--accent-primary);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+
+    .setting-desc {
+      font-size: 12px;
+      color: var(--text-tertiary);
+      margin-top: 10px;
+      line-height: 1.5;
+    }
+
+    .toggle-switch {
+      position: relative;
+      width: 52px;
+      height: 28px;
+      background: var(--border-color);
+      border-radius: 14px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .toggle-switch.active {
+      background: var(--accent-primary);
+    }
+
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      width: 22px;
+      height: 22px;
+      background: white;
+      border-radius: 50%;
+      top: 3px;
+      left: 3px;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .toggle-switch.active::after {
+      left: 27px;
+    }
+
+    /* Navigation Tabs */
+    .nav-tabs {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 32px;
+      background: var(--bg-secondary);
+      padding: 8px;
+      border-radius: 16px;
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--border-color);
+    }
+
+    .nav-tab {
+      flex: 1;
+      padding: 14px 24px;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      font-size: 15px;
+      font-weight: 600;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .nav-tab:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    .nav-tab.active {
+      background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+      color: white;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Advanced Settings (二级页面) */
+    .advanced-settings {
+      background: var(--bg-secondary);
+      border-radius: 20px;
+      padding: 32px;
       box-shadow: var(--shadow-md);
       border: 1px solid var(--border-color);
     }
 
-    .card-title {
-      font-size: 20px;
-      font-weight: 700;
-      margin-bottom: 24px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      color: var(--text-primary);
-    }
-
     .search-box {
-      margin-bottom: 20px;
+      margin-bottom: 24px;
     }
 
     .search-input {
       width: 100%;
       padding: 14px 20px 14px 48px;
-      border: 1px solid var(--border-color);
+      border: 2px solid var(--border-color);
       border-radius: 12px;
       font-size: 14px;
       background: var(--bg-tertiary);
@@ -810,14 +956,12 @@ function handleHomepage(req) {
       justify-content: space-between;
       align-items: center;
       user-select: none;
-      font-family: 'Courier New', monospace;
     }
 
     .env-value.sensitive:hover {
       background: var(--bg-tertiary);
       border-color: var(--accent-primary);
     }
-
 
     .env-value.sensitive.revealed {
       user-select: text;
@@ -840,6 +984,7 @@ function handleHomepage(req) {
       line-height: 1.5;
     }
 
+    /* Modal */
     .modal {
       display: none;
       position: fixed;
@@ -853,11 +998,6 @@ function handleHomepage(req) {
       justify-content: center;
       z-index: 1000;
       animation: fadeIn 0.2s ease;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
     }
 
     .modal.show {
@@ -977,6 +1117,7 @@ function handleHomepage(req) {
       border-top: 1px solid var(--border-color);
     }
 
+    /* Toast */
     .toast {
       position: fixed;
       bottom: 32px;
@@ -1009,17 +1150,9 @@ function handleHomepage(req) {
       display: flex;
     }
 
-    .toast.success { 
-      border-left: 4px solid #10b981; 
-    }
-    
-    .toast.error { 
-      border-left: 4px solid #ef4444; 
-    }
-    
-    .toast.info { 
-      border-left: 4px solid #3b82f6; 
-    }
+    .toast.success { border-left: 4px solid var(--success); }
+    .toast.error { border-left: 4px solid var(--danger); }
+    .toast.info { border-left: 4px solid #3b82f6; }
 
     .toast-icon {
       font-size: 20px;
@@ -1031,13 +1164,14 @@ function handleHomepage(req) {
       font-weight: 500;
     }
 
+    /* Responsive */
     @media (max-width: 768px) {
       body { padding: 12px; }
       
       .header { 
         flex-direction: column; 
-        gap: 16px;
-        padding: 20px;
+        gap: 20px;
+        padding: 24px;
       }
       
       .header-actions {
@@ -1045,8 +1179,16 @@ function handleHomepage(req) {
         justify-content: space-between;
       }
       
-      .stats { 
+      .stats-grid { 
         grid-template-columns: 1fr; 
+      }
+      
+      .settings-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .nav-tabs {
+        flex-direction: column;
       }
       
       .modal-content { 
@@ -1061,6 +1203,7 @@ function handleHomepage(req) {
       }
     }
 
+    /* Scrollbar */
     ::-webkit-scrollbar {
       width: 8px;
       height: 8px;
@@ -1083,477 +1226,735 @@ function handleHomepage(req) {
 </head>
 <body>
   <div class="container">
+    <!-- Header -->
     <div class="header">
       <div class="logo">
         <div class="logo-icon">🎬</div>
         <div class="logo-text">
-          <h1>弹幕 API 管理后台</h1>
-          <p>Danmu API Management Console</p>
+          <h1>弹幕 API 控制中心</h1>
+          <p>Danmu API Control Center · 实时管理与监控</p>
         </div>
       </div>
       <div class="header-actions">
         <button class="theme-toggle" onclick="toggleTheme()" title="切换主题">🌓</button>
         <button class="btn btn-secondary" onclick="changePassword()">🔑 修改密码</button>
-        <button class="btn btn-secondary" onclick="logout()">🚪 退出</button>
+        <button class="btn btn-secondary" onclick="logout()">🚪 退出登录</button>
       </div>
     </div>
 
-    <div class="stats">
-      <div class="stat-card">
-        <div class="stat-icon">📊</div>
-        <div class="stat-title">环境变量配置</div>
-        <div class="stat-value">${configuredEnvCount}/${totalEnvCount}</div>
-        <div class="stat-footer">已配置 / 总数量</div>
-      </div>
-      
-      <div class="stat-card">
-        <div class="stat-icon">💾</div>
-        <div class="stat-title">持久化存储</div>
-        <div class="stat-value">${
-          globals.databaseValid ? '数据库' : 
-          (redisConfigured && globals.redisValid) ? 'Redis' : 
-          '内存'
-        }</div>
-        <div class="stat-footer">${
-          globals.databaseValid ? '✅ 数据库在线' : 
-          (redisConfigured && globals.redisValid) ? '✅ Redis 在线' : 
-          '📝 仅内存缓存'
-        }</div>
-      </div>
-
-      <div class="stat-card">
-        <div class="stat-icon">🔗</div>
-        <div class="stat-title">弹幕数据源</div>
-        <div class="stat-value">${globals.sourceOrderArr.length || 7}</div>
-        <div class="stat-footer">${globals.sourceOrderArr.length > 0 ? `优先: ${globals.sourceOrderArr[0]}` : '使用默认顺序'}</div>
-      </div>
-
-      <div class="stat-card">
-        <div class="stat-icon">⚙️</div>
-        <div class="stat-title">服务状态</div>
-        <div class="stat-value">运行中</div>
-        <div class="stat-footer">版本 ${globals.VERSION}</div>
-      </div>
+    <!-- Navigation Tabs -->
+    <div class="nav-tabs">
+      <button class="nav-tab active" onclick="switchTab('dashboard')">
+        <span>📊</span> 控制面板
+      </button>
+      <button class="nav-tab" onclick="switchTab('advanced')">
+        <span>⚙️</span> 高级设置
+      </button>
     </div>
 
-    <div class="card">
-      <div class="card-title">
-        <span>⚙️ 环境变量配置</span>
-        <button class="btn btn-primary" onclick="saveAll()">💾 保存全部</button>
-      </div>
-      
-      <div class="search-box">
-        <input type="text" class="search-input" placeholder="搜索环境变量..." id="searchInput" oninput="filterEnvs()">
-      </div>
-
-      <div class="env-grid" id="envGrid">
-        ${envItemsHtml}
-      </div>
-    </div>
-  </div>
-
-  <!-- 编辑弹窗 -->
-  <div class="modal" id="editModal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 class="modal-title">✏️ 编辑环境变量</h3>
-        <button class="close-btn" onclick="closeModal()">×</button>
-      </div>
-      <div class="form-group">
-        <label class="form-label">变量名</label>
-        <input type="text" class="form-input" id="editKey" readonly>
-      </div>
-      <div class="form-group">
-        <label class="form-label">配置值</label>
-        <textarea class="form-textarea" id="editValue" placeholder="请输入配置值"></textarea>
-        <div class="form-hint" id="editHint"></div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeModal()">取消</button>
-        <button class="btn btn-primary" onclick="saveEnv()">保存</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 修改密码弹窗 -->
-  <div class="modal" id="passwordModal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 class="modal-title">🔑 修改密码</h3>
-        <button class="close-btn" onclick="closePasswordModal()">×</button>
-      </div>
-      <div class="form-group">
-        <label class="form-label">新用户名（可选）</label>
-        <input type="text" class="form-input" id="newUsername" placeholder="留空则不修改">
-      </div>
-      <div class="form-group">
-        <label class="form-label">旧密码</label>
-        <input type="password" class="form-input" id="oldPassword" placeholder="请输入当前密码" required>
-      </div>
-      <div class="form-group">
-        <label class="form-label">新密码</label>
-        <input type="password" class="form-input" id="newPassword" placeholder="请输入新密码" required>
-      </div>
-      <div class="form-group">
-        <label class="form-label">确认新密码</label>
-        <input type="password" class="form-input" id="confirmPassword" placeholder="请再次输入新密码" required>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closePasswordModal()">取消</button>
-        <button class="btn btn-primary" onclick="submitPasswordChange()">确认修改</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Toast 提示 -->
-  <div class="toast" id="toast">
-    <span class="toast-icon" id="toastIcon"></span>
-    <span class="toast-message" id="toastMessage"></span>
-  </div>
-
-  <script>
-    // 主题管理
-    function initTheme() {
-      const savedTheme = localStorage.getItem('theme') || 'light';
-      document.documentElement.setAttribute('data-theme', savedTheme);
-      updateThemeIcon(savedTheme);
-    }
-
-    function toggleTheme() {
-      const currentTheme = document.documentElement.getAttribute('data-theme');
-      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-      document.documentElement.setAttribute('data-theme', newTheme);
-      localStorage.setItem('theme', newTheme);
-      updateThemeIcon(newTheme);
-      showToast(newTheme === 'dark' ? '已切换到深色模式' : '已切换到浅色模式', 'info');
-    }
-
-    function updateThemeIcon(theme) {
-      const btn = document.querySelector('.theme-toggle');
-      btn.textContent = theme === 'dark' ? '☀️' : '🌙';
-    }
-
-    // 初始化
-    initTheme();
-
-    const AppState = {
-      currentEditingKey: null,
-      config: ${JSON.stringify(globals.accessedEnvVars)},
-      revealedSecrets: new Map()
-    };
-
-    const ENV_DESCRIPTIONS = ${JSON.stringify(ENV_DESCRIPTIONS)};
-
-    function showToast(message, type = 'info') {
-      const toast = document.getElementById('toast');
-      const icon = document.getElementById('toastIcon');
-      const msg = document.getElementById('toastMessage');
-      
-      const icons = {
-        success: '✅',
-        error: '❌',
-        info: 'ℹ️'
-      };
-      
-      icon.textContent = icons[type] || icons.info;
-      msg.textContent = message;
-      toast.className = 'toast show ' + type;
-      
-      setTimeout(() => {
-        toast.classList.remove('show');
-      }, 3000);
-    }
-
-    function toggleSensitive(element) {
-      const real = element.dataset.real;
-      const masked = element.dataset.masked;
-      const key = element.closest('.env-item').dataset.key;
-      
-      // 清除之前的定时器
-      if (AppState.revealedSecrets.has(key)) {
-        clearTimeout(AppState.revealedSecrets.get(key));
-        AppState.revealedSecrets.delete(key);
-      }
-      
-      // 显示真实值
-      const textarea = document.createElement('textarea');
-      textarea.innerHTML = real;
-      const realValue = textarea.value;
-      element.innerHTML = realValue + ' <span class="eye-icon">🔓</span>';
-      element.classList.add('revealed');
-      
-      // 3秒后自动隐藏
-      const timeoutId = setTimeout(() => {
-        element.innerHTML = masked + ' <span class="eye-icon">👁️</span>';
-        element.classList.remove('revealed');
-        AppState.revealedSecrets.delete(key);
-      }, 3000);
-      
-      AppState.revealedSecrets.set(key, timeoutId);
-    }
-
-    function copySensitiveValue(element, event) {
-      event.stopPropagation();
-      const real = element.dataset.real;
-      const textarea = document.createElement('textarea');
-      textarea.innerHTML = real;
-      const text = textarea.value;
-      
-      if (navigator.clipboard) {
-        navigator.clipboard.writeText(text);
-      } else {
-        const temp = document.createElement('textarea');
-        temp.value = text;
-        document.body.appendChild(temp);
-        temp.select();
-        document.execCommand('copy');
-        document.body.removeChild(temp);
-      }
-      
-      showToast('📋 已复制到剪贴板', 'success');
-    }
-
-    function editEnv(key) {
-      AppState.currentEditingKey = key;
-      document.getElementById('editKey').value = key;
-      document.getElementById('editValue').value = AppState.config[key] || '';
-      document.getElementById('editHint').textContent = ENV_DESCRIPTIONS[key] || '';
-      document.getElementById('editModal').classList.add('show');
-    }
-
-    function closeModal() {
-      document.getElementById('editModal').classList.remove('show');
-    }
-
-    async function saveEnv() {
-      const key = AppState.currentEditingKey;
-      const value = document.getElementById('editValue').value.trim();
-      
-      AppState.config[key] = value;
-      
-      try {
-        const response = await fetch('/api/config/save', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ config: { [key]: value } })
-        });
-
-        const result = await response.json();
+    <!-- Dashboard Tab -->
+    <div id="dashboard-tab" class="tab-content active">
+      <!-- Stats Grid -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-header">
+            <div class="stat-icon">📊</div>
+          </div>
+          <div class="stat-title">环境变量配置</div>
+          <div class="stat-value">${configuredEnvCount}/${totalEnvCount}</div>
+          <div class="stat-footer">
+            <span class="stat-badge badge-success">✓ 已配置</span>
+            <span>${Math.round((configuredEnvCount / totalEnvCount) * 100)}% 完成</span>
+          </div>
+        </div>
         
-        if (result.success) {
-          showToast('✅ 保存成功！', 'success');
-          updateEnvDisplay(key, value);
-          closeModal();
-        } else {
-          showToast('保存失败: ' + (result.errorMessage || '未知错误'), 'error');
-        }
-      } catch (error) {
-        showToast('保存失败: ' + error.message, 'error');
-      }
-    }
+        <div class="stat-card">
+          <div class="stat-header">
+            <div class="stat-icon">💾</div>
+          </div>
+          <div class="stat-title">持久化存储</div>
+          <div class="stat-value">${
+            globals.databaseValid ? '数据库' : 
+            (redisConfigured && globals.redisValid) ? 'Redis' : 
+            '内存'
+          }</div>
+          <div class="stat-footer">
+            <span class="stat-badge ${
+              globals.databaseValid ? 'badge-success' : 
+              (redisConfigured && globals.redisValid) ? 'badge-success' : 
+              'badge-warning'
+            }">${
+              globals.databaseValid ? '✓ 数据库在线' : 
+              (redisConfigured && globals.redisValid) ? '✓ Redis 在线' : 
+              '⚠ 仅内存缓存'
+            }</span>
+          </div>
+        </div>
 
-    async function saveAll() {
-      try {
-        const response = await fetch('/api/config/save', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ config: AppState.config })
-        });
+        <div class="stat-card">
+          <div class="stat-header">
+            <div class="stat-icon">🔗</div>
+          </div>
+          <div class="stat-title">弹幕数据源</div>
+          <div class="stat-value">${globals.sourceOrderArr.length || 7}</div>
+          <div class="stat-footer">
+            <span>${globals.sourceOrderArr.length > 0 ? `优先: ${globals.sourceOrderArr[0]}` : '使用默认顺序'}</span>
+          </div>
+        </div>
 
-        const result = await response.json();
-        
-        if (result.success) {
-          showToast('✅ 全部配置已保存！', 'success');
-        } else {
-          showToast('保存失败: ' + (result.errorMessage || '未知错误'), 'error');
-        }
-      } catch (error) {
-        showToast('保存失败: ' + error.message, 'error');
-      }
-    }
+        <div class="stat-card">
+          <div class="stat-header">
+            <div class="stat-icon">⚡</div>
+          </div>
+          <div class="stat-title">服务状态</div>
+          <div class="stat-value">运行中</div>
+          <div class="stat-footer">
+            <span class="stat-badge badge-success">● 在线</span>
+            <span>v${globals.VERSION}</span>
+          </div>
+        </div>
+      </div>
 
-    function updateEnvDisplay(key, value) {
-      const item = document.querySelector('.env-item[data-key="' + key + '"]');
-      if (!item) return;
-      
-      const valueEl = item.querySelector('.env-value');
-      
-      // 如果是敏感字段，保持星号显示
-      if (valueEl.classList.contains('sensitive')) {
-        const realValue = typeof value === 'string' ? value : String(value);
-        const maskedValue = '*'.repeat(Math.min(realValue.length, 32));
-        
-        const encodedRealValue = realValue
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/"/g, '&quot;')
-          .replace(/'/g, '&#39;');
-        
-        valueEl.dataset.real = encodedRealValue;
-        valueEl.dataset.masked = maskedValue;
-        valueEl.innerHTML = maskedValue + ' <span class="eye-icon">👁️</span>';
-        valueEl.classList.remove('revealed');
-        return;
-      }
-      
-      // 普通字段正常显示
-      if (typeof value === 'boolean') {
-        valueEl.textContent = value ? '✅ 已启用' : '❌ 已禁用';
-      } else if (!value) {
-        valueEl.textContent = '未配置';
-      } else {
-        valueEl.textContent = value.length > 80 ? value.substring(0, 80) + '...' : value;
-      }
-    }
+      <!-- Quick Settings -->
+      <div class="quick-settings">
+        <div class="section-header">
+          <div class="section-title">
+            <span class="section-icon">🎯</span>
+            <span>快速设置</span>
+          </div>
+          <button class="btn btn-primary" onclick="saveQuickSettings()">
+            💾 保存配置
+          </button>
+        </div>
 
-    function copyValue(element) {
-      const original = element.dataset.original;
-      if (!original) return;
-      
-      const textarea = document.createElement('textarea');
-      textarea.innerHTML = original;
-      const text = textarea.value;
-      
-      if (navigator.clipboard) {
-        navigator.clipboard.writeText(text);
-      } else {
-        const temp = document.createElement('textarea');
-        temp.value = text;
-        document.body.appendChild(temp);
-        temp.select();
-        document.execCommand('copy');
-        document.body.removeChild(temp);
-      }
-      
-      showToast('📋 已复制到剪贴板', 'success');
-    }
+        <div class="settings-grid">
+          <div class="setting-item">
+            <div class="setting-header">
+              <span class="setting-label">白色弹幕占比 (%)</span>
+            </div>
+            <input 
+              type="number" 
+              class="setting-input" 
+              id="whiteRatio" 
+              value="${globals.whiteRatio || -1}"
+              min="-1"
+              max="100"
+              placeholder="-1 表示不转换"
+            >
+            <div class="setting-desc">
+              将指定百分比的彩色弹幕转换为白色，-1 表示不转换
+            </div>
+          </div>
 
-    function filterEnvs() {
-      const query = document.getElementById('searchInput').value.toLowerCase();
-      const items = document.querySelectorAll('.env-item');
-      
-      items.forEach(item => {
-        const label = item.querySelector('.env-label').textContent.toLowerCase();
-        const value = item.querySelector('.env-value').textContent.toLowerCase();
-        const desc = item.querySelector('.env-desc').textContent.toLowerCase();
-        
-        if (label.includes(query) || value.includes(query) || desc.includes(query)) {
-          item.style.display = '';
-        } else {
-          item.style.display = 'none';
-        }
-      });
-    }
+          <div class="setting-item">
+            <div class="setting-header">
+              <span class="setting-label">弹幕数量限制</span>
+            </div>
+            <input 
+              type="number" 
+              class="setting-input" 
+              id="danmuLimit" 
+              value="${globals.danmuLimit || -1}"
+              min="-1"
+              placeholder="-1 表示不限制"
+            >
+            <div class="setting-desc">
+              限制返回的弹幕数量，-1 表示不限制
+            </div>
+          </div>
 
-    function changePassword() {
-      document.getElementById('passwordModal').classList.add('show');
-    }
+          <div class="setting-item">
+            <div class="setting-header">
+              <span class="setting-label">合并时间窗口 (分钟)</span>
+            </div>
+            <input 
+              type="number" 
+              class="setting-input" 
+              id="groupMinute" 
+              value="${globals.groupMinute || 1}"
+              min="1"
+              max="60"
+            >
+            <div class="setting-desc">
+              在指定分钟内的相似弹幕将被合并去重
+            </div>
+          </div>
 
-    function closePasswordModal() {
-      document.getElementById('passwordModal').classList.remove('show');
-      document.getElementById('newUsername').value = '';
-      document.getElementById('oldPassword').value = '';
-      document.getElementById('newPassword').value = '';
-      document.getElementById('confirmPassword').value = '';
-    }
+          <div class="setting-item">
+            <div class="setting-header">
+              <span class="setting-label">弹幕屏蔽词</span>
+            </div>
+           <input 
+             type="text" 
+             class="setting-input" 
+             id="blockedWords" 
+             value="${globals.blockedWords || ''}"
+             placeholder="用逗号分隔多个屏蔽词"
+           >
+           <div class="setting-desc">
+             包含这些词的弹幕将被过滤，多个词用逗号分隔
+           </div>
+         </div>
 
-    async function submitPasswordChange() {
-      const newUsername = document.getElementById('newUsername').value.trim();
-      const oldPassword = document.getElementById('oldPassword').value;
-      const newPassword = document.getElementById('newPassword').value;
-      const confirmPassword = document.getElementById('confirmPassword').value;
-      
-      if (!oldPassword) {
-        showToast('请输入旧密码', 'error');
-        return;
-      }
-      
-      if (!newPassword) {
-        showToast('请输入新密码', 'error');
-        return;
-      }
-      
-      if (newPassword !== confirmPassword) {
-        showToast('两次输入的密码不一致', 'error');
-        return;
-      }
-      
-      if (newPassword.length < 4) {
-        showToast('密码长度至少为4位', 'error');
-        return;
-      }
-      
-      try {
-        const response = await fetch('/api/change-password', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            oldPassword,
-            newPassword,
-            newUsername: newUsername || undefined
-          })
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-          showToast('密码修改成功，请重新登录', 'success');
-          closePasswordModal();
-          setTimeout(() => logout(), 1500);
-        } else {
-          showToast(result.message || '修改失败', 'error');
-        }
-      } catch (error) {
-        showToast('修改失败: ' + error.message, 'error');
-      }
-    }
+         <div class="setting-item">
+           <div class="setting-header">
+             <span class="setting-label">繁简转换</span>
+             <div class="toggle-switch ${globals.danmuSimplified !== false ? 'active' : ''}" 
+                  onclick="toggleSetting(this, 'danmuSimplified')">
+             </div>
+           </div>
+           <div class="setting-desc">
+             自动将繁体弹幕转换为简体中文
+           </div>
+         </div>
 
-    async function logout() {
-      try {
-        await fetch('/api/logout', { method: 'POST' });
-        window.location.href = '/';
-      } catch (error) {
-        showToast('退出失败', 'error');
-      }
-    }
+         <div class="setting-item">
+           <div class="setting-header">
+             <span class="setting-label">顶底转滚动</span>
+             <div class="toggle-switch ${globals.convertTopBottomToScroll ? 'active' : ''}" 
+                  onclick="toggleSetting(this, 'convertTopBottomToScroll')">
+             </div>
+           </div>
+           <div class="setting-desc">
+             将顶部和底部弹幕转换为滚动弹幕
+           </div>
+         </div>
 
-    // 快捷键支持
-    document.addEventListener('keydown', (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        e.preventDefault();
-        saveAll();
-      }
-      if (e.key === 'Escape') {
-        closeModal();
-        closePasswordModal();
-      }
-    });
+         <div class="setting-item">
+           <div class="setting-header">
+             <span class="setting-label">弹幕输出格式</span>
+           </div>
+           <select class="setting-input" id="danmuOutputFormat">
+             <option value="json" ${(globals.danmuOutputFormat || 'json') === 'json' ? 'selected' : ''}>JSON</option>
+             <option value="xml" ${globals.danmuOutputFormat === 'xml' ? 'selected' : ''}>XML</option>
+           </select>
+           <div class="setting-desc">
+             选择弹幕数据的返回格式
+           </div>
+         </div>
 
-    // 初始化加载配置
-    async function loadConfig() {
-      try {
-        const response = await fetch('/api/config/load');
-        const result = await response.json();
-        
-        if (result.success && result.config) {
-          AppState.config = { ...AppState.config, ...result.config };
-          for (const [key, value] of Object.entries(result.config)) {
-            updateEnvDisplay(key, value);
-          }
-          showToast(\`✅ 配置已从 \${result.loadedFrom.join('、')} 加载\`, 'success');
-        }
-      } catch (error) {
-        console.error('加载配置失败:', error);
-      }
-    }
+         <div class="setting-item">
+           <div class="setting-header">
+             <span class="setting-label">请求限流 (次/分钟)</span>
+           </div>
+           <input 
+             type="number" 
+             class="setting-input" 
+             id="rateLimitMax" 
+             value="${globals.rateLimitMaxRequests || 3}"
+             min="0"
+             placeholder="0 表示不限制"
+           >
+           <div class="setting-desc">
+             同一IP每分钟允许的最大请求次数，0 表示不限制
+           </div>
+         </div>
+       </div>
+     </div>
+   </div>
 
-    loadConfig();
-  </script>
+   <!-- Advanced Settings Tab -->
+   <div id="advanced-tab" class="tab-content">
+     <div class="advanced-settings">
+       <div class="section-header">
+         <div class="section-title">
+           <span class="section-icon">⚙️</span>
+           <span>所有环境变量</span>
+         </div>
+         <button class="btn btn-primary" onclick="saveAll()">💾 保存全部</button>
+       </div>
+       
+       <div class="search-box">
+         <input 
+           type="text" 
+           class="search-input" 
+           placeholder="搜索环境变量名称、值或描述..." 
+           id="searchInput" 
+           oninput="filterEnvs()"
+         >
+       </div>
+
+       <div class="env-grid" id="envGrid">
+         ${envItemsHtml}
+       </div>
+     </div>
+   </div>
+ </div>
+
+ <!-- 编辑弹窗 -->
+ <div class="modal" id="editModal">
+   <div class="modal-content">
+     <div class="modal-header">
+       <h3 class="modal-title">✏️ 编辑环境变量</h3>
+       <button class="close-btn" onclick="closeModal()">×</button>
+     </div>
+     <div class="form-group">
+       <label class="form-label">变量名</label>
+       <input type="text" class="form-input" id="editKey" readonly>
+     </div>
+     <div class="form-group">
+       <label class="form-label">配置值</label>
+       <textarea class="form-textarea" id="editValue" placeholder="请输入配置值"></textarea>
+       <div class="form-hint" id="editHint"></div>
+     </div>
+     <div class="modal-footer">
+       <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+       <button class="btn btn-primary" onclick="saveEnv()">保存</button>
+     </div>
+   </div>
+ </div>
+
+ <!-- 修改密码弹窗 -->
+ <div class="modal" id="passwordModal">
+   <div class="modal-content">
+     <div class="modal-header">
+       <h3 class="modal-title">🔑 修改密码</h3>
+       <button class="close-btn" onclick="closePasswordModal()">×</button>
+     </div>
+     <div class="form-group">
+       <label class="form-label">新用户名（可选）</label>
+       <input type="text" class="form-input" id="newUsername" placeholder="留空则不修改">
+     </div>
+     <div class="form-group">
+       <label class="form-label">旧密码</label>
+       <input type="password" class="form-input" id="oldPassword" placeholder="请输入当前密码" required>
+     </div>
+     <div class="form-group">
+       <label class="form-label">新密码</label>
+       <input type="password" class="form-input" id="newPassword" placeholder="请输入新密码" required>
+     </div>
+     <div class="form-group">
+       <label class="form-label">确认新密码</label>
+       <input type="password" class="form-input" id="confirmPassword" placeholder="请再次输入新密码" required>
+     </div>
+     <div class="modal-footer">
+       <button class="btn btn-secondary" onclick="closePasswordModal()">取消</button>
+       <button class="btn btn-primary" onclick="submitPasswordChange()">确认修改</button>
+     </div>
+   </div>
+ </div>
+
+ <!-- Toast 提示 -->
+ <div class="toast" id="toast">
+   <span class="toast-icon" id="toastIcon"></span>
+   <span class="toast-message" id="toastMessage"></span>
+ </div>
+
+ <script>
+   // ========== 应用状态 ==========
+   const AppState = {
+     currentEditingKey: null,
+     currentTab: 'dashboard',
+     config: ${JSON.stringify(globals.accessedEnvVars)},
+     revealedSecrets: new Map(),
+     quickSettings: {
+       whiteRatio: ${globals.whiteRatio || -1},
+       danmuLimit: ${globals.danmuLimit || -1},
+       groupMinute: ${globals.groupMinute || 1},
+       blockedWords: '${globals.blockedWords || ''}',
+       danmuSimplified: ${globals.danmuSimplified !== false},
+       convertTopBottomToScroll: ${globals.convertTopBottomToScroll || false},
+       danmuOutputFormat: '${globals.danmuOutputFormat || 'json'}',
+       rateLimitMax: ${globals.rateLimitMaxRequests || 3}
+     }
+   };
+
+   const ENV_DESCRIPTIONS = ${JSON.stringify(ENV_DESCRIPTIONS)};
+
+   // ========== 主题管理 ==========
+   function initTheme() {
+     const savedTheme = localStorage.getItem('theme') || 'light';
+     document.documentElement.setAttribute('data-theme', savedTheme);
+     updateThemeIcon(savedTheme);
+   }
+
+   function toggleTheme() {
+     const currentTheme = document.documentElement.getAttribute('data-theme');
+     const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+     document.documentElement.setAttribute('data-theme', newTheme);
+     localStorage.setItem('theme', newTheme);
+     updateThemeIcon(newTheme);
+     showToast(newTheme === 'dark' ? '🌙 已切换到深色模式' : '☀️ 已切换到浅色模式', 'info');
+   }
+
+   function updateThemeIcon(theme) {
+     const btn = document.querySelector('.theme-toggle');
+     btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+   }
+
+   // ========== Tab 切换 ==========
+   function switchTab(tabName) {
+     const tabs = document.querySelectorAll('.nav-tab');
+     const contents = document.querySelectorAll('.tab-content');
+     
+     tabs.forEach(tab => tab.classList.remove('active'));
+     contents.forEach(content => content.classList.remove('active'));
+     
+     event.target.closest('.nav-tab').classList.add('active');
+     document.getElementById(tabName + '-tab').classList.add('active');
+     
+     AppState.currentTab = tabName;
+   }
+
+   // ========== Toast 提示 ==========
+   function showToast(message, type = 'info') {
+     const toast = document.getElementById('toast');
+     const icon = document.getElementById('toastIcon');
+     const msg = document.getElementById('toastMessage');
+     
+     const icons = {
+       success: '✅',
+       error: '❌',
+       info: 'ℹ️'
+     };
+     
+     icon.textContent = icons[type] || icons.info;
+     msg.textContent = message;
+     toast.className = 'toast show ' + type;
+     
+     setTimeout(() => {
+       toast.classList.remove('show');
+     }, 3000);
+   }
+
+   // ========== 快速设置相关 ==========
+   function toggleSetting(element, key) {
+     const isActive = element.classList.toggle('active');
+     AppState.quickSettings[key] = isActive;
+     showToast(\`\${key} 已\${isActive ? '启用' : '禁用'}\`, 'info');
+   }
+
+   async function saveQuickSettings() {
+     try {
+       // 收集快速设置的值
+       const settings = {
+         WHITE_RATIO: document.getElementById('whiteRatio').value,
+         DANMU_LIMIT: document.getElementById('danmuLimit').value,
+         GROUP_MINUTE: document.getElementById('groupMinute').value,
+         BLOCKED_WORDS: document.getElementById('blockedWords').value,
+         DANMU_SIMPLIFIED: String(AppState.quickSettings.danmuSimplified),
+         CONVERT_TOP_BOTTOM_TO_SCROLL: String(AppState.quickSettings.convertTopBottomToScroll),
+         DANMU_OUTPUT_FORMAT: document.getElementById('danmuOutputFormat').value,
+         RATE_LIMIT_MAX_REQUESTS: document.getElementById('rateLimitMax').value
+       };
+
+       const response = await fetch('/api/config/save', {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({ config: settings })
+       });
+
+       const result = await response.json();
+       
+       if (result.success) {
+         showToast('✅ 配置保存成功！', 'success');
+         // 更新本地状态
+         Object.assign(AppState.config, settings);
+       } else {
+         showToast('❌ 保存失败: ' + (result.errorMessage || '未知错误'), 'error');
+       }
+     } catch (error) {
+       showToast('❌ 保存失败: ' + error.message, 'error');
+     }
+   }
+
+   // ========== 高级设置相关 ==========
+   function toggleSensitive(element) {
+     const real = element.dataset.real;
+     const masked = element.dataset.masked;
+     const key = element.closest('.env-item').dataset.key;
+     
+     // 清除之前的定时器
+     if (AppState.revealedSecrets.has(key)) {
+       clearTimeout(AppState.revealedSecrets.get(key));
+       AppState.revealedSecrets.delete(key);
+     }
+     
+     // 显示真实值
+     const textarea = document.createElement('textarea');
+     textarea.innerHTML = real;
+     const realValue = textarea.value;
+     element.innerHTML = realValue + ' <span class="eye-icon">🔓</span>';
+     element.classList.add('revealed');
+     
+     // 3秒后自动隐藏
+     const timeoutId = setTimeout(() => {
+       element.innerHTML = masked + ' <span class="eye-icon">👁️</span>';
+       element.classList.remove('revealed');
+       AppState.revealedSecrets.delete(key);
+     }, 3000);
+     
+     AppState.revealedSecrets.set(key, timeoutId);
+   }
+
+   function copySensitiveValue(element, event) {
+     event.stopPropagation();
+     const real = element.dataset.real;
+     const textarea = document.createElement('textarea');
+     textarea.innerHTML = real;
+     const text = textarea.value;
+     
+     if (navigator.clipboard) {
+       navigator.clipboard.writeText(text);
+     } else {
+       const temp = document.createElement('textarea');
+       temp.value = text;
+       document.body.appendChild(temp);
+       temp.select();
+       document.execCommand('copy');
+       document.body.removeChild(temp);
+     }
+     
+     showToast('📋 已复制到剪贴板', 'success');
+   }
+
+   function editEnv(key) {
+     AppState.currentEditingKey = key;
+     document.getElementById('editKey').value = key;
+     document.getElementById('editValue').value = AppState.config[key] || '';
+     document.getElementById('editHint').textContent = ENV_DESCRIPTIONS[key] || '';
+     document.getElementById('editModal').classList.add('show');
+   }
+
+   function closeModal() {
+     document.getElementById('editModal').classList.remove('show');
+   }
+
+   async function saveEnv() {
+     const key = AppState.currentEditingKey;
+     const value = document.getElementById('editValue').value.trim();
+     
+     AppState.config[key] = value;
+     
+     try {
+       const response = await fetch('/api/config/save', {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({ config: { [key]: value } })
+       });
+
+       const result = await response.json();
+       
+       if (result.success) {
+         showToast('✅ 保存成功！', 'success');
+         updateEnvDisplay(key, value);
+         closeModal();
+       } else {
+         showToast('❌ 保存失败: ' + (result.errorMessage || '未知错误'), 'error');
+       }
+     } catch (error) {
+       showToast('❌ 保存失败: ' + error.message, 'error');
+     }
+   }
+
+   async function saveAll() {
+     try {
+       const response = await fetch('/api/config/save', {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({ config: AppState.config })
+       });
+
+       const result = await response.json();
+       
+       if (result.success) {
+         showToast('✅ 全部配置已保存！', 'success');
+       } else {
+         showToast('❌ 保存失败: ' + (result.errorMessage || '未知错误'), 'error');
+       }
+     } catch (error) {
+       showToast('❌ 保存失败: ' + error.message, 'error');
+     }
+   }
+
+   function updateEnvDisplay(key, value) {
+     const item = document.querySelector('.env-item[data-key="' + key + '"]');
+     if (!item) return;
+     
+     const valueEl = item.querySelector('.env-value');
+     
+     // 如果是敏感字段，保持星号显示
+     if (valueEl.classList.contains('sensitive')) {
+       const realValue = typeof value === 'string' ? value : String(value);
+       const maskedValue = '*'.repeat(Math.min(realValue.length, 32));
+       
+       const encodedRealValue = realValue
+         .replace(/&/g, '&amp;')
+         .replace(/</g, '&lt;')
+         .replace(/>/g, '&gt;')
+         .replace(/"/g, '&quot;')
+         .replace(/'/g, '&#39;');
+       
+       valueEl.dataset.real = encodedRealValue;
+       valueEl.dataset.masked = maskedValue;
+       valueEl.innerHTML = maskedValue + ' <span class="eye-icon">👁️</span>';
+       valueEl.classList.remove('revealed');
+       return;
+     }
+     
+     // 普通字段正常显示
+     if (typeof value === 'boolean') {
+       valueEl.textContent = value ? '✅ 已启用' : '❌ 已禁用';
+     } else if (!value) {
+       valueEl.textContent = '未配置';
+     } else {
+       valueEl.textContent = value.length > 80 ? value.substring(0, 80) + '...' : value;
+     }
+   }
+
+   function copyValue(element) {
+     const original = element.dataset.original;
+     if (!original) return;
+     
+     const textarea = document.createElement('textarea');
+     textarea.innerHTML = original;
+     const text = textarea.value;
+     
+     if (navigator.clipboard) {
+       navigator.clipboard.writeText(text);
+     } else {
+       const temp = document.createElement('textarea');
+       temp.value = text;
+       document.body.appendChild(temp);
+       temp.select();
+       document.execCommand('copy');
+       document.body.removeChild(temp);
+     }
+     
+     showToast('📋 已复制到剪贴板', 'success');
+   }
+
+   function filterEnvs() {
+     const query = document.getElementById('searchInput').value.toLowerCase();
+     const items = document.querySelectorAll('.env-item');
+     
+     items.forEach(item => {
+       const label = item.querySelector('.env-label').textContent.toLowerCase();
+       const value = item.querySelector('.env-value').textContent.toLowerCase();
+       const desc = item.querySelector('.env-desc').textContent.toLowerCase();
+       
+       if (label.includes(query) || value.includes(query) || desc.includes(query)) {
+         item.style.display = '';
+       } else {
+         item.style.display = 'none';
+       }
+     });
+   }
+
+   // ========== 密码管理 ==========
+   function changePassword() {
+     document.getElementById('passwordModal').classList.add('show');
+   }
+
+   function closePasswordModal() {
+     document.getElementById('passwordModal').classList.remove('show');
+     document.getElementById('newUsername').value = '';
+     document.getElementById('oldPassword').value = '';
+     document.getElementById('newPassword').value = '';
+     document.getElementById('confirmPassword').value = '';
+   }
+
+   async function submitPasswordChange() {
+     const newUsername = document.getElementById('newUsername').value.trim();
+     const oldPassword = document.getElementById('oldPassword').value;
+     const newPassword = document.getElementById('newPassword').value;
+     const confirmPassword = document.getElementById('confirmPassword').value;
+     
+     if (!oldPassword) {
+       showToast('⚠️ 请输入旧密码', 'error');
+       return;
+     }
+     
+     if (!newPassword) {
+       showToast('⚠️ 请输入新密码', 'error');
+       return;
+     }
+     
+     if (newPassword !== confirmPassword) {
+       showToast('⚠️ 两次输入的密码不一致', 'error');
+       return;
+     }
+     
+     if (newPassword.length < 4) {
+       showToast('⚠️ 密码长度至少为4位', 'error');
+       return;
+     }
+     
+     try {
+       const response = await fetch('/api/change-password', {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({
+           oldPassword,
+           newPassword,
+           newUsername: newUsername || undefined
+         })
+       });
+       
+       const result = await response.json();
+       
+       if (result.success) {
+         showToast('✅ 密码修改成功，请重新登录', 'success');
+         closePasswordModal();
+         setTimeout(() => logout(), 1500);
+       } else {
+         showToast('❌ ' + (result.message || '修改失败'), 'error');
+       }
+     } catch (error) {
+       showToast('❌ 修改失败: ' + error.message, 'error');
+     }
+   }
+
+   async function logout() {
+     try {
+       await fetch('/api/logout', { method: 'POST' });
+       window.location.href = '/';
+     } catch (error) {
+       showToast('❌ 退出失败', 'error');
+     }
+   }
+
+   // ========== 配置加载 ==========
+   async function loadConfig() {
+     try {
+       const response = await fetch('/api/config/load');
+       const result = await response.json();
+       
+       if (result.success && result.config) {
+         AppState.config = { ...AppState.config, ...result.config };
+         for (const [key, value] of Object.entries(result.config)) {
+           updateEnvDisplay(key, value);
+         }
+         showToast(\`✅ 配置已从 \${result.loadedFrom.join('、')} 加载\`, 'success');
+       }
+     } catch (error) {
+       console.error('加载配置失败:', error);
+     }
+   }
+
+   // ========== 快捷键支持 ==========
+   document.addEventListener('keydown', (e) => {
+     if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+       e.preventDefault();
+       if (AppState.currentTab === 'dashboard') {
+         saveQuickSettings();
+       } else {
+         saveAll();
+       }
+     }
+     if (e.key === 'Escape') {
+       closeModal();
+       closePasswordModal();
+     }
+   });
+
+   // ========== 初始化 ==========
+   initTheme();
+   loadConfig();
+ </script>
 </body>
 </html>
-   `;
-
+            
    return new Response(html, {
      headers: {
        'Content-Type': 'text/html; charset=utf-8',
