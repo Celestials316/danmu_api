@@ -1954,7 +1954,8 @@ function handleHomepage(req) {
  </script>
 </body>
 </html>
-            
+   `;
+
    return new Response(html, {
      headers: {
        'Content-Type': 'text/html; charset=utf-8',
@@ -2909,4 +2910,4 @@ export async function netlifyHandler(event, context) {
   }
 }
 
-export { handleRequest };
+export { handleRequest };            
