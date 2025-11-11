@@ -900,7 +900,7 @@ function handleHomepage(req) {
    /* 快速设置项 */
    .quick-settings {
      display: grid;
-     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
      gap: 20px;
    }
 
@@ -1367,6 +1367,25 @@ function handleHomepage(req) {
      }
    }
 
+   @media (max-width: 480px) {
+     .quick-settings {
+       gap: 16px;
+     }
+
+     .setting-item {
+       padding: 14px;
+     }
+
+     .setting-input {
+       padding: 10px 12px;
+       font-size: 13px;
+     }
+
+     .card {
+       padding: 20px 16px;
+     }
+   }
+
    @media (max-width: 768px) {
      .container {
        padding: 20px 16px;
@@ -1378,6 +1397,19 @@ function handleHomepage(req) {
 
      .quick-settings {
        grid-template-columns: 1fr;
+     }
+
+     .setting-item {
+       padding: 16px;
+     }
+
+     .setting-control {
+       flex-direction: column;
+       align-items: stretch;
+     }
+
+     .setting-input {
+       width: 100%;
      }
 
      .top-bar {
@@ -1807,9 +1839,10 @@ function handleHomepage(req) {
    function toggleSidebar() {
      const sidebar = document.getElementById('sidebar');
      const mainContent = document.getElementById('mainContent');
-     sidebar.classList.toggle('show');
      
-     if (window.innerWidth > 1024) {
+     if (window.innerWidth <= 1024) {
+       sidebar.classList.toggle('show');
+     } else {
        sidebar.classList.toggle('hidden');
        mainContent.classList.toggle('expanded');
      }
