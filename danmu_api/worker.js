@@ -2232,15 +2232,16 @@ function handleHomepage(req) {
    async function checkDockerVersion() {
      const username = 'w254992';
      const repository = 'danmu-api';
-     const currentVersion = '${globals.VERSION || "v1.0"}';
+     // 修复：使用反引号模板字符串
+     const currentVersion = `${globals.VERSION || "v1.0"}`;
      
      try {
-       const response = await fetch(\`https://hub.docker.com/v2/repositories/\${username}/\${repository}/tags\`);
+       const response = await fetch(`https://hub.docker.com/v2/repositories/${username}/${repository}/tags`);
        const data = await response.json();
        
        if (data && data.results && data.results.length > 0) {
          const versionTags = data.results
-           .filter(tag => tag.name !== 'latest' && /^\\d+\\.\\d+\\.\\d+$/.test(tag.name))
+           .filter(tag => tag.name !== 'latest' && /^\d+\.\d+\.\d+$/.test(tag.name))
            .sort((a, b) => {
              const versionA = a.name.split('.').map(Number);
              const versionB = b.name.split('.').map(Number);
@@ -2257,7 +2258,7 @@ function handleHomepage(req) {
            const latestDate = new Date(versionTags[0].last_updated).toLocaleDateString('zh-CN');
            
            document.getElementById('versionStatus').innerHTML = 
-             \`最新版本: <strong>\${latestVersion}</strong> (发布于 \${latestDate})\`;
+             `最新版本: <strong>${latestVersion}</strong> (发布于 ${latestDate})`;
            
            const current = currentVersion.replace(/^v/, '').split('.').map(Number);
            const latest = latestVersion.split('.').map(Number);
@@ -2284,7 +2285,7 @@ function handleHomepage(req) {
              badge.className = 'stat-badge badge-warning';
              icon.textContent = '🔔';
              document.getElementById('versionStatus').innerHTML += 
-               \` <a href="https://hub.docker.com/r/\${username}/\${repository}/tags" target="_blank" style="color: var(--accent-primary); text-decoration: none; font-weight: 600;">→ 查看更新</a>\`;
+               ` <a href="https://hub.docker.com/r/${username}/${repository}/tags" target="_blank" style="color: var(--accent-primary); text-decoration: none; font-weight: 600;">→ 查看更新</a>`;
            }
            return;
          }
@@ -2298,24 +2299,6 @@ function handleHomepage(req) {
        document.getElementById('versionBadge').className = 'stat-badge badge-success';
        document.getElementById('versionIcon').textContent = '📦';
        document.getElementById('versionStatus').textContent = '版本检查失败';
-     }
-   }
-
-   // ========== 初始化加载 ==========
-   async function loadConfig() {
-     try {
-       const response = await fetch('/api/config/load');
-       const result = await response.json();
-       
-       if (result.success && result.config) {
-         AppState.config = { ...AppState.config, ...result.config };
-         for (const [key, value] of Object.entries(result.config)) {
-           updateEnvDisplay(key, value);
-         }
-         showToast(\`✅ 配置已从 \${result.loadedFrom.join('、')} 加载\`, 'success');
-       }
-     } catch (error) {
-       console.error('加载配置失败:', error);
      }
    }
 
