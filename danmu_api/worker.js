@@ -3140,10 +3140,19 @@ function handleHomepage(req) {
              </svg>
              关于弹幕 API
            </h3>
-           <span class="badge badge-success">
-             <span class="status-dot"></span>v${globals.VERSION}
-           </span>
+           <div style="display: flex; align-items: center; gap: 12px;">
+             <span class="badge badge-success">
+               <span class="status-dot"></span>v${globals.VERSION}
+             </span>
+             <a href="https://github.com/huangxd-/danmu_api" target="_blank" rel="noopener" class="btn btn-secondary" style="padding: 8px 16px; text-decoration: none; font-size: 13px;">
+               <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="margin-right: 6px;">
+                 <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+               </svg>
+               GitHub 仓库
+             </a>
+           </div>
          </div>
+         
          <div class="config-grid">
            <div class="config-item">
              <div class="config-header">
@@ -3151,8 +3160,9 @@ function handleHomepage(req) {
              </div>
              <div class="config-value" style="background: none; border: none; padding: 0;">
                <code style="color: var(--text-secondary); font-size: 13px; line-height: 1.8;">
-                 弹幕 API 是一个强大的弹幕聚合服务，支持多平台弹幕获取、智能匹配和格式转换。
-                 适用于视频播放器集成，提供简洁易用的RESTful API接口。
+                 🎬 弹幕 API 是一个强大的多平台弹幕聚合服务，支持从哔哩哔哩、爱奇艺、优酷、腾讯视频、芒果TV、巴哈姆特等主流视频平台获取弹幕。<br><br>
+                 ✨ 提供智能标题匹配、弹幕去重过滤、繁简转换、格式转换等实用功能，适用于各类视频播放器集成。<br><br>
+                 🚀 支持多种部署平台，包括 Cloudflare Workers、Vercel、Netlify 等，并提供 Redis/SQLite/D1 持久化存储方案。
                </code>
              </div>
            </div>
@@ -3163,52 +3173,41 @@ function handleHomepage(req) {
              </div>
              <div class="config-value" style="background: none; border: none; padding: 0;">
                <code style="color: var(--text-secondary); font-size: 13px; line-height: 1.8;">
-                 • 多平台弹幕聚合（哔哩哔哩、爱奇艺、优酷、腾讯等）<br>
-                 • 智能标题匹配和剧集识别<br>
-                 • 弹幕去重、过滤和格式转换<br>
-                 • 支持繁简转换和颜色处理<br>
-                 • 持久化存储（Redis/数据库）<br>
-                 • 访问限流和缓存优化
-               </code>
-             </div>
-           </div>
-           
-           <div class="config-item">
-             <div class="config-header">
-               <span class="config-label">技术栈</span>
-             </div>
-             <div class="config-value" style="background: none; border: none; padding: 0;">
-               <code style="color: var(--text-secondary); font-size: 13px; line-height: 1.8;">
-                 • 运行环境: Cloudflare Workers / Vercel / Netlify<br>
-                 • 持久化: Upstash Redis / SQLite / Cloudflare D1<br>
-                 • 前端: 原生 JavaScript + Chart.js<br>
-                 • 样式: 现代化玻璃态设计
-               </code>
-             </div>
-           </div>
-           
-           <div class="config-item">
-             <div class="config-header">
-               <span class="config-label">API文档</span>
-             </div>
-             <div class="config-value" style="background: none; border: none; padding: 0;">
-               <code style="color: var(--text-secondary); font-size: 13px; line-height: 1.8;">
-                 • GET /api/v2/search/anime - 搜索番剧<br>
-                 • GET /api/v2/search/episodes - 搜索剧集<br>
-                 • POST /api/v2/match - 智能匹配<br>
-                 • GET /api/v2/comment/:id - 获取弹幕<br>
-                 • GET /api/logs - 查看日志
-               </code>
-             </div>
-           </div>
-           
-           <div class="config-item">
-             <div class="config-header">
-               <span class="config-label">开源协议</span>
-             </div>
-             <div class="config-value" style="background: none; border: none; padding: 0;">
-               <code style="color: var(--text-secondary); font-size: 13px; line-height: 1.8;">
-                 MIT License - 欢迎使用、修改和分发
+                 <strong>🎯 多平台弹幕聚合</strong><br>
+                 • 哔哩哔哩：支持完整弹幕获取（需配置Cookie）<br>
+                 • 爱奇艺：支持番剧和电影弹幕<br>
+                 • 优酷：支持高并发弹幕获取<br>
+                 • 腾讯视频：支持番剧弹幕<br>
+                 • 芒果TV：支持综艺和电视剧弹幕<br>
+                 • 巴哈姆特动画疯：支持繁体弹幕（可自动转简体）<br>
+                 • VOD 采集站：支持自定义影视采集站接入<br><br>
+                 
+                 <strong>🔍 智能匹配系统</strong><br>
+                 • 支持文件名智能解析和标题匹配<br>
+                 • 支持外语标题自动转中文（需配置TMDB）<br>
+                 • 支持记住用户手动选择结果<br>
+                 • 支持剧集标题正则过滤<br><br>
+                 
+                 <strong>🎨 弹幕处理增强</strong><br>
+                 • 智能去重：按时间窗口合并相同弹幕<br>
+                 • 内容过滤：支持屏蔽词列表<br>
+                 • 繁简转换：自动转换繁体弹幕<br>
+                 • 颜色处理：支持白色弹幕占比调整<br>
+                 • 位置转换：可将顶部/底部弹幕转为滚动<br>
+                 • 数量限制：支持限制返回弹幕数量<br>
+                 • 格式输出：支持 JSON/XML 双格式<br><br>
+                 
+                 <strong>💾 持久化存储</strong><br>
+                 • Upstash Redis：适用于 Serverless 平台<br>
+                 • SQLite：本地文件存储<br>
+                 • Cloudflare D1：云端 SQLite<br>
+                 • 配置热更新：支持运行时修改配置<br><br>
+                 
+                 <strong>🛡️ 性能与安全</strong><br>
+                 • IP 访问限流防滥用<br>
+                 • 智能缓存减少重复请求<br>
+                 • 代理支持绕过地域限制<br>
+                 • 管理后台密码保护
                </code>
              </div>
            </div>
@@ -3219,11 +3218,216 @@ function handleHomepage(req) {
          <div class="card-header">
            <h3 class="card-title">
              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-               <path d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" stroke-width="2"/>
+               <path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" stroke-width="2"/>
              </svg>
-             使用帮助
+             API 接口文档
            </h3>
          </div>
+         
+         <div class="config-grid">
+           <div class="config-item">
+             <div class="config-header">
+               <span class="config-label">搜索番剧</span>
+               <span class="badge badge-info">GET</span>
+             </div>
+             <div class="config-value">
+               <code>/api/v2/search/anime?anime={关键词}</code>
+             </div>
+             <div style="margin-top: 12px; padding: 12px; background: var(--bg-primary); border-radius: 8px; font-size: 12px; color: var(--text-secondary);">
+               <strong>参数：</strong><br>
+               • anime: 番剧名称（必填）<br><br>
+               <strong>示例：</strong><br>
+               <code style="color: var(--primary-400);">/api/v2/search/anime?anime=进击的巨人</code>
+             </div>
+           </div>
+
+           <div class="config-item">
+             <div class="config-header">
+               <span class="config-label">搜索剧集</span>
+               <span class="badge badge-info">GET</span>
+             </div>
+             <div class="config-value">
+               <code>/api/v2/search/episodes?anime={番剧名}&episode={集数}</code>
+             </div>
+             <div style="margin-top: 12px; padding: 12px; background: var(--bg-primary); border-radius: 8px; font-size: 12px; color: var(--text-secondary);">
+               <strong>参数：</strong><br>
+               • anime: 番剧名称（必填）<br>
+               • episode: 集数（必填）<br><br>
+               <strong>示例：</strong><br>
+               <code style="color: var(--primary-400);">/api/v2/search/episodes?anime=进击的巨人&episode=1</code>
+             </div>
+           </div>
+
+           <div class="config-item">
+             <div class="config-header">
+               <span class="config-label">智能匹配</span>
+               <span class="badge badge-success">POST</span>
+             </div>
+             <div class="config-value">
+               <code>/api/v2/match</code>
+             </div>
+             <div style="margin-top: 12px; padding: 12px; background: var(--bg-primary); border-radius: 8px; font-size: 12px; color: var(--text-secondary);">
+               <strong>请求体：</strong><br>
+               <code style="color: var(--primary-400);">{"fileName": "[Nekomoe kissaten][Attack on Titan][01][1080p].mp4"}</code><br><br>
+               <strong>功能：</strong><br>
+               • 自动解析文件名<br>
+               • 智能匹配番剧和集数<br>
+               • 返回最佳匹配结果
+             </div>
+           </div>
+
+           <div class="config-item">
+             <div class="config-header">
+               <span class="config-label">获取弹幕</span>
+               <span class="badge badge-info">GET</span>
+             </div>
+             <div class="config-value">
+               <code>/api/v2/comment/{commentId}?format={json|xml}</code>
+             </div>
+             <div style="margin-top: 12px; padding: 12px; background: var(--bg-primary); border-radius: 8px; font-size: 12px; color: var(--text-secondary);">
+               <strong>参数：</strong><br>
+               • commentId: 弹幕ID（必填）<br>
+               • format: 输出格式（可选，默认json）<br><br>
+               <strong>或使用URL方式：</strong><br>
+               <code style="color: var(--primary-400);">/api/v2/comment?url={视频URL}&format=xml</code>
+             </div>
+           </div>
+
+           <div class="config-item">
+             <div class="config-header">
+               <span class="config-label">获取番剧信息</span>
+               <span class="badge badge-info">GET</span>
+             </div>
+             <div class="config-value">
+               <code>/api/v2/bangumi/{animeId}</code>
+             </div>
+             <div style="margin-top: 12px; padding: 12px; background: var(--bg-primary); border-radius: 8px; font-size: 12px; color: var(--text-secondary);">
+               <strong>参数：</strong><br>
+               • animeId: 番剧ID（必填）<br><br>
+               <strong>返回：</strong>番剧详细信息和所有剧集列表
+             </div>
+           </div>
+
+           <div class="config-item">
+             <div class="config-header">
+               <span class="config-label">查看日志</span>
+               <span class="badge badge-info">GET</span>
+             </div>
+             <div class="config-value">
+               <code>/api/logs?format={text|json}&level={info|warn|error}</code>
+             </div>
+             <div style="margin-top: 12px; padding: 12px; background: var(--bg-primary); border-radius: 8px; font-size: 12px; color: var(--text-secondary);">
+               <strong>参数：</strong><br>
+               • format: 输出格式（可选，默认text）<br>
+               • level: 日志级别过滤（可选）<br>
+               • limit: 返回数量限制（可选）
+             </div>
+           </div>
+         </div>
+       </div>
+
+       <div class="card">
+         <div class="card-header">
+           <h3 class="card-title">
+             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+               <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" stroke-width="2"/>
+             </svg>
+             技术栈与架构
+           </h3>
+         </div>
+         
+         <div class="config-grid">
+           <div class="config-item">
+             <div class="config-header">
+               <span class="config-label">运行环境</span>
+             </div>
+             <div class="config-value" style="background: none; border: none; padding: 0;">
+               <code style="color: var(--text-secondary); font-size: 13px; line-height: 1.8;">
+                 <strong>支持平台：</strong><br>
+                 • Cloudflare Workers（推荐）<br>
+                 • Vercel Serverless Functions<br>
+                 • Netlify Functions<br>
+                 • 其他支持 Node.js 的平台<br><br>
+                 
+                 <strong>语言与框架：</strong><br>
+                 • JavaScript (ES Modules)<br>
+                 • Web Standards API<br>
+                 • Fetch API / Node HTTP
+               </code>
+             </div>
+           </div>
+
+           <div class="config-item">
+             <div class="config-header">
+               <span class="config-label">持久化方案</span>
+             </div>
+             <div class="config-value" style="background: none; border: none; padding: 0;">
+               <code style="color: var(--text-secondary); font-size: 13px; line-height: 1.8;">
+                 <strong>Upstash Redis</strong><br>
+                 • 适用于 Serverless 平台<br>
+                 • HTTP REST API 访问<br>
+                 • 全球边缘节点<br><br>
+                 
+                 <strong>SQLite 本地存储</strong><br>
+                 • 适用于 VPS/Docker 部署<br>
+                 • 零配置开箱即用<br>
+                 • 支持文件持久化<br><br>
+                 
+                 <strong>Cloudflare D1</strong><br>
+                 • 云端 SQLite 数据库<br>
+                 • 与 Workers 深度集成<br>
+                 • 自动备份和同步
+               </code>
+             </div>
+           </div>
+
+           <div class="config-item">
+             <div class="config-header">
+               <span class="config-label">前端技术</span>
+             </div>
+             <div class="config-value" style="background: none; border: none; padding: 0;">
+               <code style="color: var(--text-secondary); font-size: 13px; line-height: 1.8;">
+                 • 原生 JavaScript（无框架依赖）<br>
+                 • Chart.js 数据可视化<br>
+                 • 现代化玻璃态 UI 设计<br>
+                 • 响应式布局支持移动端<br>
+                 • CSS Grid / Flexbox 布局<br>
+                 • 深色/浅色主题切换
+               </code>
+             </div>
+           </div>
+
+           <div class="config-item">
+             <div class="config-header">
+               <span class="config-label">核心依赖</span>
+             </div>
+             <div class="config-value" style="background: none; border: none; padding: 0;">
+               <code style="color: var(--text-secondary); font-size: 13px; line-height: 1.8;">
+                 <strong>数据获取：</strong><br>
+                 • @upstash/redis (Redis客户端)<br>
+                 • node-fetch (HTTP 请求)<br>
+                 • libsql (SQLite 客户端)<br><br>
+                 
+                 <strong>数据处理：</strong><br>
+                 • opencc-js (繁简转换)<br>
+                 • 内置弹幕去重算法<br>
+                 • 智能标题匹配引擎
+               </code>
+             </div>
+           </div>
+         </div>
+       </div>
+
+       <div class="card">
+         <div class="card-header">
+           <h3 class="card-title">
+             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+               <path d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
+             </svg>
+             使用指南
+           </h3>
+         </div>
+         
          <div class="config-grid">
            <div class="config-item">
              <div class="config-header">
@@ -3231,28 +3435,127 @@ function handleHomepage(req) {
              </div>
              <div class="config-value" style="background: none; border: none; padding: 0;">
                <code style="color: var(--text-secondary); font-size: 13px; line-height: 1.8;">
-                 1. 在"环境配置"页面配置必要的环境变量<br>
-                 2. 配置 BILIBILI_COOKIE 以获取完整弹幕<br>
-                 3. （可选）配置 Redis 或数据库实现持久化<br>
-                 4. 使用 API 接口集成到你的应用中
+                 <strong>1️⃣ 配置环境变量</strong><br>
+                 在"环境配置"页面设置必要的环境变量：<br>
+                 • TOKEN: 自定义API访问令牌（可选）<br>
+                 • BILIBILI_COOKIE: B站Cookie获取完整弹幕<br>
+                 • TMDB_API_KEY: TMDB密钥用于标题转换<br><br>
+                 
+                 <strong>2️⃣ 配置持久化存储（可选）</strong><br>
+                 • Upstash Redis: 配置 UPSTASH_REDIS_REST_URL 和 TOKEN<br>
+                 • SQLite: 配置 DATABASE_URL (本地部署)<br>
+                 • Cloudflare D1: 绑定 D1 数据库<br><br>
+                 
+                 <strong>3️⃣ 开始使用</strong><br>
+                 配置完成后即可通过 API 接口获取弹幕数据
                </code>
              </div>
            </div>
-           
+
            <div class="config-item">
              <div class="config-header">
                <span class="config-label">常见问题</span>
              </div>
              <div class="config-value" style="background: none; border: none; padding: 0;">
                <code style="color: var(--text-secondary); font-size: 13px; line-height: 1.8;">
-                 Q: 如何获取 B站 Cookie?<br>
-                 A: 登录 bilibili.com 后，在浏览器开发者工具中查看 Cookie<br>
-                 <br>
-                 Q: 支持哪些持久化方案?<br>
-                 A: 支持 Upstash Redis、SQLite 本地数据库、Cloudflare D1<br>
-                 <br>
-                 Q: 如何修改管理员密码?<br>
-                 A: 点击右上角密钥图标，输入旧密码后设置新密码
+                 <strong>Q: 如何获取B站Cookie？</strong><br>
+                 A: 登录 bilibili.com 后，按F12打开开发者工具，在 Application → Cookies 中找到 SESSDATA 字段，至少需要复制该字段的值。<br><br>
+                 
+                 <strong>Q: 为什么要配置持久化存储？</strong><br>
+                 A: Serverless 平台会定期清理内存，配置持久化可以保存配置、缓存和用户选择记录，避免冷启动后数据丢失。<br><br>
+                 
+                 <strong>Q: 如何修改管理员密码？</strong><br>
+                 A: 点击右上角密钥图标，输入旧密码后设置新密码。首次登录默认账号密码均为 admin。<br><br>
+                 
+                 <strong>Q: 弹幕数量太多怎么办？</strong><br>
+                 A: 在环境配置中设置 DANMU_LIMIT 参数限制返回数量，推荐设置为 3000-8000 条。<br><br>
+                 
+                 <strong>Q: 支持哪些视频平台？</strong><br>
+                 A: 目前支持哔哩哔哩、爱奇艺、优酷、腾讯视频、芒果TV、巴哈姆特动画疯，以及自定义 VOD 采集站。
+               </code>
+             </div>
+           </div>
+
+           <div class="config-item">
+             <div class="config-header">
+               <span class="config-label">性能优化建议</span>
+             </div>
+             <div class="config-value" style="background: none; border: none; padding: 0;">
+               <code style="color: var(--text-secondary); font-size: 13px; line-height: 1.8;">
+                 • 配置 Redis/数据库启用持久化缓存<br>
+                 • 适当增加缓存时间（SEARCH_CACHE_MINUTES）<br>
+                 • 启用"记住最后选择"功能提高匹配准确度<br>
+                 • 设置访问限流防止恶意请求<br>
+                 • 优酷弹幕建议并发数设为8（平衡速度和资源）<br>
+                 • 开启弹幕简化和去重减少数据量
+               </code>
+             </div>
+           </div>
+         </div>
+       </div>
+
+       <div class="card">
+         <div class="card-header">
+           <h3 class="card-title">
+             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+               <path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" stroke-width="2"/>
+             </svg>
+             贡献与支持
+           </h3>
+         </div>
+         
+         <div class="config-grid">
+           <div class="config-item">
+             <div class="config-header">
+               <span class="config-label">开源协议</span>
+             </div>
+             <div class="config-value" style="background: none; border: none; padding: 0;">
+               <code style="color: var(--text-secondary); font-size: 13px; line-height: 1.8;">
+                 <strong>MIT License</strong><br><br>
+                 本项目采用 MIT 开源协议，您可以自由地：<br>
+                 • 使用：个人或商业用途均可<br>
+                 • 修改：根据需求定制功能<br>
+                 • 分发：分享给其他人使用<br>
+                 • 二次开发：基于此项目创建衍生项目<br><br>
+                 唯一要求：保留原作者版权声明
+               </code>
+             </div>
+           </div>
+
+           <div class="config-item">
+             <div class="config-header">
+               <span class="config-label">参与贡献</span>
+             </div>
+             <div class="config-value" style="background: none; border: none; padding: 0;">
+               <code style="color: var(--text-secondary); font-size: 13px; line-height: 1.8;">
+                 欢迎提交 Issue 和 Pull Request！<br><br>
+                 <strong>贡献方式：</strong><br>
+                 • 报告 Bug 或提出功能建议<br>
+                 • 完善文档和使用说明<br>
+                 • 提交代码修复或新功能<br>
+                 • 分享使用经验和部署教程<br><br>
+                 
+                 <strong>项目地址：</strong><br>
+                 <a href="https://github.com/huangxd-/danmu_api" target="_blank" style="color: var(--primary-400); text-decoration: none;">
+                   https://github.com/huangxd-/danmu_api
+                 </a>
+               </code>
+             </div>
+           </div>
+
+           <div class="config-item">
+             <div class="config-header">
+               <span class="config-label">致谢</span>
+             </div>
+             <div class="config-value" style="background: none; border: none; padding: 0;">
+               <code style="color: var(--text-secondary); font-size: 13px; line-height: 1.8;">
+                 感谢以下项目和服务：<br><br>
+                 • 弹弹Play API 提供基础弹幕数据<br>
+                 • Upstash 提供 Redis 云服务<br>
+                 • Cloudflare 提供 Workers 和 D1 服务<br>
+                 • TMDB 提供影视数据库 API<br>
+                 • 各视频平台提供弹幕数据源<br>
+                 • 所有贡献者和使用者的支持
                </code>
              </div>
            </div>
@@ -3261,8 +3564,13 @@ function handleHomepage(req) {
 
        <div class="footer">
          <p>弹幕 API 服务 v${globals.VERSION} | Made with ❤️ for Better Anime Experience</p>
-         <p style="margin-top: 8px; font-size: 12px;">
-           💡 提示: 遇到问题可以查看"日志"或检查"环境配置"
+         <p style="margin-top: 12px; font-size: 13px; line-height: 1.6;">
+           <a href="https://github.com/huangxd-/danmu_api" target="_blank" rel="noopener" style="color: var(--primary-400); text-decoration: none; margin-right: 16px;">📦 GitHub</a>
+           <a href="https://github.com/huangxd-/danmu_api/issues" target="_blank" rel="noopener" style="color: var(--primary-400); text-decoration: none; margin-right: 16px;">🐛 反馈问题</a>
+           <a href="https://github.com/huangxd-/danmu_api/blob/main/README.md" target="_blank" rel="noopener" style="color: var(--primary-400); text-decoration: none;">📖 完整文档</a>
+         </p>
+         <p style="margin-top: 8px; font-size: 12px; color: var(--text-tertiary);">
+           💡 提示: 如有疑问请查看使用指南或访问 GitHub 仓库
          </p>
        </div>
      </section>
