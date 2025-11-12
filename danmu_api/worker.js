@@ -1036,103 +1036,6 @@ async function handleHomepage(req) {
      letter-spacing: 1px;
    }
 
-   /* 日志容器样式 */
-   .log-container {
-     background: var(--bg-primary);
-     border: 1px solid var(--border-color);
-     border-radius: 10px;
-     padding: 16px;
-     height: 400px;
-     overflow-y: auto;
-     font-family: 'Monaco', 'Menlo', 'Consolas', 'SF Mono', monospace;
-     font-size: 13px;
-     line-height: 1.6;
-   }
-
-   .log-entry {
-     padding: 8px 12px;
-     margin-bottom: 4px;
-     border-radius: 6px;
-     border-left: 3px solid transparent;
-     transition: all 0.2s var(--ease-smooth);
-     animation: slideInRight 0.3s var(--ease-smooth);
-   }
-
-   .log-entry:hover {
-     background: var(--bg-hover);
-   }
-
-   .log-entry.log-info {
-     border-left-color: var(--info);
-   }
-
-   .log-entry.log-warn {
-     border-left-color: var(--warning);
-     background: rgba(245, 158, 11, 0.05);
-   }
-
-   .log-entry.log-error {
-     border-left-color: var(--error);
-     background: rgba(239, 68, 68, 0.05);
-   }
-
-   .log-timestamp {
-     color: var(--text-tertiary);
-     margin-right: 12px;
-   }
-
-   .log-level {
-     display: inline-block;
-     padding: 2px 8px;
-     border-radius: 4px;
-     font-size: 11px;
-     font-weight: 700;
-     text-transform: uppercase;
-     margin-right: 12px;
-   }
-
-   .log-level.info {
-     background: rgba(59, 130, 246, 0.2);
-     color: var(--info);
-   }
-
-   .log-level.warn {
-     background: rgba(245, 158, 11, 0.2);
-     color: var(--warning);
-   }
-
-   .log-level.error {
-     background: rgba(239, 68, 68, 0.2);
-     color: var(--error);
-   }
-
-   .log-message {
-     color: var(--text-primary);
-   }
-
-   .log-loading {
-     display: flex;
-     align-items: center;
-     justify-content: center;
-     height: 100%;
-     color: var(--text-secondary);
-   }
-
-   .log-empty {
-     display: flex;
-     flex-direction: column;
-     align-items: center;
-     justify-content: center;
-     height: 100%;
-     color: var(--text-tertiary);
-   }
-
-   .log-empty-icon {
-     font-size: 48px;
-     margin-bottom: 16px;
-     opacity: 0.5;
-   }
-
 
    .nav-menu {
      padding: 16px 12px;
@@ -3940,7 +3843,6 @@ async function handleHomepage(req) {
      initializeDragAndDrop();
      loadLocalStorageData();
      setupGlobalSearch();
-     startLogPolling(); // ← 添加这行
 
      let resizeTimer;
      window.addEventListener('resize', function() {
@@ -4935,6 +4837,150 @@ async function handleHomepage(req) {
        showToast('修改失败，请稍后重试', 'error');
      }
    }
+
+   // ==================== 实时日志功能 ====================
+   let autoScroll = true;
+   let logUpdateTimer = null;
+
+   async function loadLogs() {
+     try {
+       const response = await fetch('/api/logs?format=json&limit=100');
+       const result = await response.json();
+       
+       if (result.success && result.logs.length > 0) {
+         const container = document.getElementById('logContainer');
+         if (!container) return;
+         
+         const wasAtBottom = container.scrollHeight - container.scrollTop === container.clientHeight;
+         
+         container.innerHTML = result.logs.map(log => {
+           const escapedMessage = String(log.message || '')
+             .replace(/&/g, '&amp;')
+             .replace(/</g, '&lt;')
+             .replace(/>/g, '&gt;')
+             .replace(/"/g, '&quot;')
+             .replace(/'/g, '&#39;');
+             
+           return '<div class="log-entry log-' + log.level + '">' +
+             '<span class="log-timestamp">' + log.timestamp + '</span>' +
+             '<span class="log-level ' + log.level + '">' + log.level + '</span>' +
+             '<span class="log-message">' + escapedMessage + '</span>' +
+             '</div>';
+         }).join('');
+         
+         if (autoScroll || wasAtBottom) {
+           container.scrollTop = container.scrollHeight;
+         }
+       } else {
+         const container = document.getElementById('logContainer');
+         if (container) {
+           container.innerHTML = '<div class="log-empty">' +
+             '<div class="log-empty-icon">📋</div>' +
+             '<div>暂无日志记录</div>' +
+             '</div>';
+         }
+       }
+     } catch (error) {
+       console.error('加载日志失败:', error);
+       const container = document.getElementById('logContainer');
+       if (container) {
+         container.innerHTML = '<div class="log-empty">' +
+           '<div class="log-empty-icon">⚠️</div>' +
+           '<div>加载日志失败</div>' +
+           '</div>';
+       }
+     }
+   }
+
+   function startLogPolling() {
+     loadLogs();
+     if (logUpdateTimer) {
+       clearInterval(logUpdateTimer);
+     }
+     logUpdateTimer = setInterval(loadLogs, 2000);
+   }
+
+   function stopLogPolling() {
+     if (logUpdateTimer) {
+       clearInterval(logUpdateTimer);
+       logUpdateTimer = null;
+     }
+   }
+
+   function toggleAutoScroll() {
+     autoScroll = !autoScroll;
+     const btn = document.getElementById('autoScrollBtn');
+     
+     if (!btn) return;
+     
+     if (autoScroll) {
+       btn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor">' +
+         '<path d="M15 13l-3 3m0 0l-3-3m3 3V8m0 13a9 9 0 110-18 9 9 0 010 18z" stroke-width="2"/>' +
+         '</svg> 自动滚动';
+       const container = document.getElementById('logContainer');
+       if (container) {
+         container.scrollTop = container.scrollHeight;
+       }
+     } else {
+       btn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor">' +
+         '<path d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>' +
+         '</svg> 已暂停';
+     }
+     
+     showToast(autoScroll ? '已启用自动滚动' : '已暂停自动滚动', 'info');
+   }
+
+   function clearLogs() {
+     if (!confirm('确定要清空所有日志吗？')) return;
+     
+     const container = document.getElementById('logContainer');
+     if (container) {
+       container.innerHTML = '<div class="log-empty">' +
+         '<div class="log-empty-icon">📋</div>' +
+         '<div>日志已清空</div>' +
+         '</div>';
+     }
+     
+     showToast('日志已清空', 'success');
+   }
+
+   // 监听页面切换
+   (function() {
+     const originalSwitchPage = window.switchPage;
+     if (typeof originalSwitchPage === 'function') {
+       window.switchPage = function(pageName) {
+         originalSwitchPage.call(this, pageName);
+         
+         if (pageName === 'overview') {
+           startLogPolling();
+         } else {
+           stopLogPolling();
+         }
+       };
+     }
+   })();
+
+   // 页面加载时启动日志轮询
+   (function() {
+     const initLogsWhenReady = function() {
+       const overviewPage = document.querySelector('#overview-page.active');
+       if (overviewPage) {
+         startLogPolling();
+       }
+     };
+     
+     if (document.readyState === 'loading') {
+       document.addEventListener('DOMContentLoaded', initLogsWhenReady);
+     } else {
+       initLogsWhenReady();
+     }
+   })();
+
+   // 页面卸载时停止轮询
+   window.addEventListener('beforeunload', function() {
+     stopLogPolling();
+   });
+
 
  </script>
 
