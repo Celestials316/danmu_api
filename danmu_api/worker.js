@@ -2973,6 +2973,21 @@ function handleHomepage(req) {
          <div class="config-grid">
               <div class="config-item">
                 <div class="config-header">
+                  <span class="config-label">API 地址</span>
+                  <button class="icon-btn" onclick="copyApiUrl()" title="复制 API 地址">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke-width="2"/>
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke-width="2"/>
+                    </svg>
+                  </button>
+                </div>
+                <div class="config-value" id="apiUrlDisplay" style="cursor: pointer; user-select: all;" onclick="copyApiUrl()" title="点击复制完整 API 地址">
+                  <code id="apiUrlText" style="word-break: break-all;"></code>
+                </div>
+              </div>
+
+              <div class="config-item">
+                <div class="config-header">
                   <span class="config-label">持久化存储</span>
                   <span class="badge ${
                     globals.databaseValid ? 'badge-success' : 
@@ -3744,7 +3759,7 @@ function handleHomepage(req) {
      });
    });
 
-async function initializeApp() {
+   async function initializeApp() {
      // 防止重复初始化
      if (window._appInitialized) {
        console.log('⚠️ 应用已初始化，跳过重复调用');
@@ -3759,6 +3774,9 @@ async function initializeApp() {
        document.body.classList.add('light');
        updateThemeIcon(true);
      }
+
+     // 初始化 API 地址显示
+     updateApiUrlDisplay();
 
      // 尝试从服务器加载配置
      try {
@@ -4359,6 +4377,47 @@ async function initializeApp() {
      } catch (error) {
        showToast('退出失败', 'error');
      }
+   }
+
+   // 更新并复制 API 地址
+   function updateApiUrlDisplay() {
+     const currentUrl = window.location.origin;
+     const currentPath = window.location.pathname;
+     
+     // 从当前路径中提取 token（如果存在）
+     let token = '87654321'; // 默认 token
+     const pathParts = currentPath.split('/').filter(Boolean);
+     
+     // 如果路径中有 token（非空且不是常见的路径关键字）
+     if (pathParts.length > 0) {
+       const firstPart = pathParts[0];
+       const knownPaths = ['api', 'v1', 'v2'];
+       if (!knownPaths.includes(firstPart)) {
+         token = firstPart;
+       }
+     }
+     
+     // 尝试从配置中获取 token
+     if (AppState.config && AppState.config.TOKEN && AppState.config.TOKEN !== '87654321') {
+       token = AppState.config.TOKEN;
+     }
+     
+     const apiUrl = \`\${currentUrl}/\${token}\`;
+     const apiUrlElement = document.getElementById('apiUrlText');
+     
+     if (apiUrlElement) {
+       apiUrlElement.textContent = apiUrl;
+       apiUrlElement.dataset.apiUrl = apiUrl;
+     }
+   }
+
+   function copyApiUrl() {
+     const apiUrlElement = document.getElementById('apiUrlText');
+     if (!apiUrlElement) return;
+     
+     const apiUrl = apiUrlElement.dataset.apiUrl || apiUrlElement.textContent;
+     copyToClipboard(apiUrl);
+     showToast('API 地址已复制到剪贴板', 'success');
    }
 
    // 显示修改密码弹窗
