@@ -3744,7 +3744,14 @@ function handleHomepage(req) {
      });
    });
 
-   async function initializeApp() {
+async function initializeApp() {
+     // 防止重复初始化
+     if (window._appInitialized) {
+       console.log('⚠️ 应用已初始化，跳过重复调用');
+       return;
+     }
+     window._appInitialized = true;
+     
      console.log('🚀 应用初始化...');
      
      const savedTheme = localStorage.getItem('theme');
