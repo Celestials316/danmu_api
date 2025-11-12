@@ -836,8 +836,9 @@ function handleHomepage(req) {
     (function() {
       const theme = localStorage.getItem('theme') || 'light';
       document.documentElement.setAttribute('data-theme', theme);
-      if (!localStorage.getItem('theme')) {
-        document.body.classList.add('light');
+      // 直接在 html 标签设置 class，避免闪烁
+      if (theme === 'light') {
+        document.documentElement.classList.add('light');
       }
     })();
   </script>
@@ -935,33 +936,34 @@ function handleHomepage(req) {
     }
 
     /* 浅色主题 */
-    body.light {
-      background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%);
-      --bg-primary: #f8fafc;
-      --bg-secondary: #ffffff;
-      --bg-tertiary: #f1f5f9;
-      --bg-hover: #e2e8f0;
-      --bg-glass: rgba(255, 255, 255, 0.8);
-      
-      --text-primary: #1e293b;
-      --text-secondary: #475569;
-      --text-tertiary: #94a3b8;
-      
-      --border-color: #e2e8f0;
-      --border-light: #cbd5e1;
-      
-      --glass-bg: rgba(255, 255, 255, 0.7);
-      --glass-border: rgba(0, 0, 0, 0.1);
-      --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
-      
-      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+   html.light,
+   html.light body {
+     background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%);
+   }
+   
+   html.light {
+     --bg-primary: #f8fafc;
+     --bg-secondary: #ffffff;
+     --bg-tertiary: #f1f5f9;
+     --bg-hover: #e2e8f0;
+     --bg-glass: rgba(255, 255, 255, 0.8);
+     
+     --text-primary: #1e293b;
+     --text-secondary: #475569;
+     --text-tertiary: #94a3b8;
+     
+     --border-color: #e2e8f0;
+     --border-light: #cbd5e1;
+     
+     --glass-bg: rgba(255, 255, 255, 0.7);
+     --glass-border: rgba(0, 0, 0, 0.1);
+     --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+     
+     --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-     --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-     --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.2);
    }
 
-   body.light::before {
+   html.light body::before {
      background: 
        radial-gradient(circle at 20% 50%, rgba(99, 102, 241, 0.05) 0%, transparent 50%),
        radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.05) 0%, transparent 50%),
@@ -1389,7 +1391,7 @@ function handleHomepage(req) {
      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
    }
 
-   body.light .stat-icon.primary {
+   html.light .stat-icon.primary {
      background: var(--primary-100);
      color: var(--primary-600);
    }
@@ -3847,7 +3849,7 @@ function handleHomepage(req) {
      
      const savedTheme = localStorage.getItem('theme');
      if (savedTheme === null || savedTheme === 'light') {
-       document.body.classList.add('light');
+       document.documentElement.classList.add('light');
        updateThemeIcon(true);
        if (savedTheme === null) {
          localStorage.setItem('theme', 'light');
@@ -3921,8 +3923,8 @@ function handleHomepage(req) {
    }
 
    function toggleTheme() {
-     const body = document.body;
-     const isLight = body.classList.toggle('light');
+     const html = document.documentElement;
+     const isLight = html.classList.toggle('light');
      updateThemeIcon(isLight);
      localStorage.setItem('theme', isLight ? 'light' : 'dark');
      showToast(\`已切换到\${isLight ? '浅色' : '深色'}主题\`, 'info');
@@ -4290,7 +4292,7 @@ function handleHomepage(req) {
      });
 
      const observer = new MutationObserver(() => {
-       chart.options.plugins.legend.labels.color = getComputedStyle(document.body).getPropertyValue('--text-primary');
+       chart.options.plugins.legend.labels.color = getComputedStyle(document.documentElement).getPropertyValue('--text-primary');
        chart.options.scales.y.grid.color = getComputedStyle(document.body).getPropertyValue('--border-color');
        chart.options.scales.y.ticks.color = getComputedStyle(document.body).getPropertyValue('--text-secondary');
        chart.options.scales.x.grid.color = getComputedStyle(document.body).getPropertyValue('--border-color');
@@ -4298,7 +4300,7 @@ function handleHomepage(req) {
        chart.update();
      });
 
-     observer.observe(document.body, {
+     observer.observe(document.documentElement, {
        attributes: true,
        attributeFilter: ['class']
      });
