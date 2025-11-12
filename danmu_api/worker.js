@@ -280,34 +280,34 @@ async function applyConfigPatch(patch) {
 
 const ENV_DESCRIPTIONS = {
   'TOKEN': '自定义API访问令牌,使用默认87654321可以不填写',
-  'VERSION': '当前服务版本号(自动生成)',
-  'LOG_LEVEL': '日志级别:error/warn/info,默认info',
-  'OTHER_SERVER': '兜底第三方弹幕服务器,默认api.danmu.icu',
-  'VOD_SERVERS': 'VOD影视采集站列表,格式:名称@URL,名称@URL...',
-  'VOD_RETURN_MODE': 'VOD返回模式:all/fastest,默认all',
-  'VOD_REQUEST_TIMEOUT': 'VOD请求超时时间(毫秒),默认10000',
-  'BILIBILI_COOKIE': 'B站Cookie,用于获取完整弹幕数据',
-  'TMDB_API_KEY': 'TMDB API密钥,用于标题转换',
+  'VERSION': '当前服务版本号（自动生成）',
+  'LOG_LEVEL': '日志级别：error/warn/info，默认info',
+  'OTHER_SERVER': '兜底第三方弹幕服务器，默认api.danmu.icu',
+  'VOD_SERVERS': 'VOD影视采集站列表，格式：名称@URL,名称@URL...',
+  'VOD_RETURN_MODE': 'VOD返回模式：all/fastest，默认all',
+  'VOD_REQUEST_TIMEOUT': 'VOD请求超时时间（毫秒），默认10000',
+  'BILIBILI_COOKIE': 'B站Cookie，用于获取完整弹幕数据',
+  'TMDB_API_KEY': 'TMDB API密钥，用于标题转换',
   'SOURCE_ORDER': '数据源优先级排序',
   'PLATFORM_ORDER': '弹幕平台优先级',
-  'TITLE_TO_CHINESE': '是否将外语标题转换成中文,默认false',
-  'STRICT_TITLE_MATCH': '严格标题匹配模式,默认false',
+  'TITLE_TO_CHINESE': '是否将外语标题转换成中文，默认false',
+  'STRICT_TITLE_MATCH': '严格标题匹配模式，默认false',
   'EPISODE_TITLE_FILTER': '剧集标题正则过滤表达式',
-  'ENABLE_EPISODE_FILTER': '手动选择接口是否启用集标题过滤,默认false',
-  'DANMU_OUTPUT_FORMAT': '弹幕输出格式:json/xml,默认json',
-  'DANMU_SIMPLIFIED': '是否将繁体弹幕转换为简体,默认true',
-  'DANMU_LIMIT': '弹幕数量限制,-1表示不限制',
-  'BLOCKED_WORDS': '弹幕屏蔽词列表(逗号分隔)',
-  'GROUP_MINUTE': '弹幕合并去重时间窗口(分钟),默认1',
-  'CONVERT_TOP_BOTTOM_TO_SCROLL': '是否将顶部/底部弹幕转换为滚动弹幕,默认false',
-  'WHITE_RATIO': '白色弹幕占比(0-100),-1表示不转换',
-  'YOUKU_CONCURRENCY': '优酷弹幕请求并发数,默认8',
-  'SEARCH_CACHE_MINUTES': '搜索结果缓存时间(分钟),默认1',
-  'COMMENT_CACHE_MINUTES': '弹幕数据缓存时间(分钟),默认1',
-  'REMEMBER_LAST_SELECT': '是否记住用户手动选择,默认true',
-  'MAX_LAST_SELECT_MAP': '最后选择映射的缓存大小,默认100',
+  'ENABLE_EPISODE_FILTER': '手动选择接口是否启用集标题过滤，默认false',
+  'DANMU_OUTPUT_FORMAT': '弹幕输出格式：json/xml，默认json',
+  'DANMU_SIMPLIFIED': '是否将繁体弹幕转换为简体，默认true',
+  'DANMU_LIMIT': '弹幕数量限制，-1表示不限制',
+  'BLOCKED_WORDS': '弹幕屏蔽词列表（逗号分隔）',
+  'GROUP_MINUTE': '弹幕合并去重时间窗口（分钟），默认1',
+  'CONVERT_TOP_BOTTOM_TO_SCROLL': '是否将顶部/底部弹幕转换为滚动弹幕，默认false',
+  'WHITE_RATIO': '白色弹幕占比（0-100），-1表示不转换',
+  'YOUKU_CONCURRENCY': '优酷弹幕请求并发数，默认8',
+  'SEARCH_CACHE_MINUTES': '搜索结果缓存时间（分钟），默认1',
+  'COMMENT_CACHE_MINUTES': '弹幕数据缓存时间（分钟），默认1',
+  'REMEMBER_LAST_SELECT': '是否记住用户手动选择，默认true',
+  'MAX_LAST_SELECT_MAP': '最后选择映射的缓存大小，默认100',
   'PROXY_URL': '代理/反代地址',
-  'RATE_LIMIT_MAX_REQUESTS': '限流配置:同一IP在1分钟内允许的最大请求次数,默认3',
+  'RATE_LIMIT_MAX_REQUESTS': '限流配置：同一IP在1分钟内允许的最大请求次数，默认3',
   'UPSTASH_REDIS_REST_URL': 'Upstash Redis服务URL',
   'UPSTASH_REDIS_REST_TOKEN': 'Upstash Redis访问令牌',
   'redisValid': 'Redis连接状态',
@@ -373,7 +373,7 @@ function getRealEnvValue(key) {
 
 async function handleRequest(req, env, deployPlatform, clientIp) {
   if (!Globals.configLoaded) {
-    log("info", "[init] 🚀 首次启动,初始化全局配置...");
+    log("info", "[init] 🚀 首次启动，初始化全局配置...");
     globals = await Globals.init(env, deployPlatform);
     log("info", "[init] ✅ 全局配置初始化完成");
   }
@@ -405,72 +405,45 @@ function handleHomepage(req) {
     return getLoginPage();
   }
 
-    const redisConfigured = !!(globals.redisUrl && globals.redisToken);
-    const redisStatusText = redisConfigured 
-      ? (globals.redisValid ? '在线' : '离线') 
-      : '未配置';
+  const redisConfigured = !!(globals.redisUrl && globals.redisToken);
+  const redisStatusText = redisConfigured 
+    ? (globals.redisValid ? '在线' : '离线') 
+    : '未配置';
 
-    if (!globals.accessedEnvVars) {
-      globals.accessedEnvVars = {};
-    }
-    if (!globals.vodServers) {
-      globals.vodServers = [];
-    }
-    if (!globals.sourceOrderArr) {
-      globals.sourceOrderArr = [];
-    }
+  if (!globals.accessedEnvVars) {
+    globals.accessedEnvVars = {};
+  }
+  if (!globals.vodServers) {
+    globals.vodServers = [];
+  }
+  if (!globals.sourceOrderArr) {
+    globals.sourceOrderArr = [];
+  }
 
-    const configuredEnvCount = Object.entries(globals.accessedEnvVars).filter(([key, value]) => {
-      if (value === null || value === undefined) return false;
-      if (typeof value === 'string' && value.length === 0) return false;
-      if (Array.isArray(value) && value.length === 0) return false;
-      return true;
-    }).length;
+  const configuredEnvCount = Object.entries(globals.accessedEnvVars).filter(([key, value]) => {
+    if (value === null || value === undefined) return false;
+    if (typeof value === 'string' && value.length === 0) return false;
+    if (Array.isArray(value) && value.length === 0) return false;
+    return true;
+  }).length;
 
-    const totalEnvCount = Object.keys(globals.accessedEnvVars).length;
+  const totalEnvCount = Object.keys(globals.accessedEnvVars).length;
 
-    // 环境变量列表生成(用于设置页面)
-    const envItemsHtml = Object.entries(globals.accessedEnvVars)
-      .map(([key, value]) => {
-        let displayValue = value;
-        const description = ENV_DESCRIPTIONS[key] || '环境变量';
-        const isSensitive = isSensitiveKey(key);
+  const envItemsHtml = Object.entries(globals.accessedEnvVars)
+    .map(([key, value]) => {
+      let displayValue = value;
+      const description = ENV_DESCRIPTIONS[key] || '环境变量';
+      const isSensitive = isSensitiveKey(key);
 
-        if (typeof value === 'boolean') {
-          displayValue = value ? '✅ 已启用' : '❌ 已禁用';
-        } else if (value === null || value === undefined || (typeof value === 'string' && value.length === 0)) {
-          displayValue = '未配置';
-        } else if (isSensitive && typeof value === 'string' && value.length > 0) {
-          const realValue = getRealEnvValue(key);
-          const maskedValue = '*'.repeat(Math.min(String(realValue).length, 32));
-          const safeRealValue = typeof realValue === 'string' ? realValue : JSON.stringify(realValue);
-          const encodedRealValue = safeRealValue
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
-
-          return `
-            <div class="env-item" data-key="${key}">
-              <div class="env-header">
-                <span class="env-label">${key}</span>
-                <button class="edit-btn" onclick="editEnv('${key}')" title="编辑">✏️</button>
-              </div>
-              <div class="env-value sensitive" data-real="${encodedRealValue}" data-masked="${maskedValue}" onclick="toggleSensitive(this)" ondblclick="copySensitiveValue(this, event)">
-                ${maskedValue} <span class="eye-icon">👁️</span>
-              </div>
-              <div class="env-desc">${description}</div>
-            </div>
-          `;
-        } else if (Array.isArray(value)) {
-          displayValue = value.length > 0 ? value.join(', ') : '默认值';
-        } else if (typeof value === 'string' && value.length > 80) {
-          displayValue = value.substring(0, 80) + '...';
-        }
-
+      if (typeof value === 'boolean') {
+        displayValue = value ? '✅ 已启用' : '❌ 已禁用';
+      } else if (value === null || value === undefined || (typeof value === 'string' && value.length === 0)) {
+        displayValue = '未配置';
+      } else if (isSensitive && typeof value === 'string' && value.length > 0) {
         const realValue = getRealEnvValue(key);
-        const encodedOriginal = String(realValue || value)
+        const maskedValue = '*'.repeat(Math.min(String(realValue).length, 32));
+        const safeRealValue = typeof realValue === 'string' ? realValue : JSON.stringify(realValue);
+        const encodedRealValue = safeRealValue
           .replace(/&/g, '&amp;')
           .replace(/</g, '&lt;')
           .replace(/>/g, '&gt;')
@@ -478,727 +451,790 @@ function handleHomepage(req) {
           .replace(/'/g, '&#39;');
 
         return `
-          <div class="env-item" data-key="${key}">
-            <div class="env-header">
-              <span class="env-label">${key}</span>
-              <button class="edit-btn" onclick="editEnv('${key}')" title="编辑">✏️</button>
+          <div class="config-card" data-key="${key}">
+            <div class="config-header">
+              <div class="config-badge ${isSensitive ? 'sensitive' : 'normal'}">
+                ${isSensitive ? '🔒 敏感' : '📝 常规'}
+              </div>
+              <div class="config-actions">
+                <button class="action-btn" onclick="editEnv('${key}')" title="编辑">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                  </svg>
+                </button>
+                <button class="action-btn" onclick="deleteEnv('${key}')" title="清空">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  </svg>
+                </button>
+              </div>
             </div>
-            <div class="env-value" data-original="${encodedOriginal}" ondblclick="copyValue(this)">
-              ${displayValue}
+            <div class="config-title">${key}</div>
+            <div class="config-value sensitive" data-real="${encodedRealValue}" data-masked="${maskedValue}" onclick="toggleSensitive(this)">
+              <span class="value-text">${maskedValue}</span>
+              <span class="toggle-icon">👁️</span>
             </div>
-            <div class="env-desc">${description}</div>
+            <div class="config-desc">${description}</div>
           </div>
         `;
-      })
-      .join('');
+      } else if (Array.isArray(value)) {
+        displayValue = value.length > 0 ? value.join(', ') : '默认值';
+      } else if (typeof value === 'string' && value.length > 80) {
+        displayValue = value.substring(0, 80) + '...';
+      }
 
-    const html = `
+      const realValue = getRealEnvValue(key);
+      const encodedOriginal = String(realValue || value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
+      return `
+        <div class="config-card" data-key="${key}">
+          <div class="config-header">
+            <div class="config-badge normal">📝 常规</div>
+            <div class="config-actions">
+              <button class="action-btn" onclick="editEnv('${key}')" title="编辑">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+              </button>
+              <button class="action-btn" onclick="copyValue('${key}')" title="复制">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="config-title">${key}</div>
+          <div class="config-value" data-original="${encodedOriginal}">
+            <span class="value-text">${displayValue}</span>
+          </div>
+          <div class="config-desc">${description}</div>
+        </div>
+      `;
+    })
+    .join('');
+
+  const html = `
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>弹幕 API 控制中心</title>
+  <title>弹幕 API 管理中心</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
     :root {
-      --bg-primary: #f5f7fa;
-      --bg-secondary: #ffffff;
-      --bg-tertiary: #f8fafc;
+      --bg-main: #0a0e27;
+      --bg-card: rgba(255, 255, 255, 0.03);
+      --bg-glass: rgba(255, 255, 255, 0.05);
+      --bg-hover: rgba(255, 255, 255, 0.08);
+      --text-primary: #ffffff;
+      --text-secondary: #a0aec0;
+      --text-tertiary: #718096;
+      --border-color: rgba(255, 255, 255, 0.1);
+      --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      --gradient-success: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
+      --gradient-warning: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+      --gradient-info: linear-gradient(135deg, #30cfd0 0%, #330867 100%);
+      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.1);
+      --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.2);
+      --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.3);
+      --shadow-glow: 0 0 20px rgba(102, 126, 234, 0.3);
+    }
+
+    [data-theme="light"] {
+      --bg-main: #f7fafc;
+      --bg-card: #ffffff;
+      --bg-glass: rgba(255, 255, 255, 0.9);
+      --bg-hover: #edf2f7;
       --text-primary: #1a202c;
       --text-secondary: #4a5568;
       --text-tertiary: #718096;
       --border-color: #e2e8f0;
-      --accent-primary: #667eea;
-      --accent-secondary: #764ba2;
-      --accent-success: #48bb78;
-      --accent-warning: #ed8936;
-      --accent-danger: #f56565;
-      --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
-      --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
-      --shadow-lg: 0 10px 15px rgba(0,0,0,0.1);
-      --sidebar-width: 260px;
+      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
+      --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
+      --shadow-glow: 0 0 20px rgba(102, 126, 234, 0.2);
     }
 
-    [data-theme="dark"] {
-      --bg-primary: #1a202c;
-      --bg-secondary: #2d3748;
-      --bg-tertiary: #4a5568;
-      --text-primary: #f7fafc;
-      --text-secondary: #e2e8f0;
-      --text-tertiary: #cbd5e1;
-      --border-color: #4a5568;
-      --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
-      --shadow-md: 0 4px 6px rgba(0,0,0,0.3);
-      --shadow-lg: 0 10px 15px rgba(0,0,0,0.4);
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
     }
 
-    * { 
-      margin: 0; 
-      padding: 0; 
-      box-sizing: border-box; 
-    }
-    
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
-      background: var(--bg-primary);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-main);
       color: var(--text-primary);
       min-height: 100vh;
+      line-height: 1.6;
+      overflow-x: hidden;
       transition: all 0.3s ease;
+    }
+
+    /* 背景动画 */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: 
+        radial-gradient(circle at 20% 30%, rgba(102, 126, 234, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 80% 70%, rgba(118, 75, 162, 0.1) 0%, transparent 50%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .app-container {
+      display: flex;
+      min-height: 100vh;
+      position: relative;
+      z-index: 1;
     }
 
     /* 侧边栏 */
     .sidebar {
+      width: 280px;
+      background: var(--bg-glass);
+      backdrop-filter: blur(20px);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.3s ease;
       position: fixed;
+      height: 100vh;
       left: 0;
       top: 0;
-      bottom: 0;
-      width: var(--sidebar-width);
-      background: var(--bg-secondary);
-      border-right: 1px solid var(--border-color);
-      padding: 24px 0;
-      overflow-y: auto;
-      z-index: 100;
-      transition: transform 0.3s ease;
+      z-index: 1000;
     }
 
-    .sidebar.hidden {
-      transform: translateX(-100%);
-    }
-
-    .logo-section {
-      padding: 0 20px 24px;
+    .sidebar-header {
+      padding: 32px 24px;
       border-bottom: 1px solid var(--border-color);
-      margin-bottom: 20px;
     }
 
     .logo-container {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 16px;
     }
 
     .logo-icon {
-      font-size: 32px;
+      width: 48px;
+      height: 48px;
+      background: var(--gradient-primary);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      box-shadow: var(--shadow-glow);
     }
 
     .logo-text h1 {
-      font-size: 18px;
+      font-size: 20px;
       font-weight: 700;
-      background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+      background: var(--gradient-primary);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
 
     .logo-text p {
       font-size: 11px;
       color: var(--text-tertiary);
       margin-top: 2px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
     }
 
-    .nav-menu {
-      list-style: none;
+    .sidebar-nav {
+      flex: 1;
+      padding: 24px 0;
+      overflow-y: auto;
+    }
+
+    .nav-section {
+      margin-bottom: 32px;
+      padding: 0 16px;
+    }
+
+    .nav-section-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
       padding: 0 12px;
     }
 
     .nav-item {
-      margin-bottom: 4px;
-    }
-
-    .nav-link {
       display: flex;
       align-items: center;
       gap: 12px;
       padding: 12px 16px;
-      border-radius: 8px;
+      border-radius: 12px;
       color: var(--text-secondary);
       text-decoration: none;
-      transition: all 0.2s ease;
-      cursor: pointer;
       font-size: 14px;
       font-weight: 500;
+      transition: all 0.2s ease;
+      cursor: pointer;
+      margin-bottom: 4px;
     }
 
-    .nav-link:hover {
-      background: var(--bg-tertiary);
+    .nav-item:hover {
+      background: var(--bg-hover);
       color: var(--text-primary);
+      transform: translateX(4px);
     }
 
-    .nav-link.active {
-      background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+    .nav-item.active {
+      background: var(--gradient-primary);
       color: white;
-      box-shadow: var(--shadow-sm);
+      box-shadow: var(--shadow-glow);
     }
 
     .nav-icon {
-      font-size: 20px;
-      width: 24px;
-      text-align: center;
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .sidebar-footer {
+      padding: 24px;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      border-radius: 12px;
+      background: var(--bg-hover);
+    }
+
+    .user-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--gradient-primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: 600;
+      color: white;
+    }
+
+    .user-details h4 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .user-details p {
+      font-size: 12px;
+      color: var(--text-tertiary);
     }
 
     /* 主内容区 */
     .main-content {
-      margin-left: var(--sidebar-width);
-      min-height: 100vh;
+      flex: 1;
+      margin-left: 280px;
+      padding: 32px;
       transition: margin-left 0.3s ease;
     }
 
-    .main-content.expanded {
-      margin-left: 0;
-    }
-
-    .top-bar {
-      background: var(--bg-secondary);
-      border-bottom: 1px solid var(--border-color);
-      padding: 16px 28px;
+    .topbar {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      position: sticky;
+      margin-bottom: 32px;
+      gap: 24px;
+    }
+
+    .page-title {
+      flex: 1;
+    }
+
+    .page-title h2 {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .page-title p {
+      font-size: 14px;
+      color: var(--text-tertiary);
+    }
+
+    .topbar-actions {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .search-box {
+      position: relative;
+    }
+
+    .search-input {
+      width: 300px;
+      padding: 12px 16px 12px 44px;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      background: var(--bg-glass);
+      backdrop-filter: blur(10px);
+      color: var(--text-primary);
+      font-size: 14px;
+      transition: all 0.3s ease;
+    }
+
+    .search-input:focus {
+      outline: none;
+      border-color: rgba(102, 126, 234, 0.5);
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-tertiary);
+    }
+
+    .icon-btn {
+      width: 44px;
+      height: 44px;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      background: var(--bg-glass);
+      backdrop-filter: blur(10px);
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .icon-btn:hover {
+      background: var(--bg-hover);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .icon-btn.active::after {
+      content: '';
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 8px;
+      height: 8px;
+      background: #ef4444;
+      border-radius: 50%;
+      border: 2px solid var(--bg-glass);
+    }
+
+    /* 统计卡片 */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+      margin-bottom: 32px;
+    }
+
+    .stat-card {
+      background: var(--bg-glass);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      padding: 28px;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .stat-card::before {
+      content: '';
+      position: absolute;
       top: 0;
-      z-index: 90;
-     box-shadow: var(--shadow-sm);
-   }
-
-   .top-bar-left {
-     display: flex;
-     align-items: center;
-     gap: 16px;
-   }
-
-   .menu-toggle {
-     width: 40px;
-     height: 40px;
-     border: none;
-     background: var(--bg-tertiary);
-     border-radius: 8px;
-     cursor: pointer;
-     font-size: 20px;
-     display: none;
-     align-items: center;
-     justify-content: center;
-     transition: all 0.2s ease;
-   }
-
-   .menu-toggle:hover {
-     background: var(--border-color);
-   }
-
-   .page-title {
-     font-size: 20px;
-     font-weight: 700;
-     color: var(--text-primary);
-   }
-
-   .top-bar-actions {
-     display: flex;
-     gap: 12px;
-     align-items: center;
-   }
-
-   .theme-toggle {
-     width: 40px;
-     height: 40px;
-     border-radius: 8px;
-     border: 1px solid var(--border-color);
-     background: var(--bg-tertiary);
-     color: var(--text-primary);
-     cursor: pointer;
-     font-size: 18px;
-     display: flex;
-     align-items: center;
-     justify-content: center;
-     transition: all 0.3s ease;
-   }
-
-   .theme-toggle:hover {
-     transform: scale(1.05);
-     background: var(--accent-primary);
-     color: white;
-     border-color: var(--accent-primary);
-   }
-
-   .btn {
-     padding: 10px 20px;
-     border: none;
-     border-radius: 8px;
-     font-size: 14px;
-     font-weight: 600;
-     cursor: pointer;
-     transition: all 0.3s ease;
-     display: flex;
-     align-items: center;
-     gap: 8px;
-   }
-
-   .btn-primary {
-     background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-     color: white;
-     box-shadow: var(--shadow-sm);
-   }
-
-   .btn-primary:hover {
-     transform: translateY(-2px);
-     box-shadow: var(--shadow-md);
-   }
-
-   .btn-secondary {
-     background: var(--bg-tertiary);
-     color: var(--text-primary);
-     border: 1px solid var(--border-color);
-   }
-
-   .btn-secondary:hover {
-     background: var(--border-color);
-   }
-
-   .btn-sm {
-     padding: 8px 16px;
-     font-size: 13px;
-   }
-
-   /* 内容容器 */
-   .container {
-     padding: 28px;
-     max-width: 1600px;
-   }
-
-   /* 统计卡片 */
-   .stats-grid {
-     display: grid;
-     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-     gap: 20px;
-     margin-bottom: 28px;
-   }
-
-   .stat-card {
-     background: var(--bg-secondary);
-     border-radius: 12px;
-     padding: 24px;
-     box-shadow: var(--shadow-md);
-     border: 1px solid var(--border-color);
-     position: relative;
-     overflow: hidden;
-     transition: all 0.3s ease;
-   }
-
-   .stat-card::before {
-     content: '';
-     position: absolute;
-     top: 0;
-     left: 0;
-     right: 0;
-     height: 4px;
-     background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
-   }
-
-   .stat-card:hover {
-     transform: translateY(-4px);
-     box-shadow: var(--shadow-lg);
-   }
-
-   .stat-card.success::before {
-     background: linear-gradient(90deg, #48bb78, #38a169);
-   }
-
-   .stat-card.warning::before {
-     background: linear-gradient(90deg, #ed8936, #dd6b20);
-   }
-
-   .stat-card.info::before {
-     background: linear-gradient(90deg, #4299e1, #3182ce);
-   }
-
-   .stat-header {
-     display: flex;
-     justify-content: space-between;
-     align-items: flex-start;
-     margin-bottom: 16px;
-   }
-
-   .stat-icon {
-     font-size: 36px;
-     opacity: 0.9;
-   }
-
-   .stat-badge {
-     padding: 4px 12px;
-     border-radius: 12px;
-     font-size: 11px;
-     font-weight: 600;
-     text-transform: uppercase;
-   }
-
-   .badge-success {
-     background: rgba(72, 187, 120, 0.1);
-     color: var(--accent-success);
-   }
-
-   .badge-warning {
-     background: rgba(237, 137, 54, 0.1);
-     color: var(--accent-warning);
-   }
-
-   .badge-danger {
-     background: rgba(245, 101, 101, 0.1);
-     color: var(--accent-danger);
-   }
-
-   .stat-title {
-     font-size: 13px;
-     color: var(--text-tertiary);
-     margin-bottom: 8px;
-     font-weight: 500;
-   }
-
-   .stat-value {
-     font-size: 32px;
-     font-weight: 700;
-     color: var(--text-primary);
-     margin-bottom: 8px;
-   }
-
-   .stat-footer {
-     font-size: 12px;
-     color: var(--text-secondary);
-     display: flex;
-     align-items: center;
-     gap: 6px;
-   }
-
-   /* 卡片布局 */
-   .card {
-     background: var(--bg-secondary);
-     border-radius: 12px;
-     padding: 24px;
-     box-shadow: var(--shadow-md);
-     border: 1px solid var(--border-color);
-     margin-bottom: 24px;
-   }
-
-   .card-header {
-     display: flex;
-     justify-content: space-between;
-     align-items: center;
-     margin-bottom: 24px;
-     padding-bottom: 16px;
-     border-bottom: 1px solid var(--border-color);
-   }
-
-   .card-title {
-     font-size: 18px;
-     font-weight: 700;
-     color: var(--text-primary);
-     display: flex;
-     align-items: center;
-     gap: 10px;
-   }
-
-   .card-title-icon {
-     font-size: 22px;
-   }
-
-   /* 快速设置项 */
-   .quick-settings {
-     display: grid;
-     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-     gap: 20px;
-   }
-
-   .setting-item {
-     background: var(--bg-tertiary);
-     border-radius: 10px;
-     padding: 20px;
-     border: 1px solid var(--border-color);
-     transition: all 0.3s ease;
-   }
-
-   .setting-item:hover {
-     border-color: var(--accent-primary);
-     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
-   }
-
-   .setting-header {
-     display: flex;
-     justify-content: space-between;
-     align-items: center;
-     margin-bottom: 12px;
-   }
-
-   .setting-label {
-     font-weight: 600;
-     color: var(--text-primary);
-     font-size: 14px;
-   }
-
-   .setting-control {
-     display: flex;
-     align-items: center;
-     gap: 12px;
-     margin-bottom: 8px;
-   }
-
-   .setting-input {
-     flex: 1;
-     padding: 10px 14px;
-     border: 1px solid var(--border-color);
-     border-radius: 8px;
-     font-size: 14px;
-     background: var(--bg-secondary);
-     color: var(--text-primary);
-     transition: all 0.3s ease;
-   }
-
-   .setting-input:focus {
-     outline: none;
-     border-color: var(--accent-primary);
-     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-   }
-
-   .setting-input[type="range"] {
-     height: 6px;
-     background: var(--border-color);
-     border-radius: 3px;
-     outline: none;
-     -webkit-appearance: none;
-   }
-
-   .setting-input[type="range"]::-webkit-slider-thumb {
-     -webkit-appearance: none;
-     width: 18px;
-     height: 18px;
-     background: var(--accent-primary);
-     border-radius: 50%;
-     cursor: pointer;
-     box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-   }
-
-   .setting-input[type="range"]::-moz-range-thumb {
-     width: 18px;
-     height: 18px;
-     background: var(--accent-primary);
-     border-radius: 50%;
-     cursor: pointer;
-     border: none;
-     box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-   }
-
-   .setting-value {
-     min-width: 60px;
-     padding: 8px 12px;
-     background: var(--accent-primary);
-     color: white;
-     border-radius: 6px;
-     text-align: center;
-     font-weight: 600;
-     font-size: 13px;
-   }
-
-   .setting-desc {
-     font-size: 12px;
-     color: var(--text-tertiary);
-     line-height: 1.5;
-   }
-
-   /* 切换开关 */
-   .switch {
-     position: relative;
-     width: 48px;
-     height: 26px;
-     background: var(--border-color);
-     border-radius: 13px;
-     cursor: pointer;
-     transition: all 0.3s ease;
-   }
-
-   .switch.active {
-     background: var(--accent-success);
-   }
-
-   .switch::after {
-     content: '';
-     position: absolute;
-     top: 3px;
-     left: 3px;
-     width: 20px;
-     height: 20px;
-     background: white;
-     border-radius: 50%;
-     transition: all 0.3s ease;
-     box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-   }
-
-   .switch.active::after {
-     left: 25px;
-   }
-
-   /* 环境变量网格 */
-   .env-grid {
-     display: grid;
-     gap: 16px;
-   }
-
-   .env-item {
-     border: 1px solid var(--border-color);
-     border-radius: 10px;
-     padding: 18px;
-     transition: all 0.3s ease;
-     background: var(--bg-tertiary);
-   }
-
-   .env-item:hover {
-     border-color: var(--accent-primary);
-     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
-     transform: translateX(4px);
-   }
-
-   .env-header {
-     display: flex;
-     justify-content: space-between;
-     align-items: center;
-     margin-bottom: 12px;
-   }
-
-   .env-label {
-     font-weight: 600;
-     color: var(--accent-primary);
-     font-size: 13px;
-     font-family: 'Courier New', monospace;
-   }
-
-   .edit-btn {
-     background: none;
-     border: none;
-     font-size: 16px;
-     cursor: pointer;
-     opacity: 0.5;
-     transition: all 0.3s ease;
-     padding: 4px 8px;
-     border-radius: 6px;
-   }
-
-   .edit-btn:hover {
-     opacity: 1;
-     background: var(--bg-secondary);
-     transform: scale(1.1);
-   }
-
-   .env-value {
-     padding: 12px 14px;
-     background: var(--bg-secondary);
-     border-radius: 8px;
-     font-family: 'Courier New', monospace;
-     font-size: 13px;
-     word-break: break-all;
-     margin-bottom: 10px;
-     color: var(--text-primary);
-     border: 1px solid var(--border-color);
-   }
-
-   .env-value.sensitive {
-     cursor: pointer;
-     display: flex;
-     justify-content: space-between;
-     align-items: center;
-     user-select: none;
-   }
-
-   .env-value.sensitive:hover {
-     background: var(--bg-tertiary);
-     border-color: var(--accent-primary);
-   }
-
-   .env-value.sensitive.revealed {
-     user-select: text;
-     color: var(--accent-secondary);
-   }
-
-   .eye-icon {
-     font-size: 14px;
-     opacity: 0.6;
-     transition: opacity 0.3s ease;
-   }
-
-   .env-value.sensitive:hover .eye-icon {
-     opacity: 1;
-   }
-
-   .env-desc {
-     font-size: 12px;
-     color: var(--text-tertiary);
-     line-height: 1.5;
-   }
-
-   /* 搜索框 */
-   .search-box {
-     margin-bottom: 20px;
-   }
-
-   .search-input {
-     width: 100%;
-     padding: 12px 18px 12px 44px;
-     border: 1px solid var(--border-color);
-     border-radius: 10px;
-     font-size: 14px;
-     background: var(--bg-tertiary);
-     color: var(--text-primary);
-     transition: all 0.3s ease;
-     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23718096' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E");
-     background-repeat: no-repeat;
-     background-position: 14px center;
-   }
-
-   .search-input:focus {
-     outline: none;
-     border-color: var(--accent-primary);
-     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-     background-color: var(--bg-secondary);
-   }
-
-   /* 模态框 */
-   .modal {
-     display: none;
-     position: fixed;
-     top: 0;
-     left: 0;
-     right: 0;
-     bottom: 0;
-     background: rgba(0,0,0,0.6);
-     backdrop-filter: blur(4px);
-     align-items: center;
-     justify-content: center;
-     z-index: 1000;
-     animation: fadeIn 0.2s ease;
-   }
-
-   @keyframes fadeIn {
-     from { opacity: 0; }
-     to { opacity: 1; }
-   }
-
-   .modal.show {
-     display: flex;
-   }
-
-   .modal-content {
-     background: var(--bg-secondary);
-     border-radius: 16px;
-     padding: 32px;
-     max-width: 540px;
-     width: 90%;
-     max-height: 85vh;
-     overflow-y: auto;
-     box-shadow: var(--shadow-lg);
-     border: 1px solid var(--border-color);
-     animation: slideUp 0.3s ease;
-   }
-
-   @keyframes slideUp {
-     from { 
-       opacity: 0;
-       transform: translateY(20px);
-     }
-     to {
-       opacity: 1;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: var(--gradient-primary);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .stat-card:hover::before {
+      opacity: 1;
+    }
+
+    .stat-card.gradient-success::before {
+      background: var(--gradient-success);
+    }
+
+    .stat-card.gradient-warning::before {
+      background: var(--gradient-warning);
+    }
+
+    .stat-card.gradient-info::before {
+      background: var(--gradient-info);
+    }
+
+    .stat-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 20px;
+    }
+
+    .stat-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      background: var(--gradient-primary);
+      box-shadow: var(--shadow-glow);
+    }
+
+    .stat-card.gradient-success .stat-icon {
+      background: var(--gradient-success);
+      box-shadow: 0 0 20px rgba(132, 250, 176, 0.3);
+    }
+
+    .stat-card.gradient-warning .stat-icon {
+      background: var(--gradient-warning);
+      box-shadow: 0 0 20px rgba(250, 112, 154, 0.3);
+    }
+
+    .stat-card.gradient-info .stat-icon {
+      background: var(--gradient-info);
+      box-shadow: 0 0 20px rgba(48, 207, 208, 0.3);
+    }
+
+    .stat-trend {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      background: rgba(16, 185, 129, 0.1);
+      color: #10b981;
+    }
+
+    .stat-trend.down {
+      background: rgba(239, 68, 68, 0.1);
+      color: #ef4444;
+    }
+
+    .stat-content h3 {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+
+    .stat-value {
+      font-size: 36px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      background: var(--gradient-primary);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .stat-card.gradient-success .stat-value {
+      background: var(--gradient-success);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .stat-card.gradient-warning .stat-value {
+      background: var(--gradient-warning);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .stat-card.gradient-info .stat-value {
+      background: var(--gradient-info);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .stat-footer {
+      font-size: 13px;
+      color: var(--text-tertiary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* 配置卡片网格 */
+    .config-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+      gap: 20px;
+      margin-top: 24px;
+    }
+
+    .config-card {
+      background: var(--bg-glass);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 24px;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .config-card::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: var(--gradient-primary);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      pointer-events: none;
+    }
+
+    .config-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+      border-color: rgba(102, 126, 234, 0.3);
+    }
+
+    .config-card:hover::after {
+      opacity: 0.03;
+    }
+
+    .config-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .config-badge {
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .config-badge.sensitive {
+      background: rgba(239, 68, 68, 0.1);
+      color: #ef4444;
+    }
+
+    .config-badge.normal {
+      background: rgba(59, 130, 246, 0.1);
+      color: #3b82f6;
+    }
+
+    .config-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .action-btn {
+      width: 32px;
+      height: 32px;
+      border: none;
+      border-radius: 8px;
+      background: var(--bg-hover);
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .action-btn:hover {
+      background: var(--gradient-primary);
+      color: white;
+      transform: scale(1.1);
+    }
+
+    .config-title {
+      font-size: 16px;
+      font-weight: 600;
+      font-family: 'Courier New', monospace;
+      margin-bottom: 12px;
+      color: var(--text-primary);
+    }
+
+    .config-value {
+      padding: 16px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 12px;
+      word-break: break-all;
+      line-height: 1.6;
+      transition: all 0.2s ease;
+    }
+
+    .config-value.sensitive {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .config-value.sensitive:hover {
+      border-color: rgba(102, 126, 234, 0.3);
+      background: var(--bg-hover);
+    }
+
+    .config-value.revealed {
+      color: #667eea;
+      user-select: text;
+    }
+
+    .toggle-icon {
+      opacity: 0.5;
+      transition: opacity 0.2s ease;
+    }
+
+    .config-value.sensitive:hover .toggle-icon {
+      opacity: 1;
+    }
+
+    .config-desc {
+      font-size: 12px;
+      color: var(--text-tertiary);
+      line-height: 1.5;
+    }
+
+    /* 按钮样式 */
+    .btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.3s ease;
+      text-decoration: none;
+    }
+
+    .btn-primary {
+      background: var(--gradient-primary);
+      color: white;
+      box-shadow: var(--shadow-glow);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-secondary {
+      background: var(--bg-glass);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+    }
+
+    .btn-secondary:hover {
+      background: var(--bg-hover);
+    }
+
+    /* 模态框 */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(8px);
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .modal.show {
+      display: flex;
+    }
+
+    .modal-content {
+      background: var(--bg-glass);
+      backdrop-filter: blur(40px);
+      border: 1px solid var(--border-color);
+      border-radius: 24px;
+      padding: 40px;
+      max-width: 560px;
+      width: 90%;
+      max-height: 85vh;
+      overflow-y: auto;
+      box-shadow: var(--shadow-lg);
+      animation: slideUp 0.3s ease;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(40px);
+      }
+      to {
+        opacity: 1;
        transform: translateY(0);
      }
    }
@@ -1207,115 +1243,131 @@ function handleHomepage(req) {
      display: flex;
      justify-content: space-between;
      align-items: center;
-     margin-bottom: 24px;
-     padding-bottom: 16px;
+     margin-bottom: 28px;
+     padding-bottom: 20px;
      border-bottom: 1px solid var(--border-color);
    }
 
    .modal-title {
-     font-size: 20px;
+     font-size: 24px;
      font-weight: 700;
-     color: var(--text-primary);
+     background: var(--gradient-primary);
+     -webkit-background-clip: text;
+     -webkit-text-fill-color: transparent;
+     background-clip: text;
    }
 
    .close-btn {
-     background: var(--bg-tertiary);
+     width: 40px;
+     height: 40px;
      border: none;
-     width: 32px;
-     height: 32px;
-     border-radius: 8px;
-     font-size: 20px;
-     cursor: pointer;
+     border-radius: 10px;
+     background: var(--bg-hover);
      color: var(--text-secondary);
+     font-size: 24px;
+     cursor: pointer;
      display: flex;
      align-items: center;
      justify-content: center;
-     transition: all 0.3s ease;
+     transition: all 0.2s ease;
    }
 
    .close-btn:hover {
-     background: var(--border-color);
-     color: var(--text-primary);
+     background: rgba(239, 68, 68, 0.1);
+     color: #ef4444;
      transform: rotate(90deg);
    }
 
    .form-group {
-     margin-bottom: 20px;
+     margin-bottom: 24px;
    }
 
    .form-label {
      display: block;
      font-size: 14px;
      font-weight: 600;
-     margin-bottom: 8px;
+     margin-bottom: 10px;
      color: var(--text-primary);
    }
 
-   .form-input, .form-textarea {
+   .form-input,
+   .form-textarea {
      width: 100%;
-     padding: 12px 14px;
+     padding: 14px 18px;
      border: 1px solid var(--border-color);
-     border-radius: 8px;
+     border-radius: 12px;
      font-size: 14px;
      font-family: inherit;
-     background: var(--bg-tertiary);
+     background: var(--bg-card);
      color: var(--text-primary);
      transition: all 0.3s ease;
    }
 
    .form-textarea {
-     min-height: 120px;
+     min-height: 140px;
      font-family: 'Courier New', monospace;
      resize: vertical;
+     line-height: 1.6;
    }
 
-   .form-input:focus, .form-textarea:focus {
+   .form-input:focus,
+   .form-textarea:focus {
      outline: none;
-     border-color: var(--accent-primary);
+     border-color: rgba(102, 126, 234, 0.5);
      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-     background: var(--bg-secondary);
+     background: var(--bg-glass);
    }
 
    .form-hint {
      font-size: 12px;
      color: var(--text-tertiary);
-     margin-top: 6px;
+     margin-top: 8px;
      line-height: 1.5;
+     display: flex;
+     align-items: flex-start;
+     gap: 8px;
+   }
+
+   .form-hint::before {
+     content: '💡';
+     flex-shrink: 0;
    }
 
    .modal-footer {
      display: flex;
      gap: 12px;
      justify-content: flex-end;
-     margin-top: 24px;
-     padding-top: 16px;
+     margin-top: 32px;
+     padding-top: 24px;
      border-top: 1px solid var(--border-color);
    }
 
-   /* Toast提示 */
+   /* Toast 通知 */
    .toast {
      position: fixed;
-     bottom: 28px;
-     right: 28px;
-     background: var(--bg-secondary);
-     border-radius: 10px;
-     padding: 16px 24px;
+     bottom: 32px;
+     right: 32px;
+     background: var(--bg-glass);
+     backdrop-filter: blur(40px);
+     border: 1px solid var(--border-color);
+     border-radius: 16px;
+     padding: 20px 24px;
      box-shadow: var(--shadow-lg);
      display: none;
      align-items: center;
-     gap: 12px;
-     z-index: 2000;
-     border: 1px solid var(--border-color);
+     gap: 16px;
+     z-index: 3000;
      animation: slideInRight 0.3s ease;
-     max-width: 400px;
+     max-width: 420px;
+     min-width: 320px;
    }
 
    @keyframes slideInRight {
-     from { 
+     from {
        transform: translateX(400px);
        opacity: 0;
      }
-     to { 
+     to {
        transform: translateX(0);
        opacity: 1;
      }
@@ -1325,36 +1377,155 @@ function handleHomepage(req) {
      display: flex;
    }
 
-   .toast.success { border-left: 4px solid var(--accent-success); }
-   .toast.error { border-left: 4px solid var(--accent-danger); }
-   .toast.info { border-left: 4px solid #4299e1; }
+   .toast.success {
+     border-left: 4px solid #10b981;
+   }
+
+   .toast.error {
+     border-left: 4px solid #ef4444;
+   }
+
+   .toast.info {
+     border-left: 4px solid #3b82f6;
+   }
 
    .toast-icon {
-     font-size: 20px;
+     font-size: 24px;
+     flex-shrink: 0;
+   }
+
+   .toast-content {
+     flex: 1;
+   }
+
+   .toast-title {
+     font-size: 14px;
+     font-weight: 600;
+     margin-bottom: 4px;
+     color: var(--text-primary);
    }
 
    .toast-message {
-     color: var(--text-primary);
-     font-size: 14px;
+     font-size: 13px;
+     color: var(--text-secondary);
+     line-height: 1.5;
+   }
+
+   /* 卡片容器 */
+   .card {
+     background: var(--bg-glass);
+     backdrop-filter: blur(20px);
+     border: 1px solid var(--border-color);
+     border-radius: 20px;
+     padding: 32px;
+     margin-bottom: 24px;
+   }
+
+   .card-header {
+     display: flex;
+     justify-content: space-between;
+     align-items: center;
+     margin-bottom: 28px;
+   }
+
+   .card-title {
+     font-size: 20px;
+     font-weight: 700;
+     display: flex;
+     align-items: center;
+     gap: 12px;
+   }
+
+   .card-title-icon {
+     font-size: 24px;
+   }
+
+   /* 工具栏 */
+   .toolbar {
+     display: flex;
+     gap: 12px;
+     margin-bottom: 24px;
+     flex-wrap: wrap;
+   }
+
+   .filter-group {
+     display: flex;
+     gap: 8px;
+     padding: 8px;
+     background: var(--bg-card);
+     border-radius: 12px;
+     border: 1px solid var(--border-color);
+   }
+
+   .filter-btn {
+     padding: 8px 16px;
+     border: none;
+     border-radius: 8px;
+     background: transparent;
+     color: var(--text-secondary);
+     font-size: 13px;
      font-weight: 500;
+     cursor: pointer;
+     transition: all 0.2s ease;
    }
 
-   /* 页面内容 */
-   .page {
-     display: none;
+   .filter-btn:hover {
+     background: var(--bg-hover);
+     color: var(--text-primary);
    }
 
-   .page.active {
-     display: block;
+   .filter-btn.active {
+     background: var(--gradient-primary);
+     color: white;
    }
 
-   /* 响应式 */
+   /* 空状态 */
+   .empty-state {
+     text-align: center;
+     padding: 60px 24px;
+   }
+
+   .empty-icon {
+     font-size: 64px;
+     margin-bottom: 20px;
+     opacity: 0.5;
+   }
+
+   .empty-title {
+     font-size: 18px;
+     font-weight: 600;
+     margin-bottom: 8px;
+     color: var(--text-primary);
+   }
+
+   .empty-desc {
+     font-size: 14px;
+     color: var(--text-tertiary);
+     margin-bottom: 24px;
+   }
+
+   /* 加载动画 */
+   .loading-spinner {
+     width: 40px;
+     height: 40px;
+     border: 4px solid var(--border-color);
+     border-top-color: #667eea;
+     border-radius: 50%;
+     animation: spin 0.8s linear infinite;
+     margin: 40px auto;
+   }
+
+   @keyframes spin {
+     to { transform: rotate(360deg); }
+   }
+
+   /* 响应式设计 */
    @media (max-width: 1024px) {
      .sidebar {
        transform: translateX(-100%);
      }
 
-     .sidebar.show {
+     .sidebar.open {
        transform: translateX(0);
      }
 
@@ -1362,381 +1533,457 @@ function handleHomepage(req) {
        margin-left: 0;
      }
 
-     .menu-toggle {
-       display: flex;
-     }
-   }
-
-   @media (max-width: 480px) {
-     .quick-settings {
-       gap: 16px;
+     .config-grid {
+       grid-template-columns: 1fr;
      }
 
-     .setting-item {
-       padding: 14px;
-     }
-
-     .setting-input {
-       padding: 10px 12px;
-       font-size: 13px;
-     }
-
-     .card {
-       padding: 20px 16px;
+     .stats-grid {
+       grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
      }
    }
 
    @media (max-width: 768px) {
-     .container {
+     .main-content {
        padding: 20px 16px;
      }
 
-     .stats-grid {
-       grid-template-columns: 1fr;
-     }
-
-     .quick-settings {
-       grid-template-columns: 1fr;
-     }
-
-     .setting-item {
-       padding: 16px;
-     }
-
-     .setting-control {
+     .topbar {
        flex-direction: column;
-       align-items: stretch;
+       align-items: flex-start;
      }
 
-     .setting-input {
+     .search-input {
        width: 100%;
      }
 
-     .top-bar {
-       padding: 12px 16px;
+     .topbar-actions {
+       width: 100%;
+       justify-content: space-between;
      }
 
      .modal-content {
-       padding: 24px 20px;
+       padding: 28px 24px;
      }
 
      .toast {
        bottom: 20px;
-       right: 16px;
-       left: 16px;
+       right: 20px;
+       left: 20px;
        max-width: none;
      }
    }
 
+   /* 滚动条样式 */
    ::-webkit-scrollbar {
      width: 8px;
      height: 8px;
    }
 
    ::-webkit-scrollbar-track {
-     background: var(--bg-tertiary);
+     background: var(--bg-card);
      border-radius: 4px;
    }
 
    ::-webkit-scrollbar-thumb {
      background: var(--border-color);
      border-radius: 4px;
+     transition: background 0.2s ease;
    }
 
    ::-webkit-scrollbar-thumb:hover {
      background: var(--text-tertiary);
    }
+
+   /* 移动端侧边栏遮罩 */
+   .sidebar-overlay {
+     display: none;
+     position: fixed;
+     top: 0;
+     left: 0;
+     right: 0;
+     bottom: 0;
+     background: rgba(0, 0, 0, 0.5);
+     backdrop-filter: blur(4px);
+     z-index: 999;
+   }
+
+   .sidebar-overlay.show {
+     display: block;
+   }
+
+   /* 菜单按钮（移动端） */
+   .menu-toggle {
+     display: none;
+   }
+
+   @media (max-width: 1024px) {
+     .menu-toggle {
+       display: flex;
+     }
+   }
+
+   /* 快捷键提示 */
+   .keyboard-hint {
+     display: inline-flex;
+     align-items: center;
+     gap: 4px;
+     padding: 4px 8px;
+     background: var(--bg-card);
+     border: 1px solid var(--border-color);
+     border-radius: 6px;
+     font-size: 11px;
+     font-family: 'Courier New', monospace;
+     color: var(--text-tertiary);
+   }
+
+   /* 徽章 */
+   .badge {
+     display: inline-flex;
+     align-items: center;
+     padding: 4px 10px;
+     border-radius: 12px;
+     font-size: 11px;
+     font-weight: 600;
+     letter-spacing: 0.5px;
+   }
+
+   .badge-success {
+     background: rgba(16, 185, 129, 0.1);
+     color: #10b981;
+   }
+
+   .badge-warning {
+     background: rgba(245, 158, 11, 0.1);
+     color: #f59e0b;
+   }
+
+   .badge-error {
+     background: rgba(239, 68, 68, 0.1);
+     color: #ef4444;
+   }
+
+   .badge-info {
+     background: rgba(59, 130, 246, 0.1);
+     color: #3b82f6;
+   }
+
+   /* 进度条 */
+   .progress-bar {
+     width: 100%;
+     height: 6px;
+     background: var(--bg-card);
+     border-radius: 3px;
+     overflow: hidden;
+     position: relative;
+   }
+
+   .progress-fill {
+     height: 100%;
+     background: var(--gradient-primary);
+     border-radius: 3px;
+     transition: width 0.3s ease;
+   }
+
+   /* 动画效果 */
+   @keyframes pulse {
+     0%, 100% { opacity: 1; }
+     50% { opacity: 0.5; }
+   }
+
+   .pulse {
+     animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+   }
+
+   @keyframes bounce {
+     0%, 100% { transform: translateY(0); }
+     50% { transform: translateY(-10px); }
+   }
+
+   .bounce {
+     animation: bounce 1s infinite;
+   }
  </style>
 </head>
 <body>
- <!-- 侧边栏 -->
- <aside class="sidebar" id="sidebar">
-   <div class="logo-section">
-     <div class="logo-container">
-       <div class="logo-icon">🎬</div>
-       <div class="logo-text">
-         <h1>弹幕 API</h1>
-         <p>控制中心</p>
+ <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+ <div class="app-container">
+   <!-- 侧边栏 -->
+   <aside class="sidebar" id="sidebar">
+     <div class="sidebar-header">
+       <div class="logo-container">
+         <div class="logo-icon">🎬</div>
+         <div class="logo-text">
+           <h1>弹幕 API</h1>
+           <p>Management</p>
+         </div>
        </div>
      </div>
-   </div>
-   
-   <ul class="nav-menu">
-     <li class="nav-item">
-       <a class="nav-link active" onclick="showPage('dashboard')">
-         <span class="nav-icon">📊</span>
-         <span>控制面板</span>
-       </a>
-     </li>
-     <li class="nav-item">
-       <a class="nav-link" onclick="showPage('settings')">
-         <span class="nav-icon">⚙️</span>
-         <span>环境变量</span>
-       </a>
-     </li>
-     <li class="nav-item">
-       <a class="nav-link" onclick="showPage('logs')">
-         <span class="nav-icon">📝</span>
-         <span>运行日志</span>
-       </a>
-     </li>
-     <li class="nav-item">
-       <a class="nav-link" onclick="changePassword()">
-         <span class="nav-icon">🔑</span>
-         <span>修改密码</span>
-       </a>
-     </li>
-     <li class="nav-item">
-       <a class="nav-link" onclick="logout()">
-         <span class="nav-icon">🚪</span>
-         <span>退出登录</span>
-       </a>
-     </li>
-   </ul>
- </aside>
 
- <!-- 主内容区 -->
- <div class="main-content" id="mainContent">
-   <!-- 顶部栏 -->
-   <div class="top-bar">
-     <div class="top-bar-left">
-       <button class="menu-toggle" id="menuToggle" onclick="toggleSidebar()">☰</button>
-       <h2 class="page-title" id="pageTitle">控制面板</h2>
-     </div>
-     <div class="top-bar-actions">
-       <button class="theme-toggle" onclick="toggleTheme()" title="切换主题">🌓</button>
-     </div>
-   </div>
-
-   <div class="container">
-     <!-- 控制面板页面 -->
-     <div class="page active" id="dashboard">
-       <!-- 统计卡片 -->
-       <div class="stats-grid">
-         <div class="stat-card success">
-           <div class="stat-header">
-             <div class="stat-icon">📊</div>
-             <span class="stat-badge badge-success">活跃</span>
+     <nav class="sidebar-nav">
+       <div class="nav-section">
+         <div class="nav-section-title">主要功能</div>
+         <a class="nav-item active" href="#dashboard" onclick="showSection('dashboard')">
+           <div class="nav-icon">
+             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+               <rect x="3" y="3" width="7" height="7"></rect>
+               <rect x="14" y="3" width="7" height="7"></rect>
+               <rect x="14" y="14" width="7" height="7"></rect>
+               <rect x="3" y="14" width="7" height="7"></rect>
+             </svg>
            </div>
-           <div class="stat-title">环境变量配置</div>
+           <span>控制台</span>
+         </a>
+         <a class="nav-item" href="#config" onclick="showSection('config')">
+           <div class="nav-icon">
+             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+               <circle cx="12" cy="12" r="3"></circle>
+               <path d="M12 1v6m0 6v6m5.66-13.66l-4.24 4.24m0 6.84l4.24 4.24M23 12h-6m-6 0H1m18.66 5.66l-4.24-4.24m0-6.84l4.24-4.24"></path>
+             </svg>
+           </div>
+           <span>环境配置</span>
+         </a>
+         <a class="nav-item" href="#logs" onclick="showSection('logs')">
+           <div class="nav-icon">
+             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+               <polyline points="14 2 14 8 20 8"></polyline>
+               <line x1="16" y1="13" x2="8" y2="13"></line>
+               <line x1="16" y1="17" x2="8" y2="17"></line>
+               <polyline points="10 9 9 9 8 9"></polyline>
+             </svg>
+           </div>
+           <span>系统日志</span>
+         </a>
+       </div>
+
+       <div class="nav-section">
+         <div class="nav-section-title">系统设置</div>
+         <a class="nav-item" href="#api-docs" onclick="showSection('api-docs')">
+           <div class="nav-icon">
+             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+               <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+               <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+             </svg>
+           </div>
+           <span>API 文档</span>
+         </a>
+         <a class="nav-item" href="#" onclick="changePassword()">
+           <div class="nav-icon">
+             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+               <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+               <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+             </svg>
+           </div>
+           <span>修改密码</span>
+         </a>
+       </div>
+     </nav>
+
+     <div class="sidebar-footer">
+       <div class="user-info">
+         <div class="user-avatar">A</div>
+         <div class="user-details">
+           <h4>管理员</h4>
+           <p>超级管理员</p>
+         </div>
+       </div>
+     </div>
+   </aside>
+
+   <!-- 主内容区 -->
+   <main class="main-content">
+     <!-- 顶部栏 -->
+     <div class="topbar">
+       <div class="page-title">
+         <h2>控制台</h2>
+         <p>系统概览与实时监控</p>
+       </div>
+       <div class="topbar-actions">
+         <button class="icon-btn menu-toggle" onclick="toggleSidebar()" title="菜单">
+           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+             <line x1="3" y1="12" x2="21" y2="12"></line>
+             <line x1="3" y1="6" x2="21" y2="6"></line>
+             <line x1="3" y1="18" x2="21" y2="18"></line>
+           </svg>
+         </button>
+         <div class="search-box">
+           <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+             <circle cx="11" cy="11" r="8"></circle>
+             <path d="m21 21-4.35-4.35"></path>
+           </svg>
+           <input type="text" class="search-input" id="globalSearch" placeholder="搜索配置项..." oninput="filterConfigs()">
+         </div>
+         <button class="icon-btn" onclick="toggleTheme()" title="切换主题">
+           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+             <circle cx="12" cy="12" r="5"></circle>
+             <line x1="12" y1="1" x2="12" y2="3"></line>
+             <line x1="12" y1="21" x2="12" y2="23"></line>
+             <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+             <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+             <line x1="1" y1="12" x2="3" y2="12"></line>
+             <line x1="21" y1="12" x2="23" y2="12"></line>
+             <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+             <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+           </svg>
+         </button>
+         <button class="icon-btn" onclick="showNotifications()" title="通知">
+           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+             <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+           </svg>
+         </button>
+         <button class="btn btn-secondary" onclick="logout()">
+           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+             <polyline points="16 17 21 12 16 7"></polyline>
+             <line x1="21" y1="12" x2="9" y2="12"></line>
+           </svg>
+           退出登录
+         </button>
+       </div>
+     </div>
+
+     <!-- 统计卡片 -->
+     <div class="stats-grid">
+       <div class="stat-card">
+         <div class="stat-header">
+           <div class="stat-icon">⚙️</div>
+           <div class="stat-trend">
+             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+               <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+             </svg>
+             ${Math.round((configuredEnvCount / totalEnvCount) * 100)}%
+           </div>
+         </div>
+         <div class="stat-content">
+           <h3>环境变量配置</h3>
            <div class="stat-value">${configuredEnvCount}/${totalEnvCount}</div>
            <div class="stat-footer">
-             <span>✅</span>
-             <span>已配置 ${Math.round((configuredEnvCount/totalEnvCount)*100)}%</span>
+             <span class="badge badge-info">已配置</span>
+             <span>${totalEnvCount - configuredEnvCount} 项待配置</span>
            </div>
          </div>
+       </div>
 
-         <div class="stat-card ${globals.databaseValid || (redisConfigured && globals.redisValid) ? 'success' : 'warning'}">
-           <div class="stat-header">
-             <div class="stat-icon">💾</div>
-             <span class="stat-badge ${globals.databaseValid || (redisConfigured && globals.redisValid) ? 'badge-success' : 'badge-warning'}">
-               ${globals.databaseValid || (redisConfigured && globals.redisValid) ? '在线' : '离线'}
-             </span>
-           </div>
-           <div class="stat-title">持久化存储</div>
+       <div class="stat-card gradient-success">
+         <div class="stat-header">
+           <div class="stat-icon">💾</div>
+           <span class="badge ${
+             globals.databaseValid ? 'badge-success' : 
+             (globals.redisValid ? 'badge-info' : 'badge-warning')
+           }">
+             ${
+               globals.databaseValid ? '数据库' : 
+               (globals.redisValid ? 'Redis' : '内存')
+             }
+           </span>
+         </div>
+         <div class="stat-content">
+           <h3>持久化存储</h3>
            <div class="stat-value">${
              globals.databaseValid ? '数据库' : 
-             (redisConfigured && globals.redisValid) ? 'Redis' : 
-             '内存'
+             (globals.redisValid ? 'Redis' : '内存')
            }</div>
            <div class="stat-footer">
-             <span>${globals.databaseValid || (redisConfigured && globals.redisValid) ? '🟢' : '🟡'}</span>
-             <span>${
-               globals.databaseValid ? '数据库连接正常' : 
-               (redisConfigured && globals.redisValid) ? 'Redis连接正常' : 
-               '仅使用内存缓存'
-             }</span>
+             <span class="badge ${
+               globals.databaseValid ? 'badge-success' : 
+               (globals.redisValid ? 'badge-success' : 'badge-warning')
+             }">
+               ${
+                 globals.databaseValid ? '✅ 在线' : 
+                 (globals.redisValid ? '✅ 在线' : '⚠️ 仅内存')
+               }
+             </span>
            </div>
          </div>
+       </div>
 
-         <div class="stat-card info">
-           <div class="stat-header">
-             <div class="stat-icon">🔗</div>
-             <span class="stat-badge badge-success">运行中</span>
+       <div class="stat-card gradient-warning">
+         <div class="stat-header">
+           <div class="stat-icon">🔗</div>
+           <div class="stat-trend">
+             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+               <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+             </svg>
+             活跃
            </div>
-           <div class="stat-title">弹幕数据源</div>
+         </div>
+         <div class="stat-content">
+           <h3>弹幕数据源</h3>
            <div class="stat-value">${globals.sourceOrderArr.length || 7}</div>
            <div class="stat-footer">
-             <span>⚡</span>
-             <span>${globals.sourceOrderArr.length > 0 ? `优先: ${globals.sourceOrderArr[0]}` : '使用默认顺序'}</span>
+             <span class="badge badge-warning">优先: ${globals.sourceOrderArr[0] || '默认'}</span>
            </div>
          </div>
+       </div>
 
-         <div class="stat-card">
-           <div class="stat-header">
-             <div class="stat-icon">🚀</div>
-             <span class="stat-badge badge-success">稳定</span>
-           </div>
-           <div class="stat-title">服务版本</div>
-           <div class="stat-value">${globals.VERSION || 'v1.0'}</div>
+       <div class="stat-card gradient-info">
+         <div class="stat-header">
+           <div class="stat-icon">🚀</div>
+           <span class="badge badge-success">运行中</span>
+         </div>
+         <div class="stat-content">
+           <h3>服务状态</h3>
+           <div class="stat-value">正常</div>
            <div class="stat-footer">
-             <span>📦</span>
-             <span>最新版本</span>
-           </div>
-         </div>
-       </div>
-
-       <!-- 快速配置 -->
-       <div class="card">
-         <div class="card-header">
-           <h3 class="card-title">
-             <span class="card-title-icon">⚡</span>
-             快速配置
-           </h3>
-           <button class="btn btn-primary btn-sm" onclick="saveQuickSettings()">💾 保存设置</button>
-         </div>
-
-         <div class="quick-settings">
-           <!-- 白色弹幕占比 -->
-           <div class="setting-item">
-             <div class="setting-header">
-               <span class="setting-label">🎨 白色弹幕占比</span>
-             </div>
-             <div class="setting-control">
-               <input 
-                 type="range" 
-                 class="setting-input" 
-                 id="whiteRatio" 
-                 min="-1" 
-                 max="100" 
-                 value="${globals.whiteRatio || -1}"
-                 oninput="updateRangeValue('whiteRatio', this.value)"
-               >
-               <span class="setting-value" id="whiteRatioValue">${globals.whiteRatio || -1}${globals.whiteRatio === -1 ? '' : '%'}</span>
-             </div>
-             <div class="setting-desc">
-               设置白色弹幕的占比(0-100%)，-1表示不转换颜色
-             </div>
-           </div>
-
-           <!-- 弹幕限制 -->
-           <div class="setting-item">
-             <div class="setting-header">
-               <span class="setting-label">📊 弹幕数量限制</span>
-             </div>
-             <div class="setting-control">
-               <input 
-                 type="number" 
-                 class="setting-input" 
-                 id="danmuLimit" 
-                 value="${globals.danmuLimit || -1}"
-                 placeholder="输入数量，-1为不限制"
-               >
-             </div>
-             <div class="setting-desc">
-               限制返回的弹幕数量，-1表示不限制
-             </div>
-           </div>
-
-           <!-- 繁简转换 -->
-           <div class="setting-item">
-             <div class="setting-header">
-               <span class="setting-label">🔤 繁体转简体</span>
-               <div class="switch ${globals.danmuSimplified !== false ? 'active' : ''}" 
-                    id="danmuSimplified" 
-                    onclick="toggleSwitch('danmuSimplified')">
-               </div>
-             </div>
-             <div class="setting-desc">
-               自动将繁体中文弹幕转换为简体中文
-             </div>
-           </div>
-
-<!-- 弹幕类型转换 -->
-           <div class="setting-item">
-             <div class="setting-header">
-               <span class="setting-label">🔄 顶底转滚动</span>
-               <div class="switch ${globals.convertTopBottomToScroll ? 'active' : ''}" 
-                    id="convertTopBottomToScroll" 
-                    onclick="toggleSwitch('convertTopBottomToScroll')">
-               </div>
-             </div>
-             <div class="setting-desc">
-               将顶部/底部弹幕转换为滚动弹幕
-             </div>
-           </div>
-
-           <!-- 合并时间窗口 -->
-           <div class="setting-item">
-             <div class="setting-header">
-               <span class="setting-label">⏱️ 合并时间窗口</span>
-             </div>
-             <div class="setting-control">
-               <input 
-                 type="number" 
-                 class="setting-input" 
-                 id="groupMinute" 
-                 value="${globals.groupMinute || 1}"
-                 min="1"
-                 max="10"
-                 placeholder="输入分钟数"
-               >
-             </div>
-             <div class="setting-desc">
-               弹幕合并去重的时间窗口(分钟)
-             </div>
-           </div>
-
-           <!-- 输出格式 -->
-           <div class="setting-item">
-             <div class="setting-header">
-               <span class="setting-label">📄 输出格式</span>
-             </div>
-             <div class="setting-control">
-               <select class="setting-input" id="danmuOutputFormat">
-                 <option value="json" ${globals.danmuOutputFormat === 'json' ? 'selected' : ''}>JSON</option>
-                 <option value="xml" ${globals.danmuOutputFormat === 'xml' ? 'selected' : ''}>XML</option>
-               </select>
-             </div>
-             <div class="setting-desc">
-               弹幕数据的输出格式
-             </div>
+             <span class="badge badge-info">版本 ${globals.VERSION}</span>
            </div>
          </div>
        </div>
      </div>
 
-     <!-- 环境变量设置页面 -->
-     <div class="page" id="settings">
-       <div class="card">
-         <div class="card-header">
-           <h3 class="card-title">
-             <span class="card-title-icon">⚙️</span>
-             环境变量配置
-           </h3>
-           <button class="btn btn-primary btn-sm" onclick="saveAll()">💾 保存全部</button>
+     <!-- 配置管理卡片 -->
+     <div class="card">
+       <div class="card-header">
+         <div class="card-title">
+           <span class="card-title-icon">⚙️</span>
+           <span>环境变量配置</span>
          </div>
-         
-         <div class="search-box">
-           <input type="text" class="search-input" placeholder="搜索环境变量..." id="searchInput" oninput="filterEnvs()">
-         </div>
-
-         <div class="env-grid" id="envGrid">
-           ${envItemsHtml}
-         </div>
-       </div>
-     </div>
-
-     <!-- 运行日志页面 -->
-     <div class="page" id="logs">
-       <div class="card">
-         <div class="card-header">
-           <h3 class="card-title">
-             <span class="card-title-icon">📝</span>
-             运行日志
-           </h3>
-           <button class="btn btn-secondary btn-sm" onclick="refreshLogs()">🔄 刷新</button>
-         </div>
-         
-         <div style="background: var(--bg-tertiary); border-radius: 8px; padding: 20px; min-height: 400px; font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.6; color: var(--text-primary); overflow-x: auto;">
-           <div id="logContent">加载中...</div>
+         <div style="display: flex; gap: 12px;">
+           <button class="btn btn-secondary" onclick="refreshConfig()">
+             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+               <polyline points="23 4 23 10 17 10"></polyline>
+               <polyline points="1 20 1 14 7 14"></polyline>
+               <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+             </svg>
+             刷新
+           </button>
+           <button class="btn btn-primary" onclick="saveAllConfig()">
+             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+               <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+               <polyline points="17 21 17 13 7 13 7 21"></polyline>
+               <polyline points="7 3 7 8 15 8"></polyline>
+             </svg>
+             保存全部
+             <span class="keyboard-hint">Ctrl+S</span>
+           </button>
          </div>
        </div>
+
+       <div class="toolbar">
+         <div class="filter-group">
+           <button class="filter-btn active" onclick="filterByType('all')">全部</button>
+           <button class="filter-btn" onclick="filterByType('sensitive')">🔒 敏感</button>
+           <button class="filter-btn" onclick="filterByType('configured')">✅ 已配置</button>
+           <button class="filter-btn" onclick="filterByType('empty')">⚠️ 未配置</button>
+         </div>
+       </div>
+
+       <div class="config-grid" id="configGrid">
+         ${envItemsHtml}
+       </div>
+
+       <div class="empty-state" id="emptyState" style="display: none;">
+         <div class="empty-icon">🔍</div>
+         <div class="empty-title">未找到配置项</div>
+         <div class="empty-desc">尝试调整搜索关键词或筛选条件</div>
+       </div>
      </div>
-   </div>
+   </main>
  </div>
 
- <!-- 编辑环境变量弹窗 -->
+ <!-- 编辑配置弹窗 -->
  <div class="modal" id="editModal">
    <div class="modal-content">
      <div class="modal-header">
@@ -1745,16 +1992,21 @@ function handleHomepage(req) {
      </div>
      <div class="form-group">
        <label class="form-label">变量名</label>
-       <input type="text" class="form-input" id="editKey" readonly>
+       <input type="text" class="form-input" id="editKey" readonly style="background: var(--bg-card); cursor: not-allowed;">
      </div>
      <div class="form-group">
        <label class="form-label">配置值</label>
-       <textarea class="form-textarea" id="editValue" placeholder="请输入配置值"></textarea>
+       <textarea class="form-textarea" id="editValue" placeholder="请输入配置值..."></textarea>
        <div class="form-hint" id="editHint"></div>
      </div>
      <div class="modal-footer">
        <button class="btn btn-secondary" onclick="closeModal()">取消</button>
-       <button class="btn btn-primary" onclick="saveEnv()">保存</button>
+       <button class="btn btn-primary" onclick="saveEnvConfig()">
+         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+           <polyline points="20 6 9 17 4 12"></polyline>
+         </svg>
+         保存更改
+       </button>
      </div>
    </div>
  </div>
@@ -1763,20 +2015,22 @@ function handleHomepage(req) {
  <div class="modal" id="passwordModal">
    <div class="modal-content">
      <div class="modal-header">
-       <h3 class="modal-title">🔑 修改密码</h3>
+       <h3 class="modal-title">🔑 修改登录凭据</h3>
        <button class="close-btn" onclick="closePasswordModal()">×</button>
      </div>
      <div class="form-group">
-       <label class="form-label">新用户名(可选)</label>
+       <label class="form-label">新用户名（可选）</label>
        <input type="text" class="form-input" id="newUsername" placeholder="留空则不修改">
+       <div class="form-hint">如不需要修改用户名，请留空</div>
      </div>
      <div class="form-group">
-       <label class="form-label">旧密码</label>
+       <label class="form-label">当前密码</label>
        <input type="password" class="form-input" id="oldPassword" placeholder="请输入当前密码" required>
      </div>
      <div class="form-group">
        <label class="form-label">新密码</label>
-       <input type="password" class="form-input" id="newPassword" placeholder="请输入新密码" required>
+       <input type="password" class="form-input" id="newPassword" placeholder="请输入新密码（至少4位）" required>
+       <div class="form-hint">密码长度至少为4位字符</div>
      </div>
      <div class="form-group">
        <label class="form-label">确认新密码</label>
@@ -1784,173 +2038,106 @@ function handleHomepage(req) {
      </div>
      <div class="modal-footer">
        <button class="btn btn-secondary" onclick="closePasswordModal()">取消</button>
-       <button class="btn btn-primary" onclick="submitPasswordChange()">确认修改</button>
+       <button class="btn btn-primary" onclick="submitPasswordChange()">
+         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+           <polyline points="20 6 9 17 4 12"></polyline>
+         </svg>
+         确认修改
+       </button>
      </div>
    </div>
  </div>
 
- <!-- Toast 提示 -->
+ <!-- Toast 通知 -->
  <div class="toast" id="toast">
    <span class="toast-icon" id="toastIcon"></span>
-   <span class="toast-message" id="toastMessage"></span>
+   <div class="toast-content">
+     <div class="toast-title" id="toastTitle"></div>
+     <div class="toast-message" id="toastMessage"></div>
+   </div>
  </div>
 
  <script>
-   // ========== 状态管理 ==========
+   // ========== 全局状态管理 ==========
    const AppState = {
      currentEditingKey: null,
      config: ${JSON.stringify(globals.accessedEnvVars)},
      revealedSecrets: new Map(),
-     currentPage: 'dashboard',
-     quickSettings: {
-       whiteRatio: ${globals.whiteRatio || -1},
-       danmuLimit: ${globals.danmuLimit || -1},
-       danmuSimplified: ${globals.danmuSimplified !== false},
-       convertTopBottomToScroll: ${globals.convertTopBottomToScroll || false},
-       groupMinute: ${globals.groupMinute || 1},
-       danmuOutputFormat: '${globals.danmuOutputFormat || 'json'}'
-     }
+     currentFilter: 'all',
+     theme: localStorage.getItem('theme') || 'dark'
    };
 
    const ENV_DESCRIPTIONS = ${JSON.stringify(ENV_DESCRIPTIONS)};
 
    // ========== 主题管理 ==========
    function initTheme() {
-     const savedTheme = localStorage.getItem('theme') || 'light';
-     document.documentElement.setAttribute('data-theme', savedTheme);
-     updateThemeIcon(savedTheme);
+     document.documentElement.setAttribute('data-theme', AppState.theme);
    }
 
    function toggleTheme() {
-     const currentTheme = document.documentElement.getAttribute('data-theme');
-     const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-     document.documentElement.setAttribute('data-theme', newTheme);
-     localStorage.setItem('theme', newTheme);
-     updateThemeIcon(newTheme);
-     showToast(newTheme === 'dark' ? '已切换到深色模式' : '已切换到浅色模式', 'info');
+     AppState.theme = AppState.theme === 'dark' ? 'light' : 'dark';
+     document.documentElement.setAttribute('data-theme', AppState.theme);
+     localStorage.setItem('theme', AppState.theme);
+     showToast('主题切换', AppState.theme === 'dark' ? '已切换到深色模式' : '已切换到浅色模式', 'info');
    }
 
-   function updateThemeIcon(theme) {
-     const btn = document.querySelector('.theme-toggle');
-     btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+   // ========== Toast 通知 ==========
+   function showToast(title, message, type = 'info') {
+     const toast = document.getElementById('toast');
+     const icon = document.getElementById('toastIcon');
+     const titleEl = document.getElementById('toastTitle');
+     const messageEl = document.getElementById('toastMessage');
+     
+     const icons = {
+       success: '✅',
+       error: '❌',
+       info: 'ℹ️',
+       warning: '⚠️'
+     };
+     
+     icon.textContent = icons[type] || icons.info;
+     titleEl.textContent = title;
+     messageEl.textContent = message;
+     toast.className = 'toast show ' + type;
+     
+     setTimeout(() => {
+       toast.classList.remove('show');
+     }, 4000);
    }
 
    // ========== 侧边栏管理 ==========
    function toggleSidebar() {
      const sidebar = document.getElementById('sidebar');
-     const mainContent = document.getElementById('mainContent');
-     
-     if (window.innerWidth <= 1024) {
-       sidebar.classList.toggle('show');
-     } else {
-       sidebar.classList.toggle('hidden');
-       mainContent.classList.toggle('expanded');
-     }
+     const overlay = document.getElementById('sidebarOverlay');
+     sidebar.classList.toggle('open');
+     overlay.classList.toggle('show');
    }
 
-   // ========== 页面切换 ==========
-   function showPage(pageName) {
-     // 更新页面显示
-     document.querySelectorAll('.page').forEach(page => {
-       page.classList.remove('active');
-     });
-     document.getElementById(pageName).classList.add('active');
+   function closeSidebar() {
+     const sidebar = document.getElementById('sidebar');
+     const overlay = document.getElementById('sidebarOverlay');
+     sidebar.classList.remove('open');
+     overlay.classList.remove('show');
+   }
 
-     // 更新导航高亮
-     document.querySelectorAll('.nav-link').forEach(link => {
-       link.classList.remove('active');
-     });
+   function showSection(section) {
+     const navItems = document.querySelectorAll('.nav-item');
+     navItems.forEach(item => item.classList.remove('active'));
      event.currentTarget.classList.add('active');
-
-     // 更新页面标题
-     const titles = {
-       'dashboard': '控制面板',
-       'settings': '环境变量',
-       'logs': '运行日志'
-     };
-     document.getElementById('pageTitle').textContent = titles[pageName] || '控制面板';
-
-     AppState.currentPage = pageName;
-
-     // 移动端自动关闭侧边栏
+     
+     // 这里可以添加切换不同内容区域的逻辑
+     showToast('导航', \`切换到 \${section} 页面\`, 'info');
+     
      if (window.innerWidth <= 1024) {
-       document.getElementById('sidebar').classList.remove('show');
-     }
-
-     // 如果是日志页面，自动加载日志
-     if (pageName === 'logs') {
-       refreshLogs();
+       closeSidebar();
      }
    }
 
-   // ========== Toast 提示 ==========
-   function showToast(message, type = 'info') {
-     const toast = document.getElementById('toast');
-     const icon = document.getElementById('toastIcon');
-     const msg = document.getElementById('toastMessage');
-     
-     const icons = {
-       success: '✅',
-       error: '❌',
-       info: 'ℹ️'
-     };
-     
-     icon.textContent = icons[type] || icons.info;
-     msg.textContent = message;
-     toast.className = 'toast show ' + type;
-     
-     setTimeout(() => {
-       toast.classList.remove('show');
-     }, 3000);
-   }
-
-   // ========== 快速设置 ==========
-   function updateRangeValue(id, value) {
-     document.getElementById(id + 'Value').textContent = value + (value == -1 ? '' : '%');
-     AppState.quickSettings[id] = parseInt(value);
-   }
-
-   function toggleSwitch(id) {
-     const switchEl = document.getElementById(id);
-     switchEl.classList.toggle('active');
-     AppState.quickSettings[id] = switchEl.classList.contains('active');
-   }
-
-   async function saveQuickSettings() {
-     try {
-       // 收集快速设置的值
-       const settings = {
-         WHITE_RATIO: document.getElementById('whiteRatio').value,
-         DANMU_LIMIT: document.getElementById('danmuLimit').value,
-         DANMU_SIMPLIFIED: document.getElementById('danmuSimplified').classList.contains('active') ? 'true' : 'false',
-         CONVERT_TOP_BOTTOM_TO_SCROLL: document.getElementById('convertTopBottomToScroll').classList.contains('active') ? 'true' : 'false',
-         GROUP_MINUTE: document.getElementById('groupMinute').value,
-         DANMU_OUTPUT_FORMAT: document.getElementById('danmuOutputFormat').value
-       };
-
-       const response = await fetch('/api/config/save', {
-         method: 'POST',
-         headers: { 'Content-Type': 'application/json' },
-         body: JSON.stringify({ config: settings })
-       });
-
-       const result = await response.json();
-       
-       if (result.success) {
-         showToast('✅ 快速设置已保存！', 'success');
-       } else {
-         showToast('保存失败: ' + (result.errorMessage || '未知错误'), 'error');
-       }
-     } catch (error) {
-       showToast('保存失败: ' + error.message, 'error');
-     }
-   }
-
-   // ========== 环境变量管理 ==========
+   // ========== 敏感信息显示/隐藏 ==========
    function toggleSensitive(element) {
      const real = element.dataset.real;
      const masked = element.dataset.masked;
-     const key = element.closest('.env-item').dataset.key;
+     const key = element.closest('.config-card').dataset.key;
      
      if (AppState.revealedSecrets.has(key)) {
        clearTimeout(AppState.revealedSecrets.get(key));
@@ -1960,61 +2147,31 @@ function handleHomepage(req) {
      const textarea = document.createElement('textarea');
      textarea.innerHTML = real;
      const realValue = textarea.value;
-     element.innerHTML = realValue + ' <span class="eye-icon">🔓</span>';
-     element.classList.add('revealed');
      
-     const timeoutId = setTimeout(() => {
-       element.innerHTML = masked + ' <span class="eye-icon">👁️</span>';
+     const valueText = element.querySelector('.value-text');
+     const toggleIcon = element.querySelector('.toggle-icon');
+     
+     if (element.classList.contains('revealed')) {
+       valueText.textContent = masked;
+       toggleIcon.textContent = '👁️';
        element.classList.remove('revealed');
-       AppState.revealedSecrets.delete(key);
-     }, 3000);
-     
-     AppState.revealedSecrets.set(key, timeoutId);
-   }
-
-   function copySensitiveValue(element, event) {
-     event.stopPropagation();
-     const real = element.dataset.real;
-     const textarea = document.createElement('textarea');
-     textarea.innerHTML = real;
-     const text = textarea.value;
-     
-     if (navigator.clipboard) {
-       navigator.clipboard.writeText(text);
      } else {
-       const temp = document.createElement('textarea');
-       temp.value = text;
-       document.body.appendChild(temp);
-       temp.select();
-       document.execCommand('copy');
-       document.body.removeChild(temp);
+       valueText.textContent = realValue;
+       toggleIcon.textContent = '🔓';
+       element.classList.add('revealed');
+       
+       const timeoutId = setTimeout(() => {
+         valueText.textContent = masked;
+         toggleIcon.textContent = '👁️';
+         element.classList.remove('revealed');
+         AppState.revealedSecrets.delete(key);
+       }, 5000);
+       
+       AppState.revealedSecrets.set(key, timeoutId);
      }
-     
-     showToast('📋 已复制到剪贴板', 'success');
    }
 
-   function copyValue(element) {
-     const original = element.dataset.original;
-     if (!original) return;
-     
-     const textarea = document.createElement('textarea');
-     textarea.innerHTML = original;
-     const text = textarea.value;
-     
-     if (navigator.clipboard) {
-       navigator.clipboard.writeText(text);
-     } else {
-       const temp = document.createElement('textarea');
-       temp.value = text;
-       document.body.appendChild(temp);
-       temp.select();
-       document.execCommand('copy');
-       document.body.removeChild(temp);
-     }
-     
-     showToast('📋 已复制到剪贴板', 'success');
-   }
-
+   // ========== 编辑配置 ==========
    function editEnv(key) {
      AppState.currentEditingKey = key;
      document.getElementById('editKey').value = key;
@@ -2025,11 +2182,17 @@ function handleHomepage(req) {
 
    function closeModal() {
      document.getElementById('editModal').classList.remove('show');
+     AppState.currentEditingKey = null;
    }
 
-   async function saveEnv() {
+   async function saveEnvConfig() {
      const key = AppState.currentEditingKey;
      const value = document.getElementById('editValue').value.trim();
+     
+     if (!key) {
+       showToast('错误', '无效的配置项', 'error');
+       return;
+     }
      
      AppState.config[key] = value;
      
@@ -2043,42 +2206,51 @@ function handleHomepage(req) {
        const result = await response.json();
        
        if (result.success) {
-         showToast('✅ 保存成功！', 'success');
+         showToast('保存成功', \`\${key} 配置已更新\`, 'success');
          updateEnvDisplay(key, value);
          closeModal();
        } else {
-         showToast('保存失败: ' + (result.errorMessage || '未知错误'), 'error');
+         showToast('保存失败', result.errorMessage || '未知错误', 'error');
        }
      } catch (error) {
-       showToast('保存失败: ' + error.message, 'error');
+       showToast('网络错误', error.message, 'error');
      }
    }
 
-   async function saveAll() {
-     try {
-       const response = await fetch('/api/config/save', {
-         method: 'POST',
-         headers: { 'Content-Type': 'application/json' },
-         body: JSON.stringify({ config: AppState.config })
-       });
-
-       const result = await response.json();
-       
-       if (result.success) {
-         showToast('✅ 全部配置已保存！', 'success');
-       } else {
-         showToast('保存失败: ' + (result.errorMessage || '未知错误'), 'error');
-       }
-     } catch (error) {
-       showToast('保存失败: ' + error.message, 'error');
+   // ========== 删除/清空配置 ==========
+   function deleteEnv(key) {
+     if (!confirm(\`确定要清空 \${key} 的配置吗？\`)) {
+       return;
      }
-   }
-
-   function updateEnvDisplay(key, value) {
-     const item = document.querySelector('.env-item[data-key="' + key + '"]');
-     if (!item) return;
      
-     const valueEl = item.querySelector('.env-value');
+     AppState.config[key] = '';
+     
+     fetch('/api/config/save', {
+       method: 'POST',
+       headers: { 'Content-Type': 'application/json' },
+       body: JSON.stringify({ config: { [key]: '' } })
+     })
+     .then(res => res.json())
+     .then(result => {
+       if (result.success) {
+         showToast('清空成功', \`\${key} 已清空\`, 'success');
+         updateEnvDisplay(key, '');
+       } else {
+         showToast('清空失败', result.errorMessage || '未知错误', 'error');
+       }
+     })
+     .catch(error => {
+       showToast('网络错误', error.message, 'error');
+     });
+   }
+
+   // ========== 更新配置显示 ==========
+   function updateEnvDisplay(key, value) {
+     const card = document.querySelector(\`.config-card[data-key="\${key}"]\`);
+     if (!card) return;
+     
+     const valueEl = card.querySelector('.config-value');
+     const valueText = valueEl.querySelector('.value-text');
      
      if (valueEl.classList.contains('sensitive')) {
        const realValue = typeof value === 'string' ? value : String(value);
@@ -2093,38 +2265,177 @@ function handleHomepage(req) {
        
        valueEl.dataset.real = encodedRealValue;
        valueEl.dataset.masked = maskedValue;
-       valueEl.innerHTML = maskedValue + ' <span class="eye-icon">👁️</span>';
+       valueText.textContent = maskedValue;
        valueEl.classList.remove('revealed');
        return;
      }
      
      if (typeof value === 'boolean') {
-       valueEl.textContent = value ? '✅ 已启用' : '❌ 已禁用';
+       valueText.textContent = value ? '✅ 已启用' : '❌ 已禁用';
      } else if (!value) {
-       valueEl.textContent = '未配置';
+       valueText.textContent = '未配置';
      } else {
-       valueEl.textContent = value.length > 80 ? value.substring(0, 80) + '...' : value;
+       valueText.textContent = value.length > 80 ? value.substring(0, 80) + '...' : value;
      }
    }
 
-   function filterEnvs() {
-     const query = document.getElementById('searchInput').value.toLowerCase();
-     const items = document.querySelectorAll('.env-item');
+   // ========== 复制配置值 ==========
+   function copyValue(key) {
+     const card = document.querySelector(\`.config-card[data-key="\${key}"]\`);
+     if (!card) return;
      
-     items.forEach(item => {
-       const label = item.querySelector('.env-label').textContent.toLowerCase();
-       const value = item.querySelector('.env-value').textContent.toLowerCase();
-       const desc = item.querySelector('.env-desc').textContent.toLowerCase();
-       
-       if (label.includes(query) || value.includes(query) || desc.includes(query)) {
-         item.style.display = '';
-       } else {
-         item.style.display = 'none';
-       }
-     });
+     const valueEl = card.querySelector('.config-value');
+     let text = '';
+     
+     if (valueEl.classList.contains('sensitive')) {
+       const textarea = document.createElement('textarea');
+       textarea.innerHTML = valueEl.dataset.real;
+       text = textarea.value;
+     } else {
+       text = valueEl.dataset.original || valueEl.querySelector('.value-text').textContent;
+     }
+     
+     if (navigator.clipboard) {
+       navigator.clipboard.writeText(text).then(() => {
+         showToast('复制成功', \`\${key} 已复制到剪贴板\`, 'success');
+       });
+     } else {
+       const temp = document.createElement('textarea');
+       temp.value = text;
+       document.body.appendChild(temp);
+       temp.select();
+       document.execCommand('copy');
+       document.body.removeChild(temp);
+       showToast('复制成功', \`\${key} 已复制到剪贴板\`, 'success');
+     }
    }
 
-   // ========== 密码管理 ==========
+   // ========== 保存全部配置 ==========
+   async function saveAllConfig() {
+     try {
+       const response = await fetch('/api/config/save', {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({ config: AppState.config })
+       });
+
+       const result = await response.json();
+       
+       if (result.success) {
+         showToast('保存成功', '全部配置已保存', 'success');
+       } else {
+         showToast('保存失败', result.errorMessage || '未知错误', 'error');
+       }
+     } catch (error) {
+       showToast('网络错误', error.message, 'error');
+     }
+   }
+
+   // ========== 刷新配置 ==========
+   async function refreshConfig() {
+     try {
+       const response = await fetch('/api/config/load');
+       const result = await response.json();
+       
+       if (result.success && result.config) {
+         AppState.config = { ...AppState.config, ...result.config };
+         for (const [key, value] of Object.entries(result.config)) {
+           updateEnvDisplay(key, value);
+         }
+         showToast('刷新成功', \`配置已从 \${result.loadedFrom.join('、')} 加载\`, 'success');
+       }
+     } catch (error) {
+       showToast('刷新失败', error.message, 'error');
+     }
+   }
+
+   // ========== 筛选配置 ==========
+   function filterByType(type) {
+     AppState.currentFilter = type;
+     
+     const filterBtns = document.querySelectorAll('.filter-btn');
+     filterBtns.forEach(btn => btn.classList.remove('active'));
+     event.currentTarget.classList.add('active');
+     
+     const cards = document.querySelectorAll('.config-card');
+     const emptyState = document.getElementById('emptyState');
+     let visibleCount = 0;
+     
+     cards.forEach(card => {
+       const key = card.dataset.key;
+       const value = AppState.config[key];
+       const isSensitive = card.querySelector('.config-badge.sensitive') !== null;
+       const isConfigured = value && value.length > 0;
+       
+       let shouldShow = true;
+       
+       switch(type) {
+         case 'sensitive':
+           shouldShow = isSensitive;
+           break;
+         case 'configured':
+           shouldShow = isConfigured;
+           break;
+         case 'empty':
+           shouldShow = !isConfigured;
+           break;
+         case 'all':
+         default:
+           shouldShow = true;
+       }
+       
+       card.style.display = shouldShow ? '' : 'none';
+       if (shouldShow) visibleCount++;
+     });
+     
+     emptyState.style.display = visibleCount === 0 ? 'block' : 'none';
+   }
+
+   // ========== 搜索配置 ==========
+   function filterConfigs() {
+     const query = document.getElementById('globalSearch').value.toLowerCase();
+     const cards = document.querySelectorAll('.config-card');
+     const emptyState = document.getElementById('emptyState');
+     let visibleCount = 0;
+     
+     cards.forEach(card => {
+       const key = card.dataset.key.toLowerCase();
+       const title = card.querySelector('.config-title').textContent.toLowerCase();
+       const desc = card.querySelector('.config-desc').textContent.toLowerCase();
+       const value = card.querySelector('.config-value .value-text').textContent.toLowerCase();
+       
+       const matches = key.includes(query) || title.includes(query) || 
+                      desc.includes(query) || value.includes(query);
+       
+       // 同时考虑当前的筛选状态
+       let typeMatch = true;
+       if (AppState.currentFilter !== 'all') {
+         const isSensitive = card.querySelector('.config-badge.sensitive') !== null;
+         const isConfigured = AppState.config[card.dataset.key] && 
+                             AppState.config[card.dataset.key].length > 0;
+         
+         switch(AppState.currentFilter) {
+           case 'sensitive':
+             typeMatch = isSensitive;
+             break;
+           case 'configured':
+             typeMatch = isConfigured;
+             break;
+           case 'empty':
+             typeMatch = !isConfigured;
+             break;
+         }
+       }
+       
+       const shouldShow = matches && typeMatch;
+       card.style.display = shouldShow ? '' : 'none';
+       if (shouldShow) visibleCount++;
+     });
+     
+     emptyState.style.display = visibleCount === 0 ? 'block' : 'none';
+   }
+
+   // ========== 修改密码 ==========
    function changePassword() {
      document.getElementById('passwordModal').classList.add('show');
    }
@@ -2144,22 +2455,22 @@ function handleHomepage(req) {
      const confirmPassword = document.getElementById('confirmPassword').value;
      
      if (!oldPassword) {
-       showToast('请输入旧密码', 'error');
+       showToast('验证失败', '请输入当前密码', 'error');
        return;
      }
      
      if (!newPassword) {
-       showToast('请输入新密码', 'error');
+       showToast('验证失败', '请输入新密码', 'error');
        return;
      }
      
      if (newPassword !== confirmPassword) {
-       showToast('两次输入的密码不一致', 'error');
+       showToast('验证失败', '两次输入的密码不一致', 'error');
        return;
      }
      
      if (newPassword.length < 4) {
-       showToast('密码长度至少为4位', 'error');
+       showToast('验证失败', '密码长度至少为4位', 'error');
        return;
      }
      
@@ -2177,113 +2488,104 @@ function handleHomepage(req) {
        const result = await response.json();
        
        if (result.success) {
-         showToast('密码修改成功，请重新登录', 'success');
+         showToast('修改成功', '密码已更新，请重新登录', 'success');
          closePasswordModal();
-         setTimeout(() => logout(), 1500);
+         setTimeout(() => logout(), 2000);
        } else {
-         showToast(result.message || '修改失败', 'error');
+         showToast('修改失败', result.message || '修改失败', 'error');
        }
      } catch (error) {
-       showToast('修改失败: ' + error.message, 'error');
+       showToast('网络错误', error.message, 'error');
      }
    }
 
-   // ========== 登录登出 ==========
+   // ========== 退出登录 ==========
    async function logout() {
      try {
        await fetch('/api/logout', { method: 'POST' });
-       window.location.href = '/';
+       showToast('退出登录', '正在退出...', 'info');
+       setTimeout(() => {
+         window.location.href = '/';
+       }, 1000);
      } catch (error) {
-       showToast('退出失败', 'error');
+       showToast('退出失败', error.message, 'error');
      }
    }
 
-   // ========== 日志管理 ==========
-   async function refreshLogs() {
-     try {
-       const response = await fetch('/api/logs?format=text&limit=1000');
-       const logs = await response.text();
-       document.getElementById('logContent').textContent = logs || '暂无日志';
-     } catch (error) {
-       document.getElementById('logContent').textContent = '加载失败: ' + error.message;
-     }
-   }
-
-   // ========== 点击主内容区关闭侧边栏 ==========
-   document.addEventListener('DOMContentLoaded', function() {
-     const mainContent = document.getElementById('mainContent');
-     if (mainContent) {
-       mainContent.addEventListener('click', function(e) {
-         if (window.innerWidth <= 1024) {
-           const sidebar = document.getElementById('sidebar');
-           if (sidebar && sidebar.classList.contains('show')) {
-             // 防止点击按钮时触发
-             if (!e.target.closest('.menu-toggle')) {
-               toggleSidebar();
-             }
-           }
-         }
-       });
-     }
-   });
-
-   // ========== 初始化加载 ==========
-   async function loadConfig() {
-
-     try {
-       const response = await fetch('/api/config/load');
-       const result = await response.json();
-       
-       if (result.success && result.config) {
-         AppState.config = { ...AppState.config, ...result.config };
-         for (const [key, value] of Object.entries(result.config)) {
-           updateEnvDisplay(key, value);
-         }
-         showToast(\`✅ 配置已从 \${result.loadedFrom.join('、')} 加载\`, 'success');
-       }
-     } catch (error) {
-       console.error('加载配置失败:', error);
-     }
+   // ========== 通知中心 ==========
+   function showNotifications() {
+     showToast('通知中心', '暂无新通知', 'info');
    }
 
    // ========== 快捷键支持 ==========
    document.addEventListener('keydown', (e) => {
+     // Ctrl+S 保存
      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
        e.preventDefault();
-       if (AppState.currentPage === 'dashboard') {
-         saveQuickSettings();
-       } else if (AppState.currentPage === 'settings') {
-         saveAll();
-       }
+       saveAllConfig();
      }
+     
+     // Esc 关闭弹窗
      if (e.key === 'Escape') {
        closeModal();
        closePasswordModal();
+       closeSidebar();
      }
-   });
-
-   // ========== 响应式处理 ==========
-   window.addEventListener('resize', () => {
-     if (window.innerWidth > 1024) {
-       document.getElementById('sidebar').classList.remove('show');
+     
+     // Ctrl+K 聚焦搜索框
+     if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+       e.preventDefault();
+       document.getElementById('globalSearch').focus();
      }
    });
 
    // ========== 初始化 ==========
-   initTheme();
-   loadConfig();
- </script>
+   function init() {
+     initTheme();
+     loadConfig();
+     
+     // 自动刷新配置（可选）
+     setInterval(() => {
+       refreshConfig();
+     }, 300000); // 每5分钟刷新一次
+     
+     console.log('%c弹幕 API 管理中心', 'color: #667eea; font-size: 24px; font-weight: bold;');
+     console.log('%c系统已就绪 ✨', 'color: #10b981; font-size: 14px;');
+   }
+
+// ========== 加载配置 ==========
+    async function loadConfig() {
+      try {
+        const response = await fetch('/api/config/load');
+        const result = await response.json();
+        
+        if (result.success && result.config) {
+          AppState.config = { ...AppState.config, ...result.config };
+          for (const [key, value] of Object.entries(result.config)) {
+            updateEnvDisplay(key, value);
+          }
+          showToast('配置加载', `已从 ${result.loadedFrom.join('、')} 加载配置`, 'success');
+        }
+      } catch (error) {
+        console.error('加载配置失败:', error);
+        showToast('加载失败', '无法加载配置数据', 'error');
+      }
+    }
+
+    // 页面加载完成后初始化
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
 </body>
 </html>
-    `;
+  `;
 
-    return new Response(html, {
-      headers: {
-        'Content-Type': 'text/html; charset=utf-8',
-        'Cache-Control': 'no-cache'
-      }
-    });
-  }
+  return new Response(html, {
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-cache'
+    }
+  });
+}
 
   if (path === "/" && method === "GET") {
     return handleHomepage(req);
@@ -2341,6 +2643,7 @@ function handleHomepage(req) {
           log("warn", `[config] 保存到数据库失败: ${e.message}`);
         }
       }
+      
       let redisSaved = false;
       if (globals.redisValid) {
         redisSaved = await mergeSaveToRedis('env_configs', sanitizedConfig);
@@ -2445,7 +2748,7 @@ function handleHomepage(req) {
     }
   }
 
-// Token 验证
+  // Token 验证
   const parts = path.split("/").filter(Boolean);
   const currentToken = String(globals.token || globals.envs.TOKEN || globals.accessedEnvVars.TOKEN || "87654321");
   log("info", `[Token Check] 当前 TOKEN: ${currentToken.substring(0, 3)}***`);
@@ -2482,6 +2785,9 @@ function handleHomepage(req) {
     '/api/logs',
     '/api/config/save',
     '/api/config/load',
+    '/api/login',
+    '/api/logout',
+    '/api/change-password',
     '/favicon.ico',
     '/robots.txt'
   ];
@@ -2611,7 +2917,7 @@ function handleHomepage(req) {
     }
   }
 
-  // 弹幕 API 路由
+  // 弹幕 API 路由（保持完整）
   if (path === "/api/v2/search/anime" && method === "GET") {
     return searchAnime(url);
   }
@@ -2623,7 +2929,7 @@ function handleHomepage(req) {
   if (path === "/api/v2/match" && method === "POST") {
     return matchAnime(url, req);
   }
-
+  
   if (path.startsWith("/api/v2/bangumi/") && method === "GET") {
     return getBangumi(path);
   }
@@ -2765,56 +3071,114 @@ function getLoginPage() {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>登录 - 弹幕 API</title>
+  <title>登录 - 弹幕 API 管理中心</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
     :root {
-      --bg-primary: #f5f7fa;
-      --bg-secondary: #ffffff;
+      --bg-main: #0a0e27;
+      --bg-card: rgba(255, 255, 255, 0.03);
+      --bg-glass: rgba(255, 255, 255, 0.05);
+      --bg-hover: rgba(255, 255, 255, 0.08);
+      --text-primary: #ffffff;
+      --text-secondary: #a0aec0;
+      --text-tertiary: #718096;
+      --border-color: rgba(255, 255, 255, 0.1);
+      --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.3);
+      --shadow-glow: 0 0 20px rgba(102, 126, 234, 0.3);
+    }
+
+    [data-theme="light"] {
+      --bg-main: #f7fafc;
+      --bg-card: #ffffff;
+      --bg-glass: rgba(255, 255, 255, 0.9);
+      --bg-hover: #edf2f7;
       --text-primary: #1a202c;
-      --text-secondary: #64748b;
+      --text-secondary: #4a5568;
+      --text-tertiary: #718096;
       --border-color: #e2e8f0;
-      --accent-primary: #667eea;
-      --accent-secondary: #764ba2;
-      --shadow: 0 10px 25px rgba(0,0,0,0.1);
+      --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
+      --shadow-glow: 0 0 20px rgba(102, 126, 234, 0.2);
     }
 
-    [data-theme="dark"] {
-      --bg-primary: #1a202c;
-      --bg-secondary: #2d3748;
-      --text-primary: #f7fafc;
-      --text-secondary: #cbd5e1;
-      --border-color: #4a5568;
-      --shadow: 0 10px 25px rgba(0,0,0,0.4);
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
     }
 
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-main);
+      color: var(--text-primary);
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
       padding: 20px;
       transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: 
+        radial-gradient(circle at 20% 30%, rgba(102, 126, 234, 0.15) 0%, transparent 50%),
+        radial-gradient(circle at 80% 70%, rgba(118, 75, 162, 0.15) 0%, transparent 50%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .theme-toggle {
+      position: fixed;
+      top: 32px;
+      right: 32px;
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      background: var(--bg-glass);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      z-index: 100;
+    }
+
+    .theme-toggle:hover {
+      transform: scale(1.1) rotate(180deg);
+      box-shadow: var(--shadow-glow);
     }
 
     .login-container {
-      background: var(--bg-secondary);
-      border-radius: 24px;
-      padding: 48px 40px;
-      width: 100%;
-      max-width: 420px;
-      box-shadow: var(--shadow);
+      background: var(--bg-glass);
+      backdrop-filter: blur(40px);
       border: 1px solid var(--border-color);
-      animation: slideUp 0.5s ease;
+      border-radius: 24px;
+      padding: 48px;
+      width: 100%;
+      max-width: 480px;
+      box-shadow: var(--shadow-lg);
+      animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+      z-index: 1;
     }
 
     @keyframes slideUp {
       from {
         opacity: 0;
-        transform: translateY(30px);
+        transform: translateY(40px);
       }
       to {
         opacity: 1;
@@ -2822,45 +3186,27 @@ function getLoginPage() {
       }
     }
 
-    .theme-toggle-login {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      width: 48px;
-      height: 48px;
-      border-radius: 12px;
-      background: rgba(255, 255, 255, 0.2);
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.3);
-      color: white;
-      font-size: 20px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.3s ease;
-    }
-
-    .theme-toggle-login:hover {
-      transform: scale(1.1);
-      background: rgba(255, 255, 255, 0.3);
-    }
-
     .logo {
       text-align: center;
-      margin-bottom: 36px;
+      margin-bottom: 40px;
     }
 
     .logo-icon {
-      font-size: 72px;
-      margin-bottom: 16px;
-      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1));
+      font-size: 64px;
+      margin-bottom: 20px;
+      display: inline-block;
+      animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
     }
 
     .logo-title {
       font-size: 28px;
       font-weight: 700;
-      background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+      background: var(--gradient-primary);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
@@ -2869,31 +3215,34 @@ function getLoginPage() {
 
     .logo-subtitle {
       font-size: 14px;
-      color: var(--text-secondary);
+      color: var(--text-tertiary);
+      letter-spacing: 2px;
+      text-transform: uppercase;
     }
 
     .hint {
-      background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
-      border-left: 4px solid var(--accent-primary);
-      padding: 14px 18px;
-      border-radius: 10px;
-      margin-bottom: 28px;
+      background: rgba(102, 126, 234, 0.1);
+      border-left: 4px solid #667eea;
+      padding: 16px 20px;
+      border-radius: 12px;
+      margin-bottom: 32px;
       font-size: 13px;
-      color: var(--text-primary);
+      color: var(--text-secondary);
+      line-height: 1.6;
     }
 
     .hint strong {
-      color: var(--accent-primary);
+      color: #667eea;
       font-weight: 600;
     }
 
     .error-message {
-      background: rgba(245, 101, 101, 0.1);
-      border-left: 4px solid var(--accent-danger);
-      color: #dc2626;
-      padding: 14px 18px;
-      border-radius: 10px;
-      margin-bottom: 20px;
+      background: rgba(239, 68, 68, 0.1);
+      border-left: 4px solid #ef4444;
+      color: #ef4444;
+      padding: 16px 20px;
+      border-radius: 12px;
+      margin-bottom: 24px;
       font-size: 13px;
       display: none;
       animation: shake 0.5s ease;
@@ -2923,21 +3272,23 @@ function getLoginPage() {
       border: 1px solid var(--border-color);
       border-radius: 12px;
       font-size: 14px;
-      background: var(--bg-primary);
+      font-family: inherit;
+      background: var(--bg-card);
       color: var(--text-primary);
       transition: all 0.3s ease;
     }
 
     .form-input:focus {
       outline: none;
-      border-color: var(--accent-primary);
+      border-color: rgba(102, 126, 234, 0.5);
       box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      background: var(--bg-glass);
     }
 
     .btn-login {
       width: 100%;
       padding: 16px;
-      background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+      background: var(--gradient-primary);
       color: white;
       border: none;
       border-radius: 12px;
@@ -2945,12 +3296,13 @@ function getLoginPage() {
       font-weight: 600;
       cursor: pointer;
       transition: all 0.3s ease;
-      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+      box-shadow: var(--shadow-glow);
+      margin-top: 8px;
     }
 
     .btn-login:hover {
       transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+      box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
     }
 
     .btn-login:active {
@@ -2965,26 +3317,35 @@ function getLoginPage() {
 
     .footer {
       text-align: center;
-      margin-top: 28px;
+      margin-top: 32px;
       font-size: 12px;
-      color: var(--text-secondary);
+      color: var(--text-tertiary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
     }
 
     @media (max-width: 480px) {
       .login-container {
         padding: 36px 28px;
       }
+      
+      .theme-toggle {
+        top: 20px;
+        right: 20px;
+      }
     }
   </style>
 </head>
 <body>
-  <button class="theme-toggle-login" onclick="toggleTheme()" title="切换主题">🌓</button>
+  <button class="theme-toggle" onclick="toggleTheme()" title="切换主题">🌓</button>
 
   <div class="login-container">
     <div class="logo">
       <div class="logo-icon">🎬</div>
       <h1 class="logo-title">弹幕 API</h1>
-      <p class="logo-subtitle">控制中心</p>
+      <p class="logo-subtitle">Management Center</p>
     </div>
 
     <div class="hint">
@@ -2996,7 +3357,7 @@ function getLoginPage() {
     <form id="loginForm">
       <div class="form-group">
         <label class="form-label">用户名</label>
-        <input type="text" class="form-input" id="username" placeholder="请输入用户名" required>
+        <input type="text" class="form-input" id="username" placeholder="请输入用户名" required autofocus>
       </div>
 
       <div class="form-group">
@@ -3004,17 +3365,21 @@ function getLoginPage() {
         <input type="password" class="form-input" id="password" placeholder="请输入密码" required>
       </div>
 
-      <button type="submit" class="btn-login" id="loginBtn">登录</button>
+      <button type="submit" class="btn-login" id="loginBtn">
+        <span>登录</span>
+      </button>
     </form>
 
     <div class="footer">
-      弹幕 API 服务 | 安全登录
+      <span>🔒</span>
+      <span>安全登录</span>
     </div>
   </div>
 
   <script>
+    // 主题管理
     function initTheme() {
-      const savedTheme = localStorage.getItem('theme') || 'light';
+      const savedTheme = localStorage.getItem('theme') || 'dark';
       document.documentElement.setAttribute('data-theme', savedTheme);
       updateThemeIcon(savedTheme);
     }
@@ -3028,7 +3393,7 @@ function getLoginPage() {
     }
 
     function updateThemeIcon(theme) {
-      const btn = document.querySelector('.theme-toggle-login');
+      const btn = document.querySelector('.theme-toggle');
       btn.textContent = theme === 'dark' ? '☀️' : '🌙';
     }
 
@@ -3046,7 +3411,7 @@ function getLoginPage() {
 
       errorMessage.style.display = 'none';
       loginBtn.disabled = true;
-      loginBtn.textContent = '登录中...';
+      loginBtn.innerHTML = '<span>登录中...</span>';
 
       try {
         const response = await fetch('/api/login', {
@@ -3058,24 +3423,25 @@ function getLoginPage() {
         const result = await response.json();
 
         if (result.success) {
-          loginBtn.textContent = '✅ 登录成功';
+          loginBtn.innerHTML = '<span>✅ 登录成功</span>';
           setTimeout(() => {
             window.location.href = '/';
           }, 500);
         } else {
-          errorMessage.textContent = result.message || '登录失败';
+          errorMessage.textContent = result.message || '登录失败，请检查用户名和密码';
           errorMessage.style.display = 'block';
           loginBtn.disabled = false;
-          loginBtn.textContent = '登录';
+          loginBtn.innerHTML = '<span>登录</span>';
         }
       } catch (error) {
-        errorMessage.textContent = '网络错误，请重试';
+        errorMessage.textContent = '网络错误，请稍后重试';
         errorMessage.style.display = 'block';
         loginBtn.disabled = false;
-        loginBtn.textContent = '登录';
+        loginBtn.innerHTML = '<span>登录</span>';
       }
     });
 
+    // 回车登录
     document.getElementById('password').addEventListener('keypress', (e) => {
       if (e.key === 'Enter') {
         loginForm.dispatchEvent(new Event('submit'));
@@ -3231,4 +3597,3 @@ export async function netlifyHandler(event, context) {
 }
 
 export { handleRequest };
-    
