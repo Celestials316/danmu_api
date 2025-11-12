@@ -845,28 +845,8 @@ function handleHomepage(req) {
       box-sizing: border-box;
     }
 
-    :root {
-      /* 主色调 - 优雅的紫蓝渐变 */
-      --primary-50: #eef2ff;
-      --primary-100: #e0e7ff;
-      --primary-200: #c7d2fe;
-      --primary-300: #a5b4fc;
-      --primary-400: #818cf8;
-      --primary-500: #6366f1;
-      --primary-600: #4f46e5;
-      --primary-700: #4338ca;
-      --primary-800: #3730a3;
-      --primary-900: #312e81;
-      
-      /* 功能色 */
-      --success: #10b981;
-      --success-light: #d1fae5;
-      --warning: #f59e0b;
-      --warning-light: #fef3c7;
-      --error: #ef4444;
-      --error-light: #fee2e2;
-      --info: #3b82f6;
-      --info-light: #dbeafe;
+    [data-theme="dark"] {
+      /* 主色调保持不变 */
       
       /* 深色主题 - 更深邃的配色 */
       --bg-primary: #0a0a0f;
@@ -893,15 +873,11 @@ function handleHomepage(req) {
       --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
       --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.6), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
       --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.3);
-      
-      /* 动画曲线 */
-      --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
-      --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
     }
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
-      background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
+      background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%);
       color: var(--text-primary);
       line-height: 1.6;
       overflow-x: hidden;
@@ -917,12 +893,23 @@ function handleHomepage(req) {
       width: 100%;
       height: 100%;
       background: 
-        radial-gradient(circle at 20% 50%, rgba(99, 102, 241, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 40% 20%, rgba(59, 130, 246, 0.1) 0%, transparent 50%);
+        radial-gradient(circle at 20% 50%, rgba(99, 102, 241, 0.05) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.05) 0%, transparent 50%),
+        radial-gradient(circle at 40% 20%, rgba(59, 130, 246, 0.05) 0%, transparent 50%);
       pointer-events: none;
       z-index: 0;
       animation: bgFloat 20s ease-in-out infinite;
+    }
+
+    [data-theme="dark"] body {
+      background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
+    }
+
+    [data-theme="dark"] body::before {
+      background: 
+        radial-gradient(circle at 20% 50%, rgba(99, 102, 241, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 40% 20%, rgba(59, 130, 246, 0.1) 0%, transparent 50%);
     }
 
     @keyframes bgFloat {
@@ -930,40 +917,6 @@ function handleHomepage(req) {
       33% { transform: translate(30px, -30px); }
       66% { transform: translate(-20px, 20px); }
     }
-
-    /* 浅色主题 */
-    body.light {
-      background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%);
-      --bg-primary: #f8fafc;
-      --bg-secondary: #ffffff;
-      --bg-tertiary: #f1f5f9;
-      --bg-hover: #e2e8f0;
-      --bg-glass: rgba(255, 255, 255, 0.8);
-      
-      --text-primary: #1e293b;
-      --text-secondary: #475569;
-      --text-tertiary: #94a3b8;
-      
-      --border-color: #e2e8f0;
-      --border-light: #cbd5e1;
-      
-      --glass-bg: rgba(255, 255, 255, 0.7);
-      --glass-border: rgba(0, 0, 0, 0.1);
-      --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
-      
-      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-     --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-     --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-     --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.2);
-   }
-
-   body.light::before {
-     background: 
-       radial-gradient(circle at 20% 50%, rgba(99, 102, 241, 0.05) 0%, transparent 50%),
-       radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.05) 0%, transparent 50%),
-       radial-gradient(circle at 40% 20%, rgba(59, 130, 246, 0.05) 0%, transparent 50%);
-   }
 
    /* 侧边栏 - 极简现代设计 */
    .sidebar {
@@ -3843,10 +3796,8 @@ function handleHomepage(req) {
      console.log('🚀 应用初始化...');
      
      const savedTheme = localStorage.getItem('theme') || 'light';
-     if (savedTheme === 'light') {
-       document.body.classList.add('light');
-       updateThemeIcon(true);
-     }
+     document.documentElement.setAttribute('data-theme', savedTheme);
+     updateThemeIcon(savedTheme === 'light');
 
      // 初始化 API 地址显示
      updateApiUrlDisplay();
@@ -3913,11 +3864,12 @@ function handleHomepage(req) {
    }
 
    function toggleTheme() {
-     const body = document.body;
-     const isLight = body.classList.toggle('light');
-     updateThemeIcon(isLight);
-     localStorage.setItem('theme', isLight ? 'light' : 'dark');
-     showToast(\`已切换到\${isLight ? '浅色' : '深色'}主题\`, 'info');
+     const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+     const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+     document.documentElement.setAttribute('data-theme', newTheme);
+     updateThemeIcon(newTheme === 'light');
+     localStorage.setItem('theme', newTheme);
+     showToast(\`已切换到\${newTheme === 'light' ? '浅色' : '深色'}主题\`, 'info');
    }
 
    function updateThemeIcon(isLight) {
