@@ -140,7 +140,6 @@ export async function loadEnvConfigs() {
     'ENABLE_EPISODE_FILTER': 'false',
     'STRICT_TITLE_MATCH': 'false',
     'CONVERT_TOP_BOTTOM_TO_SCROLL': 'false',
-    'CONVERT_COLOR_TO_WHITE': 'false',
     'DANMU_OUTPUT_FORMAT': 'json',
     'DANMU_SIMPLIFIED': 'true',
     'REMEMBER_LAST_SELECT': 'true',
