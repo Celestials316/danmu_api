@@ -878,149 +878,123 @@ function handleHomepage(req) {
        radial-gradient(circle at 40% 20%, rgba(59, 130, 246, 0.05) 0%, transparent 50%);
    }
 
-   /* 侧边栏 - 玻璃态设计 */
+   /* 侧边栏 - 极简现代设计 */
    .sidebar {
      position: fixed;
      left: 0;
      top: 0;
      bottom: 0;
-     width: 280px;
-     background: var(--glass-bg);
-     backdrop-filter: blur(20px) saturate(180%);
-     -webkit-backdrop-filter: blur(20px) saturate(180%);
-     border-right: 1px solid var(--glass-border);
-     padding: 24px 0;
+     width: 260px;
+     background: var(--bg-secondary);
+     border-right: 1px solid var(--border-color);
+     padding: 0;
      overflow-y: auto;
      transition: all 0.3s var(--ease-smooth);
      z-index: 1000;
-     box-shadow: var(--shadow-xl);
+     display: flex;
+     flex-direction: column;
    }
 
    .sidebar-logo {
-     padding: 0 24px 24px;
+     padding: 32px 24px;
      border-bottom: 1px solid var(--border-color);
-     margin-bottom: 24px;
+     flex-shrink: 0;
    }
 
    .logo-content {
      display: flex;
      align-items: center;
-     gap: 12px;
-     animation: slideInLeft 0.5s var(--ease-smooth);
-   }
-
-   @keyframes slideInLeft {
-     from {
-       opacity: 0;
-       transform: translateX(-20px);
-     }
-     to {
-       opacity: 1;
-       transform: translateX(0);
-     }
+     gap: 14px;
    }
 
    .logo-icon {
-     width: 48px;
-     height: 48px;
+     width: 44px;
+     height: 44px;
      background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
-     border-radius: 12px;
+     border-radius: 10px;
      display: flex;
      align-items: center;
      justify-content: center;
-     font-size: 24px;
-     font-weight: bold;
+     font-size: 22px;
      color: white;
-     box-shadow: var(--shadow-glow);
-     animation: pulse 2s ease-in-out infinite;
+     flex-shrink: 0;
+     transition: all 0.3s var(--ease-smooth);
    }
 
-   @keyframes pulse {
-     0%, 100% {
-       transform: scale(1);
-       box-shadow: var(--shadow-glow);
-     }
-     50% {
-       transform: scale(1.05);
-       box-shadow: 0 0 30px rgba(99, 102, 241, 0.5);
-     }
+   .logo-content:hover .logo-icon {
+     transform: rotate(-5deg) scale(1.05);
+     box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4);
    }
 
    .logo-text h1 {
-     font-size: 20px;
+     font-size: 18px;
      font-weight: 700;
      color: var(--text-primary);
      margin-bottom: 2px;
-     background: linear-gradient(135deg, var(--primary-400), var(--primary-600));
-     -webkit-background-clip: text;
-     -webkit-text-fill-color: transparent;
-     background-clip: text;
+     letter-spacing: -0.5px;
    }
 
    .logo-text p {
-     font-size: 12px;
+     font-size: 11px;
      color: var(--text-tertiary);
-     font-weight: 500;
+     font-weight: 600;
+     text-transform: uppercase;
+     letter-spacing: 1px;
    }
 
    .nav-menu {
-     padding: 0 12px;
+     padding: 16px 12px;
+     flex: 1;
+     overflow-y: auto;
    }
 
    .nav-item {
      display: flex;
      align-items: center;
      gap: 12px;
-     padding: 14px 16px;
-     margin-bottom: 6px;
-     border-radius: 10px;
+     padding: 12px 14px;
+     margin-bottom: 4px;
+     border-radius: 8px;
      color: var(--text-secondary);
      cursor: pointer;
-     transition: all 0.3s var(--ease-smooth);
+     transition: all 0.2s var(--ease-smooth);
      font-size: 14px;
      font-weight: 500;
      position: relative;
-     overflow: hidden;
-   }
-
-   .nav-item::before {
-     content: '';
-     position: absolute;
-     left: 0;
-     top: 0;
-     width: 4px;
-     height: 100%;
-     background: var(--primary-500);
-     transform: scaleY(0);
-     transition: transform 0.3s var(--ease-smooth);
+     border: 1px solid transparent;
    }
 
    .nav-item:hover {
-     background: var(--bg-hover);
+     background: var(--bg-tertiary);
      color: var(--text-primary);
-     transform: translateX(4px);
+     border-color: var(--border-light);
+     transform: translateX(2px);
    }
 
    .nav-item.active {
-     background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
-     color: white;
-     box-shadow: var(--shadow-glow);
-   }
-
-   .nav-item.active::before {
-     transform: scaleY(1);
+     background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(99, 102, 241, 0.1));
+     color: var(--primary-400);
+     border-color: var(--primary-500);
+     box-shadow: 0 2px 8px rgba(99, 102, 241, 0.15);
    }
 
    .nav-item svg {
      width: 20px;
      height: 20px;
      stroke-width: 2;
-     transition: transform 0.3s var(--ease-smooth);
+     flex-shrink: 0;
+     transition: transform 0.2s var(--ease-smooth);
    }
 
    .nav-item:hover svg {
      transform: scale(1.1);
    }
+
+   .nav-item.active svg {
+     color: var(--primary-500);
+     transform: scale(1.05);
+   }
+
 
    /* 主内容区 */
    .main-content {
