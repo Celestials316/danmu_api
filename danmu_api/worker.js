@@ -832,10 +832,13 @@ function handleHomepage(req) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>弹幕 API 管理后台 v${globals.VERSION}</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script>
+    <script>
     (function() {
       const theme = localStorage.getItem('theme') || 'light';
       document.documentElement.setAttribute('data-theme', theme);
+      if (!localStorage.getItem('theme')) {
+        document.body.classList.add('light');
+      }
     })();
   </script>
   <style>
@@ -3842,10 +3845,15 @@ function handleHomepage(req) {
      
      console.log('🚀 应用初始化...');
      
-     const savedTheme = localStorage.getItem('theme') || 'light';
-     if (savedTheme === 'light') {
+     const savedTheme = localStorage.getItem('theme');
+     if (savedTheme === null || savedTheme === 'light') {
        document.body.classList.add('light');
        updateThemeIcon(true);
+       if (savedTheme === null) {
+         localStorage.setItem('theme', 'light');
+       }
+     } else {
+       updateThemeIcon(false);
      }
 
      // 初始化 API 地址显示
@@ -5297,10 +5305,13 @@ function getLoginPage() {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>登录 - 弹幕 API 管理后台</title>
-  <script>
+    <script>
     (function() {
       const theme = localStorage.getItem('theme') || 'light';
       document.documentElement.setAttribute('data-theme', theme);
+      if (!localStorage.getItem('theme')) {
+        document.body.classList.add('light');
+      }
     })();
   </script>
   <style>
