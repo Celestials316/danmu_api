@@ -4830,12 +4830,7 @@ async function handleHomepage(req) {
      }
    }
 
- </script>
-
-</body>
-</html>
-   `;
-   // ========== 日志相关功能 ==========
+// ========== 日志相关功能 ==========
    let autoRefreshTimer = null;
    let lastLogId = -1;
 
@@ -4936,6 +4931,11 @@ async function handleHomepage(req) {
      }
    };
 
+ </script>
+
+</body>
+</html>
+   `;
 
    return new Response(html, {
      headers: {
