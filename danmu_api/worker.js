@@ -538,7 +538,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
     await getRedisCaches();
   }
 
-function handleHomepage(req) {
+async function handleHomepage(req) {
   log("info", "Accessed homepage");
 
   // 检查登录状态
@@ -546,7 +546,8 @@ function handleHomepage(req) {
   const sessionMatch = cookies.match(/session=([^;]+)/);
   const sessionId = sessionMatch ? sessionMatch[1] : null;
 
-  if (!validateSession(sessionId)) {
+  const isValid = await validateSession(sessionId);
+  if (!isValid) {
     return getLoginPage();
   }
 
@@ -4965,16 +4966,7 @@ if (currentToken === "87654321") {
 
 // GET / - 首页（需要登录）
 if (path === "/" && method === "GET") {
-  const cookies = req.headers.get('cookie') || '';
-  const sessionMatch = cookies.match(/session=([^;]+)/);
-  const sessionId = sessionMatch ? sessionMatch[1] : null;
-  
-  const isValid = await validateSession(sessionId);
-  if (!isValid) {
-    return getLoginPage();
-  }
-  
-  return handleHomepage(req);
+  return await handleHomepage(req);
 }
 
 // POST /api/login - 登录
