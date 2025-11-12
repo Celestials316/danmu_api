@@ -2882,6 +2882,109 @@ async function handleHomepage(req) {
        transform: scale(1);
      }
    }
+/* 日志容器样式 */
+   .log-container {
+     background: var(--bg-primary);
+     border: 1px solid var(--border-color);
+     border-radius: 10px;
+     padding: 16px;
+     max-height: 400px;
+     overflow-y: auto;
+     font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+     font-size: 12px;
+     line-height: 1.6;
+     color: var(--text-primary);
+     position: relative;
+   }
+
+   .log-loading {
+     display: flex;
+     align-items: center;
+     justify-content: center;
+     gap: 12px;
+     padding: 40px;
+     color: var(--text-secondary);
+   }
+
+   .log-entry {
+     padding: 8px 12px;
+     margin-bottom: 4px;
+     border-radius: 6px;
+     border-left: 3px solid transparent;
+     transition: all 0.2s;
+     animation: slideInLog 0.3s ease-out;
+   }
+
+   @keyframes slideInLog {
+     from {
+       opacity: 0;
+       transform: translateX(-10px);
+     }
+     to {
+       opacity: 1;
+       transform: translateX(0);
+     }
+   }
+
+   .log-entry:hover {
+     background: var(--bg-hover);
+   }
+
+   .log-entry.log-error {
+     background: rgba(239, 68, 68, 0.1);
+     border-left-color: var(--error);
+   }
+
+   .log-entry.log-warn {
+     background: rgba(245, 158, 11, 0.1);
+     border-left-color: var(--warning);
+   }
+
+   .log-entry.log-info {
+     background: rgba(59, 130, 246, 0.05);
+     border-left-color: var(--info);
+   }
+
+   .log-timestamp {
+     color: var(--text-tertiary);
+     margin-right: 8px;
+   }
+
+   .log-level {
+     display: inline-block;
+     padding: 2px 8px;
+     border-radius: 4px;
+     font-size: 10px;
+     font-weight: 700;
+     text-transform: uppercase;
+     margin-right: 8px;
+   }
+
+   .log-level.error {
+     background: var(--error);
+     color: white;
+   }
+
+   .log-level.warn {
+     background: var(--warning);
+     color: white;
+   }
+
+   .log-level.info {
+     background: var(--info);
+     color: white;
+   }
+
+   .log-message {
+     color: var(--text-primary);
+     word-break: break-word;
+   }
+
+   .log-empty {
+     text-align: center;
+     padding: 40px;
+     color: var(--text-tertiary);
+   }
  </style>
 </head>
 <body>
@@ -3145,13 +3248,30 @@ async function handleHomepage(req) {
          <div class="card-header">
            <h3 class="card-title">
              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-               <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" stroke-width="2"/>
+               <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-width="2"/>
              </svg>
-             使用统计
+             实时日志
            </h3>
+           <div class="card-actions">
+             <button class="btn btn-secondary" onclick="toggleLogAutoScroll()" id="autoScrollBtn" style="padding: 8px 16px; font-size: 13px;">
+               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width: 16px; height: 16px;">
+                 <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-width="2"/>
+               </svg>
+               自动滚动
+             </button>
+             <button class="btn btn-secondary" onclick="clearLogDisplay()" style="padding: 8px 16px; font-size: 13px;">
+               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width: 16px; height: 16px;">
+                 <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-width="2"/>
+               </svg>
+               清空
+             </button>
+           </div>
          </div>
-         <div class="chart-container">
-           <canvas id="usageChart"></canvas>
+         <div class="log-container" id="logContainer">
+           <div class="log-loading">
+             <div class="loading-spinner"></div>
+             <span>正在加载日志...</span>
+           </div>
          </div>
        </div>
 
@@ -3822,7 +3942,6 @@ async function handleHomepage(req) {
    // ==================== 初始化 ====================
    document.addEventListener('DOMContentLoaded', function() {
      initializeApp();
-     initializeChart();
      initializeDragAndDrop();
      loadLocalStorageData();
      setupGlobalSearch();
@@ -4141,7 +4260,6 @@ async function handleHomepage(req) {
 
    document.addEventListener('DOMContentLoaded', function() {
      initializeApp();
-     initializeChart();
      loadLocalStorageData();
      setupGlobalSearch();
    });
@@ -4235,76 +4353,6 @@ async function handleHomepage(req) {
          item.style.display = matches ? '' : 'none';
          if (matches) item.classList.add('highlight');
        });
-     });
-   }
-
-   function initializeChart() {
-     const ctx = document.getElementById('usageChart');
-     if (!ctx) return;
-
-     const chart = new Chart(ctx, {
-       type: 'line',
-       data: {
-         labels: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
-         datasets: [{
-           label: 'API 请求量',
-           data: [120, 190, 150, 220, 180, 250, 200],
-           borderColor: 'rgb(99, 102, 241)',
-           backgroundColor: 'rgba(99, 102, 241, 0.1)',
-           tension: 0.4,
-           fill: true
-         }]
-       },
-       options: {
-         responsive: true,
-         maintainAspectRatio: false,
-         plugins: {
-           legend: {
-             display: true,
-             position: 'top',
-             labels: {
-               color: getComputedStyle(document.body).getPropertyValue('--text-primary'),
-               font: {
-                 family: '-apple-system, BlinkMacSystemFont, "Segoe UI"',
-                 size: 12
-               }
-             }
-           }
-         },
-         scales: {
-           y: {
-             beginAtZero: true,
-             grid: {
-               color: getComputedStyle(document.body).getPropertyValue('--border-color')
-             },
-             ticks: {
-               color: getComputedStyle(document.body).getPropertyValue('--text-secondary')
-             }
-           },
-           x: {
-             grid: {
-               color: getComputedStyle(document.body).getPropertyValue('--border-color')
-             },
-             ticks: {
-               color: getComputedStyle(document.body).getPropertyValue('--text-secondary')
-             }
-           }
-         }
-       }
-     });
-
-     const observer = new MutationObserver(() => {
-       chart.options.plugins.legend.labels.color = getComputedStyle(document.documentElement).getPropertyValue('--text-primary');
-       chart.options.scales.y.grid.color = getComputedStyle(document.body).getPropertyValue('--border-color');
-       chart.options.scales.y.ticks.color = getComputedStyle(document.body).getPropertyValue('--text-secondary');
-       chart.options.scales.x.grid.color = getComputedStyle(document.body).getPropertyValue('--border-color');
-       chart.options.scales.x.ticks.color = getComputedStyle(document.body).getPropertyValue('--text-secondary');
-       chart.update();
-     });
-
-     observer.observe(document.documentElement, {
-       attributes: true,
-       attributeFilter: ['class']
      });
    }
 
@@ -4690,6 +4738,151 @@ async function handleHomepage(req) {
        showToast('修改失败，请稍后重试', 'error');
      }
    }
+
+   // ========== 实时日志功能 ==========
+   let logAutoScroll = true;
+   let logRefreshInterval = null;
+   let lastLogId = -1;
+
+   function toggleLogAutoScroll() {
+     logAutoScroll = !logAutoScroll;
+     const btn = document.getElementById('autoScrollBtn');
+     if (logAutoScroll) {
+       btn.innerHTML = `
+         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width: 16px; height: 16px;">
+           <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-width="2"/>
+         </svg>
+         自动滚动
+       `;
+       scrollLogToBottom();
+     } else {
+       btn.innerHTML = `
+         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width: 16px; height: 16px;">
+           <path d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
+         </svg>
+         已暂停
+       `;
+     }
+     showToast(logAutoScroll ? '已启用自动滚动' : '已暂停自动滚动', 'info');
+   }
+
+   function scrollLogToBottom() {
+     if (!logAutoScroll) return;
+     const container = document.getElementById('logContainer');
+     if (container) {
+       container.scrollTop = container.scrollHeight;
+     }
+   }
+
+   function clearLogDisplay() {
+     const container = document.getElementById('logContainer');
+     if (container) {
+       container.innerHTML = '<div class="log-empty">📝 日志已清空</div>';
+       lastLogId = -1;
+       showToast('日志显示已清空', 'success');
+     }
+   }
+
+   async function loadLogs(incremental = false) {
+     try {
+       const url = incremental && lastLogId >= 0 
+         ? `/api/logs?format=json&limit=50&lastId=${lastLogId}`
+         : '/api/logs?format=json&limit=100';
+       
+       const response = await fetch(url);
+       const result = await response.json();
+
+       if (!result.success || !result.logs || result.logs.length === 0) {
+         if (!incremental) {
+           document.getElementById('logContainer').innerHTML = 
+             '<div class="log-empty">📝 暂无日志记录</div>';
+         }
+         return;
+       }
+
+       const container = document.getElementById('logContainer');
+       
+       if (!incremental) {
+         container.innerHTML = '';
+       }
+
+       result.logs.forEach((log, index) => {
+         const entry = document.createElement('div');
+         entry.className = `log-entry log-${log.level}`;
+         
+         const timestamp = new Date(log.timestamp).toLocaleTimeString('zh-CN', { 
+           hour12: false,
+           hour: '2-digit',
+           minute: '2-digit',
+           second: '2-digit'
+         });
+
+         entry.innerHTML = `
+           <span class="log-timestamp">[${timestamp}]</span>
+           <span class="log-level ${log.level}">${log.level}</span>
+           <span class="log-message">${escapeHtml(log.message)}</span>
+         `;
+
+         container.appendChild(entry);
+         lastLogId = Math.max(lastLogId, result.logs.length - 1 + (incremental ? lastLogId : 0));
+       });
+
+       scrollLogToBottom();
+
+     } catch (error) {
+       console.error('加载日志失败:', error);
+       if (!incremental) {
+         document.getElementById('logContainer').innerHTML = 
+           '<div class="log-empty">❌ 加载日志失败</div>';
+       }
+     }
+   }
+
+   function escapeHtml(text) {
+     const div = document.createElement('div');
+     div.textContent = text;
+     return div.innerHTML;
+   }
+
+   function startLogRefresh() {
+     // 首次加载全部日志
+     loadLogs(false);
+     
+     // 每2秒增量更新
+     logRefreshInterval = setInterval(() => {
+       loadLogs(true);
+     }, 2000);
+   }
+
+   function stopLogRefresh() {
+     if (logRefreshInterval) {
+       clearInterval(logRefreshInterval);
+       logRefreshInterval = null;
+     }
+   }
+
+   // 监听页面切换，只在概览页面时刷新日志
+   const originalSwitchPage = switchPage;
+   switchPage = function(pageName) {
+     originalSwitchPage(pageName);
+     
+     if (pageName === 'overview') {
+       startLogRefresh();
+     } else {
+       stopLogRefresh();
+     }
+   };
+
+   // 页面加载时启动日志刷新
+   document.addEventListener('DOMContentLoaded', function() {
+     if (document.getElementById('overview-page').classList.contains('active')) {
+       startLogRefresh();
+     }
+   });
+
+   // 页面卸载时停止刷新
+   window.addEventListener('beforeunload', stopLogRefresh);
+
 
  </script>
 
