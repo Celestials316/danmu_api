@@ -4488,7 +4488,7 @@ function handleHomepage(req) {
        const pathParts = url.pathname.split('/').filter(part => part.length > 0);
        
        // 获取当前 token（从页面中读取，避免硬编码）
-       const currentToken = '${globals.token}';
+       const currentToken = `${globals.token}`;
        
        // 判断是否为默认 token
        const isDefaultToken = currentToken === '87654321';
