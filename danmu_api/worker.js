@@ -2851,18 +2851,11 @@ function handleHomepage(req) {
        <span>环境配置</span>
      </div>
      
-     <div class="nav-item" onclick="switchPage('vod')">
+     <div class="nav-item" onclick="switchPage('about')">
        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-         <path d="M5 3l14 9-14 9V3z" stroke-width="2"/>
+         <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
        </svg>
-       <span>VOD 采集站</span>
-     </div>
-     
-     <div class="nav-item" onclick="switchPage('sources')">
-       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-         <path d="M4 7h16M4 12h16M4 17h16" stroke-width="2" stroke-linecap="round"/>
-       </svg>
-       <span>数据源</span>
+       <span>关于</span>
      </div>
    </nav>
  </aside>
@@ -2937,44 +2930,33 @@ function handleHomepage(req) {
          
          <div class="stat-card">
            <div class="stat-header">
-             <span class="stat-title">VOD 采集站</span>
-             <div class="stat-icon success">🎬</div>
+             <span class="stat-title">持久化存储</span>
+             <div class="stat-icon success">💾</div>
            </div>
-           <div class="stat-value">${globals.vodServers.length}</div>
+           <div class="stat-value">${
+             globals.databaseValid ? '数据库' : 
+             (redisConfigured && globals.redisValid) ? 'Redis' : 
+             '内存模式'
+           }</div>
            <div class="stat-footer">
-             ${globals.vodReturnMode === 'all' ? '📊 返回所有结果' : '⚡ 仅返回最快'}
+             ${
+               globals.databaseValid ? '✅ 数据库存储' : 
+               (redisConfigured && globals.redisValid) ? '✅ Redis存储' : 
+               '📝 仅内存缓存'
+             }
            </div>
          </div>
          
          <div class="stat-card">
            <div class="stat-header">
-             <span class="stat-title">数据源</span>
-             <div class="stat-icon info">🔗</div>
+             <span class="stat-title">API版本</span>
+             <div class="stat-icon info">🚀</div>
            </div>
-           <div class="stat-value">${globals.sourceOrderArr.length > 0 ? globals.sourceOrderArr.length : '默认'}</div>
+           <div class="stat-value">v${globals.VERSION}</div>
            <div class="stat-footer">
-             ${globals.sourceOrderArr.length > 0 ? `🔝 优先: ${globals.sourceOrderArr[0]}` : '📋 使用默认顺序'}
+             ✅ 服务运行正常
            </div>
          </div>
-         
-            <div class="stat-card">
-              <div class="stat-header">
-                <span class="stat-title">持久化存储</span>
-                <div class="stat-icon warning">💾</div>
-              </div>
-              <div class="stat-value">${
-                globals.databaseValid ? '数据库' : 
-                (redisConfigured && globals.redisValid) ? 'Redis' : 
-                '内存模式'
-              }</div>
-              <div class="stat-footer">
-                ${
-                  globals.databaseValid ? '✅ 数据库存储' : 
-                  (redisConfigured && globals.redisValid) ? '✅ Redis存储' : 
-                  '📝 仅内存缓存'
-                }
-              </div>
-            </div>
 
        <div class="card">
          <div class="card-header">
@@ -3092,13 +3074,9 @@ function handleHomepage(req) {
              <div class="source-icon">⚙️</div>
              <div class="source-name">环境配置</div>
            </div>
-           <div class="source-item" onclick="switchPage('vod')" style="cursor: pointer;">
-             <div class="source-icon">🎬</div>
-             <div class="source-name">采集站管理</div>
-           </div>
-           <div class="source-item" onclick="switchPage('sources')" style="cursor: pointer;">
-             <div class="source-icon">🔗</div>
-             <div class="source-name">数据源配置</div>
+           <div class="source-item" onclick="switchPage('about')" style="cursor: pointer;">
+             <div class="source-icon">ℹ️</div>
+             <div class="source-name">关于系统</div>
            </div>
          </div>
        </div>
@@ -3106,7 +3084,7 @@ function handleHomepage(req) {
        <div class="footer">
          <p>弹幕 API 服务 v${globals.VERSION} | Made with ❤️ for Better Anime Experience</p>
          <p style="margin-top: 8px; font-size: 12px;">
-           快捷键: <span class="keyboard-shortcut">Ctrl+1-4</span> 切换页面 | 
+           快捷键: <span class="keyboard-shortcut">Ctrl+1-3</span> 切换页面 | 
            <span class="keyboard-shortcut">Ctrl+K</span> 切换主题 | 
            <span class="keyboard-shortcut">Ctrl+S</span> 保存配置
          </p>
@@ -3152,27 +3130,88 @@ function handleHomepage(req) {
        </div>
      </section>
 
-     <!-- VOD 采集站页面 -->
-     <section id="vod-page" class="page-section">
+     <!-- 关于页面 -->
+     <section id="about-page" class="page-section">
        <div class="card">
          <div class="card-header">
            <h3 class="card-title">
              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-               <path d="M5 3l14 9-14 9V3z" stroke-width="2"/>
+               <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
              </svg>
-             VOD 采集服务器列表
+             关于弹幕 API
            </h3>
-           <div class="card-actions">
-             <button class="btn btn-success" onclick="addVodServer()">
-               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                 <path d="M12 4v16m8-8H4" stroke-width="2" stroke-linecap="round"/>
-               </svg>
-               添加服务器
-             </button>
-           </div>
+           <span class="badge badge-success">
+             <span class="status-dot"></span>v${globals.VERSION}
+           </span>
          </div>
-         <div class="server-grid" id="vodServerGrid">
-           ${vodServersHtml}
+         <div class="config-grid">
+           <div class="config-item">
+             <div class="config-header">
+               <span class="config-label">项目简介</span>
+             </div>
+             <div class="config-value" style="background: none; border: none; padding: 0;">
+               <code style="color: var(--text-secondary); font-size: 13px; line-height: 1.8;">
+                 弹幕 API 是一个强大的弹幕聚合服务，支持多平台弹幕获取、智能匹配和格式转换。
+                 适用于视频播放器集成，提供简洁易用的RESTful API接口。
+               </code>
+             </div>
+           </div>
+           
+           <div class="config-item">
+             <div class="config-header">
+               <span class="config-label">核心功能</span>
+             </div>
+             <div class="config-value" style="background: none; border: none; padding: 0;">
+               <code style="color: var(--text-secondary); font-size: 13px; line-height: 1.8;">
+                 • 多平台弹幕聚合（哔哩哔哩、爱奇艺、优酷、腾讯等）<br>
+                 • 智能标题匹配和剧集识别<br>
+                 • 弹幕去重、过滤和格式转换<br>
+                 • 支持繁简转换和颜色处理<br>
+                 • 持久化存储（Redis/数据库）<br>
+                 • 访问限流和缓存优化
+               </code>
+             </div>
+           </div>
+           
+           <div class="config-item">
+             <div class="config-header">
+               <span class="config-label">技术栈</span>
+             </div>
+             <div class="config-value" style="background: none; border: none; padding: 0;">
+               <code style="color: var(--text-secondary); font-size: 13px; line-height: 1.8;">
+                 • 运行环境: Cloudflare Workers / Vercel / Netlify<br>
+                 • 持久化: Upstash Redis / SQLite / Cloudflare D1<br>
+                 • 前端: 原生 JavaScript + Chart.js<br>
+                 • 样式: 现代化玻璃态设计
+               </code>
+             </div>
+           </div>
+           
+           <div class="config-item">
+             <div class="config-header">
+               <span class="config-label">API文档</span>
+             </div>
+             <div class="config-value" style="background: none; border: none; padding: 0;">
+               <code style="color: var(--text-secondary); font-size: 13px; line-height: 1.8;">
+                 • GET /api/v2/search/anime - 搜索番剧<br>
+                 • GET /api/v2/search/episodes - 搜索剧集<br>
+                 • POST /api/v2/match - 智能匹配<br>
+                 • GET /api/v2/comment/:id - 获取弹幕<br>
+                 • GET /api/logs - 查看日志
+               </code>
+             </div>
+           </div>
+           
+           <div class="config-item">
+             <div class="config-header">
+               <span class="config-label">开源协议</span>
+             </div>
+             <div class="config-value" style="background: none; border: none; padding: 0;">
+               <code style="color: var(--text-secondary); font-size: 13px; line-height: 1.8;">
+                 MIT License - 欢迎使用、修改和分发
+               </code>
+             </div>
+           </div>
          </div>
        </div>
 
@@ -3180,127 +3219,50 @@ function handleHomepage(req) {
          <div class="card-header">
            <h3 class="card-title">
              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-               <path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" stroke-width="2"/>
+               <path d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" stroke-width="2"/>
              </svg>
-             VOD 配置参数
+             使用帮助
            </h3>
          </div>
          <div class="config-grid">
            <div class="config-item">
              <div class="config-header">
-               <span class="config-label">返回模式</span>
-               <label class="switch">
-                 <input type="checkbox" ${globals.vodReturnMode === 'all' ? 'checked' : ''} onchange="toggleVodReturnMode(this)">
-                 <span class="switch-slider"></span>
-               </label>
+               <span class="config-label">快速开始</span>
              </div>
-             <div class="config-value">
-               <code>${globals.vodReturnMode === 'all' ? '返回所有站点结果' : '仅返回最快响应站点'}</code>
+             <div class="config-value" style="background: none; border: none; padding: 0;">
+               <code style="color: var(--text-secondary); font-size: 13px; line-height: 1.8;">
+                 1. 在"环境配置"页面配置必要的环境变量<br>
+                 2. 配置 BILIBILI_COOKIE 以获取完整弹幕<br>
+                 3. （可选）配置 Redis 或数据库实现持久化<br>
+                 4. 使用 API 接口集成到你的应用中
+               </code>
              </div>
            </div>
+           
            <div class="config-item">
              <div class="config-header">
-               <span class="config-label">请求超时</span>
-               <button class="icon-btn edit-btn" onclick="editVodTimeout()" title="编辑">
-                 <svg viewBox="0 0 24 24" width="16" height="16">
-                   <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" fill="none"/>
-                   <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" fill="none"/>
-                 </svg>
-               </button>
+               <span class="config-label">常见问题</span>
              </div>
-             <div class="config-value">
-               <code>${globals.vodRequestTimeout} 毫秒</code>
+             <div class="config-value" style="background: none; border: none; padding: 0;">
+               <code style="color: var(--text-secondary); font-size: 13px; line-height: 1.8;">
+                 Q: 如何获取 B站 Cookie?<br>
+                 A: 登录 bilibili.com 后，在浏览器开发者工具中查看 Cookie<br>
+                 <br>
+                 Q: 支持哪些持久化方案?<br>
+                 A: 支持 Upstash Redis、SQLite 本地数据库、Cloudflare D1<br>
+                 <br>
+                 Q: 如何修改管理员密码?<br>
+                 A: 点击右上角密钥图标，输入旧密码后设置新密码
+               </code>
              </div>
            </div>
          </div>
        </div>
 
        <div class="footer">
-         <p>共 ${globals.vodServers.length} 个采集站 | 支持并发查询</p>
-         <p style="margin-top: 8px; font-size: 12px; color: var(--text-tertiary);">
-           💡 提示: 点击添加按钮新增采集站 | 可以编辑或删除现有服务器
-         </p>
-       </div>
-     </section>
-
-     <!-- 数据源页面 -->
-     <section id="sources-page" class="page-section">
-       <div class="card">
-         <div class="card-header">
-           <h3 class="card-title">
-             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-               <path d="M4 7h16M4 12h16M4 17h16" stroke-width="2" stroke-linecap="round"/>
-             </svg>
-             数据源优先级
-           </h3>
-           <div class="card-actions">
-             <button class="btn btn-secondary" onclick="resetSourceOrder()">
-               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                 <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-width="2" stroke-linecap="round"/>
-               </svg>
-               重置顺序
-             </button>
-             <button class="btn btn-primary" onclick="saveSourceOrder()">
-               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                 <path d="M5 13l4 4L19 7" stroke-width="2" stroke-linecap="round"/>
-               </svg>
-               保存顺序
-             </button>
-           </div>
-         </div>
-         <div class="alert alert-info">
-           <svg class="alert-icon" viewBox="0 0 24 24" width="20" height="20">
-             <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
-             <path d="M12 16v-4m0-4h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-           </svg>
-           <span>拖动数据源卡片可以调整优先级顺序，数字越小优先级越高</span>
-         </div>
-         <div class="source-grid" id="sourceGrid">
-           ${sourcesHtml}
-         </div>
-       </div>
-
-       <div class="card">
-         <div class="card-header">
-           <h3 class="card-title">
-             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-               <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke-width="2"/>
-             </svg>
-             匹配策略配置
-           </h3>
-         </div>
-         <div class="config-grid">
-           <div class="config-item">
-             <div class="config-header">
-               <span class="config-label">严格匹配模式</span>
-               <label class="switch">
-                 <input type="checkbox" ${globals.strictTitleMatch ? 'checked' : ''} onchange="toggleStrictMatch(this)">
-                 <span class="switch-slider"></span>
-               </label>
-             </div>
-             <div class="config-value ${globals.strictTitleMatch ? 'value-enabled' : 'value-disabled'}">
-               <code>${globals.strictTitleMatch ? '已启用 - 减少误匹配' : '已禁用 - 宽松匹配'}</code>
-             </div>
-           </div>
-           <div class="config-item">
-             <div class="config-header">
-               <span class="config-label">记住手动选择</span>
-               <label class="switch">
-                 <input type="checkbox" ${globals.rememberLastSelect ? 'checked' : ''} onchange="toggleRememberSelect(this)">
-                 <span class="switch-slider"></span>
-               </label>
-             </div>
-             <div class="config-value ${globals.rememberLastSelect ? 'value-enabled' : 'value-disabled'}">
-               <code>${globals.rememberLastSelect ? '已启用 - 优化匹配准确度' : '已禁用'}</code>
-             </div>
-           </div>
-         </div>
-       </div>
-
-       <div class="footer">
-         <p>共 ${globals.sourceOrderArr.length} 个数据源 | 按优先级排序</p>
-         <p style="margin-top: 8px; font-size: 12px; color: var(--text-tertiary);">
-           💡 提示: 拖拽调整数据源顺序后记得点击保存
+         <p>弹幕 API 服务 v${globals.VERSION} | Made with ❤️ for Better Anime Experience</p>
+         <p style="margin-top: 8px; font-size: 12px;">
+           💡 提示: 遇到问题可以查看"日志"或检查"环境配置"
          </p>
        </div>
      </section>
@@ -3573,8 +3535,7 @@ function handleHomepage(req) {
      const titles = {
        'overview': '系统概览',
        'config': '环境配置',
-       'vod': 'VOD 采集站',
-       'sources': '数据源配置'
+       'about': '关于系统'
      };
      document.getElementById('pageTitle').textContent = titles[pageName];
      closeMobileMenu();
@@ -3758,348 +3719,12 @@ function handleHomepage(req) {
      showToast('配置已导出', 'success');
    }
 
-   function addVodServer() {
-     AppState.currentEditingVodIndex = null;
-     document.getElementById('vodModalTitle').textContent = '添加VOD服务器';
-     document.getElementById('vodServerName').value = '';
-     document.getElementById('vodServerUrl').value = '';
-     showModal('editVodModal');
-   }
-
-   function editVodServer(index) {
-     AppState.currentEditingVodIndex = index;
-     const server = AppState.vodServers[index];
-     
-     let serverName = \`服务器 #\${index + 1}\`;
-     let serverUrl = '';
-
-     if (typeof server === 'string') {
-       serverUrl = server;
-       if (server.includes('@')) {
-         const parts = server.split('@');
-         serverName = parts[0];
-         serverUrl = parts.slice(1).join('@');
-       }
-     } else if (typeof server === 'object' && server !== null) {
-       serverName = server.name || server.title || serverName;
-       serverUrl = server.url || server.baseUrl || server.address || '';
-     }
-
-     document.getElementById('vodModalTitle').textContent = '编辑VOD服务器';
-     document.getElementById('vodServerName').value = serverName;
-     document.getElementById('vodServerUrl').value = serverUrl;
-     showModal('editVodModal');
-   }
-
-   function saveVodServer() {
-     const name = document.getElementById('vodServerName').value.trim();
-     const url = document.getElementById('vodServerUrl').value.trim();
-
-     if (!name) {
-       showToast('请输入服务器名称', 'error');
-       return;
-     }
-
-     if (!url) {
-       showToast('请输入服务器地址', 'error');
-       return;
-     }
-
-     try {
-       new URL(url);
-     } catch (e) {
-       showToast('服务器地址格式不正确', 'error');
-       return;
-     }
-
-     const serverString = \`\${name}@\${url}\`;
-
-     if (AppState.currentEditingVodIndex === null) {
-       AppState.vodServers.push(serverString);
-     } else {
-       AppState.vodServers[AppState.currentEditingVodIndex] = serverString;
-     }
-
-     localStorage.setItem('danmu_api_vod_servers', JSON.stringify(AppState.vodServers));
-     AppState.hasUnsavedChanges = true;
-     refreshVodServerList();
-     closeModal('editVodModal');
-     showToast(AppState.currentEditingVodIndex === null ? 'VOD服务器已添加' : 'VOD服务器已更新', 'success');
-   }
-
-   function deleteVodServer(index) {
-     if (!confirm('确定要删除这个VOD服务器吗？')) {
-       return;
-     }
-
-     AppState.vodServers.splice(index, 1);
-     localStorage.setItem('danmu_api_vod_servers', JSON.stringify(AppState.vodServers));
-     AppState.hasUnsavedChanges = true;
-     refreshVodServerList();
-     showToast('VOD服务器已删除', 'success');
-   }
-
-   function refreshVodServerList() {
-     const grid = document.getElementById('vodServerGrid');
-     if (!grid) return;
-
-     grid.innerHTML = AppState.vodServers.map((server, index) => {
-       let serverName = \`服务器 #\${index + 1}\`;
-       let serverUrl = '';
-
-       if (typeof server === 'string') {
-         serverUrl = server;
-         if (server.includes('@')) {
-           const parts = server.split('@');
-           serverName = parts[0];
-           serverUrl = parts.slice(1).join('@');
-         }
-       } else if (typeof server === 'object' && server !== null) {
-         serverName = server.name || server.title || serverName;
-         serverUrl = server.url || server.baseUrl || server.address || JSON.stringify(server);
-       }
-
-       return \`
-         <div class="server-item" data-index="\${index}">
-           <div class="server-badge">\${index + 1}</div>
-           <div class="server-info">
-             <div class="server-name">\${serverName}</div>
-             <div class="server-url">\${serverUrl}</div>
-           </div>
-           <div class="server-actions">
-             <button class="icon-btn" onclick="editVodServer(\${index})" title="编辑">
-               <svg viewBox="0 0 24 24" width="16" height="16">
-                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" fill="none"/>
-                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" fill="none"/>
-               </svg>
-             </button>
-             <button class="icon-btn delete-btn" onclick="deleteVodServer(\${index})" title="删除">
-               <svg viewBox="0 0 24 24" width="16" height="16">
-                 <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="currentColor" stroke-width="2" fill="none"/>
-               </svg>
-             </button>
-           </div>
-         </div>
-       \`;
-     }).join('');
-   }
-
-   function toggleVodReturnMode(checkbox) {
-     const mode = checkbox.checked ? 'all' : 'fastest';
-     AppState.config.VOD_RETURN_MODE = mode;
-     localStorage.setItem('danmu_api_config', JSON.stringify(AppState.config));
-     AppState.hasUnsavedChanges = true;
-
-     const configValue = checkbox.closest('.config-item').querySelector('.config-value code');
-     configValue.textContent = checkbox.checked ? '返回所有站点结果' : '仅返回最快响应站点';
-     showToast(\`VOD返回模式已切换为: \${checkbox.checked ? '返回所有' : '仅返回最快'}\`, 'success');
-   }
-
-   function editVodTimeout() {
-     const currentTimeout = AppState.config.VOD_REQUEST_TIMEOUT || 10000;
-     const newTimeout = prompt('请输入VOD请求超时时间(毫秒):', currentTimeout);
-     
-     if (newTimeout === null) return;
-     
-     const timeoutValue = parseInt(newTimeout);
-     if (isNaN(timeoutValue) || timeoutValue < 1000) {
-       showToast('超时时间必须大于等于1000毫秒', 'error');
-       return;
-     }
-
-     AppState.config.VOD_REQUEST_TIMEOUT = timeoutValue;
-     localStorage.setItem('danmu_api_config', JSON.stringify(AppState.config));
-     AppState.hasUnsavedChanges = true;
-
-     const configItems = document.querySelectorAll('#vod-page .config-item');
-     configItems.forEach(item => {
-       const label = item.querySelector('.config-label');
-       if (label && label.textContent === '请求超时') {
-         const codeElement = item.querySelector('.config-value code');
-         if (codeElement) {
-           codeElement.textContent = \`\${timeoutValue} 毫秒\`;
-         }
-       }
-     });
-
-     showToast('VOD请求超时时间已更新', 'success');
-   }
-
-   function initializeDragAndDrop() {
-     const sourceGrid = document.getElementById('sourceGrid');
-     if (!sourceGrid) return;
-
-     const isMobile = window.innerWidth <= 768;
-
-     if (isMobile) {
-       setupMobileSourceReorder();
-       return;
-     }
-
-     let draggedElement = null;
-     let draggedIndex = null;
-
-     sourceGrid.addEventListener('dragstart', function(e) {
-       if (!e.target.classList.contains('source-item')) return;
-       draggedElement = e.target;
-       draggedIndex = parseInt(e.target.dataset.index);
-       e.target.classList.add('dragging');
-       e.dataTransfer.effectAllowed = 'move';
-     });
-
-     sourceGrid.addEventListener('dragend', function(e) {
-       if (!e.target.classList.contains('source-item')) return;
-       e.target.classList.remove('dragging');
-     });
-
-     sourceGrid.addEventListener('dragover', function(e) {
-       e.preventDefault();
-       e.dataTransfer.dropEffect = 'move';
-       const afterElement = getDragAfterElement(sourceGrid, e.clientY);
-       const dragging = document.querySelector('.dragging');
-       if (afterElement == null) {
-         sourceGrid.appendChild(dragging);
-       } else {
-         sourceGrid.insertBefore(dragging, afterElement);
-       }
-     });
-
-     sourceGrid.addEventListener('drop', function(e) {
-       e.preventDefault();
-       const items = Array.from(sourceGrid.querySelectorAll('.source-item'));
-       const newOrder = items.map(item => item.dataset.source);
-       AppState.sourceOrder = newOrder;
-       AppState.hasUnsavedChanges = true;
-       items.forEach((item, index) => {
-         item.dataset.index = index;
-         const priority = item.querySelector('.source-priority');
-         if (priority) priority.textContent = index + 1;
-       });
-       showToast('数据源顺序已调整，记得保存', 'info');
-     });
-   }
-
-   function setupMobileSourceReorder() {
-     const sourceGrid = document.getElementById('sourceGrid');
-     if (!sourceGrid) return;
-
-     const items = sourceGrid.querySelectorAll('.source-item');
-     items.forEach((item, index) => {
-       item.removeAttribute('draggable');
-       const moveButtons = document.createElement('div');
-       moveButtons.style.cssText = 'display:flex;flex-direction:column;gap:4px;margin-left:auto;';
-
-       const upBtn = document.createElement('button');
-       upBtn.className = 'icon-btn';
-       upBtn.style.cssText = 'width:32px;height:32px;padding:0;';
-       upBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"><path d="M18 15l-6-6-6 6" stroke-width="2" stroke-linecap="round"/></svg>';
-       upBtn.onclick = (e) => { e.stopPropagation(); moveSourceUp(index); };
-
-       const downBtn = document.createElement('button');
-       downBtn.className = 'icon-btn';
-       downBtn.style.cssText = 'width:32px;height:32px;padding:0;';
-       downBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"><path d="M6 9l6 6 6-6" stroke-width="2" stroke-linecap="round"/></svg>';
-       downBtn.onclick = (e) => { e.stopPropagation(); moveSourceDown(index); };
-
-       if (index === 0) upBtn.disabled = true;
-       if (index === items.length - 1) downBtn.disabled = true;
-
-       moveButtons.appendChild(upBtn);
-       moveButtons.appendChild(downBtn);
-       item.appendChild(moveButtons);
-     });
-   }
-
-   function moveSourceUp(index) {
-     if (index === 0) return;
-     const temp = AppState.sourceOrder[index];
-     AppState.sourceOrder[index] = AppState.sourceOrder[index - 1];
-     AppState.sourceOrder[index - 1] = temp;
-     AppState.hasUnsavedChanges = true;
-     refreshSourceGrid();
-     showToast('已上移，记得保存', 'info');
-   }
-
-   function moveSourceDown(index) {
-     if (index >= AppState.sourceOrder.length - 1) return;
-     const temp = AppState.sourceOrder[index];
-     AppState.sourceOrder[index] = AppState.sourceOrder[index + 1];
-     AppState.sourceOrder[index + 1] = temp;
-     AppState.hasUnsavedChanges = true;
-     refreshSourceGrid();
-     showToast('已下移，记得保存', 'info');
-   }
-
-   function refreshSourceGrid() {
-     const sourceGrid = document.getElementById('sourceGrid');
-     if (!sourceGrid) return;
-
-     const sourceIcons = { 'dandan': 'D', 'bilibili': 'B', 'iqiyi': 'I', 'youku': 'Y', 'tencent': 'T', 'mgtv': 'M', 'bahamut': 'BH' };
-
-     sourceGrid.innerHTML = AppState.sourceOrder.map((source, index) => {
-       const icon = sourceIcons[source.toLowerCase()] || source.charAt(0).toUpperCase();
-       return \`
-         <div class="source-item" draggable="\${window.innerWidth > 768}" data-index="\${index}" data-source="\${source}">
-           \${window.innerWidth > 768 ? '<div class="drag-handle"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M9 5h2v2H9V5zm0 6h2v2H9v-2zm0 6h2v2H9v-2zm4-12h2v2h-2V5zm0 6h2v2h-2v-2zm0 6h2v2h-2v-2z" fill="currentColor"/></svg></div>' : ''}
-           <div class="source-priority">\${index + 1}</div>
-           <div class="source-icon">\${icon}</div>
-           <div class="source-name">\${source}</div>
-         </div>
-       \`;
-     }).join('');
-
-     initializeDragAndDrop();
-   }
-
-   function getDragAfterElement(container, y) {
-     const draggableElements = [...container.querySelectorAll('.source-item:not(.dragging)')];
-     return draggableElements.reduce((closest, child) => {
-       const box = child.getBoundingClientRect();
-       const offset = y - box.top - box.height / 2;
-       if (offset < 0 && offset > closest.offset) {
-         return { offset: offset, element: child };
-       } else {
-         return closest;
-       }
-     }, { offset: Number.NEGATIVE_INFINITY }).element;
-   }
-
-   function saveSourceOrder() {
-     localStorage.setItem('danmu_api_source_order', JSON.stringify(AppState.sourceOrder));
-     AppState.hasUnsavedChanges = false;
-     showToast('数据源优先级已保存', 'success');
-   }
-
-   function resetSourceOrder() {
-     if (!confirm('确定要重置数据源顺序为默认值吗？')) return;
-     const defaultOrder = ['dandan', 'bilibili', 'iqiyi', 'youku', 'tencent', 'mgtv', 'bahamut'];
-     AppState.sourceOrder = defaultOrder;
-     localStorage.setItem('danmu_api_source_order', JSON.stringify(defaultOrder));
-     AppState.hasUnsavedChanges = false;
-     location.reload();
-   }
-
-   function toggleStrictMatch(checkbox) {
-     AppState.config.STRICT_TITLE_MATCH = checkbox.checked;
-     localStorage.setItem('danmu_api_config', JSON.stringify(AppState.config));
-     AppState.hasUnsavedChanges = true;
-     const configValue = checkbox.closest('.config-item').querySelector('.config-value');
-     configValue.classList.toggle('value-enabled', checkbox.checked);
-     configValue.classList.toggle('value-disabled', !checkbox.checked);
-     configValue.querySelector('code').textContent = checkbox.checked ? '已启用 - 减少误匹配' : '已禁用 - 宽松匹配';
-     showToast(\`严格匹配模式已\${checkbox.checked ? '启用' : '禁用'}\`, 'success');
-   }
-
-   function toggleRememberSelect(checkbox) {
-     AppState.config.REMEMBER_LAST_SELECT = checkbox.checked;
-     localStorage.setItem('danmu_api_config', JSON.stringify(AppState.config));
-     AppState.hasUnsavedChanges = true;
-     const configValue = checkbox.closest('.config-item').querySelector('.config-value');
-     configValue.classList.toggle('value-enabled', checkbox.checked);
-     configValue.classList.toggle('value-disabled', !checkbox.checked);
-     configValue.querySelector('code').textContent = checkbox.checked ? '已启用 - 优化匹配准确度' : '已禁用';
-     showToast(\`记住手动选择已\${checkbox.checked ? '启用' : '禁用'}\`, 'success');
-   }
+   document.addEventListener('DOMContentLoaded', function() {
+     initializeApp();
+     initializeChart();
+     loadLocalStorageData();
+     setupGlobalSearch();
+   });
 
    function showModal(modalId) {
      const modal = document.getElementById(modalId);
@@ -4369,9 +3994,9 @@ function handleHomepage(req) {
    });
 
    document.addEventListener('keydown', function(e) {
-     if ((e.ctrlKey || e.metaKey) && e.key >= '1' && e.key <= '4') {
+     if ((e.ctrlKey || e.metaKey) && e.key >= '1' && e.key <= '3') {
        e.preventDefault();
-       const pages = ['overview', 'config', 'vod', 'sources'];
+       const pages = ['overview', 'config', 'about'];
        const index = parseInt(e.key) - 1;
        if (pages[index]) {
          const navItems = document.querySelectorAll('.nav-item');
