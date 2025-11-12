@@ -1,10 +1,17 @@
 // server.js - 智能服务器启动器：根据 Node.js 环境自动选择最优启动模式
 
-// 加载 .env 文件中的环境变量（本地开发时使用）
-const path = require('path');
-const fs = require('fs');
-const dotenv = require('dotenv');
-const yaml = require('js-yaml');
+import path from 'path';
+import { fileURLToPath } from 'url';
+import fs from 'fs';
+import dotenv from 'dotenv';
+import yaml from 'js-yaml';
+import http from 'http';
+import https from 'https';
+import url from 'url';
+import { HttpsProxyAgent } from 'https-proxy-agent';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // 配置文件路径在项目根目录（server.js 的上一级目录）
 const envPath = path.join(__dirname, '..', '.env');
@@ -82,7 +89,7 @@ let reloadTimer = null;
 let mainServer = null;
 let proxyServer = null;
 
-function setupEnvWatcher() {
+async function setupEnvWatcher() {
   const envExists = fs.existsSync(envPath);
   const yamlExists = fs.existsSync(yamlPath);
 
@@ -92,7 +99,7 @@ function setupEnvWatcher() {
   }
 
   try {
-    const chokidar = require('chokidar');
+    const chokidar = await import('chokidar');
     const watchPaths = [];
     if (envExists) watchPaths.push(envPath);
     if (yamlExists) watchPaths.push(yamlPath);
@@ -158,8 +165,7 @@ function setupEnvWatcher() {
             }
           }
 
-          // 清除 dotenv 缓存并重新加载环境变量
-          delete require.cache[require.resolve('dotenv')];
+          // 重新加载环境变量
           loadEnv();
 
           console.log('[server] Environment variables reloaded successfully');
@@ -224,13 +230,8 @@ function cleanupWatcher() {
 process.on('SIGTERM', cleanupWatcher);
 process.on('SIGINT', cleanupWatcher);
 
-// 导入 ES module 兼容层（始终加载，但内部会根据需要启用）
-require('./esm-shim');
-
-const http = require('http');
-const https = require('https');
-const url = require('url');
-const { HttpsProxyAgent } = require('https-proxy-agent');
+// 导入 ES module 兼容层
+import './esm-shim.js';
 
 // --- 版本兼容性检测工具 ---
 // 辅助函数：比较两个版本号字符串
@@ -250,19 +251,23 @@ function compareVersion(version1, version2) {
 }
 
 // 检测是否需要异步启动（兼容层模式）
-function needsAsyncStartup() {
+async function needsAsyncStartup() {
   try {
     const nodeVersion = process.versions.node;
-    // 检查 Node.js 版本是否 >= v20.19.0 (此版本及更高版本内置了 fetch API，对 node-fetch v3 的兼容性更好)
     const isNodeCompatible = compareVersion(nodeVersion, '20.19.0') >= 0;
 
     // 尝试检测已安装的 node-fetch 版本
-    const packagePath = require.resolve('node-fetch/package.json');
-    const pkg = require(packagePath);
-    // 检查 node-fetch 是否是 v3.x 版本 (v3.x 在旧版 Node.js 中可能存在一些加载问题)
+    const packagePath = path.join(__dirname, '..', 'node_modules', 'node-fetch', 'package.json');
+    
+    if (!fs.existsSync(packagePath)) {
+      console.log('[server] Cannot detect node-fetch, using sync startup');
+      return false;
+    }
+
+    const pkgContent = fs.readFileSync(packagePath, 'utf8');
+    const pkg = JSON.parse(pkgContent);
     const isNodeFetchV3 = pkg.version.startsWith('3.');
 
-    // 核心逻辑：只有在 Node.js < v20.19.0 且同时使用 node-fetch v3 时，才需要特殊的异步启动（兼容层模式）
     const needsAsync = !isNodeCompatible && isNodeFetchV3;
 
     console.log(`[server] Environment check: Node ${nodeVersion}, node-fetch ${pkg.version}`);
@@ -273,49 +278,45 @@ function needsAsyncStartup() {
     return needsAsync;
 
   } catch (e) {
-    // 无法检测或者 node-fetch 不存在，使用同步启动
     console.log('[server] Cannot detect node-fetch, using sync startup');
     return false;
   }
 }
 
 // --- 核心 HTTP 服务器（端口 9321）逻辑 ---
-// 创建主业务服务器实例（将 Node.js 请求转换为 Web API Request，并调用 worker.js 处理）
-function createServer() {
-  // 导入所需的 fetch 兼容对象
-  const fetch = require('node-fetch');
-  const { Request, Response } = fetch;
-  // 导入核心请求处理逻辑
-  const { handleRequest } = require('./worker.js'); // 直接导入 handleRequest 函数
+async function createServer() {
+  const nodeFetch = await import('node-fetch');
+  const fetch = nodeFetch.default;
+  const { Request, Response } = nodeFetch;
+  
+  const workerModule = await import('./worker.js');
+  const { handleRequest } = workerModule;
 
   return http.createServer(async (req, res) => {
     try {
-      // 构造完整的请求 URL
       const fullUrl = `http://${req.headers.host}${req.url}`;
 
-      // 获取请求客户端的ip，兼容反向代理场景
+      // 获取请求客户端的ip
       let clientIp = 'unknown';
-      
-      // 优先级：X-Forwarded-For > X-Real-IP > 直接连接IP
+
       const forwardedFor = req.headers['x-forwarded-for'];
       if (forwardedFor) {
-        // X-Forwarded-For 可能包含多个IP（代理链），第一个是真实客户端IP
         clientIp = forwardedFor.split(',')[0].trim();
         console.log(`[server] Using X-Forwarded-For IP: ${clientIp}`);
       } else if (req.headers['x-real-ip']) {
         clientIp = req.headers['x-real-ip'];
         console.log(`[server] Using X-Real-IP: ${clientIp}`);
       } else {
-        clientIp = req.connection.remoteAddress || 'unknown';
+        clientIp = req.socket.remoteAddress || 'unknown';
         console.log(`[server] Using direct connection IP: ${clientIp}`);
       }
-      
-      // 清理IPv6前缀（如果存在）
+
+      // 清理IPv6前缀
       if (clientIp && clientIp.startsWith('::ffff:')) {
         clientIp = clientIp.substring(7);
       }
 
-      // 异步读取 POST/PUT 请求的请求体
+      // 异步读取请求体
       let body;
       if (req.method === 'POST' || req.method === 'PUT') {
         body = await new Promise((resolve) => {
@@ -325,23 +326,18 @@ function createServer() {
         });
       }
 
-      // 创建一个 Web API 兼容的 Request 对象
       const webRequest = new Request(fullUrl, {
         method: req.method,
         headers: req.headers,
-        body: body || undefined, // 对于 GET/HEAD 等请求，body 为 undefined
+        body: body || undefined,
       });
 
-      // 调用核心处理函数，并标识平台为 "node"
       const webResponse = await handleRequest(webRequest, process.env, "node", clientIp);
 
-      // 将 Web API Response 对象转换为 Node.js 响应
       res.statusCode = webResponse.status;
-      // 设置响应头
       webResponse.headers.forEach((value, key) => {
         res.setHeader(key, value);
       });
-      // 发送响应体
       const responseText = await webResponse.text();
       res.end(responseText);
     } catch (error) {
@@ -352,103 +348,83 @@ function createServer() {
   });
 }
 
-// 代理服务器逻辑（用于5321端口）
+// 代理服务器逻辑
 function createProxyServer() {
   return http.createServer((req, res) => {
     const queryObject = url.parse(req.url, true).query;
 
     if (queryObject.url) {
-      // 解析 PROXY_URL 配置（统一处理代理和反向代理）
       const proxyConfig = process.env.PROXY_URL || '';
-      let forwardProxy = null;      // 正向代理（传统代理）
-      let bahamutRP = null;         // 巴哈姆特专用反代
-      let tmdbRP = null;            // TMDB专用反代
-      let universalRP = null;       // 万能反代
+      let forwardProxy = null;
+      let bahamutRP = null;
+      let tmdbRP = null;
+      let universalRP = null;
 
       if (proxyConfig) {
-        // 支持多个配置，用逗号分隔
         const proxyConfigs = proxyConfig.split(',').map(s => s.trim()).filter(s => s);
-        
+
         for (const config of proxyConfigs) {
           if (config.startsWith('bahamut@')) {
-            // 巴哈姆特专用反代：bahamut@http://example.com
             bahamutRP = config.substring(8).trim().replace(/\/+$/, '');
             console.log('[Proxy Server] Bahamut reverse proxy detected:', bahamutRP);
           } else if (config.startsWith('tmdb@')) {
-            // TMDB专用反代：tmdb@http://example.com
             tmdbRP = config.substring(5).trim().replace(/\/+$/, '');
             console.log('[Proxy Server] TMDB reverse proxy detected:', tmdbRP);
           } else if (config.startsWith('@')) {
-            // 万能反代：@http://example.com
             universalRP = config.substring(1).trim().replace(/\/+$/, '');
             console.log('[Proxy Server] Universal reverse proxy detected:', universalRP);
           } else {
-            // 正向代理：http://proxy.com:port 或 socks5://proxy.com:port
             forwardProxy = config.trim();
             console.log('[Proxy Server] Forward proxy detected:', forwardProxy);
           }
         }
       }
+
       const targetUrl = queryObject.url;
       console.log('[Proxy Server] Target URL:', targetUrl);
-      
+
       const originalUrlObj = new URL(targetUrl);
       let options = {
         hostname: originalUrlObj.hostname,
         port: originalUrlObj.port || (originalUrlObj.protocol === 'https:' ? 443 : 80),
         path: originalUrlObj.pathname + originalUrlObj.search,
         method: 'GET',
-        headers: { ...req.headers } // 传递原始请求头
+        headers: { ...req.headers }
       };
-      // Host 头必须被移除，以便 protocol.request 根据 options.hostname 设置正确的值
-      delete options.headers.host; 
-      
-      let protocol = originalUrlObj.protocol === 'https:' ? https : http;
+      delete options.headers.host;
 
-      // 新反代优先级判断：专用反代 > 万能反代 > PROXY_URL代理
+      let protocol = originalUrlObj.protocol === 'https:' ? https : http;
       let finalReverseProxy = null;
 
-      // 1. 检查是否匹配巴哈姆特专用反代
       if (bahamutRP && originalUrlObj.hostname.includes('gamer.com.tw')) {
         finalReverseProxy = bahamutRP;
         console.log('[Proxy Server] Using Bahamut-specific reverse proxy');
-      }
-      // 2. 检查是否匹配TMDB专用反代
-      else if (tmdbRP && originalUrlObj.hostname.includes('tmdb.org')) {
+      } else if (tmdbRP && originalUrlObj.hostname.includes('tmdb.org')) {
         finalReverseProxy = tmdbRP;
         console.log('[Proxy Server] Using TMDB-specific reverse proxy');
-      }
-      // 3. 检查万能反代
-      else if (universalRP) {
+      } else if (universalRP) {
         finalReverseProxy = universalRP;
         console.log('[Proxy Server] Using universal reverse proxy');
       }
 
-      // 应用反代逻辑
       if (finalReverseProxy) {
         try {
-          // 解析反向代理服务器的 URL，设置主机、端口和协议
           const reverseUrlObj = new URL(finalReverseProxy);
           options.hostname = reverseUrlObj.hostname;
           options.port = reverseUrlObj.port || (reverseUrlObj.protocol === 'https:' ? 443 : 80);
           protocol = reverseUrlObj.protocol === 'https:' ? https : http;
-          
+
           const baseReversePath = reverseUrlObj.pathname.replace(/\/$/, '');
           let logMessage = '';
 
-          // 根据反代类型构建不同的目标路径
           if (finalReverseProxy === universalRP) {
-            // 万能反代：追加原始完整URL
-            // 路径格式：/反代路径/原始完整URL
             options.path = baseReversePath + '/' + targetUrl.replace(':/', '');
             logMessage = `[Proxy Server] Universal RP rewriting to: ${protocol === https ? 'https' : 'http'}://${options.hostname}:${options.port}${options.path}`;
           } else {
-            // 专用反代：路径合并模式
-            // 路径合并：/反代路径 + /原始路径?query
             options.path = baseReversePath + originalUrlObj.pathname + originalUrlObj.search;
             logMessage = `[Proxy Server] Specific RP rewriting to: ${protocol === https ? 'https' : 'http'}://${options.hostname}:${options.port}${options.path}`;
           }
-          
+
           console.log(logMessage);
 
         } catch (e) {
@@ -458,11 +434,9 @@ function createProxyServer() {
           return;
         }
       } else if (forwardProxy) {
-        // 正向代理模式：使用 HttpsProxyAgent
         console.log('[Proxy Server] Using forward proxy agent:', forwardProxy);
         options.agent = new HttpsProxyAgent(forwardProxy);
       } else {
-        // 直连模式
         console.log('[Proxy Server] No proxy configured, direct connection');
       }
 
@@ -485,50 +459,40 @@ function createProxyServer() {
   });
 }
 
-
 // --- 启动函数 ---
-// 同步启动（最优/默认路径，适用于常规已兼容环境）
-function startServerSync() {
+async function startServerSync() {
   console.log('[server] Starting server synchronously (optimal path)');
 
-  // 设置 .env 文件监听
-  setupEnvWatcher();
+  await setupEnvWatcher();
 
-  // 启动主业务服务器 (9321)
-  mainServer = createServer();
+  mainServer = await createServer();
   mainServer.listen(9321, '0.0.0.0', () => {
     console.log('Server running on http://0.0.0.0:9321');
   });
 
-  // 启动5321端口的代理服务
   proxyServer = createProxyServer();
   proxyServer.listen(5321, '0.0.0.0', () => {
     console.log('Proxy server running on http://0.0.0.0:5321');
   });
 }
 
-// 异步启动（兼容层模式路径，适用于 Node.js < v20.19.0 + node-fetch v3）
 async function startServerAsync() {
   try {
     console.log('[server] Starting server asynchronously (compatibility mode for Node.js <20.19.0 + node-fetch v3)');
 
-    // 设置 .env 文件监听
-    setupEnvWatcher();
+    await setupEnvWatcher();
 
-    // 预加载 node-fetch v3（解决特定环境下 node-fetch v3 的加载问题）
     if (typeof global.loadNodeFetch === 'function') {
       console.log('[server] Pre-loading node-fetch v3...');
       await global.loadNodeFetch();
       console.log('[server] node-fetch v3 loaded successfully');
     }
 
-    // 启动主业务服务器 (9321)
-    mainServer = createServer();
+    mainServer = await createServer();
     mainServer.listen(9321, '0.0.0.0', () => {
       console.log('Server running on http://0.0.0.0:9321 (compatibility mode)');
     });
 
-    // 启动5321端口的代理服务
     proxyServer = createProxyServer();
     proxyServer.listen(5321, '0.0.0.0', () => {
       console.log('Proxy server running on http://0.0.0.0:5321 (compatibility mode)');
@@ -541,9 +505,9 @@ async function startServerAsync() {
 }
 
 // --- 启动决策逻辑 ---
-// 智能选择启动方式：如果环境需要兼容，则异步启动；否则同步启动。
-if (needsAsyncStartup()) {
-  startServerAsync();
+const needsAsync = await needsAsyncStartup();
+if (needsAsync) {
+  await startServerAsync();
 } else {
-  startServerSync();
+  await startServerSync();
 }
