@@ -2953,8 +2953,9 @@ function handleHomepage(req) {
              <div class="stat-icon info">🚀</div>
            </div>
            <div class="stat-value">v${globals.VERSION}</div>
-           <div class="stat-footer">
-             ✅ 服务运行正常
+           <div class="stat-footer" id="versionStatus">
+             <span class="loading-spinner" style="display: inline-block; margin-right: 6px;"></span>
+             正在检查更新...
            </div>
          </div>
 
@@ -3781,6 +3782,8 @@ function handleHomepage(req) {
 
      // 初始化 API 地址显示
      updateApiUrlDisplay();
+     // 检查版本更新
+     checkForUpdates();
 
      // 尝试从服务器加载配置
      try {
@@ -4382,6 +4385,78 @@ function handleHomepage(req) {
        showToast('退出失败', 'error');
      }
    }
+
+
+   // ========== 版本检测功能 ==========
+   async function checkForUpdates() {
+     const versionStatus = document.getElementById('versionStatus');
+     if (!versionStatus) return;
+
+     try {
+       const response = await fetch('https://raw.githubusercontent.com/huangxd-/danmu_api/refs/heads/main/danmu_api/configs/globals.js', {
+         cache: 'no-cache'
+       });
+
+       if (!response.ok) {
+         throw new Error('网络请求失败');
+       }
+
+       const content = await response.text();
+       
+       // 使用正则表达式提取版本号
+       const versionMatch = content.match(/VERSION:\s*['"](\d+\.\d+\.\d+)['"]/);
+       
+       if (!versionMatch) {
+         throw new Error('无法解析版本号');
+       }
+
+       const latestVersion = versionMatch[1];
+       const currentVersion = '${globals.VERSION}';
+
+       // 比较版本号
+       const isLatest = compareVersions(currentVersion, latestVersion) >= 0;
+
+       if (isLatest) {
+         versionStatus.innerHTML = '✅ 已是最新版本';
+       } else {
+         versionStatus.innerHTML = \`
+           <span style="color: var(--warning);">⚠️ 发现新版本 v\${latestVersion}</span>
+           <a href="https://github.com/huangxd-/danmu_api/releases" 
+              target="_blank" 
+              rel="noopener"
+              style="color: var(--primary-400); text-decoration: none; margin-left: 8px; font-weight: 600;"
+              title="查看更新日志">
+             查看详情 →
+           </a>
+         \`;
+       }
+     } catch (error) {
+       console.error('版本检查失败:', error);
+       versionStatus.innerHTML = '✅ 服务运行正常';
+     }
+   }
+
+   /**
+    * 比较版本号
+    * @param {string} v1 当前版本
+    * @param {string} v2 最新版本
+    * @returns {number} 1=v1>v2, 0=v1=v2, -1=v1<v2
+    */
+   function compareVersions(v1, v2) {
+     const parts1 = v1.split('.').map(Number);
+     const parts2 = v2.split('.').map(Number);
+
+     for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
+       const num1 = parts1[i] || 0;
+       const num2 = parts2[i] || 0;
+
+       if (num1 > num2) return 1;
+       if (num1 < num2) return -1;
+     }
+
+     return 0;
+   }
+
 
    // 更新并复制 API 地址
    function updateApiUrlDisplay() {
