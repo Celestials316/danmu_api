@@ -2953,8 +2953,16 @@ function handleHomepage(req) {
              <div class="stat-icon info">🚀</div>
            </div>
            <div class="stat-value">v${globals.VERSION}</div>
-           <div class="stat-footer">
-             ✅ 服务运行正常
+           <div class="stat-footer" style="display: flex; align-items: center; justify-content: space-between;">
+             <div id="versionStatus" style="flex: 1;">
+               <span class="loading-spinner" style="display: inline-block; margin-right: 6px;"></span>
+               正在检查更新...
+             </div>
+             <button onclick="checkForUpdates()" class="icon-btn" style="width: 32px; height: 32px; margin-left: 8px; flex-shrink: 0;" title="手动检查更新">
+               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width: 16px; height: 16px;">
+                 <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+               </svg>
+             </button>
            </div>
          </div>
 
@@ -3781,6 +3789,8 @@ function handleHomepage(req) {
 
      // 初始化 API 地址显示
      updateApiUrlDisplay();
+     // 检查版本更新
+     checkForUpdates();
 
      // 尝试从服务器加载配置
      try {
@@ -4382,6 +4392,78 @@ function handleHomepage(req) {
        showToast('退出失败', 'error');
      }
    }
+
+
+   // ========== 版本检测功能 ==========
+   async function checkForUpdates() {
+     const versionStatus = document.getElementById('versionStatus');
+     if (!versionStatus) return;
+
+     try {
+       // 显示加载状态
+       versionStatus.innerHTML = '<span class="loading-spinner" style="display: inline-block; margin-right: 6px;"></span>正在检查更新...';
+       
+       // 通过后端 API 检查版本，避免 CORS 问题
+       const response = await fetch('/api/version/check', {
+         cache: 'no-cache'
+       });
+
+       if (!response.ok) {
+         throw new Error('网络请求失败');
+       }
+
+       const result = await response.json();
+       
+       if (!result.success) {
+         throw new Error(result.error || '版本检查失败');
+       }
+
+       const { currentVersion, latestVersion } = result;
+
+       // 比较版本号
+       const isLatest = compareVersions(currentVersion, latestVersion) >= 0;
+
+       if (isLatest) {
+         versionStatus.innerHTML = '✅ 已是最新版本';
+       } else {
+         versionStatus.innerHTML = \`
+           <span style="color: var(--warning);">⚠️ 发现新版本 v\${latestVersion}</span>
+           <a href="https://github.com/huangxd-/danmu_api/releases" 
+              target="_blank" 
+              rel="noopener"
+              style="color: var(--primary-400); text-decoration: none; margin-left: 8px; font-weight: 600;"
+              title="查看更新日志">
+             查看详情 →
+           </a>
+         \`;
+       }
+     } catch (error) {
+       console.error('版本检查失败:', error);
+       versionStatus.innerHTML = '✅ 服务运行正常';
+     }
+   }
+
+   /**
+    * 比较版本号
+    * @param {string} v1 当前版本
+    * @param {string} v2 最新版本
+    * @returns {number} 1=v1>v2, 0=v1=v2, -1=v1<v2
+    */
+   function compareVersions(v1, v2) {
+     const parts1 = v1.split('.').map(Number);
+     const parts2 = v2.split('.').map(Number);
+
+     for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
+       const num1 = parts1[i] || 0;
+       const num2 = parts2[i] || 0;
+
+       if (num1 > num2) return 1;
+       if (num1 < num2) return -1;
+     }
+
+     return 0;
+   }
+
 
    // 更新并复制 API 地址
    function updateApiUrlDisplay() {
@@ -5088,6 +5170,40 @@ if (currentToken === "87654321") {
       .join("\n");
     return new Response(logText, { headers: { "Content-Type": "text/plain; charset=utf-8" } });
   }
+
+  // GET /api/version/check - 检查版本更新
+  if (path === "/api/version/check" && method === "GET") {
+    try {
+      const response = await fetch(
+        'https://raw.githubusercontent.com/huangxd-/danmu_api/refs/heads/main/danmu_api/configs/globals.js',
+        { cache: 'no-cache' }
+      );
+      
+      if (!response.ok) {
+        throw new Error('网络请求失败');
+      }
+      
+      const content = await response.text();
+      const versionMatch = content.match(/VERSION:\s*['"](\d+\.\d+\.\d+)['"]/);
+      
+      if (!versionMatch) {
+        throw new Error('无法解析版本号');
+      }
+      
+      return jsonResponse({
+        success: true,
+        latestVersion: versionMatch[1],
+        currentVersion: globals.VERSION
+      });
+    } catch (error) {
+      log("error", `[version] 版本检查失败: ${error.message}`);
+      return jsonResponse({
+        success: false,
+        error: error.message
+      }, 500);
+    }
+  }
+
 
 
   return jsonResponse({ message: "Not found" }, 404);
