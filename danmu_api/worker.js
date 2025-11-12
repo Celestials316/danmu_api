@@ -41,13 +41,12 @@ async function validateSession(sessionId) {
     
     // 降级到数据库
     if (globals.databaseValid) {
-      const { loadEnvConfigs } = await import('./utils/db-util.js');
-      const configs = await loadEnvConfigs();
-      const sessionKey = `SESSION_${sessionId}`;
+      const { loadCacheData } = await import('./utils/db-util.js');
+      const sessionKey = `session:${sessionId}`;
+      const session = await loadCacheData(sessionKey);
       
-      if (!configs[sessionKey]) return false;
+      if (!session) return false;
       
-      const session = JSON.parse(configs[sessionKey]);
       if (Date.now() - session.createdAt > SESSION_TIMEOUT) {
         await deleteSession(sessionId);
         return false;
@@ -72,6 +71,7 @@ async function saveSession(sessionId, username) {
   };
   
   try {
+    // Redis 存储
     if (globals.redisValid) {
       const { setRedisKey } = await import('./utils/redis-util.js');
       await setRedisKey(
@@ -83,10 +83,11 @@ async function saveSession(sessionId, username) {
       return true;
     }
     
+    // 数据库存储（使用专门的缓存表）
     if (globals.databaseValid) {
-      const { saveEnvConfigs } = await import('./utils/db-util.js');
-      const sessionKey = `SESSION_${sessionId}`;
-      await saveEnvConfigs({ [sessionKey]: JSON.stringify(session) });
+      const { saveCacheData } = await import('./utils/db-util.js');
+      const sessionKey = `session:${sessionId}`;
+      await saveCacheData(sessionKey, session);
       return true;
     }
     
@@ -105,9 +106,9 @@ async function deleteSession(sessionId) {
     }
     
     if (globals.databaseValid) {
-      const { saveEnvConfigs } = await import('./utils/db-util.js');
-      const sessionKey = `SESSION_${sessionId}`;
-      await saveEnvConfigs({ [sessionKey]: '' });
+      const { saveCacheData } = await import('./utils/db-util.js');
+      const sessionKey = `session:${sessionId}`;
+      await saveCacheData(sessionKey, null);
     }
   } catch (error) {
     log("error", `[session] 删除会话失败: ${error.message}`);
@@ -4982,8 +4983,8 @@ if (path === "/api/login" && method === "POST") {
     try {
       if (globals.redisValid) {
         const { getRedisKey } = await import('./utils/redis-util.js');
-        const userResult = await getRedisKey('admin_username');
-        const passResult = await getRedisKey('admin_password');
+        const userResult = await getRedisKey('admin:username');
+        const passResult = await getRedisKey('admin:password');
         if (userResult?.result) storedUsername = userResult.result;
         if (passResult?.result) storedPassword = passResult.result;
       } else if (globals.databaseValid) {
@@ -5062,8 +5063,8 @@ if (path === "/api/logout" && method === "POST") {
       try {
         if (globals.redisValid) {
           const { getRedisKey } = await import('./utils/redis-util.js');
-          const userResult = await getRedisKey('admin_username');
-          const passResult = await getRedisKey('admin_password');
+          const userResult = await getRedisKey('admin:username');
+          const passResult = await getRedisKey('admin:password');
           if (userResult?.result) storedUsername = userResult.result;
           if (passResult?.result) storedPassword = passResult.result;
         } else if (globals.databaseValid) {
@@ -5075,7 +5076,6 @@ if (path === "/api/logout" && method === "POST") {
       } catch (e) {
         log("warn", "[change-password] 加载账号密码失败");
       }
-
       if (oldPassword !== storedPassword) {
         return jsonResponse({ success: false, message: '旧密码错误' }, 400);
       }
@@ -5628,15 +5628,15 @@ async function saveAdminCredentials(username, password) {
   try {
     let saved = false;
 
-    // 保存到 Redis
+    // 保存到 Redis（使用专门的 key）
     if (globals.redisValid) {
       const { setRedisKey } = await import('./utils/redis-util.js');
-      const userResult = await setRedisKey('admin_username', username, true);
-      const passResult = await setRedisKey('admin_password', password, true);
+      const userResult = await setRedisKey('admin:username', username, true);
+      const passResult = await setRedisKey('admin:password', password, true);
       saved = userResult?.result === 'OK' && passResult?.result === 'OK';
     }
 
-    // 保存到数据库
+    // 保存到数据库（使用环境变量配置表）
     if (globals.databaseValid) {
       const { saveEnvConfigs } = await import('./utils/db-util.js');
       const dbSaved = await saveEnvConfigs({
