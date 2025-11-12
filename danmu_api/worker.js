@@ -2953,9 +2953,16 @@ function handleHomepage(req) {
              <div class="stat-icon info">🚀</div>
            </div>
            <div class="stat-value">v${globals.VERSION}</div>
-           <div class="stat-footer" id="versionStatus">
-             <span class="loading-spinner" style="display: inline-block; margin-right: 6px;"></span>
-             正在检查更新...
+           <div class="stat-footer" style="display: flex; align-items: center; justify-content: space-between;">
+             <div id="versionStatus" style="flex: 1;">
+               <span class="loading-spinner" style="display: inline-block; margin-right: 6px;"></span>
+               正在检查更新...
+             </div>
+             <button onclick="checkForUpdates()" class="icon-btn" style="width: 32px; height: 32px; margin-left: 8px; flex-shrink: 0;" title="手动检查更新">
+               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width: 16px; height: 16px;">
+                 <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+               </svg>
+             </button>
            </div>
          </div>
 
@@ -4393,6 +4400,9 @@ function handleHomepage(req) {
      if (!versionStatus) return;
 
      try {
+       // 显示加载状态
+       versionStatus.innerHTML = '<span class="loading-spinner" style="display: inline-block; margin-right: 6px;"></span>正在检查更新...';
+       
        // 通过后端 API 检查版本，避免 CORS 问题
        const response = await fetch('/api/version/check', {
          cache: 'no-cache'
