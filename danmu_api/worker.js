@@ -4393,7 +4393,8 @@ function handleHomepage(req) {
      if (!versionStatus) return;
 
      try {
-       const response = await fetch('https://raw.githubusercontent.com/huangxd-/danmu_api/refs/heads/main/danmu_api/configs/globals.js', {
+       // 通过后端 API 检查版本，避免 CORS 问题
+       const response = await fetch('/api/version/check', {
          cache: 'no-cache'
        });
 
@@ -4401,17 +4402,13 @@ function handleHomepage(req) {
          throw new Error('网络请求失败');
        }
 
-       const content = await response.text();
+       const result = await response.json();
        
-       // 使用正则表达式提取版本号
-       const versionMatch = content.match(/VERSION:\s*['"](\d+\.\d+\.\d+)['"]/);
-       
-       if (!versionMatch) {
-         throw new Error('无法解析版本号');
+       if (!result.success) {
+         throw new Error(result.error || '版本检查失败');
        }
 
-       const latestVersion = versionMatch[1];
-       const currentVersion = '${globals.VERSION}';
+       const { currentVersion, latestVersion } = result;
 
        // 比较版本号
        const isLatest = compareVersions(currentVersion, latestVersion) >= 0;
@@ -5163,6 +5160,40 @@ if (currentToken === "87654321") {
       .join("\n");
     return new Response(logText, { headers: { "Content-Type": "text/plain; charset=utf-8" } });
   }
+
+  // GET /api/version/check - 检查版本更新
+  if (path === "/api/version/check" && method === "GET") {
+    try {
+      const response = await fetch(
+        'https://raw.githubusercontent.com/huangxd-/danmu_api/refs/heads/main/danmu_api/configs/globals.js',
+        { cache: 'no-cache' }
+      );
+      
+      if (!response.ok) {
+        throw new Error('网络请求失败');
+      }
+      
+      const content = await response.text();
+      const versionMatch = content.match(/VERSION:\s*['"](\d+\.\d+\.\d+)['"]/);
+      
+      if (!versionMatch) {
+        throw new Error('无法解析版本号');
+      }
+      
+      return jsonResponse({
+        success: true,
+        latestVersion: versionMatch[1],
+        currentVersion: globals.VERSION
+      });
+    } catch (error) {
+      log("error", `[version] 版本检查失败: ${error.message}`);
+      return jsonResponse({
+        success: false,
+        error: error.message
+      }, 500);
+    }
+  }
+
 
 
   return jsonResponse({ message: "Not found" }, 404);
