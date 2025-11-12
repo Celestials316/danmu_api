@@ -878,264 +878,121 @@ function handleHomepage(req) {
        radial-gradient(circle at 40% 20%, rgba(59, 130, 246, 0.05) 0%, transparent 50%);
    }
 
-/* 侧边栏 - 高级渐变玻璃态设计 */
+   /* 侧边栏 - 极简现代设计 */
    .sidebar {
      position: fixed;
      left: 0;
      top: 0;
      bottom: 0;
-     width: 280px;
-     background: linear-gradient(180deg, 
-       rgba(19, 19, 26, 0.95) 0%, 
-       rgba(13, 13, 20, 0.98) 50%,
-       rgba(10, 10, 15, 0.99) 100%);
-     backdrop-filter: blur(30px) saturate(150%);
-     -webkit-backdrop-filter: blur(30px) saturate(150%);
-     border-right: 1px solid rgba(99, 102, 241, 0.15);
+     width: 260px;
+     background: var(--bg-secondary);
+     border-right: 1px solid var(--border-color);
      padding: 0;
-     overflow: hidden;
-     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+     overflow-y: auto;
+     transition: all 0.3s var(--ease-smooth);
      z-index: 1000;
      display: flex;
      flex-direction: column;
-     box-shadow: 4px 0 24px rgba(0, 0, 0, 0.3),
-                 inset -1px 0 0 rgba(99, 102, 241, 0.1);
-   }
-
-   /* 侧边栏光晕效果 */
-   .sidebar::before {
-     content: '';
-     position: absolute;
-     top: -50%;
-     left: -50%;
-     width: 200%;
-     height: 200%;
-     background: radial-gradient(circle at center, 
-       rgba(99, 102, 241, 0.08) 0%, 
-       transparent 60%);
-     animation: sidebarGlow 15s ease-in-out infinite;
-     pointer-events: none;
-   }
-
-   @keyframes sidebarGlow {
-     0%, 100% { 
-       transform: translate(0, 0) scale(1);
-       opacity: 0.5;
-     }
-     50% { 
-       transform: translate(10%, -10%) scale(1.1);
-       opacity: 0.8;
-     }
    }
 
    .sidebar-logo {
-     padding: 40px 28px 32px;
-     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+     padding: 32px 24px;
+     border-bottom: 1px solid var(--border-color);
      flex-shrink: 0;
-     position: relative;
-     z-index: 1;
-     background: linear-gradient(135deg, 
-       rgba(99, 102, 241, 0.05) 0%, 
-       transparent 100%);
    }
 
    .logo-content {
      display: flex;
      align-items: center;
-     gap: 16px;
-     position: relative;
+     gap: 14px;
    }
 
    .logo-icon {
-     width: 52px;
-     height: 52px;
-     background: linear-gradient(135deg, 
-       var(--primary-500) 0%, 
-       var(--primary-600) 50%,
-       #7c3aed 100%);
-     border-radius: 14px;
+     width: 44px;
+     height: 44px;
+     background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+     border-radius: 10px;
      display: flex;
      align-items: center;
      justify-content: center;
-     font-size: 26px;
+     font-size: 22px;
      color: white;
      flex-shrink: 0;
-     transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-     position: relative;
-     box-shadow: 0 8px 24px rgba(99, 102, 241, 0.35),
-                 inset 0 1px 0 rgba(255, 255, 255, 0.2);
-   }
-
-   /* Logo 发光效果 */
-   .logo-icon::before {
-     content: '';
-     position: absolute;
-     inset: -3px;
-     background: linear-gradient(135deg, var(--primary-400), var(--primary-600));
-     border-radius: 16px;
-     opacity: 0;
-     filter: blur(8px);
-     transition: opacity 0.4s ease;
-     z-index: -1;
+     transition: all 0.3s var(--ease-smooth);
    }
 
    .logo-content:hover .logo-icon {
-     transform: rotate(-8deg) scale(1.08);
-     box-shadow: 0 12px 32px rgba(99, 102, 241, 0.5),
-                 inset 0 1px 0 rgba(255, 255, 255, 0.3);
-   }
-
-   .logo-content:hover .logo-icon::before {
-     opacity: 0.6;
+     transform: rotate(-5deg) scale(1.05);
+     box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4);
    }
 
    .logo-text h1 {
-     font-size: 20px;
-     font-weight: 800;
+     font-size: 18px;
+     font-weight: 700;
      color: var(--text-primary);
-     margin-bottom: 4px;
-     letter-spacing: -0.8px;
-     background: linear-gradient(135deg, 
-       var(--text-primary) 0%, 
-       rgba(229, 231, 235, 0.8) 100%);
-     -webkit-background-clip: text;
-     -webkit-text-fill-color: transparent;
-     background-clip: text;
+     margin-bottom: 2px;
+     letter-spacing: -0.5px;
    }
 
    .logo-text p {
      font-size: 11px;
-     color: var(--primary-400);
-     font-weight: 700;
+     color: var(--text-tertiary);
+     font-weight: 600;
      text-transform: uppercase;
-     letter-spacing: 1.5px;
-     opacity: 0.9;
+     letter-spacing: 1px;
    }
 
    .nav-menu {
-     padding: 24px 16px;
+     padding: 16px 12px;
      flex: 1;
      overflow-y: auto;
-     position: relative;
-     z-index: 1;
-   }
-
-   /* 美化滚动条 */
-   .nav-menu::-webkit-scrollbar {
-     width: 6px;
-   }
-
-   .nav-menu::-webkit-scrollbar-track {
-     background: transparent;
-   }
-
-   .nav-menu::-webkit-scrollbar-thumb {
-     background: rgba(99, 102, 241, 0.3);
-     border-radius: 10px;
-   }
-
-   .nav-menu::-webkit-scrollbar-thumb:hover {
-     background: rgba(99, 102, 241, 0.5);
    }
 
    .nav-item {
      display: flex;
      align-items: center;
-     gap: 14px;
-     padding: 14px 16px;
-     margin-bottom: 6px;
-     border-radius: 12px;
+     gap: 12px;
+     padding: 12px 14px;
+     margin-bottom: 4px;
+     border-radius: 8px;
      color: var(--text-secondary);
      cursor: pointer;
-     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-     font-size: 15px;
-     font-weight: 600;
+     transition: all 0.2s var(--ease-smooth);
+     font-size: 14px;
+     font-weight: 500;
      position: relative;
      border: 1px solid transparent;
-     overflow: hidden;
-   }
-
-   /* 导航项渐变背景（悬停时显示） */
-   .nav-item::before {
-     content: '';
-     position: absolute;
-     inset: 0;
-     background: linear-gradient(135deg, 
-       rgba(99, 102, 241, 0.1) 0%, 
-       rgba(139, 92, 246, 0.08) 100%);
-     opacity: 0;
-     transition: opacity 0.3s ease;
-     border-radius: 12px;
-   }
-
-   /* 左侧指示条 */
-   .nav-item::after {
-     content: '';
-     position: absolute;
-     left: 0;
-     top: 20%;
-     height: 60%;
-     width: 3px;
-     background: linear-gradient(180deg, var(--primary-400), var(--primary-600));
-     border-radius: 0 3px 3px 0;
-     transform: scaleY(0);
-     transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
    }
 
    .nav-item:hover {
-     background: rgba(99, 102, 241, 0.08);
+     background: var(--bg-tertiary);
      color: var(--text-primary);
-     border-color: rgba(99, 102, 241, 0.2);
-     transform: translateX(4px);
-     box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
-   }
-
-   .nav-item:hover::before {
-     opacity: 1;
-   }
-
-   .nav-item.active {
-     background: linear-gradient(135deg, 
-       rgba(99, 102, 241, 0.18) 0%, 
-       rgba(99, 102, 241, 0.12) 100%);
-     color: var(--primary-300);
-     border-color: rgba(99, 102, 241, 0.4);
-     box-shadow: 0 4px 16px rgba(99, 102, 241, 0.25),
-                 inset 0 1px 0 rgba(255, 255, 255, 0.1);
+     border-color: var(--border-light);
      transform: translateX(2px);
    }
 
-   .nav-item.active::before {
-     opacity: 1;
-   }
-
-   .nav-item.active::after {
-     transform: scaleY(1);
+   .nav-item.active {
+     background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(99, 102, 241, 0.1));
+     color: var(--primary-400);
+     border-color: var(--primary-500);
+     box-shadow: 0 2px 8px rgba(99, 102, 241, 0.15);
    }
 
    .nav-item svg {
-     width: 22px;
-     height: 22px;
-     stroke-width: 2.5;
+     width: 20px;
+     height: 20px;
+     stroke-width: 2;
      flex-shrink: 0;
-     transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+     transition: transform 0.2s var(--ease-smooth);
    }
 
    .nav-item:hover svg {
-     transform: scale(1.15) rotate(5deg);
+     transform: scale(1.1);
    }
 
    .nav-item.active svg {
-     color: var(--primary-400);
-     transform: scale(1.1);
-     filter: drop-shadow(0 4px 8px rgba(99, 102, 241, 0.4));
-   }
-
-   /* 导航项文字动画 */
-   .nav-item span {
-     position: relative;
-     z-index: 1;
+     color: var(--primary-500);
+     transform: scale(1.05);
    }
 
 
