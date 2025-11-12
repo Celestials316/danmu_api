@@ -8,29 +8,110 @@ import { getBangumi, getComment, getCommentByUrl, matchAnime, searchAnime, searc
 
 let globals;
 
-// ========== 登录会话管理 ==========
-const sessions = new Map(); // 存储登录会话
+// ========== 登录会话管理（Redis 持久化）==========
 const SESSION_TIMEOUT = 24 * 60 * 60 * 1000; // 24小时过期
 
-// 生成随机会话ID
 function generateSessionId() {
   return Array.from(crypto.getRandomValues(new Uint8Array(32)))
     .map(b => b.toString(16).padStart(2, '0'))
     .join('');
 }
 
-// 验证会话
-function validateSession(sessionId) {
+async function validateSession(sessionId) {
   if (!sessionId) return false;
-  const session = sessions.get(sessionId);
-  if (!session) return false;
-
-  // 检查是否过期
-  if (Date.now() - session.createdAt > SESSION_TIMEOUT) {
-    sessions.delete(sessionId);
+  
+  try {
+    // 优先使用 Redis
+    if (globals.redisValid) {
+      const { getRedisKey } = await import('./utils/redis-util.js');
+      const result = await getRedisKey(`session:${sessionId}`);
+      
+      if (!result?.result) return false;
+      
+      const session = JSON.parse(result.result);
+      
+      // 检查是否过期
+      if (Date.now() - session.createdAt > SESSION_TIMEOUT) {
+        await deleteSession(sessionId);
+        return false;
+      }
+      
+      return true;
+    }
+    
+    // 降级到数据库
+    if (globals.databaseValid) {
+      const { loadEnvConfigs } = await import('./utils/db-util.js');
+      const configs = await loadEnvConfigs();
+      const sessionKey = `SESSION_${sessionId}`;
+      
+      if (!configs[sessionKey]) return false;
+      
+      const session = JSON.parse(configs[sessionKey]);
+      if (Date.now() - session.createdAt > SESSION_TIMEOUT) {
+        await deleteSession(sessionId);
+        return false;
+      }
+      
+      return true;
+    }
+    
+    log("warn", "[session] 未配置持久化存储，会话无法保持");
+    return false;
+    
+  } catch (error) {
+    log("error", `[session] 验证会话失败: ${error.message}`);
     return false;
   }
-  return true;
+}
+
+async function saveSession(sessionId, username) {
+  const session = {
+    username,
+    createdAt: Date.now()
+  };
+  
+  try {
+    if (globals.redisValid) {
+      const { setRedisKey } = await import('./utils/redis-util.js');
+      await setRedisKey(
+        `session:${sessionId}`, 
+        JSON.stringify(session),
+        true,
+        Math.floor(SESSION_TIMEOUT / 1000)
+      );
+      return true;
+    }
+    
+    if (globals.databaseValid) {
+      const { saveEnvConfigs } = await import('./utils/db-util.js');
+      const sessionKey = `SESSION_${sessionId}`;
+      await saveEnvConfigs({ [sessionKey]: JSON.stringify(session) });
+      return true;
+    }
+    
+    return false;
+  } catch (error) {
+    log("error", `[session] 保存会话失败: ${error.message}`);
+    return false;
+  }
+}
+
+async function deleteSession(sessionId) {
+  try {
+    if (globals.redisValid) {
+      const { setRedisKey } = await import('./utils/redis-util.js');
+      await setRedisKey(`session:${sessionId}`, '', true, 1);
+    }
+    
+    if (globals.databaseValid) {
+      const { saveEnvConfigs } = await import('./utils/db-util.js');
+      const sessionKey = `SESSION_${sessionId}`;
+      await saveEnvConfigs({ [sessionKey]: '' });
+    }
+  } catch (error) {
+    log("error", `[session] 删除会话失败: ${error.message}`);
+  }
 }
 
 // 清理过期会话
@@ -878,149 +959,123 @@ function handleHomepage(req) {
        radial-gradient(circle at 40% 20%, rgba(59, 130, 246, 0.05) 0%, transparent 50%);
    }
 
-   /* 侧边栏 - 玻璃态设计 */
+   /* 侧边栏 - 极简现代设计 */
    .sidebar {
      position: fixed;
      left: 0;
      top: 0;
      bottom: 0;
-     width: 280px;
-     background: var(--glass-bg);
-     backdrop-filter: blur(20px) saturate(180%);
-     -webkit-backdrop-filter: blur(20px) saturate(180%);
-     border-right: 1px solid var(--glass-border);
-     padding: 24px 0;
+     width: 260px;
+     background: var(--bg-secondary);
+     border-right: 1px solid var(--border-color);
+     padding: 0;
      overflow-y: auto;
      transition: all 0.3s var(--ease-smooth);
      z-index: 1000;
-     box-shadow: var(--shadow-xl);
+     display: flex;
+     flex-direction: column;
    }
 
    .sidebar-logo {
-     padding: 0 24px 24px;
+     padding: 32px 24px;
      border-bottom: 1px solid var(--border-color);
-     margin-bottom: 24px;
+     flex-shrink: 0;
    }
 
    .logo-content {
      display: flex;
      align-items: center;
-     gap: 12px;
-     animation: slideInLeft 0.5s var(--ease-smooth);
-   }
-
-   @keyframes slideInLeft {
-     from {
-       opacity: 0;
-       transform: translateX(-20px);
-     }
-     to {
-       opacity: 1;
-       transform: translateX(0);
-     }
+     gap: 14px;
    }
 
    .logo-icon {
-     width: 48px;
-     height: 48px;
+     width: 44px;
+     height: 44px;
      background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
-     border-radius: 12px;
+     border-radius: 10px;
      display: flex;
      align-items: center;
      justify-content: center;
-     font-size: 24px;
-     font-weight: bold;
+     font-size: 22px;
      color: white;
-     box-shadow: var(--shadow-glow);
-     animation: pulse 2s ease-in-out infinite;
+     flex-shrink: 0;
+     transition: all 0.3s var(--ease-smooth);
    }
 
-   @keyframes pulse {
-     0%, 100% {
-       transform: scale(1);
-       box-shadow: var(--shadow-glow);
-     }
-     50% {
-       transform: scale(1.05);
-       box-shadow: 0 0 30px rgba(99, 102, 241, 0.5);
-     }
+   .logo-content:hover .logo-icon {
+     transform: rotate(-5deg) scale(1.05);
+     box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4);
    }
 
    .logo-text h1 {
-     font-size: 20px;
+     font-size: 18px;
      font-weight: 700;
      color: var(--text-primary);
      margin-bottom: 2px;
-     background: linear-gradient(135deg, var(--primary-400), var(--primary-600));
-     -webkit-background-clip: text;
-     -webkit-text-fill-color: transparent;
-     background-clip: text;
+     letter-spacing: -0.5px;
    }
 
    .logo-text p {
-     font-size: 12px;
+     font-size: 11px;
      color: var(--text-tertiary);
-     font-weight: 500;
+     font-weight: 600;
+     text-transform: uppercase;
+     letter-spacing: 1px;
    }
 
    .nav-menu {
-     padding: 0 12px;
+     padding: 16px 12px;
+     flex: 1;
+     overflow-y: auto;
    }
 
    .nav-item {
      display: flex;
      align-items: center;
      gap: 12px;
-     padding: 14px 16px;
-     margin-bottom: 6px;
-     border-radius: 10px;
+     padding: 12px 14px;
+     margin-bottom: 4px;
+     border-radius: 8px;
      color: var(--text-secondary);
      cursor: pointer;
-     transition: all 0.3s var(--ease-smooth);
+     transition: all 0.2s var(--ease-smooth);
      font-size: 14px;
      font-weight: 500;
      position: relative;
-     overflow: hidden;
-   }
-
-   .nav-item::before {
-     content: '';
-     position: absolute;
-     left: 0;
-     top: 0;
-     width: 4px;
-     height: 100%;
-     background: var(--primary-500);
-     transform: scaleY(0);
-     transition: transform 0.3s var(--ease-smooth);
+     border: 1px solid transparent;
    }
 
    .nav-item:hover {
-     background: var(--bg-hover);
+     background: var(--bg-tertiary);
      color: var(--text-primary);
-     transform: translateX(4px);
+     border-color: var(--border-light);
+     transform: translateX(2px);
    }
 
    .nav-item.active {
-     background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
-     color: white;
-     box-shadow: var(--shadow-glow);
-   }
-
-   .nav-item.active::before {
-     transform: scaleY(1);
+     background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(99, 102, 241, 0.1));
+     color: var(--primary-400);
+     border-color: var(--primary-500);
+     box-shadow: 0 2px 8px rgba(99, 102, 241, 0.15);
    }
 
    .nav-item svg {
      width: 20px;
      height: 20px;
      stroke-width: 2;
-     transition: transform 0.3s var(--ease-smooth);
+     flex-shrink: 0;
+     transition: transform 0.2s var(--ease-smooth);
    }
 
    .nav-item:hover svg {
      transform: scale(1.1);
    }
+
+   .nav-item.active svg {
+     color: var(--primary-500);
+     transform: scale(1.05);
+   }
+
 
    /* 主内容区 */
    .main-content {
@@ -4892,74 +4947,91 @@ if (currentToken === "87654321") {
     log("info", `[Path Check] Path "${path}" is excluded from normalization`);
   }
 
-  // GET / - 首页（需要登录）
-  if (path === "/" && method === "GET") {
-    return handleHomepage(req);
+// GET / - 首页（需要登录）
+if (path === "/" && method === "GET") {
+  const cookies = req.headers.get('cookie') || '';
+  const sessionMatch = cookies.match(/session=([^;]+)/);
+  const sessionId = sessionMatch ? sessionMatch[1] : null;
+  
+  const isValid = await validateSession(sessionId);
+  if (!isValid) {
+    return getLoginPage();
   }
+  
+  return handleHomepage(req);
+}
 
-  // POST /api/login - 登录
-  if (path === "/api/login" && method === "POST") {
+// POST /api/login - 登录
+if (path === "/api/login" && method === "POST") {
+  try {
+    const body = await req.json();
+    const { username, password } = body;
+
+    // 从 Redis/数据库加载账号密码
+    let storedUsername = 'admin';
+    let storedPassword = 'admin';
+
     try {
-      const body = await req.json();
-      const { username, password } = body;
+      if (globals.redisValid) {
+        const { getRedisKey } = await import('./utils/redis-util.js');
+        const userResult = await getRedisKey('admin_username');
+        const passResult = await getRedisKey('admin_password');
+        if (userResult?.result) storedUsername = userResult.result;
+        if (passResult?.result) storedPassword = passResult.result;
+      } else if (globals.databaseValid) {
+        const { loadEnvConfigs } = await import('./utils/db-util.js');
+        const configs = await loadEnvConfigs();
+        if (configs.ADMIN_USERNAME) storedUsername = configs.ADMIN_USERNAME;
+        if (configs.ADMIN_PASSWORD) storedPassword = configs.ADMIN_PASSWORD;
+      }
+    } catch (e) {
+      log("warn", "[login] 加载账号密码失败,使用默认值");
+    }
 
-      // 从 Redis/数据库加载账号密码，默认 admin/admin
-      let storedUsername = 'admin';
-      let storedPassword = 'admin';
+    if (username === storedUsername && password === storedPassword) {
+      const sessionId = generateSessionId();
+      
+      // 保存会话到 Redis
+      const saved = await saveSession(sessionId, username);
+      
+      if (!saved) {
+        return jsonResponse({ 
+          success: false, 
+          message: '登录失败：未配置持久化存储（需要 Redis 或数据库）' 
+        }, 500);
+      }
 
-      try {
-        if (globals.redisValid) {
-          const { getRedisKey } = await import('./utils/redis-util.js');
-          const userResult = await getRedisKey('admin_username');
-          const passResult = await getRedisKey('admin_password');
-          if (userResult?.result) storedUsername = userResult.result;
-          if (passResult?.result) storedPassword = passResult.result;
-        } else if (globals.databaseValid) {
-          const { loadEnvConfigs } = await import('./utils/db-util.js');
-          const configs = await loadEnvConfigs();
-          if (configs.ADMIN_USERNAME) storedUsername = configs.ADMIN_USERNAME;
-          if (configs.ADMIN_PASSWORD) storedPassword = configs.ADMIN_PASSWORD;
+      return new Response(JSON.stringify({ success: true }), {
+        headers: {
+          'Content-Type': 'application/json',
+          'Set-Cookie': `session=${sessionId}; Path=/; Max-Age=${Math.floor(SESSION_TIMEOUT / 1000)}; HttpOnly; SameSite=Strict${req.url.startsWith('https') ? '; Secure' : ''}`
         }
-      } catch (e) {
-        log("warn", "[login] 加载账号密码失败，使用默认值");
-      }
-
-      if (username === storedUsername && password === storedPassword) {
-        const sessionId = generateSessionId();
-        sessions.set(sessionId, { 
-          username, 
-          createdAt: Date.now() 
-        });
-
-        return new Response(JSON.stringify({ success: true }), {
-          headers: {
-            'Content-Type': 'application/json',
-            'Set-Cookie': `session=${sessionId}; Path=/; Max-Age=${SESSION_TIMEOUT / 1000}; HttpOnly; SameSite=Strict`
-          }
-        });
-      }
-
-      return jsonResponse({ success: false, message: '用户名或密码错误' }, 401);
-    } catch (error) {
-      return jsonResponse({ success: false, message: '登录失败' }, 500);
-    }
-  }
-
-  // POST /api/logout - 退出登录
-  if (path === "/api/logout" && method === "POST") {
-    const cookies = req.headers.get('cookie') || '';
-    const sessionMatch = cookies.match(/session=([^;]+)/);
-    if (sessionMatch) {
-      sessions.delete(sessionMatch[1]);
+      });
     }
 
-    return new Response(JSON.stringify({ success: true }), {
-      headers: {
-        'Content-Type': 'application/json',
-        'Set-Cookie': 'session=; Path=/; Max-Age=0'
-      }
-    });
+    return jsonResponse({ success: false, message: '用户名或密码错误' }, 401);
+  } catch (error) {
+    log("error", `[login] 登录失败: ${error.message}`);
+    return jsonResponse({ success: false, message: '登录失败' }, 500);
   }
+}
+
+// POST /api/logout - 退出登录
+if (path === "/api/logout" && method === "POST") {
+  const cookies = req.headers.get('cookie') || '';
+  const sessionMatch = cookies.match(/session=([^;]+)/);
+  if (sessionMatch) {
+    await deleteSession(sessionMatch[1]);
+  }
+
+  return new Response(JSON.stringify({ success: true }), {
+    headers: {
+      'Content-Type': 'application/json',
+      'Set-Cookie': 'session=; Path=/; Max-Age=0'
+    }
+  });
+}
+
 
   // POST /api/change-password - 修改密码
   if (path === "/api/change-password" && method === "POST") {
