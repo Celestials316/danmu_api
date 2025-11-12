@@ -4406,8 +4406,12 @@ function handleHomepage(req) {
        token = AppState.config.TOKEN;
      }
      
-     const apiUrl = \`\${currentUrl}/\${token}\`;
-     const maskedUrl = \`\${currentUrl}/\${'•'.repeat(Math.min(token.length, 24))}\`;
+     // 如果是默认 token，API 地址不包含 token
+     const apiUrl = token === '87654321' ? currentUrl : \`\${currentUrl}/\${token}\`;
+     
+     // 生成完全星号的遮挡地址（保持相同长度）
+     const urlLength = apiUrl.length;
+     const maskedUrl = '•'.repeat(urlLength);
      
      const apiUrlElement = document.getElementById('apiUrlText');
      const apiUrlDisplay = document.getElementById('apiUrlDisplay');
