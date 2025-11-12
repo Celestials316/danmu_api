@@ -834,7 +834,7 @@ function handleHomepage(req) {
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script>
     (function() {
-      const theme = localStorage.getItem('theme') || 'dark';
+      const theme = localStorage.getItem('theme') || 'light';
       document.documentElement.setAttribute('data-theme', theme);
     })();
   </script>
@@ -3842,7 +3842,7 @@ function handleHomepage(req) {
      
      console.log('🚀 应用初始化...');
      
-     const savedTheme = localStorage.getItem('theme');
+     const savedTheme = localStorage.getItem('theme') || 'light';
      if (savedTheme === 'light') {
        document.body.classList.add('light');
        updateThemeIcon(true);
@@ -5299,7 +5299,7 @@ function getLoginPage() {
   <title>登录 - 弹幕 API 管理后台</title>
   <script>
     (function() {
-      const theme = localStorage.getItem('theme') || 'dark';
+      const theme = localStorage.getItem('theme') || 'light';
       document.documentElement.setAttribute('data-theme', theme);
     })();
   </script>
