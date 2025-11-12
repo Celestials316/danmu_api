@@ -2882,84 +2882,6 @@ async function handleHomepage(req) {
        transform: scale(1);
      }
    }
-   
-   /* 日志容器样式 */
-   .log-container {
-     background: var(--bg-primary);
-     border: 1px solid var(--border-color);
-     border-radius: 12px;
-     padding: 16px;
-     max-height: 600px;
-     overflow-y: auto;
-     font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
-     font-size: 13px;
-     line-height: 1.6;
-   }
-
-   .log-entry {
-     padding: 10px 12px;
-     margin-bottom: 8px;
-     border-radius: 8px;
-     border-left: 3px solid transparent;
-     background: var(--bg-secondary);
-     transition: all 0.2s;
-     word-break: break-all;
-   }
-
-   .log-entry:hover {
-     background: var(--bg-hover);
-     transform: translateX(4px);
-   }
-
-   .log-entry.log-info {
-     border-left-color: var(--info);
-   }
-
-   .log-entry.log-warn {
-     border-left-color: var(--warning);
-     background: rgba(245, 158, 11, 0.05);
-   }
-
-   .log-entry.log-error {
-     border-left-color: var(--error);
-     background: rgba(239, 68, 68, 0.05);
-   }
-
-   .log-timestamp {
-     color: var(--text-tertiary);
-     font-size: 11px;
-     margin-right: 8px;
-   }
-
-   .log-level {
-     display: inline-block;
-     padding: 2px 8px;
-     border-radius: 4px;
-     font-size: 11px;
-     font-weight: 700;
-     text-transform: uppercase;
-     margin-right: 8px;
-   }
-
-   .log-level.info {
-     background: var(--info-light);
-     color: var(--info);
-   }
-
-   .log-level.warn {
-     background: var(--warning-light);
-     color: var(--warning);
-   }
-
-   .log-level.error {
-     background: var(--error-light);
-     color: var(--error);
-   }
-
-   .log-message {
-     color: var(--text-primary);
-   }
-
  </style>
 </head>
 <body>
@@ -2995,13 +2917,6 @@ async function handleHomepage(req) {
          <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-width="2"/>
        </svg>
        <span>环境配置</span>
-     </div>
-     
-     <div class="nav-item" onclick="switchPage('logs')">
-       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-         <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-width="2"/>
-       </svg>
-       <span>实时日志</span>
      </div>
      
      <div class="nav-item" onclick="switchPage('about')">
@@ -3306,58 +3221,6 @@ async function handleHomepage(req) {
          <p>共 ${totalEnvCount} 个环境变量，已配置 ${configuredEnvCount} 个</p>
          <p style="margin-top: 8px; font-size: 12px; color: var(--text-tertiary);">
            💡 提示: 双击配置值可复制完整内容 | 点击编辑按钮可修改配置 | 敏感信息会自动隐藏
-         </p>
-       </div>
-     </section>
-
-     <!-- 实时日志页面 -->
-     <section id="logs-page" class="page-section">
-       <div class="card">
-         <div class="card-header">
-           <h3 class="card-title">
-             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-               <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-width="2"/>
-             </svg>
-             实时日志
-           </h3>
-           <div class="card-actions">
-             <label class="form-label" style="margin: 0 12px 0 0; display: flex; align-items: center; gap: 8px;">
-               <span style="font-size: 13px; color: var(--text-secondary);">级别过滤:</span>
-               <select id="logLevelFilter" class="form-select" style="width: auto; padding: 8px 12px; font-size: 13px;" onchange="filterLogs()">
-                 <option value="">全部</option>
-                 <option value="info">Info</option>
-                 <option value="warn">Warn</option>
-                 <option value="error">Error</option>
-               </select>
-             </label>
-             <button class="btn btn-secondary" onclick="clearLogs()">
-               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                 <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-width="2"/>
-               </svg>
-               清空
-             </button>
-             <button class="btn btn-primary" onclick="refreshLogs()">
-               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                 <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-width="2"/>
-               </svg>
-               刷新
-             </button>
-           </div>
-         </div>
-         
-         <div id="logContainer" class="log-container">
-           <div class="empty-state">
-             <div class="empty-state-icon">📋</div>
-             <div class="empty-state-title">暂无日志</div>
-             <div class="empty-state-description">系统日志将在此处实时显示</div>
-           </div>
-         </div>
-       </div>
-
-       <div class="footer">
-         <p>日志自动刷新间隔: <span id="autoRefreshStatus">5秒</span> | 最大保留: 1000 条</p>
-         <p style="margin-top: 8px; font-size: 12px; color: var(--text-tertiary);">
-           💡 提示: 日志会自动滚动到底部 | 可手动暂停自动刷新
          </p>
        </div>
      </section>
@@ -4092,10 +3955,8 @@ async function handleHomepage(req) {
      const titles = {
        'overview': '系统概览',
        'config': '环境配置',
-       'logs': '实时日志',
        'about': '关于系统'
      };
-
      document.getElementById('pageTitle').textContent = titles[pageName];
      closeMobileMenu();
      window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -4829,107 +4690,6 @@ async function handleHomepage(req) {
        showToast('修改失败，请稍后重试', 'error');
      }
    }
-
-// ========== 日志相关功能 ==========
-   let autoRefreshTimer = null;
-   let lastLogId = -1;
-
-   async function refreshLogs() {
-     const level = document.getElementById('logLevelFilter').value;
-     const container = document.getElementById('logContainer');
-     
-     try {
-       const url = level ? `/api/logs?format=json&level=${level}&lastId=${lastLogId}` : `/api/logs?format=json&lastId=${lastLogId}`;
-       const response = await fetch(url);
-       const result = await response.json();
-       
-       if (result.success && result.logs.length > 0) {
-         const isEmpty = container.querySelector('.empty-state');
-         if (isEmpty) {
-           container.innerHTML = '';
-         }
-         
-         result.logs.forEach((log, index) => {
-           const logEntry = document.createElement('div');
-           logEntry.className = `log-entry log-${log.level}`;
-           logEntry.innerHTML = `
-             <span class="log-timestamp">${log.timestamp}</span>
-             <span class="log-level ${log.level}">${log.level}</span>
-             <span class="log-message">${escapeHtml(log.message)}</span>
-           `;
-           container.appendChild(logEntry);
-           lastLogId = Math.max(lastLogId, index);
-         });
-         
-         // 自动滚动到底部
-         container.scrollTop = container.scrollHeight;
-       }
-     } catch (error) {
-       console.error('刷新日志失败:', error);
-     }
-   }
-
-   function filterLogs() {
-     lastLogId = -1;
-     document.getElementById('logContainer').innerHTML = `
-       <div class="empty-state">
-         <div class="empty-state-icon">📋</div>
-         <div class="empty-state-title">加载中...</div>
-       </div>
-     `;
-     refreshLogs();
-   }
-
-   function clearLogs() {
-     if (!confirm('确定要清空日志吗？')) return;
-     lastLogId = -1;
-     document.getElementById('logContainer').innerHTML = `
-       <div class="empty-state">
-         <div class="empty-state-icon">📋</div>
-         <div class="empty-state-title">暂无日志</div>
-         <div class="empty-state-description">系统日志将在此处实时显示</div>
-       </div>
-     `;
-     showToast('日志已清空', 'success');
-   }
-
-   function escapeHtml(text) {
-     const div = document.createElement('div');
-     div.textContent = text;
-     return div.innerHTML;
-   }
-
-   // 自动刷新日志
-   function startAutoRefresh() {
-     if (autoRefreshTimer) return;
-     autoRefreshTimer = setInterval(() => {
-       const currentPage = document.querySelector('.page-section.active');
-       if (currentPage && currentPage.id === 'logs-page') {
-         refreshLogs();
-       }
-     }, 5000);
-   }
-
-   function stopAutoRefresh() {
-     if (autoRefreshTimer) {
-       clearInterval(autoRefreshTimer);
-       autoRefreshTimer = null;
-     }
-   }
-
-   // 页面切换时处理日志刷新
-   const _originalSwitchPage = switchPage;
-   switchPage = function(pageName) {
-     _originalSwitchPage.call(this, pageName);
-     
-     if (pageName === 'logs') {
-       lastLogId = -1;
-       refreshLogs();
-       startAutoRefresh();
-     } else {
-       stopAutoRefresh();
-     }
-   };
 
  </script>
 
