@@ -2956,7 +2956,123 @@ function handleHomepage(req) {
            <div class="stat-footer">
              ✅ 服务运行正常
            </div>
+       </div>
+
+       <div class="card">
+         <div class="card-header">
+           <h3 class="card-title">
+             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+               <path d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" stroke-width="2"/>
+             </svg>
+             弹幕 API 地址
+           </h3>
+           <span class="badge badge-info">
+             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" style="margin-right: 4px;">
+               <path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-width="2"/>
+             </svg>
+             快速集成
+           </span>
          </div>
+         
+         <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1)); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 12px; padding: 24px; margin-bottom: 20px;">
+           <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+             <div style="width: 40px; height: 40px; background: linear-gradient(135deg, var(--primary-500), var(--primary-600)); border-radius: 10px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);">
+               <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="white">
+                 <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" stroke-width="2" stroke-linecap="round"/>
+                 <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" stroke-width="2" stroke-linecap="round"/>
+               </svg>
+             </div>
+             <div style="flex: 1;">
+               <div style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">
+                 您的弹幕 API 地址
+               </div>
+               <div style="font-size: 12px; color: var(--text-secondary);">
+                 将此地址配置到播放器或应用中即可使用弹幕服务
+               </div>
+             </div>
+           </div>
+           
+           <div style="position: relative;">
+             <div id="apiUrlDisplay" style="background: var(--bg-primary); border: 2px solid var(--border-color); border-radius: 10px; padding: 14px 100px 14px 16px; font-family: 'Monaco', 'Menlo', 'Consolas', monospace; font-size: 14px; color: var(--primary-400); word-break: break-all; line-height: 1.6; transition: all 0.3s;">
+               加载中...
+             </div>
+             <button id="copyApiUrlBtn" onclick="copyApiUrl()" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: linear-gradient(135deg, var(--primary-500), var(--primary-600)); color: white; border: none; border-radius: 8px; padding: 10px 20px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.3s; box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);">
+               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor">
+                 <path d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" stroke-width="2"/>
+               </svg>
+               <span id="copyBtnText">复制</span>
+             </button>
+           </div>
+           
+           <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-color); display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--text-secondary);">
+             <div style="display: flex; align-items: center; gap: 6px;">
+               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor">
+                 <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
+               </svg>
+               <span>支持多平台弹幕</span>
+             </div>
+             <div style="display: flex; align-items: center; gap: 6px;">
+               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor">
+                 <path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-width="2"/>
+               </svg>
+               <span>自动匹配番剧</span>
+             </div>
+             <div style="display: flex; align-items: center; gap: 6px;">
+               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor">
+                 <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
+               </svg>
+               <span>智能缓存加速</span>
+             </div>
+           </div>
+         </div>
+         
+         <div class="config-grid">
+           <div class="config-item">
+             <div class="config-header">
+               <span class="config-label">使用示例</span>
+             </div>
+             <div class="config-value" style="background: none; border: none; padding: 0;">
+               <code style="color: var(--text-secondary); font-size: 13px; line-height: 1.8;">
+                 <strong style="color: var(--text-primary);">播放器配置：</strong><br>
+                 在支持自定义弹幕 API 的播放器中，将上方地址填入"弹幕 API"配置项即可。<br><br>
+                 
+                 <strong style="color: var(--text-primary);">常见播放器：</strong><br>
+                 • DPlayer、ArtPlayer、XGPlayer 等 Web 播放器<br>
+                 • PotPlayer、MPC-HC 等桌面播放器<br>
+                 • Emby、Jellyfin、Plex 等媒体服务器<br><br>
+                 
+                 <strong style="color: var(--text-primary);">接口调用：</strong><br>
+                 API 地址后面加上具体接口路径即可调用，例如：<br>
+                 <span style="color: var(--primary-400);">[您的API地址]/api/v2/search/anime?anime=进击的巨人</span>
+               </code>
+             </div>
+           </div>
+           
+           <div class="config-item">
+             <div class="config-header">
+               <span class="config-label">安全提示</span>
+             </div>
+             <div class="config-value" style="background: none; border: none; padding: 0;">
+               <code style="color: var(--text-secondary); font-size: 13px; line-height: 1.8;">
+                 ${globals.token === '87654321' ? 
+                   `⚠️ <strong style="color: var(--warning);">您正在使用默认 Token</strong><br>
+                   为了提高安全性，建议在"环境配置"中修改 TOKEN 环境变量。<br>
+                   修改后需要在 API 地址中加上您的自定义 Token。` 
+                   : 
+                   `✅ <strong style="color: var(--success);">已使用自定义 Token</strong><br>
+                   您的 API 已启用自定义令牌保护，请勿将此地址分享给不信任的人。<br>
+                   Token 可在"环境配置"中随时修改。`
+                 }<br><br>
+                 
+                 <strong style="color: var(--text-primary);">访问控制：</strong><br>
+                 • 已启用 IP 限流：每个 IP ${globals.rateLimitMaxRequests > 0 ? `每分钟限制 ${globals.rateLimitMaxRequests} 次请求` : '无限制'}<br>
+                 • 管理后台独立保护：需要登录才能访问<br>
+                 • API 接口公开访问：用于播放器集成
+               </code>
+             </div>
+           </div>
+         </div>
+       </div>
 
        <div class="card">
          <div class="card-header">
@@ -3778,6 +3894,20 @@ function handleHomepage(req) {
        showToast('欢迎回来! 弹幕 API 管理后台已就绪', 'success');
      }
    }
+   
+   async function initializeApp() {
+     console.log('🚀 应用初始化...');
+     
+     const savedTheme = localStorage.getItem('theme');
+     if (savedTheme === 'light') {
+       document.body.classList.add('light');
+       updateThemeIcon(true);
+     }
+
+     // 🔥 生成 API 地址
+     generateApiUrl();
+
+     // 尝试从服务器加载配置
 
    function loadLocalStorageData() {
      const savedConfig = localStorage.getItem('danmu_api_config');
@@ -4340,6 +4470,89 @@ function handleHomepage(req) {
        return e.returnValue;
      }
    });
+
+   });
+
+
+   // ========== API 地址生成与复制 ==========
+   function generateApiUrl() {
+     try {
+       // 获取当前页面的完整 URL
+       const currentUrl = window.location.href;
+       const url = new URL(currentUrl);
+       
+       // 获取协议、主机和端口
+       let baseUrl = `${url.protocol}//${url.host}`;
+       
+       // 检查路径中是否已包含 token
+       const pathParts = url.pathname.split('/').filter(part => part.length > 0);
+       
+       // 获取当前 token（从页面中读取，避免硬编码）
+       const currentToken = '${globals.token}';
+       
+       // 判断是否为默认 token
+       const isDefaultToken = currentToken === '87654321';
+       
+       // 如果不是默认 token，需要添加到路径中
+       if (!isDefaultToken) {
+         // 检查 URL 中是否已经包含了 token
+         if (pathParts.length > 0 && pathParts[0] === currentToken) {
+           // 已经包含 token，直接使用
+           baseUrl = `${baseUrl}/${currentToken}`;
+         } else {
+           // 未包含 token，添加上去
+           baseUrl = `${baseUrl}/${currentToken}`;
+         }
+       }
+       
+       // 显示 API 地址
+       const apiUrlDisplay = document.getElementById('apiUrlDisplay');
+       if (apiUrlDisplay) {
+         apiUrlDisplay.textContent = baseUrl;
+         apiUrlDisplay.dataset.apiUrl = baseUrl;
+       }
+       
+       console.log('✅ API 地址已生成:', baseUrl);
+     } catch (error) {
+       console.error('❌ 生成 API 地址失败:', error);
+       const apiUrlDisplay = document.getElementById('apiUrlDisplay');
+       if (apiUrlDisplay) {
+         apiUrlDisplay.textContent = '生成失败，请刷新页面重试';
+       }
+     }
+   }
+   
+   function copyApiUrl() {
+     const apiUrlDisplay = document.getElementById('apiUrlDisplay');
+     const copyBtn = document.getElementById('copyApiUrlBtn');
+     const copyBtnText = document.getElementById('copyBtnText');
+     
+     if (!apiUrlDisplay || !copyBtn) return;
+     
+     const apiUrl = apiUrlDisplay.dataset.apiUrl || apiUrlDisplay.textContent;
+     
+     // 复制到剪贴板
+     copyToClipboard(apiUrl);
+     
+     // 更新按钮状态
+     copyBtnText.textContent = '已复制';
+     copyBtn.style.background = 'linear-gradient(135deg, var(--success), #059669)';
+     
+     // 显示成功提示
+     showToast('API 地址已复制到剪贴板', 'success');
+     
+     // 添加成功动画
+     apiUrlDisplay.style.borderColor = 'var(--success)';
+     apiUrlDisplay.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.2)';
+     
+     // 2秒后恢复
+     setTimeout(() => {
+       copyBtnText.textContent = '复制';
+       copyBtn.style.background = 'linear-gradient(135deg, var(--primary-500), var(--primary-600))';
+       apiUrlDisplay.style.borderColor = 'var(--border-color)';
+       apiUrlDisplay.style.boxShadow = 'none';
+     }, 2000);
+   }
 
    // ========== 登录相关功能 ==========
    // 退出登录
