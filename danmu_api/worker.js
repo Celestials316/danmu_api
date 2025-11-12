@@ -405,45 +405,85 @@ function handleHomepage(req) {
     return getLoginPage();
   }
 
-  const redisConfigured = !!(globals.redisUrl && globals.redisToken);
-  const redisStatusText = redisConfigured 
-    ? (globals.redisValid ? '在线' : '离线') 
-    : '未配置';
+    const redisConfigured = !!(globals.redisUrl && globals.redisToken);
+    const redisStatusText = redisConfigured 
+      ? (globals.redisValid ? '在线' : '离线') 
+      : '未配置';
 
-  if (!globals.accessedEnvVars) {
-    globals.accessedEnvVars = {};
-  }
-  if (!globals.vodServers) {
-    globals.vodServers = [];
-  }
-  if (!globals.sourceOrderArr) {
-    globals.sourceOrderArr = [];
-  }
+    if (!globals.accessedEnvVars) {
+      globals.accessedEnvVars = {};
+    }
+    if (!globals.vodServers) {
+      globals.vodServers = [];
+    }
+    if (!globals.sourceOrderArr) {
+      globals.sourceOrderArr = [];
+    }
 
-  const configuredEnvCount = Object.entries(globals.accessedEnvVars).filter(([key, value]) => {
-    if (value === null || value === undefined) return false;
-    if (typeof value === 'string' && value.length === 0) return false;
-    if (Array.isArray(value) && value.length === 0) return false;
-    return true;
-  }).length;
+    const configuredEnvCount = Object.entries(globals.accessedEnvVars).filter(([key, value]) => {
+      if (value === null || value === undefined) return false;
+      if (typeof value === 'string' && value.length === 0) return false;
+      if (Array.isArray(value) && value.length === 0) return false;
+      return true;
+    }).length;
 
-  const totalEnvCount = Object.keys(globals.accessedEnvVars).length;
+    const totalEnvCount = Object.keys(globals.accessedEnvVars).length;
 
-  const envItemsHtml = Object.entries(globals.accessedEnvVars)
-    .map(([key, value]) => {
-      let displayValue = value;
-      const description = ENV_DESCRIPTIONS[key] || '环境变量';
-      const isSensitive = isSensitiveKey(key);
+    const envItemsHtml = Object.entries(globals.accessedEnvVars)
+      .map(([key, value]) => {
+        let displayValue = value;
+        const description = ENV_DESCRIPTIONS[key] || '环境变量';
+        const isSensitive = isSensitiveKey(key);
 
-      if (typeof value === 'boolean') {
-        displayValue = value ? '✅ 已启用' : '❌ 已禁用';
-      } else if (value === null || value === undefined || (typeof value === 'string' && value.length === 0)) {
-        displayValue = '未配置';
-      } else if (isSensitive && typeof value === 'string' && value.length > 0) {
+        if (typeof value === 'boolean') {
+          displayValue = value ? '✅ 已启用' : '❌ 已禁用';
+        } else if (value === null || value === undefined || (typeof value === 'string' && value.length === 0)) {
+          displayValue = '未配置';
+        } else if (isSensitive && typeof value === 'string' && value.length > 0) {
+          const realValue = getRealEnvValue(key);
+          const maskedValue = '*'.repeat(Math.min(String(realValue).length, 32));
+          const safeRealValue = typeof realValue === 'string' ? realValue : JSON.stringify(realValue);
+          const encodedRealValue = safeRealValue
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+
+          return `
+            <div class="config-card" data-key="${key}">
+              <div class="config-header">
+                <div class="config-title">
+                  <span class="config-icon">🔐</span>
+                  <span class="config-name">${key}</span>
+                </div>
+                <button class="action-btn edit-btn" onclick="editEnv('${key}')" title="编辑">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                  </svg>
+                </button>
+              </div>
+              <div class="config-value sensitive" data-real="${encodedRealValue}" data-masked="${maskedValue}" onclick="toggleSensitive(this)" ondblclick="copySensitiveValue(this, event)">
+                <span class="value-text">${maskedValue}</span>
+                <span class="reveal-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                  </svg>
+                </span>
+              </div>
+              <div class="config-desc">${description}</div>
+            </div>
+          `;
+        } else if (Array.isArray(value)) {
+          displayValue = value.length > 0 ? value.join(', ') : '默认值';
+        } else if (typeof value === 'string' && value.length > 80) {
+          displayValue = value.substring(0, 80) + '...';
+        }
+
         const realValue = getRealEnvValue(key);
-        const maskedValue = '*'.repeat(Math.min(String(realValue).length, 32));
-        const safeRealValue = typeof realValue === 'string' ? realValue : JSON.stringify(realValue);
-        const encodedRealValue = safeRealValue
+        const encodedOriginal = String(realValue || value)
           .replace(/&/g, '&amp;')
           .replace(/</g, '&lt;')
           .replace(/>/g, '&gt;')
@@ -453,76 +493,27 @@ function handleHomepage(req) {
         return `
           <div class="config-card" data-key="${key}">
             <div class="config-header">
-              <div class="config-badge ${isSensitive ? 'sensitive' : 'normal'}">
-                ${isSensitive ? '🔒 敏感' : '📝 常规'}
+              <div class="config-title">
+                <span class="config-icon">⚙️</span>
+                <span class="config-name">${key}</span>
               </div>
-              <div class="config-actions">
-                <button class="action-btn" onclick="editEnv('${key}')" title="编辑">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                  </svg>
-                </button>
-                <button class="action-btn" onclick="deleteEnv('${key}')" title="清空">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="3 6 5 6 21 6"></polyline>
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                  </svg>
-                </button>
-              </div>
-            </div>
-            <div class="config-title">${key}</div>
-            <div class="config-value sensitive" data-real="${encodedRealValue}" data-masked="${maskedValue}" onclick="toggleSensitive(this)">
-              <span class="value-text">${maskedValue}</span>
-              <span class="toggle-icon">👁️</span>
-            </div>
-            <div class="config-desc">${description}</div>
-          </div>
-        `;
-      } else if (Array.isArray(value)) {
-        displayValue = value.length > 0 ? value.join(', ') : '默认值';
-      } else if (typeof value === 'string' && value.length > 80) {
-        displayValue = value.substring(0, 80) + '...';
-      }
-
-      const realValue = getRealEnvValue(key);
-      const encodedOriginal = String(realValue || value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-
-      return `
-        <div class="config-card" data-key="${key}">
-          <div class="config-header">
-            <div class="config-badge normal">📝 常规</div>
-            <div class="config-actions">
-              <button class="action-btn" onclick="editEnv('${key}')" title="编辑">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <button class="action-btn edit-btn" onclick="editEnv('${key}')" title="编辑">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                   <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                 </svg>
               </button>
-              <button class="action-btn" onclick="copyValue('${key}')" title="复制">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                </svg>
-              </button>
             </div>
+            <div class="config-value" data-original="${encodedOriginal}" ondblclick="copyValue(this)">
+              ${displayValue}
+            </div>
+            <div class="config-desc">${description}</div>
           </div>
-          <div class="config-title">${key}</div>
-          <div class="config-value" data-original="${encodedOriginal}">
-            <span class="value-text">${displayValue}</span>
-          </div>
-          <div class="config-desc">${description}</div>
-        </div>
-      `;
-    })
-    .join('');
+        `;
+      })
+      .join('');
 
-  const html = `
+    const html = `
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -530,40 +521,59 @@ function handleHomepage(req) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>弹幕 API 管理中心</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    
     :root {
-      --bg-main: #0a0e27;
-      --bg-card: rgba(255, 255, 255, 0.03);
+      --primary: #6366f1;
+      --primary-dark: #4f46e5;
+      --secondary: #8b5cf6;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --info: #3b82f6;
+      
+      --bg-base: #0f172a;
+      --bg-elevated: #1e293b;
+      --bg-overlay: #334155;
       --bg-glass: rgba(255, 255, 255, 0.05);
-      --bg-hover: rgba(255, 255, 255, 0.08);
-      --text-primary: #ffffff;
-      --text-secondary: #a0aec0;
-      --text-tertiary: #718096;
-      --border-color: rgba(255, 255, 255, 0.1);
-      --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      --gradient-success: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
-      --gradient-warning: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
-      --gradient-info: linear-gradient(135deg, #30cfd0 0%, #330867 100%);
-      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.1);
-      --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.2);
-      --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.3);
-      --shadow-glow: 0 0 20px rgba(102, 126, 234, 0.3);
+      
+      --text-primary: #f1f5f9;
+      --text-secondary: #cbd5e1;
+      --text-tertiary: #94a3b8;
+      
+      --border: rgba(255, 255, 255, 0.1);
+      --border-hover: rgba(255, 255, 255, 0.2);
+      
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+      --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.6);
+      
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-xl: 20px;
+      
+      --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     [data-theme="light"] {
-      --bg-main: #f7fafc;
-      --bg-card: #ffffff;
-      --bg-glass: rgba(255, 255, 255, 0.9);
-      --bg-hover: #edf2f7;
-      --text-primary: #1a202c;
-      --text-secondary: #4a5568;
-      --text-tertiary: #718096;
-      --border-color: #e2e8f0;
-      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
-      --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
-      --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
-      --shadow-glow: 0 0 20px rgba(102, 126, 234, 0.2);
+      --bg-base: #f8fafc;
+      --bg-elevated: #ffffff;
+      --bg-overlay: #f1f5f9;
+      --bg-glass: rgba(0, 0, 0, 0.02);
+      
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-tertiary: #64748b;
+      
+      --border: rgba(0, 0, 0, 0.1);
+      --border-hover: rgba(0, 0, 0, 0.2);
+      
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.15);
+      --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
     }
 
     * {
@@ -573,290 +583,170 @@ function handleHomepage(req) {
     }
 
     body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      background: var(--bg-main);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+      background: var(--bg-base);
       color: var(--text-primary);
       min-height: 100vh;
       line-height: 1.6;
+      transition: var(--transition);
       overflow-x: hidden;
-      transition: all 0.3s ease;
     }
 
-    /* 背景动画 */
-    body::before {
-      content: '';
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: 
-        radial-gradient(circle at 20% 30%, rgba(102, 126, 234, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 80% 70%, rgba(118, 75, 162, 0.1) 0%, transparent 50%);
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    .app-container {
-      display: flex;
-      min-height: 100vh;
-      position: relative;
-      z-index: 1;
-    }
-
-    /* 侧边栏 */
-    .sidebar {
-      width: 280px;
-      background: var(--bg-glass);
-      backdrop-filter: blur(20px);
-      border-right: 1px solid var(--border-color);
-      display: flex;
-      flex-direction: column;
-      transition: transform 0.3s ease;
-      position: fixed;
-      height: 100vh;
-      left: 0;
-      top: 0;
-      z-index: 1000;
-    }
-
-    .sidebar-header {
+    .container {
+      max-width: 1600px;
+      margin: 0 auto;
       padding: 32px 24px;
-      border-bottom: 1px solid var(--border-color);
     }
 
-    .logo-container {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
-
-    .logo-icon {
-      width: 48px;
-      height: 48px;
-      background: var(--gradient-primary);
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 24px;
-      box-shadow: var(--shadow-glow);
-    }
-
-    .logo-text h1 {
-      font-size: 20px;
-      font-weight: 700;
-      background: var(--gradient-primary);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-
-    .logo-text p {
-      font-size: 11px;
-      color: var(--text-tertiary);
-      margin-top: 2px;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-    }
-
-    .sidebar-nav {
-      flex: 1;
-      padding: 24px 0;
-      overflow-y: auto;
-    }
-
-    .nav-section {
+    .header {
+      background: var(--bg-elevated);
+      border-radius: var(--radius-xl);
+      padding: 32px 40px;
       margin-bottom: 32px;
-      padding: 0 16px;
-    }
-
-    .nav-section-title {
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--text-tertiary);
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      margin-bottom: 12px;
-      padding: 0 12px;
-    }
-
-    .nav-item {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 12px 16px;
-      border-radius: 12px;
-      color: var(--text-secondary);
-      text-decoration: none;
-      font-size: 14px;
-      font-weight: 500;
-      transition: all 0.2s ease;
-      cursor: pointer;
-      margin-bottom: 4px;
-    }
-
-    .nav-item:hover {
-      background: var(--bg-hover);
-      color: var(--text-primary);
-      transform: translateX(4px);
-    }
-
-    .nav-item.active {
-      background: var(--gradient-primary);
-      color: white;
-      box-shadow: var(--shadow-glow);
-    }
-
-    .nav-icon {
-      width: 20px;
-      height: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .sidebar-footer {
-      padding: 24px;
-      border-top: 1px solid var(--border-color);
-    }
-
-    .user-info {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 12px;
-      border-radius: 12px;
-      background: var(--bg-hover);
-    }
-
-    .user-avatar {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      background: var(--gradient-primary);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 18px;
-      font-weight: 600;
-      color: white;
-    }
-
-    .user-details h4 {
-      font-size: 14px;
-      font-weight: 600;
-      margin-bottom: 2px;
-    }
-
-    .user-details p {
-      font-size: 12px;
-      color: var(--text-tertiary);
-    }
-
-    /* 主内容区 */
-    .main-content {
-      flex: 1;
-      margin-left: 280px;
-      padding: 32px;
-      transition: margin-left 0.3s ease;
-    }
-
-    .topbar {
+      box-shadow: var(--shadow-lg);
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 32px;
-      gap: 24px;
+      border: 1px solid var(--border);
+      backdrop-filter: blur(20px);
+      background: var(--bg-glass);
+      position: relative;
+      overflow: hidden;
     }
 
-    .page-title {
-      flex: 1;
+    .header::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--primary), var(--secondary));
     }
 
-    .page-title h2 {
-      font-size: 28px;
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .logo-icon {
+      font-size: 48px;
+      filter: drop-shadow(0 4px 12px rgba(99, 102, 241, 0.3));
+      animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-8px); }
+    }
+
+    .logo-text h1 {
+      font-size: 32px;
       font-weight: 700;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
       margin-bottom: 4px;
     }
 
-    .page-title p {
+    .logo-text p {
       font-size: 14px;
       color: var(--text-tertiary);
+      font-weight: 500;
+      letter-spacing: 0.5px;
     }
 
-    .topbar-actions {
+    .header-actions {
       display: flex;
-      gap: 12px;
+      gap: 16px;
       align-items: center;
     }
 
-    .search-box {
-      position: relative;
-    }
-
-    .search-input {
-      width: 300px;
-      padding: 12px 16px 12px 44px;
-      border: 1px solid var(--border-color);
-      border-radius: 12px;
-      background: var(--bg-glass);
-      backdrop-filter: blur(10px);
+    .theme-toggle {
+      width: 56px;
+      height: 56px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      background: var(--bg-elevated);
       color: var(--text-primary);
-      font-size: 14px;
-      transition: all 0.3s ease;
-    }
-
-    .search-input:focus {
-      outline: none;
-      border-color: rgba(102, 126, 234, 0.5);
-      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-    }
-
-    .search-icon {
-      position: absolute;
-      left: 16px;
-      top: 50%;
-      transform: translateY(-50%);
-      color: var(--text-tertiary);
-    }
-
-    .icon-btn {
-      width: 44px;
-      height: 44px;
-      border: 1px solid var(--border-color);
-      border-radius: 12px;
-      background: var(--bg-glass);
-      backdrop-filter: blur(10px);
-      color: var(--text-primary);
+      cursor: pointer;
+      font-size: 24px;
       display: flex;
       align-items: center;
       justify-content: center;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      position: relative;
+      transition: var(--transition);
+      box-shadow: var(--shadow-sm);
     }
 
-    .icon-btn:hover {
-      background: var(--bg-hover);
-      transform: translateY(-2px);
+    .theme-toggle:hover {
+      transform: scale(1.1) rotate(15deg);
+      background: var(--primary);
+      border-color: var(--primary);
       box-shadow: var(--shadow-md);
     }
 
-    .icon-btn.active::after {
-      content: '';
-      position: absolute;
-      top: 8px;
-      right: 8px;
-      width: 8px;
-      height: 8px;
-      background: #ef4444;
-      border-radius: 50%;
-      border: 2px solid var(--bg-glass);
+    .action-btn {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      padding: 8px;
+      border-radius: var(--radius-sm);
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
-    /* 统计卡片 */
-    .stats-grid {
+    .action-btn:hover {
+      background: var(--bg-overlay);
+      color: var(--primary);
+      transform: scale(1.05);
+    }
+
+    .btn {
+      padding: 14px 28px;
+      border: none;
+      border-radius: var(--radius-md);
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: var(--shadow-sm);
+      font-family: inherit;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .btn-primary:active {
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: var(--bg-elevated);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      background: var(--bg-overlay);
+      border-color: var(--border-hover);
+    }
+
+    .stats {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
       gap: 24px;
@@ -864,14 +754,14 @@ function handleHomepage(req) {
     }
 
     .stat-card {
-      background: var(--bg-glass);
-      backdrop-filter: blur(20px);
-      border: 1px solid var(--border-color);
-      border-radius: 20px;
+      background: var(--bg-elevated);
+      border-radius: var(--radius-lg);
       padding: 28px;
+      box-shadow: var(--shadow-md);
+      border: 1px solid var(--border);
       position: relative;
       overflow: hidden;
-      transition: all 0.3s ease;
+      transition: var(--transition);
     }
 
     .stat-card::before {
@@ -881,116 +771,42 @@ function handleHomepage(req) {
       left: 0;
       right: 0;
       height: 4px;
-      background: var(--gradient-primary);
-      opacity: 0;
-      transition: opacity 0.3s ease;
+      background: linear-gradient(90deg, var(--primary), var(--secondary));
     }
 
     .stat-card:hover {
-      transform: translateY(-4px);
-      box-shadow: var(--shadow-lg);
-    }
-
-    .stat-card:hover::before {
-      opacity: 1;
-    }
-
-    .stat-card.gradient-success::before {
-      background: var(--gradient-success);
-    }
-
-    .stat-card.gradient-warning::before {
-      background: var(--gradient-warning);
-    }
-
-    .stat-card.gradient-info::before {
-      background: var(--gradient-info);
-    }
-
-    .stat-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      margin-bottom: 20px;
+      transform: translateY(-6px);
+      box-shadow: var(--shadow-xl);
+      border-color: var(--primary);
     }
 
     .stat-icon {
-      width: 56px;
-      height: 56px;
-      border-radius: 16px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 28px;
-      background: var(--gradient-primary);
-      box-shadow: var(--shadow-glow);
+      font-size: 36px;
+      margin-bottom: 16px;
+      display: inline-block;
+      animation: pulse 2s ease-in-out infinite;
     }
 
-    .stat-card.gradient-success .stat-icon {
-      background: var(--gradient-success);
-      box-shadow: 0 0 20px rgba(132, 250, 176, 0.3);
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
     }
 
-    .stat-card.gradient-warning .stat-icon {
-      background: var(--gradient-warning);
-      box-shadow: 0 0 20px rgba(250, 112, 154, 0.3);
-    }
-
-    .stat-card.gradient-info .stat-icon {
-      background: var(--gradient-info);
-      box-shadow: 0 0 20px rgba(48, 207, 208, 0.3);
-    }
-
-    .stat-trend {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      padding: 6px 12px;
-      border-radius: 8px;
-      font-size: 12px;
-      font-weight: 600;
-      background: rgba(16, 185, 129, 0.1);
-      color: #10b981;
-    }
-
-    .stat-trend.down {
-      background: rgba(239, 68, 68, 0.1);
-      color: #ef4444;
-    }
-
-    .stat-content h3 {
+    .stat-title {
       font-size: 14px;
-      font-weight: 500;
-      color: var(--text-secondary);
-      margin-bottom: 8px;
+      color: var(--text-tertiary);
+      margin-bottom: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
     }
 
     .stat-value {
-      font-size: 36px;
+      font-size: 40px;
       font-weight: 700;
+      color: var(--text-primary);
       margin-bottom: 12px;
-      background: var(--gradient-primary);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-
-    .stat-card.gradient-success .stat-value {
-      background: var(--gradient-success);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-
-    .stat-card.gradient-warning .stat-value {
-      background: var(--gradient-warning);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-
-    .stat-card.gradient-info .stat-value {
-      background: var(--gradient-info);
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
@@ -998,52 +814,75 @@ function handleHomepage(req) {
 
     .stat-footer {
       font-size: 13px;
-      color: var(--text-tertiary);
-      display: flex;
-      align-items: center;
-      gap: 8px;
+      color: var(--text-secondary);
+      font-weight: 500;
     }
 
-    /* 配置卡片网格 */
+    .card {
+      background: var(--bg-elevated);
+      border-radius: var(--radius-lg);
+      padding: 32px;
+      box-shadow: var(--shadow-md);
+      border: 1px solid var(--border);
+    }
+
+    .card-title {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--text-primary);
+      padding-bottom: 20px;
+      border-bottom: 2px solid var(--border);
+    }
+
+    .search-box {
+      margin-bottom: 24px;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 16px 24px 16px 56px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      font-size: 15px;
+      background: var(--bg-overlay);
+      color: var(--text-primary);
+      transition: var(--transition);
+      font-family: inherit;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: 20px center;
+    }
+
+    .search-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
+      background-color: var(--bg-elevated);
+    }
+
     .config-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
       gap: 20px;
-      margin-top: 24px;
     }
 
     .config-card {
-      background: var(--bg-glass);
-      backdrop-filter: blur(20px);
-      border: 1px solid var(--border-color);
-      border-radius: 16px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
       padding: 24px;
-      transition: all 0.3s ease;
+      transition: var(--transition);
+      background: var(--bg-overlay);
       position: relative;
-      overflow: hidden;
-    }
-
-    .config-card::after {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: var(--gradient-primary);
-      opacity: 0;
-      transition: opacity 0.3s ease;
-      pointer-events: none;
     }
 
     .config-card:hover {
-      transform: translateY(-2px);
-      box-shadow: var(--shadow-md);
-      border-color: rgba(102, 126, 234, 0.3);
-    }
-
-    .config-card:hover::after {
-      opacity: 0.03;
+      border-color: var(--primary);
+      box-shadow: 0 8px 24px rgba(99, 102, 241, 0.15);
+      transform: translateX(6px);
+      background: var(--bg-elevated);
     }
 
     .config-header {
@@ -1053,143 +892,91 @@ function handleHomepage(req) {
       margin-bottom: 16px;
     }
 
-    .config-badge {
-      padding: 6px 12px;
-      border-radius: 8px;
-      font-size: 11px;
+    .config-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .config-icon {
+      font-size: 24px;
+    }
+
+    .config-name {
       font-weight: 600;
-      text-transform: uppercase;
+      color: var(--primary);
+      font-size: 15px;
+      font-family: 'Courier New', monospace;
       letter-spacing: 0.5px;
     }
 
-    .config-badge.sensitive {
-      background: rgba(239, 68, 68, 0.1);
-      color: #ef4444;
+    .edit-btn {
+      opacity: 0.6;
+      transition: var(--transition);
     }
 
-    .config-badge.normal {
-      background: rgba(59, 130, 246, 0.1);
-      color: #3b82f6;
-    }
-
-    .config-actions {
-      display: flex;
-      gap: 8px;
-    }
-
-    .action-btn {
-      width: 32px;
-      height: 32px;
-      border: none;
-      border-radius: 8px;
-      background: var(--bg-hover);
-      color: var(--text-secondary);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-
-    .action-btn:hover {
-      background: var(--gradient-primary);
-      color: white;
-      transform: scale(1.1);
-    }
-
-    .config-title {
-      font-size: 16px;
-      font-weight: 600;
-      font-family: 'Courier New', monospace;
-      margin-bottom: 12px;
-      color: var(--text-primary);
+    .edit-btn:hover {
+      opacity: 1;
+      background: var(--bg-overlay);
+      transform: scale(1.15);
     }
 
     .config-value {
-      padding: 16px;
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
-      border-radius: 10px;
+      padding: 16px 20px;
+      background: var(--bg-base);
+      border-radius: var(--radius-sm);
       font-family: 'Courier New', monospace;
-      font-size: 13px;
-      color: var(--text-secondary);
-      margin-bottom: 12px;
+      font-size: 14px;
       word-break: break-all;
+      margin-bottom: 16px;
+      color: var(--text-primary);
+      border: 1px solid var(--border);
       line-height: 1.6;
-      transition: all 0.2s ease;
     }
 
     .config-value.sensitive {
+      cursor: pointer;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      cursor: pointer;
       user-select: none;
+      position: relative;
     }
 
     .config-value.sensitive:hover {
-      border-color: rgba(102, 126, 234, 0.3);
-      background: var(--bg-hover);
+      background: var(--bg-elevated);
+      border-color: var(--primary);
     }
 
-    .config-value.revealed {
-      color: #667eea;
-      user-select: text;
+    .config-value.sensitive .value-text {
+      flex: 1;
     }
 
-    .toggle-icon {
+    .reveal-icon {
       opacity: 0.5;
-      transition: opacity 0.2s ease;
+      transition: var(--transition);
+      margin-left: 12px;
+      flex-shrink: 0;
     }
 
-    .config-value.sensitive:hover .toggle-icon {
+    .config-value.sensitive:hover .reveal-icon {
       opacity: 1;
+      color: var(--primary);
+    }
+
+    .config-value.sensitive.revealed {
+      user-select: text;
+      color: var(--secondary);
+      background: var(--bg-elevated);
     }
 
     .config-desc {
-      font-size: 12px;
+      font-size: 13px;
       color: var(--text-tertiary);
-      line-height: 1.5;
+      line-height: 1.6;
+      font-weight: 500;
     }
 
-    /* 按钮样式 */
-    .btn {
-      padding: 12px 24px;
-      border: none;
-      border-radius: 12px;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      transition: all 0.3s ease;
-      text-decoration: none;
-    }
-
-    .btn-primary {
-      background: var(--gradient-primary);
-      color: white;
-      box-shadow: var(--shadow-glow);
-    }
-
-    .btn-primary:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
-    }
-
-    .btn-secondary {
-      background: var(--bg-glass);
-      backdrop-filter: blur(10px);
-      border: 1px solid var(--border-color);
-      color: var(--text-primary);
-    }
-
-    .btn-secondary:hover {
-      background: var(--bg-hover);
-    }
-
-    /* 模态框 */
     .modal {
       display: none;
       position: fixed;
@@ -1201,7 +988,7 @@ function handleHomepage(req) {
       backdrop-filter: blur(8px);
       align-items: center;
       justify-content: center;
-      z-index: 2000;
+      z-index: 1000;
       animation: fadeIn 0.3s ease;
     }
 
@@ -1215,1345 +1002,703 @@ function handleHomepage(req) {
     }
 
     .modal-content {
-      background: var(--bg-glass);
-      backdrop-filter: blur(40px);
-      border: 1px solid var(--border-color);
-      border-radius: 24px;
+      background: var(--bg-elevated);
+      border-radius: var(--radius-xl);
       padding: 40px;
-      max-width: 560px;
+      max-width: 600px;
       width: 90%;
-      max-height: 85vh;
+      max-height: 90vh;
       overflow-y: auto;
-      box-shadow: var(--shadow-lg);
-      animation: slideUp 0.3s ease;
+      box-shadow: var(--shadow-xl);
+      border: 1px solid var(--border);
+      animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     @keyframes slideUp {
-      from {
+      from { 
         opacity: 0;
-        transform: translateY(40px);
+        transform: translateY(40px) scale(0.95);
       }
       to {
         opacity: 1;
-       transform: translateY(0);
-     }
-   }
-
-   .modal-header {
-     display: flex;
-     justify-content: space-between;
-     align-items: center;
-     margin-bottom: 28px;
-     padding-bottom: 20px;
-     border-bottom: 1px solid var(--border-color);
-   }
-
-   .modal-title {
-     font-size: 24px;
-     font-weight: 700;
-     background: var(--gradient-primary);
-     -webkit-background-clip: text;
-     -webkit-text-fill-color: transparent;
-     background-clip: text;
-   }
-
-   .close-btn {
-     width: 40px;
-     height: 40px;
-     border: none;
-     border-radius: 10px;
-     background: var(--bg-hover);
-     color: var(--text-secondary);
-     font-size: 24px;
-     cursor: pointer;
-     display: flex;
-     align-items: center;
-     justify-content: center;
-     transition: all 0.2s ease;
-   }
-
-   .close-btn:hover {
-     background: rgba(239, 68, 68, 0.1);
-     color: #ef4444;
-     transform: rotate(90deg);
-   }
-
-   .form-group {
-     margin-bottom: 24px;
-   }
-
-   .form-label {
-     display: block;
-     font-size: 14px;
-     font-weight: 600;
-     margin-bottom: 10px;
-     color: var(--text-primary);
-   }
-
-   .form-input,
-   .form-textarea {
-     width: 100%;
-     padding: 14px 18px;
-     border: 1px solid var(--border-color);
-     border-radius: 12px;
-     font-size: 14px;
-     font-family: inherit;
-     background: var(--bg-card);
-     color: var(--text-primary);
-     transition: all 0.3s ease;
-   }
-
-   .form-textarea {
-     min-height: 140px;
-     font-family: 'Courier New', monospace;
-     resize: vertical;
-     line-height: 1.6;
-   }
-
-   .form-input:focus,
-   .form-textarea:focus {
-     outline: none;
-     border-color: rgba(102, 126, 234, 0.5);
-     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-     background: var(--bg-glass);
-   }
-
-   .form-hint {
-     font-size: 12px;
-     color: var(--text-tertiary);
-     margin-top: 8px;
-     line-height: 1.5;
-     display: flex;
-     align-items: flex-start;
-     gap: 8px;
-   }
-
-   .form-hint::before {
-     content: '💡';
-     flex-shrink: 0;
-   }
-
-   .modal-footer {
-     display: flex;
-     gap: 12px;
-     justify-content: flex-end;
-     margin-top: 32px;
-     padding-top: 24px;
-     border-top: 1px solid var(--border-color);
-   }
-
-   /* Toast 通知 */
-   .toast {
-     position: fixed;
-     bottom: 32px;
-     right: 32px;
-     background: var(--bg-glass);
-     backdrop-filter: blur(40px);
-     border: 1px solid var(--border-color);
-     border-radius: 16px;
-     padding: 20px 24px;
-     box-shadow: var(--shadow-lg);
-     display: none;
-     align-items: center;
-     gap: 16px;
-     z-index: 3000;
-     animation: slideInRight 0.3s ease;
-     max-width: 420px;
-     min-width: 320px;
-   }
-
-   @keyframes slideInRight {
-     from {
-       transform: translateX(400px);
-       opacity: 0;
-     }
-     to {
-       transform: translateX(0);
-       opacity: 1;
-     }
-   }
-
-   .toast.show {
-     display: flex;
-   }
-
-   .toast.success {
-     border-left: 4px solid #10b981;
-   }
-
-   .toast.error {
-     border-left: 4px solid #ef4444;
-   }
-
-   .toast.info {
-     border-left: 4px solid #3b82f6;
-   }
-
-   .toast-icon {
-     font-size: 24px;
-     flex-shrink: 0;
-   }
-
-   .toast-content {
-     flex: 1;
-   }
-
-   .toast-title {
-     font-size: 14px;
-     font-weight: 600;
-     margin-bottom: 4px;
-     color: var(--text-primary);
-   }
-
-   .toast-message {
-     font-size: 13px;
-     color: var(--text-secondary);
-     line-height: 1.5;
-   }
-
-   /* 卡片容器 */
-   .card {
-     background: var(--bg-glass);
-     backdrop-filter: blur(20px);
-     border: 1px solid var(--border-color);
-     border-radius: 20px;
-     padding: 32px;
-     margin-bottom: 24px;
-   }
-
-   .card-header {
-     display: flex;
-     justify-content: space-between;
-     align-items: center;
-     margin-bottom: 28px;
-   }
-
-   .card-title {
-     font-size: 20px;
-     font-weight: 700;
-     display: flex;
-     align-items: center;
-     gap: 12px;
-   }
-
-   .card-title-icon {
-     font-size: 24px;
-   }
-
-   /* 工具栏 */
-   .toolbar {
-     display: flex;
-     gap: 12px;
-     margin-bottom: 24px;
-     flex-wrap: wrap;
-   }
-
-   .filter-group {
-     display: flex;
-     gap: 8px;
-     padding: 8px;
-     background: var(--bg-card);
-     border-radius: 12px;
-     border: 1px solid var(--border-color);
-   }
-
-   .filter-btn {
-     padding: 8px 16px;
-     border: none;
-     border-radius: 8px;
-     background: transparent;
-     color: var(--text-secondary);
-     font-size: 13px;
-     font-weight: 500;
-     cursor: pointer;
-     transition: all 0.2s ease;
-   }
-
-   .filter-btn:hover {
-     background: var(--bg-hover);
-     color: var(--text-primary);
-   }
-
-   .filter-btn.active {
-     background: var(--gradient-primary);
-     color: white;
-   }
-
-   /* 空状态 */
-   .empty-state {
-     text-align: center;
-     padding: 60px 24px;
-   }
-
-   .empty-icon {
-     font-size: 64px;
-     margin-bottom: 20px;
-     opacity: 0.5;
-   }
-
-   .empty-title {
-     font-size: 18px;
-     font-weight: 600;
-     margin-bottom: 8px;
-     color: var(--text-primary);
-   }
-
-   .empty-desc {
-     font-size: 14px;
-     color: var(--text-tertiary);
-     margin-bottom: 24px;
-   }
-
-   /* 加载动画 */
-   .loading-spinner {
-     width: 40px;
-     height: 40px;
-     border: 4px solid var(--border-color);
-     border-top-color: #667eea;
-     border-radius: 50%;
-     animation: spin 0.8s linear infinite;
-     margin: 40px auto;
-   }
-
-   @keyframes spin {
-     to { transform: rotate(360deg); }
-   }
-
-   /* 响应式设计 */
-   @media (max-width: 1024px) {
-     .sidebar {
-       transform: translateX(-100%);
-     }
-
-     .sidebar.open {
-       transform: translateX(0);
-     }
-
-     .main-content {
-       margin-left: 0;
-     }
-
-     .config-grid {
-       grid-template-columns: 1fr;
-     }
-
-     .stats-grid {
-       grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-     }
-   }
-
-   @media (max-width: 768px) {
-     .main-content {
-       padding: 20px 16px;
-     }
-
-     .topbar {
-       flex-direction: column;
-       align-items: flex-start;
-     }
-
-     .search-input {
-       width: 100%;
-     }
-
-     .topbar-actions {
-       width: 100%;
-       justify-content: space-between;
-     }
-
-     .modal-content {
-       padding: 28px 24px;
-     }
-
-     .toast {
-       bottom: 20px;
-       right: 20px;
-       left: 20px;
-       max-width: none;
-     }
-   }
-
-   /* 滚动条样式 */
-   ::-webkit-scrollbar {
-     width: 8px;
-     height: 8px;
-   }
-
-   ::-webkit-scrollbar-track {
-     background: var(--bg-card);
-     border-radius: 4px;
-   }
-
-   ::-webkit-scrollbar-thumb {
-     background: var(--border-color);
-     border-radius: 4px;
-     transition: background 0.2s ease;
-   }
-
-   ::-webkit-scrollbar-thumb:hover {
-     background: var(--text-tertiary);
-   }
-
-   /* 移动端侧边栏遮罩 */
-   .sidebar-overlay {
-     display: none;
-     position: fixed;
-     top: 0;
-     left: 0;
-     right: 0;
-     bottom: 0;
-     background: rgba(0, 0, 0, 0.5);
-     backdrop-filter: blur(4px);
-     z-index: 999;
-   }
-
-   .sidebar-overlay.show {
-     display: block;
-   }
-
-   /* 菜单按钮（移动端） */
-   .menu-toggle {
-     display: none;
-   }
-
-   @media (max-width: 1024px) {
-     .menu-toggle {
-       display: flex;
-     }
-   }
-
-   /* 快捷键提示 */
-   .keyboard-hint {
-     display: inline-flex;
-     align-items: center;
-     gap: 4px;
-     padding: 4px 8px;
-     background: var(--bg-card);
-     border: 1px solid var(--border-color);
-     border-radius: 6px;
-     font-size: 11px;
-     font-family: 'Courier New', monospace;
-     color: var(--text-tertiary);
-   }
-
-   /* 徽章 */
-   .badge {
-     display: inline-flex;
-     align-items: center;
-     padding: 4px 10px;
-     border-radius: 12px;
-     font-size: 11px;
-     font-weight: 600;
-     letter-spacing: 0.5px;
-   }
-
-   .badge-success {
-     background: rgba(16, 185, 129, 0.1);
-     color: #10b981;
-   }
-
-   .badge-warning {
-     background: rgba(245, 158, 11, 0.1);
-     color: #f59e0b;
-   }
-
-   .badge-error {
-     background: rgba(239, 68, 68, 0.1);
-     color: #ef4444;
-   }
-
-   .badge-info {
-     background: rgba(59, 130, 246, 0.1);
-     color: #3b82f6;
-   }
-
-   /* 进度条 */
-   .progress-bar {
-     width: 100%;
-     height: 6px;
-     background: var(--bg-card);
-     border-radius: 3px;
-     overflow: hidden;
-     position: relative;
-   }
-
-   .progress-fill {
-     height: 100%;
-     background: var(--gradient-primary);
-     border-radius: 3px;
-     transition: width 0.3s ease;
-   }
-
-   /* 动画效果 */
-   @keyframes pulse {
-     0%, 100% { opacity: 1; }
-     50% { opacity: 0.5; }
-   }
-
-   .pulse {
-     animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-   }
-
-   @keyframes bounce {
-     0%, 100% { transform: translateY(0); }
-     50% { transform: translateY(-10px); }
-   }
-
-   .bounce {
-     animation: bounce 1s infinite;
-   }
- </style>
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 28px;
+      padding-bottom: 20px;
+      border-bottom: 2px solid var(--border);
+    }
+
+    .modal-title {
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .close-btn {
+      background: var(--bg-overlay);
+      border: none;
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-sm);
+      font-size: 28px;
+      cursor: pointer;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: var(--transition);
+      border: 1px solid var(--border);
+    }
+
+    .close-btn:hover {
+      background: var(--danger);
+      color: white;
+      border-color: var(--danger);
+      transform: rotate(90deg);
+    }
+
+    .form-group {
+      margin-bottom: 28px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: var(--text-primary);
+    }
+
+    .form-input, .form-textarea {
+      width: 100%;
+      padding: 14px 18px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 15px;
+      font-family: inherit;
+      background: var(--bg-overlay);
+      color: var(--text-primary);
+      transition: var(--transition);
+    }
+
+    .form-textarea {
+      min-height: 140px;
+      font-family: 'Courier New', monospace;
+      resize: vertical;
+      line-height: 1.6;
+    }
+
+    .form-input:focus, .form-textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
+      background: var(--bg-elevated);
+    }
+
+    .form-hint {
+      font-size: 13px;
+      color: var(--text-tertiary);
+      margin-top: 10px;
+      line-height: 1.6;
+      font-weight: 500;
+    }
+
+    .modal-footer {
+      display: flex;
+      gap: 16px;
+      justify-content: flex-end;
+      margin-top: 32px;
+      padding-top: 24px;
+      border-top: 2px solid var(--border);
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 40px;
+      right: 40px;
+      background: var(--bg-elevated);
+      border-radius: var(--radius-md);
+      padding: 20px 28px;
+      box-shadow: var(--shadow-xl);
+      display: none;
+      align-items: center;
+      gap: 16px;
+      z-index: 2000;
+      border: 1px solid var(--border);
+      animation: slideInRight 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      max-width: 450px;
+      backdrop-filter: blur(20px);
+    }
+
+    @keyframes slideInRight {
+      from { 
+        transform: translateX(450px);
+        opacity: 0;
+      }
+      to { 
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    .toast.show {
+      display: flex;
+    }
+
+    .toast.success { 
+      border-left: 5px solid var(--success); 
+    }
+    
+    .toast.error { 
+      border-left: 5px solid var(--danger); 
+    }
+    
+    .toast.info { 
+      border-left: 5px solid var(--info); 
+    }
+
+    .toast-icon {
+      font-size: 24px;
+    }
+
+    .toast-message {
+      color: var(--text-primary);
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    @media (max-width: 768px) {
+      .container { 
+        padding: 20px 16px; 
+      }
+      
+      .header { 
+        flex-direction: column; 
+        gap: 20px;
+        padding: 24px;
+      }
+      
+      .logo {
+        flex-direction: column;
+        text-align: center;
+      }
+      
+      .header-actions {
+        width: 100%;
+        justify-content: space-between;
+      }
+      
+      .stats { 
+        grid-template-columns: 1fr; 
+      }
+      
+      .card {
+        padding: 24px 20px;
+      }
+      
+      .modal-content { 
+        padding: 28px 24px;
+        width: 95%;
+      }
+      
+      .toast {
+        bottom: 24px;
+        right: 24px;
+        left: 24px;
+        max-width: none;
+      }
+    }
+
+    ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg-overlay);
+      border-radius: var(--radius-sm);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: var(--radius-sm);
+      transition: var(--transition);
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--primary);
+    }
+  </style>
 </head>
 <body>
- <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+  <div class="container">
+    <div class="header">
+      <div class="logo">
+        <div class="logo-icon">🎬</div>
+        <div class="logo-text">
+          <h1>弹幕 API 管理中心</h1>
+          <p>Danmu API Management Console</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="theme-toggle" onclick="toggleTheme()" title="切换主题">🌓</button>
+        <button class="btn btn-secondary" onclick="changePassword()">🔑 修改密码</button>
+        <button class="btn btn-secondary" onclick="logout()">🚪 退出</button>
+      </div>
+    </div>
 
- <div class="app-container">
-   <!-- 侧边栏 -->
-   <aside class="sidebar" id="sidebar">
-     <div class="sidebar-header">
-       <div class="logo-container">
-         <div class="logo-icon">🎬</div>
-         <div class="logo-text">
-           <h1>弹幕 API</h1>
-           <p>Management</p>
-         </div>
-       </div>
-     </div>
+    <div class="stats">
+      <div class="stat-card">
+        <div class="stat-icon">📊</div>
+        <div class="stat-title">环境变量配置</div>
+        <div class="stat-value">${configuredEnvCount}/${totalEnvCount}</div>
+        <div class="stat-footer">已配置 / 总数量</div>
+      </div>
+      
+      <div class="stat-card">
+        <div class="stat-icon">💾</div>
+        <div class="stat-title">持久化存储</div>
+        <div class="stat-value">${
+          globals.databaseValid ? '数据库' : 
+          (redisConfigured && globals.redisValid) ? 'Redis' : 
+          '内存'
+        }</div>
+        <div class="stat-footer">${
+          globals.databaseValid ? '✅ 数据库在线' : 
+          (redisConfigured && globals.redisValid) ? '✅ Redis 在线' : 
+          '📝 仅内存缓存'
+        }</div>
+      </div>
 
-     <nav class="sidebar-nav">
-       <div class="nav-section">
-         <div class="nav-section-title">主要功能</div>
-         <a class="nav-item active" href="#dashboard" onclick="showSection('dashboard')">
-           <div class="nav-icon">
-             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-               <rect x="3" y="3" width="7" height="7"></rect>
-               <rect x="14" y="3" width="7" height="7"></rect>
-               <rect x="14" y="14" width="7" height="7"></rect>
-               <rect x="3" y="14" width="7" height="7"></rect>
-             </svg>
-           </div>
-           <span>控制台</span>
-         </a>
-         <a class="nav-item" href="#config" onclick="showSection('config')">
-           <div class="nav-icon">
-             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-               <circle cx="12" cy="12" r="3"></circle>
-               <path d="M12 1v6m0 6v6m5.66-13.66l-4.24 4.24m0 6.84l4.24 4.24M23 12h-6m-6 0H1m18.66 5.66l-4.24-4.24m0-6.84l4.24-4.24"></path>
-             </svg>
-           </div>
-           <span>环境配置</span>
-         </a>
-         <a class="nav-item" href="#logs" onclick="showSection('logs')">
-           <div class="nav-icon">
-             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-               <polyline points="14 2 14 8 20 8"></polyline>
-               <line x1="16" y1="13" x2="8" y2="13"></line>
-               <line x1="16" y1="17" x2="8" y2="17"></line>
-               <polyline points="10 9 9 9 8 9"></polyline>
-             </svg>
-           </div>
-           <span>系统日志</span>
-         </a>
-       </div>
+      <div class="stat-card">
+        <div class="stat-icon">🔗</div>
+        <div class="stat-title">弹幕数据源</div>
+        <div class="stat-value">${globals.sourceOrderArr.length || 7}</div>
+        <div class="stat-footer">${globals.sourceOrderArr.length > 0 ? `优先: ${globals.sourceOrderArr[0]}` : '使用默认顺序'}</div>
+      </div>
 
-       <div class="nav-section">
-         <div class="nav-section-title">系统设置</div>
-         <a class="nav-item" href="#api-docs" onclick="showSection('api-docs')">
-           <div class="nav-icon">
-             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-               <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
-               <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
-             </svg>
-           </div>
-           <span>API 文档</span>
-         </a>
-         <a class="nav-item" href="#" onclick="changePassword()">
-           <div class="nav-icon">
-             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-               <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-               <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-             </svg>
-           </div>
-           <span>修改密码</span>
-         </a>
-       </div>
-     </nav>
+      <div class="stat-card">
+        <div class="stat-icon">⚙️</div>
+        <div class="stat-title">服务状态</div>
+        <div class="stat-value">运行中</div>
+        <div class="stat-footer">版本 ${globals.VERSION}</div>
+      </div>
+    </div>
 
-     <div class="sidebar-footer">
-       <div class="user-info">
-         <div class="user-avatar">A</div>
-         <div class="user-details">
-           <h4>管理员</h4>
-           <p>超级管理员</p>
-         </div>
-       </div>
-     </div>
-   </aside>
+    <div class="card">
+      <div class="card-title">
+        <span>⚙️ 环境变量配置</span>
+        <button class="btn btn-primary" onclick="saveAll()">💾 保存全部</button>
+      </div>
+      
+      <div class="search-box">
+        <input type="text" class="search-input" placeholder="搜索环境变量..." id="searchInput" oninput="filterEnvs()">
+      </div>
 
-   <!-- 主内容区 -->
-   <main class="main-content">
-     <!-- 顶部栏 -->
-     <div class="topbar">
-       <div class="page-title">
-         <h2>控制台</h2>
-         <p>系统概览与实时监控</p>
-       </div>
-       <div class="topbar-actions">
-         <button class="icon-btn menu-toggle" onclick="toggleSidebar()" title="菜单">
-           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-             <line x1="3" y1="12" x2="21" y2="12"></line>
-             <line x1="3" y1="6" x2="21" y2="6"></line>
-             <line x1="3" y1="18" x2="21" y2="18"></line>
-           </svg>
-         </button>
-         <div class="search-box">
-           <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-             <circle cx="11" cy="11" r="8"></circle>
-             <path d="m21 21-4.35-4.35"></path>
-           </svg>
-           <input type="text" class="search-input" id="globalSearch" placeholder="搜索配置项..." oninput="filterConfigs()">
-         </div>
-         <button class="icon-btn" onclick="toggleTheme()" title="切换主题">
-           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-             <circle cx="12" cy="12" r="5"></circle>
-             <line x1="12" y1="1" x2="12" y2="3"></line>
-             <line x1="12" y1="21" x2="12" y2="23"></line>
-             <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-             <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-             <line x1="1" y1="12" x2="3" y2="12"></line>
-             <line x1="21" y1="12" x2="23" y2="12"></line>
-             <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-             <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-           </svg>
-         </button>
-         <button class="icon-btn" onclick="showNotifications()" title="通知">
-           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-             <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-           </svg>
-         </button>
-         <button class="btn btn-secondary" onclick="logout()">
-           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-             <polyline points="16 17 21 12 16 7"></polyline>
-             <line x1="21" y1="12" x2="9" y2="12"></line>
-           </svg>
-           退出登录
-         </button>
-       </div>
-     </div>
+      <div class="config-grid" id="configGrid">
+        ${envItemsHtml}
+      </div>
+    </div>
+  </div>
 
-     <!-- 统计卡片 -->
-     <div class="stats-grid">
-       <div class="stat-card">
-         <div class="stat-header">
-           <div class="stat-icon">⚙️</div>
-           <div class="stat-trend">
-             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-               <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
-             </svg>
-             ${Math.round((configuredEnvCount / totalEnvCount) * 100)}%
-           </div>
-         </div>
-         <div class="stat-content">
-           <h3>环境变量配置</h3>
-           <div class="stat-value">${configuredEnvCount}/${totalEnvCount}</div>
-           <div class="stat-footer">
-             <span class="badge badge-info">已配置</span>
-             <span>${totalEnvCount - configuredEnvCount} 项待配置</span>
-           </div>
-         </div>
-       </div>
+  <!-- 编辑弹窗 -->
+  <div class="modal" id="editModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">✏️ 编辑环境变量</h3>
+        <button class="close-btn" onclick="closeModal()">×</button>
+      </div>
+      <div class="form-group">
+        <label class="form-label">变量名</label>
+        <input type="text" class="form-input" id="editKey" readonly>
+      </div>
+      <div class="form-group">
+        <label class="form-label">配置值</label>
+        <textarea class="form-textarea" id="editValue" placeholder="请输入配置值"></textarea>
+        <div class="form-hint" id="editHint"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+        <button class="btn btn-primary" onclick="saveEnv()">保存</button>
+      </div>
+    </div>
+  </div>
 
-       <div class="stat-card gradient-success">
-         <div class="stat-header">
-           <div class="stat-icon">💾</div>
-           <span class="badge ${
-             globals.databaseValid ? 'badge-success' : 
-             (globals.redisValid ? 'badge-info' : 'badge-warning')
-           }">
-             ${
-               globals.databaseValid ? '数据库' : 
-               (globals.redisValid ? 'Redis' : '内存')
-             }
-           </span>
-         </div>
-         <div class="stat-content">
-           <h3>持久化存储</h3>
-           <div class="stat-value">${
-             globals.databaseValid ? '数据库' : 
-             (globals.redisValid ? 'Redis' : '内存')
-           }</div>
-           <div class="stat-footer">
-             <span class="badge ${
-               globals.databaseValid ? 'badge-success' : 
-               (globals.redisValid ? 'badge-success' : 'badge-warning')
-             }">
-               ${
-                 globals.databaseValid ? '✅ 在线' : 
-                 (globals.redisValid ? '✅ 在线' : '⚠️ 仅内存')
-               }
-             </span>
-           </div>
-         </div>
-       </div>
+  <!-- 修改密码弹窗 -->
+  <div class="modal" id="passwordModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">🔑 修改密码</h3>
+        <button class="close-btn" onclick="closePasswordModal()">×</button>
+      </div>
+      <div class="form-group">
+        <label class="form-label">新用户名（可选）</label>
+        <input type="text" class="form-input" id="newUsername" placeholder="留空则不修改">
+      </div>
+      <div class="form-group">
+        <label class="form-label">旧密码</label>
+        <input type="password" class="form-input" id="oldPassword" placeholder="请输入当前密码" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">新密码</label>
+        <input type="password" class="form-input" id="newPassword" placeholder="请输入新密码" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">确认新密码</label>
+        <input type="password" class="form-input" id="confirmPassword" placeholder="请再次输入新密码" required>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closePasswordModal()">取消</button>
+        <button class="btn btn-primary" onclick="submitPasswordChange()">确认修改</button>
+      </div>
+    </div>
+  </div>
 
-       <div class="stat-card gradient-warning">
-         <div class="stat-header">
-           <div class="stat-icon">🔗</div>
-           <div class="stat-trend">
-             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-               <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
-             </svg>
-             活跃
-           </div>
-         </div>
-         <div class="stat-content">
-           <h3>弹幕数据源</h3>
-           <div class="stat-value">${globals.sourceOrderArr.length || 7}</div>
-           <div class="stat-footer">
-             <span class="badge badge-warning">优先: ${globals.sourceOrderArr[0] || '默认'}</span>
-           </div>
-         </div>
-       </div>
+  <!-- Toast 提示 -->
+  <div class="toast" id="toast">
+    <span class="toast-icon" id="toastIcon"></span>
+    <span class="toast-message" id="toastMessage"></span>
+  </div>
 
-       <div class="stat-card gradient-info">
-         <div class="stat-header">
-           <div class="stat-icon">🚀</div>
-           <span class="badge badge-success">运行中</span>
-         </div>
-         <div class="stat-content">
-           <h3>服务状态</h3>
-           <div class="stat-value">正常</div>
-           <div class="stat-footer">
-             <span class="badge badge-info">版本 ${globals.VERSION}</span>
-           </div>
-         </div>
-       </div>
-     </div>
+  <script>
+    // 主题管理
+    function initTheme() {
+      const savedTheme = localStorage.getItem('theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', savedTheme);
+      updateThemeIcon(savedTheme);
+    }
 
-     <!-- 配置管理卡片 -->
-     <div class="card">
-       <div class="card-header">
-         <div class="card-title">
-           <span class="card-title-icon">⚙️</span>
-           <span>环境变量配置</span>
-         </div>
-         <div style="display: flex; gap: 12px;">
-           <button class="btn btn-secondary" onclick="refreshConfig()">
-             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-               <polyline points="23 4 23 10 17 10"></polyline>
-               <polyline points="1 20 1 14 7 14"></polyline>
-               <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-             </svg>
-             刷新
-           </button>
-           <button class="btn btn-primary" onclick="saveAllConfig()">
-             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-               <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-               <polyline points="17 21 17 13 7 13 7 21"></polyline>
-               <polyline points="7 3 7 8 15 8"></polyline>
-             </svg>
-             保存全部
-             <span class="keyboard-hint">Ctrl+S</span>
-           </button>
-         </div>
-       </div>
+    function toggleTheme() {
+      const currentTheme = document.documentElement.getAttribute('data-theme');
+      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', newTheme);
+      localStorage.setItem('theme', newTheme);
+      updateThemeIcon(newTheme);
+      showToast(newTheme === 'dark' ? '已切换到深色模式' : '已切换到浅色模式', 'info');
+    }
 
-       <div class="toolbar">
-         <div class="filter-group">
-           <button class="filter-btn active" onclick="filterByType('all')">全部</button>
-           <button class="filter-btn" onclick="filterByType('sensitive')">🔒 敏感</button>
-           <button class="filter-btn" onclick="filterByType('configured')">✅ 已配置</button>
-           <button class="filter-btn" onclick="filterByType('empty')">⚠️ 未配置</button>
-         </div>
-       </div>
+    function updateThemeIcon(theme) {
+      const btn = document.querySelector('.theme-toggle');
+      btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+    }
 
-       <div class="config-grid" id="configGrid">
-         ${envItemsHtml}
-       </div>
+    // 初始化
+    initTheme();
 
-       <div class="empty-state" id="emptyState" style="display: none;">
-         <div class="empty-icon">🔍</div>
-         <div class="empty-title">未找到配置项</div>
-         <div class="empty-desc">尝试调整搜索关键词或筛选条件</div>
-       </div>
-     </div>
-   </main>
- </div>
+    const AppState = {
+      currentEditingKey: null,
+      config: ${JSON.stringify(globals.accessedEnvVars)},
+      revealedSecrets: new Map()
+    };
 
- <!-- 编辑配置弹窗 -->
- <div class="modal" id="editModal">
-   <div class="modal-content">
-     <div class="modal-header">
-       <h3 class="modal-title">✏️ 编辑环境变量</h3>
-       <button class="close-btn" onclick="closeModal()">×</button>
-     </div>
-     <div class="form-group">
-       <label class="form-label">变量名</label>
-       <input type="text" class="form-input" id="editKey" readonly style="background: var(--bg-card); cursor: not-allowed;">
-     </div>
-     <div class="form-group">
-       <label class="form-label">配置值</label>
-       <textarea class="form-textarea" id="editValue" placeholder="请输入配置值..."></textarea>
-       <div class="form-hint" id="editHint"></div>
-     </div>
-     <div class="modal-footer">
-       <button class="btn btn-secondary" onclick="closeModal()">取消</button>
-       <button class="btn btn-primary" onclick="saveEnvConfig()">
-         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-           <polyline points="20 6 9 17 4 12"></polyline>
-         </svg>
-         保存更改
-       </button>
-     </div>
-   </div>
- </div>
+    const ENV_DESCRIPTIONS = ${JSON.stringify(ENV_DESCRIPTIONS)};
 
- <!-- 修改密码弹窗 -->
- <div class="modal" id="passwordModal">
-   <div class="modal-content">
-     <div class="modal-header">
-       <h3 class="modal-title">🔑 修改登录凭据</h3>
-       <button class="close-btn" onclick="closePasswordModal()">×</button>
-     </div>
-     <div class="form-group">
-       <label class="form-label">新用户名（可选）</label>
-       <input type="text" class="form-input" id="newUsername" placeholder="留空则不修改">
-       <div class="form-hint">如不需要修改用户名，请留空</div>
-     </div>
-     <div class="form-group">
-       <label class="form-label">当前密码</label>
-       <input type="password" class="form-input" id="oldPassword" placeholder="请输入当前密码" required>
-     </div>
-     <div class="form-group">
-       <label class="form-label">新密码</label>
-       <input type="password" class="form-input" id="newPassword" placeholder="请输入新密码（至少4位）" required>
-       <div class="form-hint">密码长度至少为4位字符</div>
-     </div>
-     <div class="form-group">
-       <label class="form-label">确认新密码</label>
-       <input type="password" class="form-input" id="confirmPassword" placeholder="请再次输入新密码" required>
-     </div>
-     <div class="modal-footer">
-       <button class="btn btn-secondary" onclick="closePasswordModal()">取消</button>
-       <button class="btn btn-primary" onclick="submitPasswordChange()">
-         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-           <polyline points="20 6 9 17 4 12"></polyline>
-         </svg>
-         确认修改
-       </button>
-     </div>
-   </div>
- </div>
+    function showToast(message, type = 'info') {
+      const toast = document.getElementById('toast');
+      const icon = document.getElementById('toastIcon');
+      const msg = document.getElementById('toastMessage');
+      
+      const icons = {
+        success: '✅',
+        error: '❌',
+        info: 'ℹ️'
+      };
+      
+      icon.textContent = icons[type] || icons.info;
+      msg.textContent = message;
+      toast.className = 'toast show ' + type;
+      
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3000);
+    }
 
- <!-- Toast 通知 -->
- <div class="toast" id="toast">
-   <span class="toast-icon" id="toastIcon"></span>
-   <div class="toast-content">
-     <div class="toast-title" id="toastTitle"></div>
-     <div class="toast-message" id="toastMessage"></div>
-   </div>
- </div>
+    function toggleSensitive(element) {
+      const real = element.dataset.real;
+      const masked = element.dataset.masked;
+      const key = element.closest('.config-card').dataset.key;
+      
+      // 清除之前的定时器
+      if (AppState.revealedSecrets.has(key)) {
+        clearTimeout(AppState.revealedSecrets.get(key));
+        AppState.revealedSecrets.delete(key);
+      }
+      
+      // 显示真实值
+      const textarea = document.createElement('textarea');
+      textarea.innerHTML = real;
+      const realValue = textarea.value;
+      
+      const valueText = element.querySelector('.value-text');
+      const revealIcon = element.querySelector('.reveal-icon');
+      
+      valueText.textContent = realValue;
+      revealIcon.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>';
+      element.classList.add('revealed');
+      
+      // 3秒后自动隐藏
+      const timeoutId = setTimeout(() => {
+        valueText.textContent = masked;
+        revealIcon.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
+        element.classList.remove('revealed');
+        AppState.revealedSecrets.delete(key);
+      }, 3000);
+      
+      AppState.revealedSecrets.set(key, timeoutId);
+    }
 
- <script>
-   // ========== 全局状态管理 ==========
-   const AppState = {
-     currentEditingKey: null,
-     config: ${JSON.stringify(globals.accessedEnvVars)},
-     revealedSecrets: new Map(),
-     currentFilter: 'all',
-     theme: localStorage.getItem('theme') || 'dark'
-   };
+    function copySensitiveValue(element, event) {
+      event.stopPropagation();
+      const real = element.dataset.real;
+      const textarea = document.createElement('textarea');
+      textarea.innerHTML = real;
+      const text = textarea.value;
+      
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(text);
+      } else {
+        const temp = document.createElement('textarea');
+        temp.value = text;
+        document.body.appendChild(temp);
+        temp.select();
+        document.execCommand('copy');
+        document.body.removeChild(temp);
+      }
+      
+      showToast('📋 已复制到剪贴板', 'success');
+    }
 
-   const ENV_DESCRIPTIONS = ${JSON.stringify(ENV_DESCRIPTIONS)};
+    function editEnv(key) {
+      AppState.currentEditingKey = key;
+      document.getElementById('editKey').value = key;
+      document.getElementById('editValue').value = AppState.config[key] || '';
+      document.getElementById('editHint').textContent = ENV_DESCRIPTIONS[key] || '';
+      document.getElementById('editModal').classList.add('show');
+    }
 
-   // ========== 主题管理 ==========
-   function initTheme() {
-     document.documentElement.setAttribute('data-theme', AppState.theme);
-   }
+    function closeModal() {
+      document.getElementById('editModal').classList.remove('show');
+    }
 
-   function toggleTheme() {
-     AppState.theme = AppState.theme === 'dark' ? 'light' : 'dark';
-     document.documentElement.setAttribute('data-theme', AppState.theme);
-     localStorage.setItem('theme', AppState.theme);
-     showToast('主题切换', AppState.theme === 'dark' ? '已切换到深色模式' : '已切换到浅色模式', 'info');
-   }
+    async function saveEnv() {
+      const key = AppState.currentEditingKey;
+      const value = document.getElementById('editValue').value.trim();
+      
+      AppState.config[key] = value;
+      
+      try {
+        const response = await fetch('/api/config/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ config: { [key]: value } })
+        });
 
-   // ========== Toast 通知 ==========
-   function showToast(title, message, type = 'info') {
-     const toast = document.getElementById('toast');
-     const icon = document.getElementById('toastIcon');
-     const titleEl = document.getElementById('toastTitle');
-     const messageEl = document.getElementById('toastMessage');
-     
-     const icons = {
-       success: '✅',
-       error: '❌',
-       info: 'ℹ️',
-       warning: '⚠️'
-     };
-     
-     icon.textContent = icons[type] || icons.info;
-     titleEl.textContent = title;
-     messageEl.textContent = message;
-     toast.className = 'toast show ' + type;
-     
-     setTimeout(() => {
-       toast.classList.remove('show');
-     }, 4000);
-   }
+        const result = await response.json();
+        
+        if (result.success) {
+          showToast('✅ 保存成功！', 'success');
+          updateConfigDisplay(key, value);
+          closeModal();
+        } else {
+          showToast('保存失败: ' + (result.errorMessage || '未知错误'), 'error');
+        }
+      } catch (error) {
+        showToast('保存失败: ' + error.message, 'error');
+      }
+    }
 
-   // ========== 侧边栏管理 ==========
-   function toggleSidebar() {
-     const sidebar = document.getElementById('sidebar');
-     const overlay = document.getElementById('sidebarOverlay');
-     sidebar.classList.toggle('open');
-     overlay.classList.toggle('show');
-   }
+    async function saveAll() {
+      try {
+        const response = await fetch('/api/config/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ config: AppState.config })
+        });
 
-   function closeSidebar() {
-     const sidebar = document.getElementById('sidebar');
-     const overlay = document.getElementById('sidebarOverlay');
-     sidebar.classList.remove('open');
-     overlay.classList.remove('show');
-   }
+        const result = await response.json();
+        
+        if (result.success) {
+          showToast('✅ 全部配置已保存！', 'success');
+        } else {
+          showToast('保存失败: ' + (result.errorMessage || '未知错误'), 'error');
+        }
+      } catch (error) {
+        showToast('保存失败: ' + error.message, 'error');
+      }
+    }
 
-   function showSection(section) {
-     const navItems = document.querySelectorAll('.nav-item');
-     navItems.forEach(item => item.classList.remove('active'));
-     event.currentTarget.classList.add('active');
-     
-     // 这里可以添加切换不同内容区域的逻辑
-     showToast('导航', \`切换到 \${section} 页面\`, 'info');
-     
-     if (window.innerWidth <= 1024) {
-       closeSidebar();
-     }
-   }
+    function updateConfigDisplay(key, value) {
+      const card = document.querySelector('.config-card[data-key="' + key + '"]');
+      if (!card) return;
+      
+      const valueEl = card.querySelector('.config-value');
+      
+      // 如果是敏感字段，保持星号显示
+      if (valueEl.classList.contains('sensitive')) {
+        const realValue = typeof value === 'string' ? value : String(value);
+        const maskedValue = '*'.repeat(Math.min(realValue.length, 32));
+        
+        const encodedRealValue = realValue
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+        
+        valueEl.dataset.real = encodedRealValue;
+        valueEl.dataset.masked = maskedValue;
+        
+        const valueText = valueEl.querySelector('.value-text');
+        if (valueText) {
+          valueText.textContent = maskedValue;
+        }
+        valueEl.classList.remove('revealed');
+        return;
+      }
+      
+      // 普通字段正常显示
+      if (typeof value === 'boolean') {
+        valueEl.textContent = value ? '✅ 已启用' : '❌ 已禁用';
+      } else if (!value) {
+        valueEl.textContent = '未配置';
+      } else {
+        valueEl.textContent = value.length > 80 ? value.substring(0, 80) + '...' : value;
+      }
+    }
 
-   // ========== 敏感信息显示/隐藏 ==========
-   function toggleSensitive(element) {
-     const real = element.dataset.real;
-     const masked = element.dataset.masked;
-     const key = element.closest('.config-card').dataset.key;
-     
-     if (AppState.revealedSecrets.has(key)) {
-       clearTimeout(AppState.revealedSecrets.get(key));
-       AppState.revealedSecrets.delete(key);
-     }
-     
-     const textarea = document.createElement('textarea');
-     textarea.innerHTML = real;
-     const realValue = textarea.value;
-     
-     const valueText = element.querySelector('.value-text');
-     const toggleIcon = element.querySelector('.toggle-icon');
-     
-     if (element.classList.contains('revealed')) {
-       valueText.textContent = masked;
-       toggleIcon.textContent = '👁️';
-       element.classList.remove('revealed');
-     } else {
-       valueText.textContent = realValue;
-       toggleIcon.textContent = '🔓';
-       element.classList.add('revealed');
-       
-       const timeoutId = setTimeout(() => {
-         valueText.textContent = masked;
-         toggleIcon.textContent = '👁️';
-         element.classList.remove('revealed');
-         AppState.revealedSecrets.delete(key);
-       }, 5000);
-       
-       AppState.revealedSecrets.set(key, timeoutId);
-     }
-   }
+    function copyValue(element) {
+      const original = element.dataset.original;
+      if (!original) return;
+      
+      const textarea = document.createElement('textarea');
+      textarea.innerHTML = original;
+      const text = textarea.value;
+      
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(text);
+      } else {
+        const temp = document.createElement('textarea');
+        temp.value = text;
+        document.body.appendChild(temp);
+        temp.select();
+        document.execCommand('copy');
+        document.body.removeChild(temp);
+      }
+      
+      showToast('📋 已复制到剪贴板', 'success');
+    }
 
-   // ========== 编辑配置 ==========
-   function editEnv(key) {
-     AppState.currentEditingKey = key;
-     document.getElementById('editKey').value = key;
-     document.getElementById('editValue').value = AppState.config[key] || '';
-     document.getElementById('editHint').textContent = ENV_DESCRIPTIONS[key] || '';
-     document.getElementById('editModal').classList.add('show');
-   }
+    function filterEnvs() {
+      const query = document.getElementById('searchInput').value.toLowerCase();
+      const cards = document.querySelectorAll('.config-card');
+      
+      cards.forEach(card => {
+        const name = card.querySelector('.config-name').textContent.toLowerCase();
+        const value = card.querySelector('.config-value').textContent.toLowerCase();
+        const desc = card.querySelector('.config-desc').textContent.toLowerCase();
+        
+        if (name.includes(query) || value.includes(query) || desc.includes(query)) {
+          card.style.display = '';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    }
 
-   function closeModal() {
-     document.getElementById('editModal').classList.remove('show');
-     AppState.currentEditingKey = null;
-   }
+    function changePassword() {
+      document.getElementById('passwordModal').classList.add('show');
+    }
 
-   async function saveEnvConfig() {
-     const key = AppState.currentEditingKey;
-     const value = document.getElementById('editValue').value.trim();
-     
-     if (!key) {
-       showToast('错误', '无效的配置项', 'error');
-       return;
-     }
-     
-     AppState.config[key] = value;
-     
-     try {
-       const response = await fetch('/api/config/save', {
-         method: 'POST',
-         headers: { 'Content-Type': 'application/json' },
-         body: JSON.stringify({ config: { [key]: value } })
-       });
+    function closePasswordModal() {
+      document.getElementById('passwordModal').classList.remove('show');
+      document.getElementById('newUsername').value = '';
+      document.getElementById('oldPassword').value = '';
+      document.getElementById('newPassword').value = '';
+      document.getElementById('confirmPassword').value = '';
+    }
 
-       const result = await response.json();
-       
-       if (result.success) {
-         showToast('保存成功', \`\${key} 配置已更新\`, 'success');
-         updateEnvDisplay(key, value);
-         closeModal();
-       } else {
-         showToast('保存失败', result.errorMessage || '未知错误', 'error');
-       }
-     } catch (error) {
-       showToast('网络错误', error.message, 'error');
-     }
-   }
+    async function submitPasswordChange() {
+      const newUsername = document.getElementById('newUsername').value.trim();
+      const oldPassword = document.getElementById('oldPassword').value;
+      const newPassword = document.getElementById('newPassword').value;
+      const confirmPassword = document.getElementById('confirmPassword').value;
+      
+      if (!oldPassword) {
+        showToast('请输入旧密码', 'error');
+        return;
+      }
+      
+      if (!newPassword) {
+        showToast('请输入新密码', 'error');
+        return;
+      }
+      
+      if (newPassword !== confirmPassword) {
+        showToast('两次输入的密码不一致', 'error');
+        return;
+      }
+      
+      if (newPassword.length < 4) {
+        showToast('密码长度至少为4位', 'error');
+        return;
+      }
+      
+      try {
+        const response = await fetch('/api/change-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            oldPassword,
+            newPassword,
+            newUsername: newUsername || undefined
+          })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          showToast('密码修改成功，请重新登录', 'success');
+          closePasswordModal();
+          setTimeout(() => logout(), 1500);
+        } else {
+          showToast(result.message || '修改失败', 'error');
+        }
+      } catch (error) {
+        showToast('修改失败: ' + error.message, 'error');
+      }
+    }
 
-   // ========== 删除/清空配置 ==========
-   function deleteEnv(key) {
-     if (!confirm(\`确定要清空 \${key} 的配置吗？\`)) {
-       return;
-     }
-     
-     AppState.config[key] = '';
-     
-     fetch('/api/config/save', {
-       method: 'POST',
-       headers: { 'Content-Type': 'application/json' },
-       body: JSON.stringify({ config: { [key]: '' } })
-     })
-     .then(res => res.json())
-     .then(result => {
-       if (result.success) {
-         showToast('清空成功', \`\${key} 已清空\`, 'success');
-         updateEnvDisplay(key, '');
-       } else {
-         showToast('清空失败', result.errorMessage || '未知错误', 'error');
-       }
-     })
-     .catch(error => {
-       showToast('网络错误', error.message, 'error');
-     });
-   }
+    async function logout() {
+      try {
+        await fetch('/api/logout', { method: 'POST' });
+        window.location.href = '/';
+      } catch (error) {
+        showToast('退出失败', 'error');
+      }
+    }
 
-   // ========== 更新配置显示 ==========
-   function updateEnvDisplay(key, value) {
-     const card = document.querySelector(\`.config-card[data-key="\${key}"]\`);
-     if (!card) return;
-     
-     const valueEl = card.querySelector('.config-value');
-     const valueText = valueEl.querySelector('.value-text');
-     
-     if (valueEl.classList.contains('sensitive')) {
-       const realValue = typeof value === 'string' ? value : String(value);
-       const maskedValue = '*'.repeat(Math.min(realValue.length, 32));
-       
-       const encodedRealValue = realValue
-         .replace(/&/g, '&amp;')
-         .replace(/</g, '&lt;')
-         .replace(/>/g, '&gt;')
-         .replace(/"/g, '&quot;')
-         .replace(/'/g, '&#39;');
-       
-       valueEl.dataset.real = encodedRealValue;
-       valueEl.dataset.masked = maskedValue;
-       valueText.textContent = maskedValue;
-       valueEl.classList.remove('revealed');
-       return;
-     }
-     
-     if (typeof value === 'boolean') {
-       valueText.textContent = value ? '✅ 已启用' : '❌ 已禁用';
-     } else if (!value) {
-       valueText.textContent = '未配置';
-     } else {
-       valueText.textContent = value.length > 80 ? value.substring(0, 80) + '...' : value;
-     }
-   }
+    // 快捷键支持
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        saveAll();
+      }
+      if (e.key === 'Escape') {
+        closeModal();
+        closePasswordModal();
+      }
+    });
 
-   // ========== 复制配置值 ==========
-   function copyValue(key) {
-     const card = document.querySelector(\`.config-card[data-key="\${key}"]\`);
-     if (!card) return;
-     
-     const valueEl = card.querySelector('.config-value');
-     let text = '';
-     
-     if (valueEl.classList.contains('sensitive')) {
-       const textarea = document.createElement('textarea');
-       textarea.innerHTML = valueEl.dataset.real;
-       text = textarea.value;
-     } else {
-       text = valueEl.dataset.original || valueEl.querySelector('.value-text').textContent;
-     }
-     
-     if (navigator.clipboard) {
-       navigator.clipboard.writeText(text).then(() => {
-         showToast('复制成功', \`\${key} 已复制到剪贴板\`, 'success');
-       });
-     } else {
-       const temp = document.createElement('textarea');
-       temp.value = text;
-       document.body.appendChild(temp);
-       temp.select();
-       document.execCommand('copy');
-       document.body.removeChild(temp);
-       showToast('复制成功', \`\${key} 已复制到剪贴板\`, 'success');
-     }
-   }
-
-   // ========== 保存全部配置 ==========
-   async function saveAllConfig() {
-     try {
-       const response = await fetch('/api/config/save', {
-         method: 'POST',
-         headers: { 'Content-Type': 'application/json' },
-         body: JSON.stringify({ config: AppState.config })
-       });
-
-       const result = await response.json();
-       
-       if (result.success) {
-         showToast('保存成功', '全部配置已保存', 'success');
-       } else {
-         showToast('保存失败', result.errorMessage || '未知错误', 'error');
-       }
-     } catch (error) {
-       showToast('网络错误', error.message, 'error');
-     }
-   }
-
-   // ========== 刷新配置 ==========
-   async function refreshConfig() {
-     try {
-       const response = await fetch('/api/config/load');
-       const result = await response.json();
-       
-       if (result.success && result.config) {
-         AppState.config = { ...AppState.config, ...result.config };
-         for (const [key, value] of Object.entries(result.config)) {
-           updateEnvDisplay(key, value);
-         }
-         showToast('刷新成功', \`配置已从 \${result.loadedFrom.join('、')} 加载\`, 'success');
-       }
-     } catch (error) {
-       showToast('刷新失败', error.message, 'error');
-     }
-   }
-
-   // ========== 筛选配置 ==========
-   function filterByType(type) {
-     AppState.currentFilter = type;
-     
-     const filterBtns = document.querySelectorAll('.filter-btn');
-     filterBtns.forEach(btn => btn.classList.remove('active'));
-     event.currentTarget.classList.add('active');
-     
-     const cards = document.querySelectorAll('.config-card');
-     const emptyState = document.getElementById('emptyState');
-     let visibleCount = 0;
-     
-     cards.forEach(card => {
-       const key = card.dataset.key;
-       const value = AppState.config[key];
-       const isSensitive = card.querySelector('.config-badge.sensitive') !== null;
-       const isConfigured = value && value.length > 0;
-       
-       let shouldShow = true;
-       
-       switch(type) {
-         case 'sensitive':
-           shouldShow = isSensitive;
-           break;
-         case 'configured':
-           shouldShow = isConfigured;
-           break;
-         case 'empty':
-           shouldShow = !isConfigured;
-           break;
-         case 'all':
-         default:
-           shouldShow = true;
-       }
-       
-       card.style.display = shouldShow ? '' : 'none';
-       if (shouldShow) visibleCount++;
-     });
-     
-     emptyState.style.display = visibleCount === 0 ? 'block' : 'none';
-   }
-
-   // ========== 搜索配置 ==========
-   function filterConfigs() {
-     const query = document.getElementById('globalSearch').value.toLowerCase();
-     const cards = document.querySelectorAll('.config-card');
-     const emptyState = document.getElementById('emptyState');
-     let visibleCount = 0;
-     
-     cards.forEach(card => {
-       const key = card.dataset.key.toLowerCase();
-       const title = card.querySelector('.config-title').textContent.toLowerCase();
-       const desc = card.querySelector('.config-desc').textContent.toLowerCase();
-       const value = card.querySelector('.config-value .value-text').textContent.toLowerCase();
-       
-       const matches = key.includes(query) || title.includes(query) || 
-                      desc.includes(query) || value.includes(query);
-       
-       // 同时考虑当前的筛选状态
-       let typeMatch = true;
-       if (AppState.currentFilter !== 'all') {
-         const isSensitive = card.querySelector('.config-badge.sensitive') !== null;
-         const isConfigured = AppState.config[card.dataset.key] && 
-                             AppState.config[card.dataset.key].length > 0;
-         
-         switch(AppState.currentFilter) {
-           case 'sensitive':
-             typeMatch = isSensitive;
-             break;
-           case 'configured':
-             typeMatch = isConfigured;
-             break;
-           case 'empty':
-             typeMatch = !isConfigured;
-             break;
-         }
-       }
-       
-       const shouldShow = matches && typeMatch;
-       card.style.display = shouldShow ? '' : 'none';
-       if (shouldShow) visibleCount++;
-     });
-     
-     emptyState.style.display = visibleCount === 0 ? 'block' : 'none';
-   }
-
-   // ========== 修改密码 ==========
-   function changePassword() {
-     document.getElementById('passwordModal').classList.add('show');
-   }
-
-   function closePasswordModal() {
-     document.getElementById('passwordModal').classList.remove('show');
-     document.getElementById('newUsername').value = '';
-     document.getElementById('oldPassword').value = '';
-     document.getElementById('newPassword').value = '';
-     document.getElementById('confirmPassword').value = '';
-   }
-
-   async function submitPasswordChange() {
-     const newUsername = document.getElementById('newUsername').value.trim();
-     const oldPassword = document.getElementById('oldPassword').value;
-     const newPassword = document.getElementById('newPassword').value;
-     const confirmPassword = document.getElementById('confirmPassword').value;
-     
-     if (!oldPassword) {
-       showToast('验证失败', '请输入当前密码', 'error');
-       return;
-     }
-     
-     if (!newPassword) {
-       showToast('验证失败', '请输入新密码', 'error');
-       return;
-     }
-     
-     if (newPassword !== confirmPassword) {
-       showToast('验证失败', '两次输入的密码不一致', 'error');
-       return;
-     }
-     
-     if (newPassword.length < 4) {
-       showToast('验证失败', '密码长度至少为4位', 'error');
-       return;
-     }
-     
-     try {
-       const response = await fetch('/api/change-password', {
-         method: 'POST',
-         headers: { 'Content-Type': 'application/json' },
-         body: JSON.stringify({
-           oldPassword,
-           newPassword,
-           newUsername: newUsername || undefined
-         })
-       });
-       
-       const result = await response.json();
-       
-       if (result.success) {
-         showToast('修改成功', '密码已更新，请重新登录', 'success');
-         closePasswordModal();
-         setTimeout(() => logout(), 2000);
-       } else {
-         showToast('修改失败', result.message || '修改失败', 'error');
-       }
-     } catch (error) {
-       showToast('网络错误', error.message, 'error');
-     }
-   }
-
-   // ========== 退出登录 ==========
-   async function logout() {
-     try {
-       await fetch('/api/logout', { method: 'POST' });
-       showToast('退出登录', '正在退出...', 'info');
-       setTimeout(() => {
-         window.location.href = '/';
-       }, 1000);
-     } catch (error) {
-       showToast('退出失败', error.message, 'error');
-     }
-   }
-
-   // ========== 通知中心 ==========
-   function showNotifications() {
-     showToast('通知中心', '暂无新通知', 'info');
-   }
-
-   // ========== 快捷键支持 ==========
-   document.addEventListener('keydown', (e) => {
-     // Ctrl+S 保存
-     if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-       e.preventDefault();
-       saveAllConfig();
-     }
-     
-     // Esc 关闭弹窗
-     if (e.key === 'Escape') {
-       closeModal();
-       closePasswordModal();
-       closeSidebar();
-     }
-     
-     // Ctrl+K 聚焦搜索框
-     if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-       e.preventDefault();
-       document.getElementById('globalSearch').focus();
-     }
-   });
-
-   // ========== 初始化 ==========
-   function init() {
-     initTheme();
-     loadConfig();
-     
-     // 自动刷新配置（可选）
-     setInterval(() => {
-       refreshConfig();
-     }, 300000); // 每5分钟刷新一次
-     
-     console.log('%c弹幕 API 管理中心', 'color: #667eea; font-size: 24px; font-weight: bold;');
-     console.log('%c系统已就绪 ✨', 'color: #10b981; font-size: 14px;');
-   }
-
-// ========== 加载配置 ==========
+    // 初始化加载配置
     async function loadConfig() {
       try {
         const response = await fetch('/api/config/load');
@@ -2562,30 +1707,28 @@ function handleHomepage(req) {
         if (result.success && result.config) {
           AppState.config = { ...AppState.config, ...result.config };
           for (const [key, value] of Object.entries(result.config)) {
-            updateEnvDisplay(key, value);
+            updateConfigDisplay(key, value);
           }
-          showToast('配置加载', `已从 ${result.loadedFrom.join('、')} 加载配置`, 'success');
+          showToast(\`✅ 配置已从 \${result.loadedFrom.join('、')} 加载\`, 'success');
         }
       } catch (error) {
         console.error('加载配置失败:', error);
-        showToast('加载失败', '无法加载配置数据', 'error');
       }
     }
 
-    // 页面加载完成后初始化
-    window.addEventListener('DOMContentLoaded', init);
+    loadConfig();
   </script>
 </body>
 </html>
-  `;
+    `;
 
-  return new Response(html, {
-    headers: {
-      'Content-Type': 'text/html; charset=utf-8',
-      'Cache-Control': 'no-cache'
-    }
-  });
-}
+    return new Response(html, {
+      headers: {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'no-cache'
+      }
+    });
+  }
 
   if (path === "/" && method === "GET") {
     return handleHomepage(req);
@@ -2643,7 +1786,6 @@ function handleHomepage(req) {
           log("warn", `[config] 保存到数据库失败: ${e.message}`);
         }
       }
-      
       let redisSaved = false;
       if (globals.redisValid) {
         redisSaved = await mergeSaveToRedis('env_configs', sanitizedConfig);
@@ -2785,9 +1927,6 @@ function handleHomepage(req) {
     '/api/logs',
     '/api/config/save',
     '/api/config/load',
-    '/api/login',
-    '/api/logout',
-    '/api/change-password',
     '/favicon.ico',
     '/robots.txt'
   ];
@@ -2929,7 +2068,7 @@ function handleHomepage(req) {
   if (path === "/api/v2/match" && method === "POST") {
     return matchAnime(url, req);
   }
-  
+
   if (path.startsWith("/api/v2/bangumi/") && method === "GET") {
     return getBangumi(path);
   }
@@ -3071,108 +2210,69 @@ function getLoginPage() {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>登录 - 弹幕 API 管理中心</title>
+  <title>登录 - 弹幕 API</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    
     :root {
-      --bg-main: #0a0e27;
-      --bg-card: rgba(255, 255, 255, 0.03);
-      --bg-glass: rgba(255, 255, 255, 0.05);
-      --bg-hover: rgba(255, 255, 255, 0.08);
-      --text-primary: #ffffff;
-      --text-secondary: #a0aec0;
-      --text-tertiary: #718096;
-      --border-color: rgba(255, 255, 255, 0.1);
-      --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.3);
-      --shadow-glow: 0 0 20px rgba(102, 126, 234, 0.3);
+      --primary: #6366f1;
+      --primary-dark: #4f46e5;
+      --secondary: #8b5cf6;
+      --success: #10b981;
+      --danger: #ef4444;
+      
+      --bg-base: #0f172a;
+      --bg-elevated: #1e293b;
+      --bg-overlay: #334155;
+      
+      --text-primary: #f1f5f9;
+      --text-secondary: #cbd5e1;
+      --text-tertiary: #94a3b8;
+      
+      --border: rgba(255, 255, 255, 0.1);
+      --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.6);
+      
+      --radius-lg: 16px;
+      --radius-xl: 20px;
+      
+      --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     [data-theme="light"] {
-      --bg-main: #f7fafc;
-      --bg-card: #ffffff;
-      --bg-glass: rgba(255, 255, 255, 0.9);
-      --bg-hover: #edf2f7;
-      --text-primary: #1a202c;
-      --text-secondary: #4a5568;
-      --text-tertiary: #718096;
-      --border-color: #e2e8f0;
-      --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
-      --shadow-glow: 0 0 20px rgba(102, 126, 234, 0.2);
+      --bg-base: #f8fafc;
+      --bg-elevated: #ffffff;
+      --bg-overlay: #f1f5f9;
+      
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-tertiary: #64748b;
+      
+      --border: rgba(0, 0, 0, 0.1);
+      --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
     }
 
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
     body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      background: var(--bg-main);
-      color: var(--text-primary);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 20px;
-      transition: all 0.3s ease;
-      position: relative;
-      overflow: hidden;
-    }
-
-    body::before {
-      content: '';
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: 
-        radial-gradient(circle at 20% 30%, rgba(102, 126, 234, 0.15) 0%, transparent 50%),
-        radial-gradient(circle at 80% 70%, rgba(118, 75, 162, 0.15) 0%, transparent 50%);
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    .theme-toggle {
-      position: fixed;
-      top: 32px;
-      right: 32px;
-      width: 48px;
-      height: 48px;
-      border-radius: 12px;
-      background: var(--bg-glass);
-      backdrop-filter: blur(20px);
-      border: 1px solid var(--border-color);
-      color: var(--text-primary);
-      font-size: 20px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.3s ease;
-      z-index: 100;
-    }
-
-    .theme-toggle:hover {
-      transform: scale(1.1) rotate(180deg);
-      box-shadow: var(--shadow-glow);
+      padding: 24px;
+      transition: var(--transition);
     }
 
     .login-container {
-      background: var(--bg-glass);
-      backdrop-filter: blur(40px);
-      border: 1px solid var(--border-color);
-      border-radius: 24px;
-      padding: 48px;
+      background: var(--bg-elevated);
+      border-radius: var(--radius-xl);
+      padding: 56px 48px;
       width: 100%;
       max-width: 480px;
-      box-shadow: var(--shadow-lg);
-      animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-      position: relative;
-      z-index: 1;
+      box-shadow: var(--shadow-xl);
+      border: 1px solid var(--border);
+      animation: slideUp 0.6s ease;
     }
 
     @keyframes slideUp {
@@ -3186,127 +2286,153 @@ function getLoginPage() {
       }
     }
 
+    .theme-toggle-login {
+      position: fixed;
+      top: 28px;
+      right: 28px;
+      width: 56px;
+      height: 56px;
+      border-radius: var(--radius-lg);
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: white;
+      font-size: 24px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: var(--transition);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .theme-toggle-login:hover {
+      transform: scale(1.1) rotate(15deg);
+      background: rgba(255, 255, 255, 0.25);
+    }
+
     .logo {
       text-align: center;
-      margin-bottom: 40px;
+      margin-bottom: 44px;
     }
 
     .logo-icon {
-      font-size: 64px;
+      font-size: 80px;
       margin-bottom: 20px;
-      display: inline-block;
+      filter: drop-shadow(0 6px 12px rgba(0,0,0,0.15));
       animation: float 3s ease-in-out infinite;
     }
 
     @keyframes float {
-      0%, 100% { transform: translateY(0); }
+      0%, 100% { transform: translateY(0px); }
       50% { transform: translateY(-10px); }
     }
 
     .logo-title {
-      font-size: 28px;
+      font-size: 32px;
       font-weight: 700;
-      background: var(--gradient-primary);
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
-      margin-bottom: 8px;
+      margin-bottom: 10px;
     }
 
     .logo-subtitle {
-      font-size: 14px;
+      font-size: 15px;
       color: var(--text-tertiary);
-      letter-spacing: 2px;
-      text-transform: uppercase;
+      font-weight: 500;
+      letter-spacing: 0.5px;
     }
 
     .hint {
-      background: rgba(102, 126, 234, 0.1);
-      border-left: 4px solid #667eea;
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
+      border-left: 4px solid var(--primary);
       padding: 16px 20px;
       border-radius: 12px;
       margin-bottom: 32px;
-      font-size: 13px;
-      color: var(--text-secondary);
+      font-size: 14px;
+      color: var(--text-primary);
       line-height: 1.6;
     }
 
     .hint strong {
-      color: #667eea;
+      color: var(--primary);
       font-weight: 600;
     }
 
     .error-message {
       background: rgba(239, 68, 68, 0.1);
-      border-left: 4px solid #ef4444;
-      color: #ef4444;
+      border-left: 4px solid var(--danger);
+      color: var(--danger);
       padding: 16px 20px;
       border-radius: 12px;
       margin-bottom: 24px;
-      font-size: 13px;
+      font-size: 14px;
       display: none;
       animation: shake 0.5s ease;
+      font-weight: 500;
     }
 
     @keyframes shake {
       0%, 100% { transform: translateX(0); }
-      25% { transform: translateX(-10px); }
-      75% { transform: translateX(10px); }
+      25% { transform: translateX(-12px); }
+      75% { transform: translateX(12px); }
     }
 
     .form-group {
-      margin-bottom: 24px;
+      margin-bottom: 28px;
     }
 
     .form-label {
       display: block;
-      font-size: 14px;
+      font-size: 15px;
       font-weight: 600;
-      margin-bottom: 10px;
+      margin-bottom: 12px;
       color: var(--text-primary);
     }
 
     .form-input {
       width: 100%;
-      padding: 14px 18px;
-      border: 1px solid var(--border-color);
+      padding: 16px 20px;
+      border: 1px solid var(--border);
       border-radius: 12px;
-      font-size: 14px;
-      font-family: inherit;
-      background: var(--bg-card);
+      font-size: 15px;
+      background: var(--bg-overlay);
       color: var(--text-primary);
-      transition: all 0.3s ease;
+      transition: var(--transition);
+      font-family: inherit;
     }
 
     .form-input:focus {
       outline: none;
-      border-color: rgba(102, 126, 234, 0.5);
-      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-      background: var(--bg-glass);
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
+      background: var(--bg-elevated);
     }
 
     .btn-login {
       width: 100%;
-      padding: 16px;
-      background: var(--gradient-primary);
+      padding: 18px;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
       color: white;
       border: none;
       border-radius: 12px;
-      font-size: 16px;
+      font-size: 17px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.3s ease;
-      box-shadow: var(--shadow-glow);
-      margin-top: 8px;
+      transition: var(--transition);
+      box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
+      font-family: inherit;
     }
 
     .btn-login:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
+      transform: translateY(-3px);
+      box-shadow: 0 8px 24px rgba(99, 102, 241, 0.5);
     }
 
     .btn-login:active {
-      transform: translateY(0);
+      transform: translateY(-1px);
     }
 
     .btn-login:disabled {
@@ -3318,34 +2444,34 @@ function getLoginPage() {
     .footer {
       text-align: center;
       margin-top: 32px;
-      font-size: 12px;
+      font-size: 13px;
       color: var(--text-tertiary);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
+      font-weight: 500;
     }
 
     @media (max-width: 480px) {
       .login-container {
-        padding: 36px 28px;
+        padding: 40px 32px;
       }
       
-      .theme-toggle {
-        top: 20px;
-        right: 20px;
+      .logo-icon {
+        font-size: 64px;
+      }
+      
+      .logo-title {
+        font-size: 28px;
       }
     }
   </style>
 </head>
 <body>
-  <button class="theme-toggle" onclick="toggleTheme()" title="切换主题">🌓</button>
+  <button class="theme-toggle-login" onclick="toggleTheme()" title="切换主题">🌓</button>
 
   <div class="login-container">
     <div class="logo">
       <div class="logo-icon">🎬</div>
       <h1 class="logo-title">弹幕 API</h1>
-      <p class="logo-subtitle">Management Center</p>
+      <p class="logo-subtitle">管理中心登录</p>
     </div>
 
     <div class="hint">
@@ -3357,22 +2483,19 @@ function getLoginPage() {
     <form id="loginForm">
       <div class="form-group">
         <label class="form-label">用户名</label>
-        <input type="text" class="form-input" id="username" placeholder="请输入用户名" required autofocus>
+        <input type="text" class="form-input" id="username" placeholder="请输入用户名" required autocomplete="username">
       </div>
 
       <div class="form-group">
         <label class="form-label">密码</label>
-        <input type="password" class="form-input" id="password" placeholder="请输入密码" required>
+        <input type="password" class="form-input" id="password" placeholder="请输入密码" required autocomplete="current-password">
       </div>
 
-      <button type="submit" class="btn-login" id="loginBtn">
-        <span>登录</span>
-      </button>
+      <button type="submit" class="btn-login" id="loginBtn">登录</button>
     </form>
 
     <div class="footer">
-      <span>🔒</span>
-      <span>安全登录</span>
+      弹幕 API 服务 | 安全登录
     </div>
   </div>
 
@@ -3393,7 +2516,7 @@ function getLoginPage() {
     }
 
     function updateThemeIcon(theme) {
-      const btn = document.querySelector('.theme-toggle');
+      const btn = document.querySelector('.theme-toggle-login');
       btn.textContent = theme === 'dark' ? '☀️' : '🌙';
     }
 
@@ -3411,7 +2534,7 @@ function getLoginPage() {
 
       errorMessage.style.display = 'none';
       loginBtn.disabled = true;
-      loginBtn.innerHTML = '<span>登录中...</span>';
+      loginBtn.textContent = '登录中...';
 
       try {
         const response = await fetch('/api/login', {
@@ -3423,7 +2546,7 @@ function getLoginPage() {
         const result = await response.json();
 
         if (result.success) {
-          loginBtn.innerHTML = '<span>✅ 登录成功</span>';
+          loginBtn.textContent = '✅ 登录成功';
           setTimeout(() => {
             window.location.href = '/';
           }, 500);
@@ -3431,17 +2554,16 @@ function getLoginPage() {
           errorMessage.textContent = result.message || '登录失败，请检查用户名和密码';
           errorMessage.style.display = 'block';
           loginBtn.disabled = false;
-          loginBtn.innerHTML = '<span>登录</span>';
+          loginBtn.textContent = '登录';
         }
       } catch (error) {
         errorMessage.textContent = '网络错误，请稍后重试';
         errorMessage.style.display = 'block';
         loginBtn.disabled = false;
-        loginBtn.innerHTML = '<span>登录</span>';
+        loginBtn.textContent = '登录';
       }
     });
 
-    // 回车登录
     document.getElementById('password').addEventListener('keypress', (e) => {
       if (e.key === 'Enter') {
         loginForm.dispatchEvent(new Event('submit'));
