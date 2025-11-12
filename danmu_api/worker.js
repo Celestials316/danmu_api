@@ -8,29 +8,110 @@ import { getBangumi, getComment, getCommentByUrl, matchAnime, searchAnime, searc
 
 let globals;
 
-// ========== 登录会话管理 ==========
-const sessions = new Map(); // 存储登录会话
+// ========== 登录会话管理（Redis 持久化）==========
 const SESSION_TIMEOUT = 24 * 60 * 60 * 1000; // 24小时过期
 
-// 生成随机会话ID
 function generateSessionId() {
   return Array.from(crypto.getRandomValues(new Uint8Array(32)))
     .map(b => b.toString(16).padStart(2, '0'))
     .join('');
 }
 
-// 验证会话
-function validateSession(sessionId) {
+async function validateSession(sessionId) {
   if (!sessionId) return false;
-  const session = sessions.get(sessionId);
-  if (!session) return false;
-
-  // 检查是否过期
-  if (Date.now() - session.createdAt > SESSION_TIMEOUT) {
-    sessions.delete(sessionId);
+  
+  try {
+    // 优先使用 Redis
+    if (globals.redisValid) {
+      const { getRedisKey } = await import('./utils/redis-util.js');
+      const result = await getRedisKey(`session:${sessionId}`);
+      
+      if (!result?.result) return false;
+      
+      const session = JSON.parse(result.result);
+      
+      // 检查是否过期
+      if (Date.now() - session.createdAt > SESSION_TIMEOUT) {
+        await deleteSession(sessionId);
+        return false;
+      }
+      
+      return true;
+    }
+    
+    // 降级到数据库
+    if (globals.databaseValid) {
+      const { loadEnvConfigs } = await import('./utils/db-util.js');
+      const configs = await loadEnvConfigs();
+      const sessionKey = `SESSION_${sessionId}`;
+      
+      if (!configs[sessionKey]) return false;
+      
+      const session = JSON.parse(configs[sessionKey]);
+      if (Date.now() - session.createdAt > SESSION_TIMEOUT) {
+        await deleteSession(sessionId);
+        return false;
+      }
+      
+      return true;
+    }
+    
+    log("warn", "[session] 未配置持久化存储，会话无法保持");
+    return false;
+    
+  } catch (error) {
+    log("error", `[session] 验证会话失败: ${error.message}`);
     return false;
   }
-  return true;
+}
+
+async function saveSession(sessionId, username) {
+  const session = {
+    username,
+    createdAt: Date.now()
+  };
+  
+  try {
+    if (globals.redisValid) {
+      const { setRedisKey } = await import('./utils/redis-util.js');
+      await setRedisKey(
+        `session:${sessionId}`, 
+        JSON.stringify(session),
+        true,
+        Math.floor(SESSION_TIMEOUT / 1000)
+      );
+      return true;
+    }
+    
+    if (globals.databaseValid) {
+      const { saveEnvConfigs } = await import('./utils/db-util.js');
+      const sessionKey = `SESSION_${sessionId}`;
+      await saveEnvConfigs({ [sessionKey]: JSON.stringify(session) });
+      return true;
+    }
+    
+    return false;
+  } catch (error) {
+    log("error", `[session] 保存会话失败: ${error.message}`);
+    return false;
+  }
+}
+
+async function deleteSession(sessionId) {
+  try {
+    if (globals.redisValid) {
+      const { setRedisKey } = await import('./utils/redis-util.js');
+      await setRedisKey(`session:${sessionId}`, '', true, 1);
+    }
+    
+    if (globals.databaseValid) {
+      const { saveEnvConfigs } = await import('./utils/db-util.js');
+      const sessionKey = `SESSION_${sessionId}`;
+      await saveEnvConfigs({ [sessionKey]: '' });
+    }
+  } catch (error) {
+    log("error", `[session] 删除会话失败: ${error.message}`);
+  }
 }
 
 // 清理过期会话
@@ -4866,74 +4947,91 @@ if (currentToken === "87654321") {
     log("info", `[Path Check] Path "${path}" is excluded from normalization`);
   }
 
-  // GET / - 首页（需要登录）
-  if (path === "/" && method === "GET") {
-    return handleHomepage(req);
+// GET / - 首页（需要登录）
+if (path === "/" && method === "GET") {
+  const cookies = req.headers.get('cookie') || '';
+  const sessionMatch = cookies.match(/session=([^;]+)/);
+  const sessionId = sessionMatch ? sessionMatch[1] : null;
+  
+  const isValid = await validateSession(sessionId);
+  if (!isValid) {
+    return getLoginPage();
   }
+  
+  return handleHomepage(req);
+}
 
-  // POST /api/login - 登录
-  if (path === "/api/login" && method === "POST") {
+// POST /api/login - 登录
+if (path === "/api/login" && method === "POST") {
+  try {
+    const body = await req.json();
+    const { username, password } = body;
+
+    // 从 Redis/数据库加载账号密码
+    let storedUsername = 'admin';
+    let storedPassword = 'admin';
+
     try {
-      const body = await req.json();
-      const { username, password } = body;
+      if (globals.redisValid) {
+        const { getRedisKey } = await import('./utils/redis-util.js');
+        const userResult = await getRedisKey('admin_username');
+        const passResult = await getRedisKey('admin_password');
+        if (userResult?.result) storedUsername = userResult.result;
+        if (passResult?.result) storedPassword = passResult.result;
+      } else if (globals.databaseValid) {
+        const { loadEnvConfigs } = await import('./utils/db-util.js');
+        const configs = await loadEnvConfigs();
+        if (configs.ADMIN_USERNAME) storedUsername = configs.ADMIN_USERNAME;
+        if (configs.ADMIN_PASSWORD) storedPassword = configs.ADMIN_PASSWORD;
+      }
+    } catch (e) {
+      log("warn", "[login] 加载账号密码失败,使用默认值");
+    }
 
-      // 从 Redis/数据库加载账号密码，默认 admin/admin
-      let storedUsername = 'admin';
-      let storedPassword = 'admin';
+    if (username === storedUsername && password === storedPassword) {
+      const sessionId = generateSessionId();
+      
+      // 保存会话到 Redis
+      const saved = await saveSession(sessionId, username);
+      
+      if (!saved) {
+        return jsonResponse({ 
+          success: false, 
+          message: '登录失败：未配置持久化存储（需要 Redis 或数据库）' 
+        }, 500);
+      }
 
-      try {
-        if (globals.redisValid) {
-          const { getRedisKey } = await import('./utils/redis-util.js');
-          const userResult = await getRedisKey('admin_username');
-          const passResult = await getRedisKey('admin_password');
-          if (userResult?.result) storedUsername = userResult.result;
-          if (passResult?.result) storedPassword = passResult.result;
-        } else if (globals.databaseValid) {
-          const { loadEnvConfigs } = await import('./utils/db-util.js');
-          const configs = await loadEnvConfigs();
-          if (configs.ADMIN_USERNAME) storedUsername = configs.ADMIN_USERNAME;
-          if (configs.ADMIN_PASSWORD) storedPassword = configs.ADMIN_PASSWORD;
+      return new Response(JSON.stringify({ success: true }), {
+        headers: {
+          'Content-Type': 'application/json',
+          'Set-Cookie': `session=${sessionId}; Path=/; Max-Age=${Math.floor(SESSION_TIMEOUT / 1000)}; HttpOnly; SameSite=Strict${req.url.startsWith('https') ? '; Secure' : ''}`
         }
-      } catch (e) {
-        log("warn", "[login] 加载账号密码失败，使用默认值");
-      }
-
-      if (username === storedUsername && password === storedPassword) {
-        const sessionId = generateSessionId();
-        sessions.set(sessionId, { 
-          username, 
-          createdAt: Date.now() 
-        });
-
-        return new Response(JSON.stringify({ success: true }), {
-          headers: {
-            'Content-Type': 'application/json',
-            'Set-Cookie': `session=${sessionId}; Path=/; Max-Age=${SESSION_TIMEOUT / 1000}; HttpOnly; SameSite=Strict`
-          }
-        });
-      }
-
-      return jsonResponse({ success: false, message: '用户名或密码错误' }, 401);
-    } catch (error) {
-      return jsonResponse({ success: false, message: '登录失败' }, 500);
-    }
-  }
-
-  // POST /api/logout - 退出登录
-  if (path === "/api/logout" && method === "POST") {
-    const cookies = req.headers.get('cookie') || '';
-    const sessionMatch = cookies.match(/session=([^;]+)/);
-    if (sessionMatch) {
-      sessions.delete(sessionMatch[1]);
+      });
     }
 
-    return new Response(JSON.stringify({ success: true }), {
-      headers: {
-        'Content-Type': 'application/json',
-        'Set-Cookie': 'session=; Path=/; Max-Age=0'
-      }
-    });
+    return jsonResponse({ success: false, message: '用户名或密码错误' }, 401);
+  } catch (error) {
+    log("error", `[login] 登录失败: ${error.message}`);
+    return jsonResponse({ success: false, message: '登录失败' }, 500);
   }
+}
+
+// POST /api/logout - 退出登录
+if (path === "/api/logout" && method === "POST") {
+  const cookies = req.headers.get('cookie') || '';
+  const sessionMatch = cookies.match(/session=([^;]+)/);
+  if (sessionMatch) {
+    await deleteSession(sessionMatch[1]);
+  }
+
+  return new Response(JSON.stringify({ success: true }), {
+    headers: {
+      'Content-Type': 'application/json',
+      'Set-Cookie': 'session=; Path=/; Max-Age=0'
+    }
+  });
+}
+
 
   // POST /api/change-password - 修改密码
   if (path === "/api/change-password" && method === "POST") {
