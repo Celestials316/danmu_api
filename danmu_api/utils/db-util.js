@@ -361,3 +361,4 @@ export async function checkDatabaseConnection() {
     log("error", `[database] ❌ 数据库连接失败: ${error.message}`);
     return false;
   }
+}
