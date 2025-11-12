@@ -2974,15 +2974,19 @@ function handleHomepage(req) {
               <div class="config-item">
                 <div class="config-header">
                   <span class="config-label">API 地址</span>
-                  <button class="icon-btn" onclick="copyApiUrl()" title="复制 API 地址">
+                  <button class="icon-btn" onclick="copyApiUrl(event)" title="复制 API 地址">
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor">
                       <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke-width="2"/>
                       <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke-width="2"/>
                     </svg>
                   </button>
                 </div>
-                <div class="config-value" id="apiUrlDisplay" style="cursor: pointer; user-select: all;" onclick="copyApiUrl()" title="点击复制完整 API 地址">
+                <div class="config-value sensitive-value" id="apiUrlDisplay" onclick="toggleApiUrl()" ondblclick="copyApiUrl(event)" title="点击显示/隐藏完整地址，双击复制">
                   <code id="apiUrlText" style="word-break: break-all;"></code>
+                  <svg class="eye-icon" viewBox="0 0 24 24" width="16" height="16">
+                    <path fill="none" stroke="currentColor" stroke-width="2" d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+                    <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/>
+                  </svg>
                 </div>
               </div>
 
@@ -4403,19 +4407,62 @@ function handleHomepage(req) {
      }
      
      const apiUrl = \`\${currentUrl}/\${token}\`;
-     const apiUrlElement = document.getElementById('apiUrlText');
+     const maskedUrl = \`\${currentUrl}/\${'•'.repeat(Math.min(token.length, 24))}\`;
      
-     if (apiUrlElement) {
-       apiUrlElement.textContent = apiUrl;
-       apiUrlElement.dataset.apiUrl = apiUrl;
+     const apiUrlElement = document.getElementById('apiUrlText');
+     const apiUrlDisplay = document.getElementById('apiUrlDisplay');
+     
+     if (apiUrlElement && apiUrlDisplay) {
+       // 默认显示星号
+       apiUrlElement.textContent = maskedUrl;
+       // 保存真实地址到 data 属性
+       apiUrlDisplay.dataset.real = apiUrl;
+       apiUrlDisplay.dataset.masked = maskedUrl;
      }
    }
 
-   function copyApiUrl() {
+   function toggleApiUrl() {
+     const apiUrlDisplay = document.getElementById('apiUrlDisplay');
      const apiUrlElement = document.getElementById('apiUrlText');
-     if (!apiUrlElement) return;
      
-     const apiUrl = apiUrlElement.dataset.apiUrl || apiUrlElement.textContent;
+     if (!apiUrlDisplay || !apiUrlElement) return;
+     
+     const real = apiUrlDisplay.dataset.real;
+     const masked = apiUrlDisplay.dataset.masked;
+     const isRevealed = apiUrlDisplay.classList.contains('revealed');
+     
+     if (isRevealed) {
+       // 已显示，切换回隐藏
+       apiUrlElement.textContent = masked;
+       apiUrlDisplay.classList.remove('revealed');
+       if (apiUrlDisplay.hideTimer) {
+         clearTimeout(apiUrlDisplay.hideTimer);
+       }
+     } else {
+       // 显示真实地址
+       apiUrlElement.textContent = real;
+       apiUrlDisplay.classList.add('revealed');
+       
+       // 3秒后自动隐藏
+       apiUrlDisplay.hideTimer = setTimeout(() => {
+         apiUrlElement.textContent = masked;
+         apiUrlDisplay.classList.remove('revealed');
+       }, 3000);
+     }
+   }
+
+   function copyApiUrl(event) {
+     // 阻止事件冒泡，避免触发 toggleApiUrl
+     if (event) {
+       event.stopPropagation();
+     }
+     
+     const apiUrlDisplay = document.getElementById('apiUrlDisplay');
+     if (!apiUrlDisplay) return;
+     
+     const apiUrl = apiUrlDisplay.dataset.real;
+     if (!apiUrl) return;
+     
      copyToClipboard(apiUrl);
      showToast('API 地址已复制到剪贴板', 'success');
    }
