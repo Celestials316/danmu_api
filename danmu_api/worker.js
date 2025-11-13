@@ -481,8 +481,21 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
     await getRedisCaches();
   }
 
-async function handleHomepage(req) {
+async function handleHomepage(req, deployPlatform) {
   log("info", "Accessed homepage");
+  
+  // 标准化平台名称显示
+  const platformDisplayName = {
+    'vercel': 'Vercel',
+    'cloudflare': 'Cloudflare',
+    'netlify': 'Netlify',
+    'unknown': 'Unknown'
+  };
+  
+  const displayPlatform = platformDisplayName[deployPlatform?.toLowerCase()] || deployPlatform || 'Unknown';
+  globals.deployPlatform = displayPlatform;
+  
+  log("info", `[homepage] Platform: ${displayPlatform}`);
   
   const cookies = req.headers.get('cookie') || '';
   const sessionMatch = cookies.match(/session=([^;]+)/);
@@ -491,6 +504,21 @@ async function handleHomepage(req) {
   if (!(await validateSession(sessionId))) {
     return getLoginPage();
   }
+
+  // 确保 deployPlatform 正确
+  if (typeof process !== 'undefined' && process.env?.VERCEL) {
+    globals.deployPlatform = 'Vercel';
+  } else if (typeof process !== 'undefined' && process.env?.NETLIFY) {
+    globals.deployPlatform = 'Netlify';
+  } else if (globals.deployPlatform === 'cloudflare') {
+    globals.deployPlatform = 'Cloudflare';
+  } else if (globals.deployPlatform === 'vercel') {
+    globals.deployPlatform = 'Vercel';
+  } else if (globals.deployPlatform === 'netlify') {
+    globals.deployPlatform = 'Netlify';
+  }
+  
+  log("info", `[homepage] Current platform: ${globals.deployPlatform}`);
 
     const redisConfigured = !!(globals.redisUrl && globals.redisToken);
     const redisStatusText = redisConfigured 
@@ -2591,7 +2619,7 @@ async function handleHomepage(req) {
  }
 
  if (path === "/" && method === "GET") {
-   return await handleHomepage(req);
+   return await handleHomepage(req, deployPlatform);
  }
 
  if (path === "/favicon.ico" || path === "/robots.txt") {
