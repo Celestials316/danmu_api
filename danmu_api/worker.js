@@ -980,31 +980,7 @@ async function handleHomepage(req, deployPlatform) {
      display: grid;
      gap: 1rem;
    }
-   /* 环境变量统计横幅 */
-   .env-stats-banner {
-     display: grid;
-     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-     gap: 0.75rem;
-     margin-bottom: 1.5rem;
-     padding: 1rem;
-     background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
-     border-radius: 12px;
-     border: 2px solid var(--border);
-   }
-
-   .env-stat-item {
-     display: flex;
-     align-items: center;
-     gap: 0.75rem;
-     padding: 0.75rem;
-     background: var(--bg-2);
-     border-radius: 10px;
-     transition: all 0.2s ease;
-   }
-
-   .env-stat-item:active {
-     transform: scale(0.98);
-   }
+   /* 移除环境变量统计横幅样式 */
 
    .env-stat-icon {
      font-size: 1.5rem;
@@ -1472,10 +1448,18 @@ async function handleHomepage(req, deployPlatform) {
      max-width: 600px;
      width: 100%;
      max-height: 85vh;
-     overflow-y: auto;
+     display: flex;
+     flex-direction: column;
      box-shadow: 0 20px 60px var(--shadow);
      border: 1px solid var(--border);
      animation: slideUp 0.25s ease;
+   }
+
+   .modal-body {
+     flex: 1;
+     overflow-y: auto;
+     margin: 0 -1.5rem;
+     padding: 0 1.5rem;
    }
 
    @keyframes slideUp {
@@ -1839,103 +1823,68 @@ async function handleHomepage(req, deployPlatform) {
  </div>
 
  <div class="container">
-   <div class="dashboard">
-     <div class="stat-card" onclick="showApiInfo()" style="cursor: pointer;" title="点击查看API信息">
-       <div class="stat-header">
-         <div class="stat-icon">🔗</div>
-         <span class="stat-status status-online">API</span>
-       </div>
-       <div class="stat-title">接口地址</div>
-       <div class="stat-value" style="font-size: 0.9rem; word-break: break-all;">${origin}</div>
-       <div class="stat-footer">点击复制完整API</div>
-     </div>
-     
-     <div class="stat-card">
-       <div class="stat-header">
-         <div class="stat-icon">⚙️</div>
-         <span class="stat-status status-online">运行</span>
-       </div>
-       <div class="stat-title">配置状态</div>
-       <div class="stat-value">${configuredEnvCount}/${totalEnvCount}</div>
-       <div class="stat-footer">已配置项</div>
-     </div>
-     
-     <div class="stat-card">
-       <div class="stat-header">
-         <div class="stat-icon">💾</div>
-         <span class="stat-status ${(globals.databaseValid || (redisConfigured && globals.redisValid)) ? 'status-online' : 'status-offline'}">
-           ${globals.databaseValid ? 'DB' : (redisConfigured && globals.redisValid) ? 'Redis' : '内存'}
-         </span>
-       </div>
-       <div class="stat-title">存储方式</div>
-       <div class="stat-value">${
-         globals.databaseValid ? 'Database' : 
-         (redisConfigured && globals.redisValid) ? 'Redis' : 
-         'Memory'
-       }</div>
-       <div class="stat-footer">${
-         globals.databaseValid ? '✅ 数据库' : 
-         (redisConfigured && globals.redisValid) ? '✅ 缓存' : 
-         '⚠️ 临时'
-       }</div>
-     </div>
+  <div class="dashboard">
+      <div class="stat-card">
+        <div class="stat-header">
+          <div class="stat-icon">⚙️</div>
+          <span class="stat-status status-online">运行</span>
+        </div>
+        <div class="stat-title">配置状态</div>
+        <div class="stat-value">${configuredEnvCount}/${totalEnvCount}</div>
+        <div class="stat-footer">已配置环境变量</div>
+      </div>
+      
+      <div class="stat-card">
+        <div class="stat-header">
+          <div class="stat-icon">💾</div>
+          <span class="stat-status ${(globals.databaseValid || (redisConfigured && globals.redisValid)) ? 'status-online' : 'status-offline'}">
+            ${globals.databaseValid ? 'DB' : (redisConfigured && globals.redisValid) ? 'Redis' : '内存'}
+          </span>
+        </div>
+        <div class="stat-title">存储方式</div>
+        <div class="stat-value">${
+          globals.databaseValid ? 'Database' : 
+          (redisConfigured && globals.redisValid) ? 'Redis' : 
+          'Memory'
+        }</div>
+        <div class="stat-footer">${
+          globals.databaseValid ? '✅ 持久化存储' : 
+          (redisConfigured && globals.redisValid) ? '✅ 缓存存储' : 
+          '⚠️ 临时存储'
+        }</div>
+      </div>
 
-     <div class="stat-card">
-       <div class="stat-header">
-         <div class="stat-icon">🔗</div>
-         <span class="stat-status status-online">${globals.sourceOrderArr.length || 7}</span>
-       </div>
-       <div class="stat-title">数据源</div>
-       <div class="stat-value">${globals.sourceOrderArr[0] || 'DanDan'}</div>
-       <div class="stat-footer">优先源</div>
-     </div>
+      <div class="stat-card">
+        <div class="stat-header">
+          <div class="stat-icon">🎯</div>
+          <span class="stat-status status-online">${globals.sourceOrderArr.length || 7}</span>
+        </div>
+        <div class="stat-title">弹幕数据源</div>
+        <div class="stat-value">${globals.sourceOrderArr[0] || 'DanDan'}</div>
+        <div class="stat-footer">优先使用源</div>
+      </div>
 
-     <div class="stat-card" id="versionCard" style="cursor: pointer;" onclick="checkVersion()" title="点击检测更新">
-       <div class="stat-header">
-         <div class="stat-icon">📊</div>
-         <span class="stat-status status-online" id="versionStatus">v${globals.VERSION}</span>
-       </div>
-       <div class="stat-title">服务版本</div>
-       <div class="stat-value">${globals.deployPlatform || 'Unknown'}</div>
-       <div class="stat-footer" id="versionFooter">点击检测更新</div>
-     </div>
-   </div>
+      <div class="stat-card" id="versionCard" style="cursor: pointer;" onclick="checkVersion()" title="点击检测更新">
+        <div class="stat-header">
+          <div class="stat-icon">📊</div>
+          <span class="stat-status status-online" id="versionStatus">v${globals.VERSION}</span>
+        </div>
+        <div class="stat-title">服务版本</div>
+        <div class="stat-value">${globals.deployPlatform || 'Unknown'}</div>
+        <div class="stat-footer" id="versionFooter">点击检测更新</div>
+      </div>
+    </div>
 
-   <div class="section">
-     <div class="section-header">
-       <h2 class="section-title">
-         <span>⚡ 快速配置</span>
-       </h2>
-     </div>
-     
-     <!-- 环境变量统计信息 -->
-     <div class="env-stats-banner">
-       <div class="env-stat-item">
-         <div class="env-stat-icon">📦</div>
-         <div class="env-stat-content">
-           <div class="env-stat-label">存储方式</div>
-           <div class="env-stat-value">${
-             globals.databaseValid ? 'Database' : 
-             (globals.redisUrl && globals.redisToken && globals.redisValid) ? 'Redis' : 
-             'Memory'
-           }</div>
-         </div>
-       </div>
-       <div class="env-stat-item">
-         <div class="env-stat-icon">🔧</div>
-         <div class="env-stat-content">
-           <div class="env-stat-label">已配置项</div>
-           <div class="env-stat-value">${configuredEnvCount} / ${totalEnvCount}</div>
-         </div>
-       </div>
-       <div class="env-stat-item">
-         <div class="env-stat-icon">🎯</div>
-         <div class="env-stat-content">
-           <div class="env-stat-label">弹幕源</div>
-           <div class="env-stat-value">${globals.sourceOrderArr[0] || 'DanDan'}</div>
-         </div>
-       </div>
-     </div>
+    <div class="section">
+      <div class="section-header">
+        <h2 class="section-title">
+          <span>⚡ 快速配置</span>
+        </h2>
+        <button class="btn btn-small btn-secondary" onclick="showApiInfo()" style="display: flex; align-items: center; gap: 0.25rem;">
+          <span>🔗</span>
+          <span>API信息</span>
+        </button>
+      </div>
      
      <div class="quick-configs">
        <div class="config-group">
@@ -2030,27 +1979,29 @@ async function handleHomepage(req, deployPlatform) {
  </div>
 
  <!-- 编辑环境变量弹窗 -->
- <div class="modal" id="editModal">
-   <div class="modal-content">
-     <div class="modal-header">
-       <h3 class="modal-title">✏️ 编辑配置</h3>
-       <button class="close-btn" onclick="closeModal()">×</button>
-     </div>
-     <div class="form-group">
-       <label class="form-label">变量名称</label>
-       <input type="text" class="form-input" id="editKey" readonly>
-     </div>
-     <div class="form-group">
-       <label class="form-label">变量值</label>
-       <textarea class="form-textarea" id="editValue" placeholder="请输入配置值"></textarea>
-       <div class="form-hint" id="editHint"></div>
-     </div>
-     <div class="modal-footer">
-       <button class="btn btn-secondary" onclick="closeModal()">取消</button>
-       <button class="btn btn-primary" onclick="saveEnv()">💾 保存</button>
-     </div>
-   </div>
- </div>
+  <div class="modal" id="editModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">✏️ 编辑配置</h3>
+        <button class="close-btn" onclick="closeModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">变量名称</label>
+          <input type="text" class="form-input" id="editKey" readonly>
+        </div>
+        <div class="form-group">
+          <label class="form-label">变量值</label>
+          <textarea class="form-textarea" id="editValue" placeholder="请输入配置值"></textarea>
+          <div class="form-hint" id="editHint"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+        <button class="btn btn-primary" onclick="saveEnv()">💾 保存</button>
+      </div>
+    </div>
+  </div>
 
  <!-- 修改密码弹窗 -->
  <div class="modal" id="passwordModal">
@@ -2109,28 +2060,30 @@ async function handleHomepage(req, deployPlatform) {
    </div>
  </div>
 
- <!-- 全部环境变量弹窗 -->
- <div class="modal" id="allEnvsModal">
-   <div class="modal-content" style="max-width: 900px;">
-     <div class="modal-header">
-       <h3 class="modal-title">🗂️ 全部环境变量配置</h3>
-       <button class="close-btn" onclick="closeAllEnvsModal()">×</button>
-     </div>
-     
-     <div class="search-box" style="margin-bottom: 1rem;">
-       <input type="text" class="search-input" placeholder="搜索配置项..." id="allEnvsSearchInput" oninput="filterAllEnvs()">
-     </div>
+<!-- 全部环境变量弹窗 -->
+  <div class="modal" id="allEnvsModal">
+    <div class="modal-content" style="max-width: 900px;">
+      <div class="modal-header">
+        <h3 class="modal-title">🗂️ 全部环境变量配置</h3>
+        <button class="close-btn" onclick="closeAllEnvsModal()">×</button>
+      </div>
+      
+      <div class="modal-body">
+        <div class="search-box" style="margin-bottom: 1rem;">
+          <input type="text" class="search-input" placeholder="搜索配置项..." id="allEnvsSearchInput" oninput="filterAllEnvs()">
+        </div>
 
-     <div class="env-grid" id="allEnvGrid" style="max-height: 60vh; overflow-y: auto;">
-       ${envItemsHtml}
-     </div>
-     
-     <div class="modal-footer">
-       <button class="btn btn-secondary" onclick="closeAllEnvsModal()">关闭</button>
-       <button class="btn btn-primary" onclick="saveAllFromModal()">💾 保存全部</button>
-     </div>
-   </div>
- </div>
+        <div class="env-grid" id="allEnvGrid">
+          ${envItemsHtml}
+        </div>
+      </div>
+      
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeAllEnvsModal()">关闭</button>
+        <button class="btn btn-primary" onclick="saveAllFromModal()">💾 保存全部</button>
+      </div>
+    </div>
+  </div>
 
  <!-- API信息弹窗 -->
  <div class="modal" id="apiInfoModal">
@@ -2265,6 +2218,11 @@ async function handleHomepage(req, deployPlatform) {
 
    function closeAllEnvsModal() {
      document.getElementById('allEnvsModal').classList.remove('show');
+     // 恢复编辑弹窗的z-index
+     const editModal = document.getElementById('editModal');
+     if (editModal) {
+       editModal.style.zIndex = '1000';
+     }
    }
 
    function filterAllEnvs() {
@@ -2547,7 +2505,11 @@ async function handleHomepage(req, deployPlatform) {
      document.getElementById('editKey').value = key;
      document.getElementById('editValue').value = AppState.config[key] || '';
      document.getElementById('editHint').textContent = ENV_DESCRIPTIONS[key] || '该环境变量的配置值';
-     document.getElementById('editModal').classList.add('show');
+     
+     // 确保编辑弹窗在最上层
+     const editModal = document.getElementById('editModal');
+     editModal.style.zIndex = '1001';
+     editModal.classList.add('show');
    }
 
    function closeModal() {
