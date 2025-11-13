@@ -927,6 +927,22 @@ function handleHomepage(req) {
      transition: all 0.2s ease;
    }
 
+   [data-theme="light"] .custom-select {
+     background: #f8fafc;
+     color: #0f172a;
+   }
+
+   .custom-select option {
+     background: var(--bg-2);
+     color: var(--text-1);
+     padding: 0.5rem;
+   }
+
+   [data-theme="light"] .custom-select option {
+     background: #ffffff;
+     color: #0f172a;
+   }
+
    .custom-select:focus {
      outline: none;
      border-color: var(--primary);
@@ -939,7 +955,7 @@ function handleHomepage(req) {
      right: 1rem;
      top: 50%;
      transform: translateY(-50%);
-     color: var(--text-3);
+     color: var(--text-2);
      pointer-events: none;
      font-size: 0.75rem;
    }
@@ -1421,16 +1437,22 @@ function handleHomepage(req) {
      border-radius: 4px;
      line-height: 1.5;
      word-break: break-all;
+     color: var(--text-1);
    }
 
    .log-line.info { color: #60a5fa; }
    .log-line.warn { color: #fbbf24; }
    .log-line.error { color: #f87171; }
 
+   [data-theme="light"] .log-line.info { color: #2563eb; }
+   [data-theme="light"] .log-line.warn { color: #d97706; }
+   [data-theme="light"] .log-line.error { color: #dc2626; }
+
    .log-timestamp {
-     opacity: 0.6;
+     opacity: 0.7;
      margin-right: 0.375rem;
      font-size: 0.65rem;
+     color: var(--text-2);
    }
 
    /* 平板适配 */
