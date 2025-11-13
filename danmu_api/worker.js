@@ -1628,11 +1628,11 @@ async function handleHomepage(req, deployPlatform) {
      color: var(--text-1);
    }
 
-   .log-line.info { color: #60a5fa; }
+   .log-line.info { color: #3b82f6; }
    .log-line.warn { color: #fbbf24; }
    .log-line.error { color: #f87171; }
 
-   [data-theme="light"] .log-line.info { color: #2563eb; }
+   [data-theme="light"] .log-line.info { color: #60a5fa; }
    [data-theme="light"] .log-line.warn { color: #d97706; }
    [data-theme="light"] .log-line.error { color: #dc2626; }
 
@@ -2107,8 +2107,14 @@ async function handleHomepage(req, deployPlatform) {
    function updateDanmuLimit(value) {
      const val = parseInt(value);
      AppState.quickConfigs.DANMU_LIMIT = val;
-     const display = val === -1 ? '-1 (不限制)' : \`\${val} 条\`;
+     const display = val === -1 ? '-1 (不限制)' : `${val} 条`;
      document.getElementById('danmuLimitValue').textContent = display;
+   }
+   
+   // 页面加载时初始化弹幕数量显示
+   function initDanmuLimitDisplay() {
+     const currentValue = ${globals.envs.DANMU_LIMIT || -1};
+     updateDanmuLimit(currentValue);
    }
 
    function updateWhiteRatio(value) {
@@ -2743,6 +2749,7 @@ async function handleHomepage(req, deployPlatform) {
 
    // 初始化
    initTheme();
+   initDanmuLimitDisplay();
    loadConfig();
    autoCheckVersion();
    
