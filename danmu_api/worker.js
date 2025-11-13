@@ -4819,7 +4819,7 @@ async function handleHomepage(req) {
          }
          
          closeModal('quickConfigModal');
-         showToast(`配置已保存到: ${result.savedTo.join('、')}`, 'success');
+         showToast(`Config saved to: ${result.savedTo.join(', ')}`, 'success');
        } else {
          throw new Error(result.errorMessage || '保存失败');
        }
@@ -4832,7 +4832,7 @@ async function handleHomepage(req) {
        }
        
        closeModal('quickConfigModal');
-       showToast(`配置已保存到浏览器本地(服务器保存失败: ${error.message})`, 'warning');
+       showToast(`Config saved locally (Server failed: ${error.message})`, 'warning');
      }
    }
 
