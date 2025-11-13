@@ -448,7 +448,11 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
     log("info", "[init] ✅ 全局配置初始化完成");
   }
 
+  // 强制更新部署平台，确保正确识别
   globals.deployPlatform = deployPlatform;
+  if (globals.envs) {
+    globals.envs.deployPlatform = deployPlatform;
+  }
 
   const url = new URL(req.url);
   let path = url.pathname;
