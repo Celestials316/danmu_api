@@ -18,26 +18,101 @@ function generateSessionId() {
     .join('');
 }
 
-function validateSession(sessionId) {
+async function saveSession(sessionId, sessionData) {
+  // 内存存储
+  sessions.set(sessionId, sessionData);
+  
+  // 持久化存储
+  try {
+    if (globals.redisValid) {
+      const { setRedisKey } = await import('./utils/redis-util.js');
+      await setRedisKey(`session:${sessionId}`, JSON.stringify(sessionData), true);
+      log('info', `[session] Session saved to Redis: ${sessionId.substring(0, 8)}...`);
+    } else if (globals.databaseValid) {
+      const { saveEnvConfigs } = await import('./utils/db-util.js');
+      await saveEnvConfigs({ [`session_${sessionId}`]: JSON.stringify(sessionData) });
+      log('info', `[session] Session saved to Database: ${sessionId.substring(0, 8)}...`);
+    }
+  } catch (error) {
+    log('warn', `[session] Failed to persist session: ${error.message}`);
+  }
+}
+
+async function loadSession(sessionId) {
+  // 先从内存查找
+  if (sessions.has(sessionId)) {
+    return sessions.get(sessionId);
+  }
+  
+  // 从持久化存储加载
+  try {
+    if (globals.redisValid) {
+      const { getRedisKey } = await import('./utils/redis-util.js');
+      const result = await getRedisKey(`session:${sessionId}`);
+      if (result?.result) {
+        const sessionData = JSON.parse(result.result);
+        sessions.set(sessionId, sessionData);
+        log('info', `[session] Session loaded from Redis: ${sessionId.substring(0, 8)}...`);
+        return sessionData;
+      }
+    } else if (globals.databaseValid) {
+      const { loadEnvConfigs } = await import('./utils/db-util.js');
+      const configs = await loadEnvConfigs();
+      const sessionKey = `session_${sessionId}`;
+      if (configs[sessionKey]) {
+        const sessionData = JSON.parse(configs[sessionKey]);
+        sessions.set(sessionId, sessionData);
+        log('info', `[session] Session loaded from Database: ${sessionId.substring(0, 8)}...`);
+        return sessionData;
+      }
+    }
+  } catch (error) {
+    log('warn', `[session] Failed to load session: ${error.message}`);
+  }
+  
+  return null;
+}
+
+async function deleteSession(sessionId) {
+  sessions.delete(sessionId);
+  
+  try {
+    if (globals.redisValid) {
+      const { setRedisKey } = await import('./utils/redis-util.js');
+      await setRedisKey(`session:${sessionId}`, '', true);
+    } else if (globals.databaseValid) {
+      const { saveEnvConfigs } = await import('./utils/db-util.js');
+      await saveEnvConfigs({ [`session_${sessionId}`]: '' });
+    }
+  } catch (error) {
+    log('warn', `[session] Failed to delete session: ${error.message}`);
+  }
+}
+
+async function validateSession(sessionId) {
   if (!sessionId) return false;
-  const session = sessions.get(sessionId);
+  
+  let session = await loadSession(sessionId);
   if (!session) return false;
   
   if (Date.now() - session.createdAt > SESSION_TIMEOUT) {
-    sessions.delete(sessionId);
+    await deleteSession(sessionId);
     return false;
   }
   return true;
 }
 
-setInterval(() => {
-  const now = Date.now();
-  for (const [id, session] of sessions.entries()) {
-    if (now - session.createdAt > SESSION_TIMEOUT) {
-      sessions.delete(id);
+// 仅在非 Vercel 环境下启用定时清理
+if (typeof setInterval !== 'undefined' && !process.env.VERCEL) {
+  setInterval(() => {
+    const now = Date.now();
+    for (const [id, session] of sessions.entries()) {
+      if (now - session.createdAt > SESSION_TIMEOUT) {
+        sessions.delete(id);
+      }
     }
-  }
-}, 60 * 60 * 1000);
+  }, 60 * 60 * 1000);
+}
 
 async function mergeSaveToRedis(key, patch) {
   try {
@@ -389,14 +464,14 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
     await getRedisCaches();
   }
 
-function handleHomepage(req) {
+async function handleHomepage(req) {
   log("info", "Accessed homepage");
   
   const cookies = req.headers.get('cookie') || '';
   const sessionMatch = cookies.match(/session=([^;]+)/);
   const sessionId = sessionMatch ? sessionMatch[1] : null;
   
-  if (!validateSession(sessionId)) {
+  if (!(await validateSession(sessionId))) {
     return getLoginPage();
   }
 
@@ -415,16 +490,77 @@ function handleHomepage(req) {
       globals.sourceOrderArr = [];
     }
 
-    const configuredEnvCount = Object.entries(globals.accessedEnvVars).filter(([key, value]) => {
+    // 定义需要显示的环境变量白名单
+    const ALLOWED_ENV_KEYS = [
+      'TOKEN', 'VERSION', 'LOG_LEVEL', 'OTHER_SERVER',
+      'VOD_SERVERS', 'VOD_RETURN_MODE', 'VOD_REQUEST_TIMEOUT',
+      'BILIBILI_COOKIE', 'TMDB_API_KEY',
+      'SOURCE_ORDER', 'PLATFORM_ORDER',
+      'TITLE_TO_CHINESE', 'STRICT_TITLE_MATCH',
+      'EPISODE_TITLE_FILTER', 'ENABLE_EPISODE_FILTER',
+      'DANMU_OUTPUT_FORMAT', 'DANMU_SIMPLIFIED', 'DANMU_LIMIT',
+      'BLOCKED_WORDS', 'GROUP_MINUTE', 'CONVERT_TOP_BOTTOM_TO_SCROLL',
+      'WHITE_RATIO', 'YOUKU_CONCURRENCY',
+      'SEARCH_CACHE_MINUTES', 'COMMENT_CACHE_MINUTES',
+      'REMEMBER_LAST_SELECT', 'MAX_LAST_SELECT_MAP',
+      'PROXY_URL', 'RATE_LIMIT_MAX_REQUESTS',
+      'UPSTASH_REDIS_REST_URL', 'UPSTASH_REDIS_REST_TOKEN',
+      'DATABASE_URL', 'DATABASE_AUTH_TOKEN'
+    ];
+
+    // 过滤有效的环境变量
+    const validEnvVars = Object.entries(globals.accessedEnvVars).filter(([key]) => {
+      if (ALLOWED_ENV_KEYS.includes(key)) return true;
+      if (key.startsWith('session_')) return false;
+      const systemPrefixes = ['npm_', 'NODE_', 'PATH', 'HOME', 'USER', 'SHELL', 'LANG', 'LC_'];
+      if (systemPrefixes.some(prefix => key.startsWith(prefix))) return false;
+      return false;
+    });
+
+    const configuredEnvCount = validEnvVars.filter(([key, value]) => {
       if (value === null || value === undefined) return false;
       if (typeof value === 'string' && value.length === 0) return false;
       if (Array.isArray(value) && value.length === 0) return false;
       return true;
     }).length;
 
-    const totalEnvCount = Object.keys(globals.accessedEnvVars).length;
+    const totalEnvCount = validEnvVars.length;
 
-    const envItemsHtml = Object.entries(globals.accessedEnvVars)
+    // 定义需要显示的环境变量白名单
+    const ALLOWED_ENV_KEYS = [
+      'TOKEN', 'VERSION', 'LOG_LEVEL', 'OTHER_SERVER',
+      'VOD_SERVERS', 'VOD_RETURN_MODE', 'VOD_REQUEST_TIMEOUT',
+      'BILIBILI_COOKIE', 'TMDB_API_KEY',
+      'SOURCE_ORDER', 'PLATFORM_ORDER',
+      'TITLE_TO_CHINESE', 'STRICT_TITLE_MATCH',
+      'EPISODE_TITLE_FILTER', 'ENABLE_EPISODE_FILTER',
+      'DANMU_OUTPUT_FORMAT', 'DANMU_SIMPLIFIED', 'DANMU_LIMIT',
+      'BLOCKED_WORDS', 'GROUP_MINUTE', 'CONVERT_TOP_BOTTOM_TO_SCROLL',
+      'WHITE_RATIO', 'YOUKU_CONCURRENCY',
+      'SEARCH_CACHE_MINUTES', 'COMMENT_CACHE_MINUTES',
+      'REMEMBER_LAST_SELECT', 'MAX_LAST_SELECT_MAP',
+      'PROXY_URL', 'RATE_LIMIT_MAX_REQUESTS',
+      'UPSTASH_REDIS_REST_URL', 'UPSTASH_REDIS_REST_TOKEN',
+      'DATABASE_URL', 'DATABASE_AUTH_TOKEN'
+    ];
+
+    // 过滤环境变量
+    const filteredEnvVars = Object.entries(globals.accessedEnvVars)
+      .filter(([key]) => {
+        // 只显示白名单中的变量
+        if (ALLOWED_ENV_KEYS.includes(key)) return true;
+        
+        // 排除以 session_ 开头的变量（session 数据）
+        if (key.startsWith('session_')) return false;
+        
+        // 排除系统相关变量
+        const systemPrefixes = ['npm_', 'NODE_', 'PATH', 'HOME', 'USER', 'SHELL', 'LANG', 'LC_'];
+        if (systemPrefixes.some(prefix => key.startsWith(prefix))) return false;
+        
+        return false;
+      });
+
+    const envItemsHtml = filteredEnvVars
       .map(([key, value]) => {
         let displayValue = value;
         const description = ENV_DESCRIPTIONS[key] || '环境变量';
@@ -2473,7 +2609,7 @@ function handleHomepage(req) {
  }
 
  if (path === "/" && method === "GET") {
-   return handleHomepage(req);
+   return await handleHomepage(req);
  }
 
  if (path === "/favicon.ico" || path === "/robots.txt") {
@@ -2717,7 +2853,7 @@ function handleHomepage(req) {
      
      if (username === storedUsername && password === storedPassword) {
        const sessionId = generateSessionId();
-       sessions.set(sessionId, { 
+       await saveSession(sessionId, { 
          username, 
          createdAt: Date.now() 
        });
@@ -2741,7 +2877,7 @@ function handleHomepage(req) {
    const cookies = req.headers.get('cookie') || '';
    const sessionMatch = cookies.match(/session=([^;]+)/);
    if (sessionMatch) {
-     sessions.delete(sessionMatch[1]);
+     await deleteSession(sessionMatch[1]);
    }
    
    return new Response(JSON.stringify({ success: true }), {
@@ -2758,7 +2894,7 @@ function handleHomepage(req) {
    const sessionMatch = cookies.match(/session=([^;]+)/);
    const sessionId = sessionMatch ? sessionMatch[1] : null;
    
-   if (!validateSession(sessionId)) {
+   if (!(await validateSession(sessionId))) {
      return jsonResponse({ success: false, message: '未登录' }, 401);
    }
    
