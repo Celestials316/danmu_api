@@ -820,6 +820,31 @@ function handleHomepage(req) {
      font-size: 0.85rem;
    }
 
+   .lock-btn {
+     background: var(--bg-2);
+     border: 1px solid var(--border);
+     border-radius: 6px;
+     padding: 0.25rem 0.5rem;
+     font-size: 0.9rem;
+     cursor: pointer;
+     transition: all 0.2s ease;
+     min-width: 32px;
+     height: 28px;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+     flex-shrink: 0;
+   }
+
+   .lock-btn:active {
+     transform: scale(0.95);
+   }
+
+   .lock-btn.unlocked {
+     background: var(--primary);
+     border-color: var(--primary);
+   }
+
    /* 滑块样式 */
    .slider-container {
      position: relative;
@@ -867,6 +892,21 @@ function handleHomepage(req) {
    .slider::-moz-range-thumb:active {
      width: 24px;
      height: 24px;
+   }
+
+   .slider.locked {
+     opacity: 0.4;
+     cursor: not-allowed;
+   }
+
+   .slider.locked::-webkit-slider-thumb {
+     cursor: not-allowed;
+     background: var(--border);
+   }
+
+   .slider.locked::-moz-range-thumb {
+     cursor: not-allowed;
+     background: var(--border);
    }
 
    /* 选择器样式 */
@@ -1566,9 +1606,10 @@ function handleHomepage(req) {
            <div class="config-label">
              <span>限制条数</span>
              <span class="config-value" id="danmuLimitValue">-1 (不限制)</span>
+             <button class="lock-btn" onclick="toggleSliderLock('danmuLimit')" id="danmuLimitLock" title="点击解锁">🔒</button>
            </div>
            <div class="slider-container">
-             <input type="range" min="-1" max="2000" value="${globals.envs.DANMU_LIMIT || -1}" class="slider" id="danmuLimitSlider" oninput="updateDanmuLimit(this.value)">
+             <input type="range" min="-1" max="20000" value="${globals.envs.DANMU_LIMIT || -1}" class="slider locked" id="danmuLimitSlider" oninput="updateDanmuLimit(this.value)" disabled>
            </div>
          </div>
        </div>
@@ -1579,9 +1620,10 @@ function handleHomepage(req) {
            <div class="config-label">
              <span>占比百分比</span>
              <span class="config-value" id="whiteRatioValue">${globals.envs.WHITE_RATIO || 30}%</span>
+             <button class="lock-btn" onclick="toggleSliderLock('whiteRatio')" id="whiteRatioLock" title="点击解锁">🔒</button>
            </div>
            <div class="slider-container">
-             <input type="range" min="0" max="100" value="${globals.envs.WHITE_RATIO || 30}" class="slider" id="whiteRatioSlider" oninput="updateWhiteRatio(this.value)">
+             <input type="range" min="0" max="100" value="${globals.envs.WHITE_RATIO || 30}" class="slider locked" id="whiteRatioSlider" oninput="updateWhiteRatio(this.value)" disabled>
            </div>
          </div>
        </div>
@@ -1605,9 +1647,10 @@ function handleHomepage(req) {
            <div class="config-label">
              <span>时间窗口（分钟）</span>
              <span class="config-value" id="groupMinuteValue">${globals.envs.GROUP_MINUTE || 1} 分钟</span>
+             <button class="lock-btn" onclick="toggleSliderLock('groupMinute')" id="groupMinuteLock" title="点击解锁">🔒</button>
            </div>
            <div class="slider-container">
-             <input type="range" min="1" max="10" value="${globals.envs.GROUP_MINUTE || 1}" class="slider" id="groupMinuteSlider" oninput="updateGroupMinute(this.value)">
+             <input type="range" min="1" max="10" value="${globals.envs.GROUP_MINUTE || 1}" class="slider locked" id="groupMinuteSlider" oninput="updateGroupMinute(this.value)" disabled>
            </div>
          </div>
        </div>
@@ -1768,6 +1811,34 @@ function handleHomepage(req) {
 
    const ENV_DESCRIPTIONS = ${JSON.stringify(ENV_DESCRIPTIONS)};
 
+   // 滑块锁定控制
+   const sliderLockStates = {
+     danmuLimit: true,
+     whiteRatio: true,
+     groupMinute: true
+   };
+
+   function toggleSliderLock(name) {
+     const slider = document.getElementById(\`\${name}Slider\`);
+     const lockBtn = document.getElementById(\`\${name}Lock\`);
+     
+     sliderLockStates[name] = !sliderLockStates[name];
+     
+     if (sliderLockStates[name]) {
+       slider.disabled = true;
+       slider.classList.add('locked');
+       lockBtn.textContent = '🔒';
+       lockBtn.classList.remove('unlocked');
+       lockBtn.title = '点击解锁';
+     } else {
+       slider.disabled = false;
+       slider.classList.remove('locked');
+       lockBtn.textContent = '🔓';
+       lockBtn.classList.add('unlocked');
+       lockBtn.title = '点击锁定';
+     }
+   }
+
    // 主题管理
    function initTheme() {
      const savedTheme = localStorage.getItem('theme');
@@ -1907,6 +1978,19 @@ function handleHomepage(req) {
 
      AppState.quickConfigs = { ...defaults };
      
+     // 临时解锁以更新值
+     const needRelock = {
+       danmuLimit: sliderLockStates.danmuLimit,
+       whiteRatio: sliderLockStates.whiteRatio,
+       groupMinute: sliderLockStates.groupMinute
+     };
+     
+     ['danmuLimit', 'whiteRatio', 'groupMinute'].forEach(name => {
+       if (sliderLockStates[name]) {
+         toggleSliderLock(name);
+       }
+     });
+     
      document.getElementById('danmuLimitSlider').value = defaults.DANMU_LIMIT;
      document.getElementById('whiteRatioSlider').value = defaults.WHITE_RATIO;
      document.getElementById('outputFormatSelect').value = defaults.DANMU_OUTPUT_FORMAT;
@@ -1917,6 +2001,13 @@ function handleHomepage(req) {
      updateDanmuLimit(defaults.DANMU_LIMIT);
      updateWhiteRatio(defaults.WHITE_RATIO);
      updateGroupMinute(defaults.GROUP_MINUTE);
+     
+     // 恢复锁定状态
+     ['danmuLimit', 'whiteRatio', 'groupMinute'].forEach(name => {
+       if (needRelock[name]) {
+         toggleSliderLock(name);
+       }
+     });
      
      showToast('✅ 已重置为默认配置', 'info');
    }
