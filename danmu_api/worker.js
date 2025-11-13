@@ -4950,14 +4950,13 @@ async function handleHomepage(req) {
          .replace(/"/g, '&quot;')
          .replace(/'/g, '&#39;');
        
-       const shortTime = log.timestamp ? log.timestamp.substring(5, 19) : '';
-       return `
-         <div class="log-line ${log.level}">
-           <span class="log-timestamp">${shortTime}</span>
-           <span class="log-level">[${log.level}]</span>
-           <span>${escapedMessage}</span>
+       return \`
+         <div class="log-line \${log.level}">
+           <span class="log-timestamp">${log.timestamp ? (() => { try { const d = new Date(log.timestamp); return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`; } catch(e) { return log.timestamp; } })() : ''}</span>
+           <span class="log-level">[\${log.level}]</span>
+           <span>\${escapedMessage}</span>
          </div>
-       `;
+       \`;
      }).join('');
      
      logContent.innerHTML = logsHtml;
