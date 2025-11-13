@@ -2107,7 +2107,7 @@ async function handleHomepage(req, deployPlatform) {
    function updateDanmuLimit(value) {
      const val = parseInt(value);
      AppState.quickConfigs.DANMU_LIMIT = val;
-     const display = val === -1 ? '-1 (不限制)' : `${val} 条`;
+     const display = val === -1 ? '-1 (不限制)' : val + ' 条';
      document.getElementById('danmuLimitValue').textContent = display;
    }
    
@@ -2120,7 +2120,7 @@ async function handleHomepage(req, deployPlatform) {
    function updateWhiteRatio(value) {
      const val = parseInt(value);
      AppState.quickConfigs.WHITE_RATIO = val;
-     document.getElementById('whiteRatioValue').textContent = \`\${val}%\`;
+     document.getElementById('whiteRatioValue').textContent = val + '%';
    }
 
    function updateOutputFormat(value) {
@@ -2130,7 +2130,7 @@ async function handleHomepage(req, deployPlatform) {
    function updateGroupMinute(value) {
      const val = parseInt(value);
      AppState.quickConfigs.GROUP_MINUTE = val;
-     document.getElementById('groupMinuteValue').textContent = \`\${val} 分钟\`;
+     document.getElementById('groupMinuteValue').textContent = val + ' 分钟';
    }
 
    function updateSimplified(checked) {
