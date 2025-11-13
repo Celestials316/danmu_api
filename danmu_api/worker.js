@@ -325,92 +325,6 @@ const SENSITIVE_KEYS = [
   'DATABASE_AUTH_TOKEN'
 ];
 
-// 常用弹幕配置模板
-const QUICK_CONFIGS = {
-  'adjust_white_ratio': {
-    name: '白色弹幕占比',
-    icon: '⚪',
-    desc: '点击调节白色弹幕比例',
-    type: 'slider',
-    configKey: 'WHITE_RATIO',
-    min: -1,
-    max: 100,
-    step: 1,
-    unit: '%',
-    defaultValue: 30,
-    hint: '设置白色弹幕的占比。-1表示不处理，0表示全部转换，100表示全部保留为白色'
-  },
-  'adjust_danmu_limit': {
-    name: '弹幕数量限制',
-    icon: '📊',
-    desc: '点击调节弹幕数量上限',
-    type: 'slider',
-    configKey: 'DANMU_LIMIT',
-    min: -1,
-    max: 5000,
-    step: 100,
-    unit: '条',
-    defaultValue: -1,
-    hint: '限制返回的弹幕数量。-1表示不限制'
-  },
-  'adjust_group_minute': {
-    name: '弹幕合并时间',
-    icon: '⏱️',
-    desc: '点击调节合并时间窗口',
-    type: 'slider',
-    configKey: 'GROUP_MINUTE',
-    min: 1,
-    max: 10,
-    step: 1,
-    unit: '分钟',
-    defaultValue: 1,
-    hint: '设置弹幕合并的时间窗口，相同内容在此时间内只保留一条'
-  },
-  'format_json': {
-    name: 'JSON格式',
-    icon: '📝',
-    desc: '输出JSON格式弹幕',
-    type: 'direct',
-    configs: {
-      'DANMU_OUTPUT_FORMAT': 'json'
-    }
-  },
-  'format_xml': {
-    name: 'XML格式',
-    icon: '📄',
-    desc: '输出XML格式弹幕',
-    type: 'direct',
-    configs: {
-      'DANMU_OUTPUT_FORMAT': 'xml'
-    }
-  },
-  'format_ass': {
-    name: 'ASS格式',
-    icon: '🎬',
-    desc: '输出ASS字幕格式',
-    type: 'direct',
-    configs: {
-      'DANMU_OUTPUT_FORMAT': 'ass'
-    }
-  },
-  'toggle_simplified': {
-    name: '繁简转换',
-    icon: '🔄',
-    desc: '切换弹幕繁简转换',
-    type: 'toggle',
-    configKey: 'DANMU_SIMPLIFIED',
-    hint: '开启后将繁体弹幕转换为简体'
-  },
-  'toggle_convert_position': {
-    name: '转换顶底弹幕',
-    icon: '↕️',
-    desc: '切换顶底弹幕转换',
-    type: 'toggle',
-    configKey: 'CONVERT_TOP_BOTTOM_TO_SCROLL',
-    hint: '开启后将顶部和底部弹幕转换为滚动弹幕'
-  }
-};
-
 function isSensitiveKey(key) {
   return SENSITIVE_KEYS.includes(key) ||
     key.toLowerCase().includes('token') ||
@@ -510,17 +424,6 @@ function handleHomepage(req) {
 
     const totalEnvCount = Object.keys(globals.accessedEnvVars).length;
 
-    // 生成快捷配置卡片
-    const quickConfigsHtml = Object.entries(QUICK_CONFIGS).map(([id, config]) => `
-      <div class="quick-config-card" onclick="applyQuickConfig('${id}')">
-        <div class="quick-config-icon">${config.icon}</div>
-        <div class="quick-config-info">
-          <div class="quick-config-name">${config.name}</div>
-          <div class="quick-config-desc">${config.desc}</div>
-        </div>
-      </div>
-    `).join('');
-
     const envItemsHtml = Object.entries(globals.accessedEnvVars)
       .map(([key, value]) => {
         let displayValue = value;
@@ -593,7 +496,8 @@ function handleHomepage(req) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#667eea">
+  <meta name="theme-color" content="#667eea" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#6366f1" media="(prefers-color-scheme: light)">
   <title>弹幕 API 管理中心</title>
   <style>
     * { 
@@ -617,6 +521,8 @@ function handleHomepage(req) {
       --text-2: #cbd5e1;
       --text-3: #94a3b8;
       --border: #334155;
+      --shadow: rgba(0, 0, 0, 0.3);
+      --header-bg: linear-gradient(135deg, var(--primary), var(--secondary));
     }
 
     [data-theme="light"] {
@@ -629,6 +535,8 @@ function handleHomepage(req) {
       --text-2: #475569;
       --text-3: #64748b;
       --border: #e2e8f0;
+      --shadow: rgba(0, 0, 0, 0.1);
+      --header-bg: var(--bg-2);
     }
 
     body {
@@ -639,23 +547,22 @@ function handleHomepage(req) {
       overflow-x: hidden;
       -webkit-font-smoothing: antialiased;
       padding-bottom: env(safe-area-inset-bottom);
+      transition: background-color 0.3s ease, color 0.3s ease;
     }
 
-    /* 顶栏优化 - 移动端适配 */
     .header {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: var(--header-bg);
       padding: 0.75rem 1rem;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+      box-shadow: 0 2px 10px var(--shadow);
       position: sticky;
       top: 0;
       z-index: 100;
       padding-top: max(0.75rem, env(safe-area-inset-top));
-      transition: all 0.3s ease;
+      transition: background 0.3s ease;
     }
 
     [data-theme="light"] .header {
-      background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
-      box-shadow: 0 2px 15px rgba(99, 102, 241, 0.2);
+      border-bottom: 2px solid var(--border);
     }
 
     .header-content {
@@ -670,9 +577,13 @@ function handleHomepage(req) {
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      color: white;
+      color: var(--text-1);
       flex: 1;
       min-width: 0;
+    }
+
+    [data-theme="light"] .logo {
+      color: var(--primary);
     }
 
     .logo-icon {
@@ -693,9 +604,13 @@ function handleHomepage(req) {
       text-overflow: ellipsis;
     }
 
+    [data-theme="dark"] .logo-text h1 {
+      color: white;
+    }
+
     .logo-text p {
       font-size: 0.65rem;
-      opacity: 0.9;
+      opacity: 0.8;
       display: none;
     }
 
@@ -711,83 +626,93 @@ function handleHomepage(req) {
       min-width: 36px;
       border-radius: 10px;
       border: none;
-      background: rgba(255,255,255,0.2);
-      color: white;
+      background: var(--bg-3);
+      color: var(--text-1);
       cursor: pointer;
       font-size: 1.1rem;
       display: flex;
       align-items: center;
       justify-content: center;
       transition: all 0.2s ease;
-      backdrop-filter: blur(10px);
-     -webkit-user-select: none;
-     user-select: none;
-   }
+      -webkit-user-select: none;
+      user-select: none;
+    }
 
-   .icon-btn:active {
-     transform: scale(0.95);
-     background: rgba(255,255,255,0.3);
-   }
+    [data-theme="dark"] .icon-btn {
+      background: rgba(255,255,255,0.2);
+      color: white;
+    }
 
-   .container {
-     max-width: 100%;
-     padding: 1rem;
-     padding-bottom: calc(1rem + env(safe-area-inset-bottom));
-   }
+    .icon-btn:active {
+      transform: scale(0.95);
+    }
 
-   /* 状态卡片 - 移动端优化 */
-   .dashboard {
-     display: grid;
-     grid-template-columns: repeat(2, 1fr);
-     gap: 0.75rem;
-     margin-bottom: 1rem;
-   }
+    [data-theme="dark"] .icon-btn:active {
+      background: rgba(255,255,255,0.3);
+    }
 
-   .stat-card {
-     background: var(--bg-2);
-     border-radius: 12px;
-     padding: 1rem;
-     border: 1px solid var(--border);
-     position: relative;
-     overflow: hidden;
-     transition: all 0.2s ease;
-   }
+    [data-theme="light"] .icon-btn:active {
+      background: var(--border);
+    }
 
-   .stat-card::before {
-     content: '';
-     position: absolute;
-     top: 0;
-     left: 0;
-     right: 0;
-     height: 3px;
-     background: linear-gradient(90deg, var(--primary), var(--secondary));
-   }
+    .container {
+      max-width: 100%;
+      padding: 1rem;
+      padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+    }
 
-   .stat-card:active {
-     transform: scale(0.98);
-   }
+    .dashboard {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
 
-   .stat-header {
-     display: flex;
-     justify-content: space-between;
-     align-items: flex-start;
-     margin-bottom: 0.5rem;
-   }
+    .stat-card {
+      background: var(--bg-2);
+      border-radius: 12px;
+      padding: 1rem;
+      border: 1px solid var(--border);
+      position: relative;
+      overflow: hidden;
+      transition: all 0.2s ease;
+    }
 
-   .stat-icon {
-     font-size: 1.5rem;
-   }
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--primary), var(--secondary));
+    }
 
-   .stat-status {
-     padding: 0.25rem 0.5rem;
-     border-radius: 12px;
-     font-size: 0.65rem;
-     font-weight: 600;
-   }
+    .stat-card:active {
+      transform: scale(0.98);
+    }
 
-   .status-online {
-     background: rgba(16, 185, 129, 0.15);
-     color: var(--success);
+    .stat-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-icon {
+      font-size: 1.5rem;
+    }
+
+    .stat-status {
+      padding: 0.25rem 0.5rem;
+      border-radius: 12px;
+      font-size: 0.65rem;
+      font-weight: 600;
+    }
+
+    .status-online {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--success);
    }
 
    .status-offline {
@@ -815,7 +740,6 @@ function handleHomepage(req) {
      color: var(--text-2);
    }
 
-   /* 分区容器 */
    .section {
      background: var(--bg-2);
      border-radius: 12px;
@@ -850,75 +774,187 @@ function handleHomepage(req) {
      text-overflow: ellipsis;
    }
 
-   /* 快捷配置 - 移动端优化 */
+   /* 快速配置区域 */
    .quick-configs {
      display: grid;
-     grid-template-columns: repeat(2, 1fr);
-     gap: 0.75rem;
+     gap: 1rem;
    }
 
-   .quick-config-card {
-     background: linear-gradient(135deg, var(--bg-3), var(--bg-2));
-     border-radius: 12px;
+   .config-group {
+     background: var(--bg-3);
+     border-radius: 10px;
      padding: 1rem;
-     cursor: pointer;
-     border: 2px solid var(--border);
-     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-     display: flex;
-     flex-direction: column;
-     align-items: center;
-     text-align: center;
-     min-height: 100px;
-     position: relative;
-     overflow: hidden;
+     border: 1px solid var(--border);
    }
 
-   .quick-config-card::before {
-     content: '';
+   .config-group-title {
+     font-size: 0.875rem;
+     font-weight: 600;
+     color: var(--text-1);
+     margin-bottom: 0.75rem;
+     display: flex;
+     align-items: center;
+     gap: 0.5rem;
+   }
+
+   .config-control {
+     margin-bottom: 1rem;
+   }
+
+   .config-control:last-child {
+     margin-bottom: 0;
+   }
+
+   .config-label {
+     display: flex;
+     justify-content: space-between;
+     align-items: center;
+     margin-bottom: 0.5rem;
+     font-size: 0.8rem;
+     color: var(--text-2);
+   }
+
+   .config-value {
+     font-weight: 600;
+     color: var(--primary);
+     font-size: 0.85rem;
+   }
+
+   /* 滑块样式 */
+   .slider-container {
+     position: relative;
+     padding: 0.5rem 0;
+   }
+
+   .slider {
+     -webkit-appearance: none;
+     width: 100%;
+     height: 6px;
+     border-radius: 5px;
+     background: var(--border);
+     outline: none;
+     transition: opacity 0.2s;
+   }
+
+   .slider::-webkit-slider-thumb {
+     -webkit-appearance: none;
+     appearance: none;
+     width: 20px;
+     height: 20px;
+     border-radius: 50%;
+     background: var(--primary);
+     cursor: pointer;
+     box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+     transition: all 0.2s ease;
+   }
+
+   .slider::-webkit-slider-thumb:active {
+     width: 24px;
+     height: 24px;
+   }
+
+   .slider::-moz-range-thumb {
+     width: 20px;
+     height: 20px;
+     border-radius: 50%;
+     background: var(--primary);
+     cursor: pointer;
+     border: none;
+     box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+     transition: all 0.2s ease;
+   }
+
+   .slider::-moz-range-thumb:active {
+     width: 24px;
+     height: 24px;
+   }
+
+   /* 选择器样式 */
+   .select-wrapper {
+     position: relative;
+   }
+
+   .custom-select {
+     width: 100%;
+     padding: 0.75rem 2.5rem 0.75rem 1rem;
+     border: 2px solid var(--border);
+     border-radius: 8px;
+     background: var(--bg-2);
+     color: var(--text-1);
+     font-size: 0.875rem;
+     cursor: pointer;
+     appearance: none;
+     transition: all 0.2s ease;
+   }
+
+   .custom-select:focus {
+     outline: none;
+     border-color: var(--primary);
+     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+   }
+
+   .select-wrapper::after {
+     content: '▼';
      position: absolute;
+     right: 1rem;
+     top: 50%;
+     transform: translateY(-50%);
+     color: var(--text-3);
+     pointer-events: none;
+     font-size: 0.75rem;
+   }
+
+   /* 开关按钮 */
+   .switch-container {
+     display: flex;
+     align-items: center;
+     justify-content: space-between;
+   }
+
+   .switch {
+     position: relative;
+     display: inline-block;
+     width: 48px;
+     height: 26px;
+   }
+
+   .switch input {
+     opacity: 0;
+     width: 0;
+     height: 0;
+   }
+
+   .switch-slider {
+     position: absolute;
+     cursor: pointer;
      top: 0;
      left: 0;
      right: 0;
-     height: 3px;
-     background: linear-gradient(90deg, var(--primary), var(--secondary));
-     transform: scaleX(0);
-     transition: transform 0.3s ease;
+     bottom: 0;
+     background-color: var(--border);
+     transition: 0.3s;
+     border-radius: 26px;
    }
 
-   .quick-config-card:hover::before,
-   .quick-config-card:active::before {
-     transform: scaleX(1);
+   .switch-slider:before {
+     position: absolute;
+     content: "";
+     height: 20px;
+     width: 20px;
+     left: 3px;
+     bottom: 3px;
+     background-color: white;
+     transition: 0.3s;
+     border-radius: 50%;
+     box-shadow: 0 2px 4px rgba(0,0,0,0.2);
    }
 
-   .quick-config-card:active {
-     transform: translateY(-2px);
-     border-color: var(--primary);
-     box-shadow: 0 6px 20px rgba(102, 126, 234, 0.25);
+   input:checked + .switch-slider {
+     background-color: var(--primary);
    }
 
-   .quick-config-icon {
-     font-size: 2rem;
-     margin-bottom: 0.5rem;
-     filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
-   }
-
-   .quick-config-info {
-     flex: 1;
-     display: flex;
-     flex-direction: column;
-     gap: 0.25rem;
-   }
-
-   .quick-config-name {
-     font-size: 0.85rem;
-     font-weight: 700;
-     color: var(--text-1);
-   }
-
-   .quick-config-desc {
-     font-size: 0.7rem;
-     color: var(--text-3);
-     line-height: 1.4;
+   input:checked + .switch-slider:before {
+     transform: translateX(22px);
    }
 
    /* 搜索框 */
@@ -1132,7 +1168,7 @@ function handleHomepage(req) {
      width: 100%;
      max-height: 85vh;
      overflow-y: auto;
-     box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+     box-shadow: 0 20px 60px var(--shadow);
      border: 1px solid var(--border);
      animation: slideUp 0.25s ease;
    }
@@ -1238,110 +1274,6 @@ function handleHomepage(req) {
      padding-top: 1rem;
      border-top: 2px solid var(--border);
    }
-   /* 滑块配置模态框 */
-   .slider-modal .modal-content {
-     max-width: 500px;
-   }
-
-   .slider-group {
-     margin: 1.5rem 0;
-   }
-
-   .slider-header {
-     display: flex;
-     justify-content: space-between;
-     align-items: center;
-     margin-bottom: 1rem;
-   }
-
-   .slider-label {
-     font-size: 0.9rem;
-     font-weight: 600;
-     color: var(--text-1);
-   }
-
-   .slider-value {
-     font-size: 1.25rem;
-     font-weight: 700;
-     color: var(--primary);
-     font-family: 'Courier New', monospace;
-   }
-
-   .slider-container {
-     position: relative;
-     padding: 1rem 0;
-   }
-
-   .slider {
-     -webkit-appearance: none;
-     appearance: none;
-     width: 100%;
-     height: 8px;
-     border-radius: 5px;
-     background: linear-gradient(to right, var(--primary) 0%, var(--primary) 50%, var(--bg-3) 50%, var(--bg-3) 100%);
-     outline: none;
-     transition: all 0.2s ease;
-   }
-
-   .slider::-webkit-slider-thumb {
-     -webkit-appearance: none;
-     appearance: none;
-     width: 24px;
-     height: 24px;
-     border-radius: 50%;
-     background: linear-gradient(135deg, var(--primary), var(--secondary));
-     cursor: pointer;
-     box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
-     transition: all 0.2s ease;
-   }
-
-   .slider::-webkit-slider-thumb:hover {
-     transform: scale(1.2);
-     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.6);
-   }
-
-   .slider::-webkit-slider-thumb:active {
-     transform: scale(1.1);
-   }
-
-   .slider::-moz-range-thumb {
-     width: 24px;
-     height: 24px;
-     border-radius: 50%;
-     background: linear-gradient(135deg, var(--primary), var(--secondary));
-     cursor: pointer;
-     border: none;
-     box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
-     transition: all 0.2s ease;
-   }
-
-   .slider::-moz-range-thumb:hover {
-     transform: scale(1.2);
-     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.6);
-   }
-
-   .slider-marks {
-     display: flex;
-     justify-content: space-between;
-     margin-top: 0.5rem;
-     padding: 0 2px;
-   }
-
-   .slider-mark {
-     font-size: 0.7rem;
-     color: var(--text-3);
-     font-weight: 500;
-   }
-
-   .slider-hint {
-     font-size: 0.75rem;
-     color: var(--text-3);
-     margin-top: 0.75rem;
-     padding: 0.75rem;
-     background: var(--bg-3);
-     border-radius: 8px;
-     line-height: 1.5;
-   }
 
    /* Toast 提示 */
    .toast {
@@ -1352,7 +1284,7 @@ function handleHomepage(req) {
      background: var(--bg-2);
      border-radius: 12px;
      padding: 1rem;
-     box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+     box-shadow: 0 10px 40px var(--shadow);
      display: none;
      align-items: center;
      gap: 0.75rem;
@@ -1395,7 +1327,7 @@ function handleHomepage(req) {
 
    /* 日志容器 */
    .log-container {
-     background: #1a1a1a;
+     background: var(--bg-3);
      border-radius: 10px;
      padding: 1rem;
      font-family: 'Courier New', monospace;
@@ -1426,7 +1358,7 @@ function handleHomepage(req) {
      padding: 0.375rem 0.625rem;
      border-radius: 6px;
      border: none;
-     background: var(--bg-3);
+     background: var(--bg-2);
      color: var(--text-2);
      cursor: pointer;
      font-size: 0.7rem;
@@ -1480,8 +1412,7 @@ function handleHomepage(req) {
      }
 
      .quick-configs {
-       grid-template-columns: repeat(4, 1fr);
-       gap: 1rem;
+       grid-template-columns: repeat(2, 1fr);
      }
 
      .logo-text p {
@@ -1629,7 +1560,87 @@ function handleHomepage(req) {
        </h2>
      </div>
      <div class="quick-configs">
-       ${quickConfigsHtml}
+       <div class="config-group">
+         <div class="config-group-title">🎯 弹幕数量</div>
+         <div class="config-control">
+           <div class="config-label">
+             <span>限制条数</span>
+             <span class="config-value" id="danmuLimitValue">-1 (不限制)</span>
+           </div>
+           <div class="slider-container">
+             <input type="range" min="-1" max="2000" value="${globals.envs.DANMU_LIMIT || -1}" class="slider" id="danmuLimitSlider" oninput="updateDanmuLimit(this.value)">
+           </div>
+         </div>
+       </div>
+
+       <div class="config-group">
+         <div class="config-group-title">⚪ 白色弹幕</div>
+         <div class="config-control">
+           <div class="config-label">
+             <span>占比百分比</span>
+             <span class="config-value" id="whiteRatioValue">${globals.envs.WHITE_RATIO || 30}%</span>
+           </div>
+           <div class="slider-container">
+             <input type="range" min="0" max="100" value="${globals.envs.WHITE_RATIO || 30}" class="slider" id="whiteRatioSlider" oninput="updateWhiteRatio(this.value)">
+           </div>
+         </div>
+       </div>
+
+       <div class="config-group">
+         <div class="config-group-title">📄 输出格式</div>
+         <div class="config-control">
+           <div class="select-wrapper">
+             <select class="custom-select" id="outputFormatSelect" onchange="updateOutputFormat(this.value)">
+               <option value="json" ${globals.envs.DANMU_OUTPUT_FORMAT === 'json' ? 'selected' : ''}>JSON 格式</option>
+               <option value="xml" ${globals.envs.DANMU_OUTPUT_FORMAT === 'xml' ? 'selected' : ''}>XML 格式</option>
+               <option value="ass" ${globals.envs.DANMU_OUTPUT_FORMAT === 'ass' ? 'selected' : ''}>ASS 字幕</option>
+             </select>
+           </div>
+         </div>
+       </div>
+
+       <div class="config-group">
+         <div class="config-group-title">⏱️ 合并时间</div>
+         <div class="config-control">
+           <div class="config-label">
+             <span>时间窗口（分钟）</span>
+             <span class="config-value" id="groupMinuteValue">${globals.envs.GROUP_MINUTE || 1} 分钟</span>
+           </div>
+           <div class="slider-container">
+             <input type="range" min="1" max="10" value="${globals.envs.GROUP_MINUTE || 1}" class="slider" id="groupMinuteSlider" oninput="updateGroupMinute(this.value)">
+           </div>
+         </div>
+       </div>
+
+       <div class="config-group">
+         <div class="config-group-title">🔄 弹幕转换</div>
+         <div class="config-control">
+           <div class="switch-container">
+             <span>繁简转换</span>
+             <label class="switch">
+               <input type="checkbox" id="simplifiedSwitch" ${globals.envs.DANMU_SIMPLIFIED ? 'checked' : ''} onchange="updateSimplified(this.checked)">
+               <span class="switch-slider"></span>
+             </label>
+           </div>
+         </div>
+         <div class="config-control">
+           <div class="switch-container">
+             <span>转换顶底弹幕</span>
+             <label class="switch">
+               <input type="checkbox" id="convertSwitch" ${globals.envs.CONVERT_TOP_BOTTOM_TO_SCROLL ? 'checked' : ''} onchange="updateConvert(this.checked)">
+               <span class="switch-slider"></span>
+             </label>
+           </div>
+         </div>
+       </div>
+
+       <div class="config-group">
+         <div class="config-group-title">💾 快速操作</div>
+         <div class="config-control">
+           <button class="btn btn-primary" style="width: 100%; margin-bottom: 0.5rem;" onclick="saveQuickConfigs()">💾 保存快速配置</button>
+           <button class="btn btn-secondary" style="width: 100%;" onclick="resetQuickConfigs()">🔄 重置为默认</button>
+         </div>
+       </div>
      </div>
    </div>
 
@@ -1703,33 +1714,6 @@ function handleHomepage(req) {
      </div>
    </div>
  </div>
- <!-- 滑块配置弹窗 -->
- <div class="modal slider-modal" id="sliderModal">
-   <div class="modal-content">
-     <div class="modal-header">
-       <h3 class="modal-title" id="sliderModalTitle">⚙️ 调节配置</h3>
-       <button class="close-btn" onclick="closeSliderModal()">×</button>
-     </div>
-     <div class="slider-group">
-       <div class="slider-header">
-         <span class="slider-label" id="sliderLabel">配置值</span>
-         <span class="slider-value" id="sliderValue">0</span>
-       </div>
-       <div class="slider-container">
-         <input type="range" class="slider" id="configSlider" min="0" max="100" step="1" value="0">
-         <div class="slider-marks">
-           <span class="slider-mark" id="sliderMin">0</span>
-           <span class="slider-mark" id="sliderMax">100</span>
-         </div>
-       </div>
-       <div class="slider-hint" id="sliderHint">拖动滑块调节配置值</div>
-     </div>
-     <div class="modal-footer">
-       <button class="btn btn-secondary" onclick="closeSliderModal()">取消</button>
-       <button class="btn btn-primary" onclick="saveSliderConfig()">💾 应用</button>
-     </div>
-   </div>
- </div>
 
  <!-- 日志查看弹窗 -->
  <div class="modal" id="logsModal">
@@ -1771,17 +1755,26 @@ function handleHomepage(req) {
      config: ${JSON.stringify(globals.accessedEnvVars)},
      revealedSecrets: new Map(),
      logFilter: 'all',
-     logs: []
+     logs: [],
+     quickConfigs: {
+       DANMU_LIMIT: ${globals.envs.DANMU_LIMIT || -1},
+       WHITE_RATIO: ${globals.envs.WHITE_RATIO || 30},
+       DANMU_OUTPUT_FORMAT: '${globals.envs.DANMU_OUTPUT_FORMAT || 'json'}',
+       GROUP_MINUTE: ${globals.envs.GROUP_MINUTE || 1},
+       DANMU_SIMPLIFIED: ${globals.envs.DANMU_SIMPLIFIED || false},
+       CONVERT_TOP_BOTTOM_TO_SCROLL: ${globals.envs.CONVERT_TOP_BOTTOM_TO_SCROLL || false}
+     }
    };
 
    const ENV_DESCRIPTIONS = ${JSON.stringify(ENV_DESCRIPTIONS)};
-   const QUICK_CONFIGS = ${JSON.stringify(QUICK_CONFIGS)};
 
    // 主题管理
    function initTheme() {
-     const savedTheme = localStorage.getItem('theme') || 'dark';
-     document.documentElement.setAttribute('data-theme', savedTheme);
-     updateThemeIcon(savedTheme);
+     const savedTheme = localStorage.getItem('theme');
+     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+     const theme = savedTheme || (prefersDark ? 'dark' : 'light');
+     document.documentElement.setAttribute('data-theme', theme);
+     updateThemeIcon(theme);
    }
 
    function toggleTheme() {
@@ -1797,6 +1790,15 @@ function handleHomepage(req) {
      const btns = document.querySelectorAll('.icon-btn');
      if (btns[0]) btns[0].textContent = theme === 'dark' ? '☀️' : '🌙';
    }
+
+   // 监听系统主题变化
+   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+     if (!localStorage.getItem('theme')) {
+       const theme = e.matches ? 'dark' : 'light';
+       document.documentElement.setAttribute('data-theme', theme);
+       updateThemeIcon(theme);
+     }
+   });
 
    // Toast 提示
    function showToast(message, type = 'info') {
@@ -1818,6 +1820,105 @@ function handleHomepage(req) {
      setTimeout(() => {
        toast.classList.remove('show');
      }, 3500);
+   }
+
+   // 快速配置更新函数
+   function updateDanmuLimit(value) {
+     const val = parseInt(value);
+     AppState.quickConfigs.DANMU_LIMIT = val;
+     const display = val === -1 ? '-1 (不限制)' : \`\${val} 条\`;
+     document.getElementById('danmuLimitValue').textContent = display;
+   }
+
+   function updateWhiteRatio(value) {
+     const val = parseInt(value);
+     AppState.quickConfigs.WHITE_RATIO = val;
+     document.getElementById('whiteRatioValue').textContent = \`\${val}%\`;
+   }
+
+   function updateOutputFormat(value) {
+     AppState.quickConfigs.DANMU_OUTPUT_FORMAT = value;
+   }
+
+   function updateGroupMinute(value) {
+     const val = parseInt(value);
+     AppState.quickConfigs.GROUP_MINUTE = val;
+     document.getElementById('groupMinuteValue').textContent = \`\${val} 分钟\`;
+   }
+
+   function updateSimplified(checked) {
+     AppState.quickConfigs.DANMU_SIMPLIFIED = checked;
+   }
+
+   function updateConvert(checked) {
+     AppState.quickConfigs.CONVERT_TOP_BOTTOM_TO_SCROLL = checked;
+   }
+
+   // 保存快速配置
+   async function saveQuickConfigs() {
+     showToast('正在保存配置...', 'info');
+     
+     const configs = {
+       DANMU_LIMIT: String(AppState.quickConfigs.DANMU_LIMIT),
+       WHITE_RATIO: String(AppState.quickConfigs.WHITE_RATIO),
+       DANMU_OUTPUT_FORMAT: AppState.quickConfigs.DANMU_OUTPUT_FORMAT,
+       GROUP_MINUTE: String(AppState.quickConfigs.GROUP_MINUTE),
+       DANMU_SIMPLIFIED: String(AppState.quickConfigs.DANMU_SIMPLIFIED),
+       CONVERT_TOP_BOTTOM_TO_SCROLL: String(AppState.quickConfigs.CONVERT_TOP_BOTTOM_TO_SCROLL)
+     };
+
+     Object.assign(AppState.config, configs);
+     
+     try {
+       const response = await fetch('/api/config/save', {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({ config: configs })
+       });
+
+       const result = await response.json();
+       
+       if (result.success) {
+         showToast('✅ 快速配置已保存', 'success');
+         
+         for (const [key, value] of Object.entries(configs)) {
+           updateEnvDisplay(key, value);
+         }
+       } else {
+         showToast('保存失败: ' + (result.errorMessage || '未知错误'), 'error');
+       }
+     } catch (error) {
+       showToast('保存失败: ' + error.message, 'error');
+     }
+   }
+
+   // 重置快速配置
+   function resetQuickConfigs() {
+     if (!confirm('确定要重置为默认配置吗？')) return;
+
+     const defaults = {
+       DANMU_LIMIT: -1,
+       WHITE_RATIO: 30,
+       DANMU_OUTPUT_FORMAT: 'json',
+       GROUP_MINUTE: 1,
+       DANMU_SIMPLIFIED: false,
+       CONVERT_TOP_BOTTOM_TO_SCROLL: false
+     };
+
+     AppState.quickConfigs = { ...defaults };
+     
+     document.getElementById('danmuLimitSlider').value = defaults.DANMU_LIMIT;
+     document.getElementById('whiteRatioSlider').value = defaults.WHITE_RATIO;
+     document.getElementById('outputFormatSelect').value = defaults.DANMU_OUTPUT_FORMAT;
+     document.getElementById('groupMinuteSlider').value = defaults.GROUP_MINUTE;
+     document.getElementById('simplifiedSwitch').checked = defaults.DANMU_SIMPLIFIED;
+     document.getElementById('convertSwitch').checked = defaults.CONVERT_TOP_BOTTOM_TO_SCROLL;
+     
+     updateDanmuLimit(defaults.DANMU_LIMIT);
+     updateWhiteRatio(defaults.WHITE_RATIO);
+     updateGroupMinute(defaults.GROUP_MINUTE);
+     
+     showToast('✅ 已重置为默认配置', 'info');
    }
 
    // 敏感信息显示/隐藏
@@ -2012,165 +2113,6 @@ function handleHomepage(req) {
      
      if (query && visibleCount === 0) {
        showToast('未找到匹配项', 'warning');
-     }
-   }
-
-   // 快捷配置应用
-   // 快捷配置相关变量
-   let currentSliderConfig = null;
-
-   async function applyQuickConfig(configId) {
-     const config = QUICK_CONFIGS[configId];
-     if (!config) {
-       showToast('配置模板不存在', 'error');
-       return;
-     }
-
-     // 滑块类型配置
-     if (config.type === 'slider') {
-       openSliderModal(configId, config);
-       return;
-     }
-
-     // 切换类型配置
-     if (config.type === 'toggle') {
-       const currentValue = AppState.config[config.configKey];
-       const newValue = String(currentValue).toLowerCase() !== 'true';
-       const configToSave = { [config.configKey]: String(newValue) };
-       
-       showToast(`正在${newValue ? '启用' : '禁用'} ${config.name}...`, 'info');
-       
-       try {
-         const response = await fetch('/api/config/save', {
-           method: 'POST',
-           headers: { 'Content-Type': 'application/json' },
-           body: JSON.stringify({ config: configToSave })
-         });
-
-         const result = await response.json();
-         
-         if (result.success) {
-           AppState.config[config.configKey] = String(newValue);
-           showToast(`✅ ${config.name} 已${newValue ? '启用' : '禁用'}`, 'success');
-           updateEnvDisplay(config.configKey, String(newValue));
-         } else {
-           showToast('操作失败: ' + (result.errorMessage || '未知错误'), 'error');
-         }
-       } catch (error) {
-         showToast('操作失败: ' + error.message, 'error');
-       }
-       return;
-     }
-
-     // 直接应用类型配置
-     if (config.type === 'direct') {
-       showToast(`正在应用 ${config.name}...`, 'info');
-       
-       Object.assign(AppState.config, config.configs);
-       
-       try {
-         const response = await fetch('/api/config/save', {
-           method: 'POST',
-           headers: { 'Content-Type': 'application/json' },
-           body: JSON.stringify({ config: config.configs })
-         });
-
-         const result = await response.json();
-         
-         if (result.success) {
-           showToast(`✅ ${config.name} 已应用`, 'success');
-           
-           for (const [key, value] of Object.entries(config.configs)) {
-             updateEnvDisplay(key, value);
-           }
-         } else {
-           showToast('应用失败: ' + (result.errorMessage || '未知错误'), 'error');
-         }
-       } catch (error) {
-         showToast('应用失败: ' + error.message, 'error');
-       }
-     }
-   }
-
-   function openSliderModal(configId, config) {
-     currentSliderConfig = { id: configId, ...config };
-     
-     document.getElementById('sliderModalTitle').innerHTML = `${config.icon} ${config.name}`;
-     document.getElementById('sliderLabel').textContent = config.name;
-     document.getElementById('sliderHint').textContent = config.hint || '拖动滑块调节配置值';
-     
-     const slider = document.getElementById('configSlider');
-     slider.min = config.min;
-     slider.max = config.max;
-     slider.step = config.step;
-     
-     const currentValue = AppState.config[config.configKey];
-     const numValue = parseInt(currentValue) || config.defaultValue;
-     slider.value = numValue;
-     
-     updateSliderDisplay(numValue, config);
-     
-     document.getElementById('sliderMin').textContent = config.min === -1 ? '不限' : config.min + config.unit;
-     document.getElementById('sliderMax').textContent = config.max + config.unit;
-     
-     document.getElementById('sliderModal').classList.add('show');
-     
-     slider.oninput = function() {
-       updateSliderDisplay(parseInt(this.value), config);
-       updateSliderBackground(this);
-     };
-     
-     updateSliderBackground(slider);
-   }
-
-   function updateSliderDisplay(value, config) {
-     const displayValue = value === -1 ? '不限制' : value + config.unit;
-     document.getElementById('sliderValue').textContent = displayValue;
-   }
-
-   function updateSliderBackground(slider) {
-     const value = slider.value;
-     const min = slider.min;
-     const max = slider.max;
-     const percentage = ((value - min) / (max - min)) * 100;
-     slider.style.background = `linear-gradient(to right, var(--primary) 0%, var(--primary) ${percentage}%, var(--bg-3) ${percentage}%, var(--bg-3) 100%)`;
-   }
-
-   function closeSliderModal() {
-     document.getElementById('sliderModal').classList.remove('show');
-     currentSliderConfig = null;
-   }
-
-   async function saveSliderConfig() {
-     if (!currentSliderConfig) return;
-     
-     const slider = document.getElementById('configSlider');
-     const value = slider.value;
-     const config = currentSliderConfig;
-     
-     const configToSave = { [config.configKey]: value };
-     
-     showToast(`正在保存 ${config.name}...`, 'info');
-     
-     try {
-       const response = await fetch('/api/config/save', {
-         method: 'POST',
-         headers: { 'Content-Type': 'application/json' },
-         body: JSON.stringify({ config: configToSave })
-       });
-
-       const result = await response.json();
-       
-       if (result.success) {
-         AppState.config[config.configKey] = value;
-         showToast(`✅ ${config.name} 已设置为 ${value === '-1' ? '不限制' : value + config.unit}`, 'success');
-         updateEnvDisplay(config.configKey, value);
-         closeSliderModal();
-       } else {
-         showToast('保存失败: ' + (result.errorMessage || '未知错误'), 'error');
-       }
-     } catch (error) {
-       showToast('保存失败: ' + error.message, 'error');
      }
    }
 
@@ -2377,7 +2319,6 @@ function handleHomepage(req) {
        closeModal();
        closePasswordModal();
        closeLogsModal();
-       closeSliderModal();
      }
      
      if ((e.ctrlKey || e.metaKey) && e.key === 'l') {
@@ -2410,6 +2351,817 @@ function handleHomepage(req) {
 </html>
    `;
 
+   return new Response(html, {
+     headers: {
+       'Content-Type': 'text/html; charset=utf-8',
+       'Cache-Control': 'no-cache'
+     }
+   });
+ }
+
+ if (path === "/" && method === "GET") {
+   return handleHomepage(req);
+ }
+
+ if (path === "/favicon.ico" || path === "/robots.txt") {
+   return new Response(null, { status: 204 });
+ }
+
+ // POST /api/config/save
+ if (path === "/api/config/save" && method === "POST") {
+   try {
+     const body = await req.json();
+     const { config } = body;
+
+     if (!config || typeof config !== 'object') {
+       return jsonResponse({
+         success: false,
+         errorMessage: "无效的配置数据"
+       }, 400);
+     }
+
+     log("info", `[config] 开始保存环境变量配置，共 ${Object.keys(config).length} 个`);
+
+     const sanitizedConfig = {};
+     for (const [key, value] of Object.entries(config)) {
+       if (value === null || value === undefined) {
+         log("warn", `[config] 跳过空值配置: ${key}`);
+         continue;
+       }
+
+       if (typeof value === 'string') {
+         sanitizedConfig[key] = value;
+       } else if (typeof value === 'boolean' || typeof value === 'number') {
+         sanitizedConfig[key] = String(value);
+       } else {
+         log("warn", `[config] 跳过无效类型配置: ${key} (${typeof value})`);
+       }
+     }
+
+     if (Object.keys(sanitizedConfig).length === 0) {
+       return jsonResponse({
+         success: false,
+         errorMessage: "没有有效的配置数据"
+       }, 400);
+     }
+
+     let dbSaved = false;
+     if (globals.databaseValid) {
+       try {
+         const { saveEnvConfigs } = await import('./utils/db-util.js');
+         dbSaved = await saveEnvConfigs(sanitizedConfig);
+         log("info", `[config] 数据库保存${dbSaved ? '成功' : '失败'}`);
+       } catch (e) {
+         log("warn", `[config] 保存到数据库失败: ${e.message}`);
+       }
+     }
+     
+     let redisSaved = false;
+     if (globals.redisValid) {
+       redisSaved = await mergeSaveToRedis('env_configs', sanitizedConfig);
+       log("info", `[config] Redis保存${redisSaved ? '成功' : '失败'}`);
+     }
+
+     try {
+       const { Globals } = await import('./configs/globals.js');
+       Globals.applyConfig(sanitizedConfig);
+       log("info", `[config] 配置已应用到运行时`);
+     } catch (e) {
+       log("error", `[config] 应用配置到运行时失败: ${e.message}`);
+     }
+
+     try {
+       await applyConfigPatch(sanitizedConfig);
+       log("info", `[config] 派生缓存已重建`);
+     } catch (e) {
+       log("warn", `[config] 重建派生缓存失败: ${e.message}`);
+     }
+
+     const savedTo = [];
+     if (dbSaved) savedTo.push('数据库');
+     if (redisSaved) savedTo.push('Redis');
+     savedTo.push('运行时内存');
+
+     log("info", `[config] 配置保存完成: ${savedTo.join('、')}`);
+     return jsonResponse({
+       success: true,
+       message: `配置已保存至 ${savedTo.join('、')}`,
+       savedTo,
+       appliedConfig: sanitizedConfig
+     });
+
+   } catch (error) {
+     log("error", `[config] 保存配置失败: ${error.message}`);
+     return jsonResponse({
+       success: false,
+       errorMessage: `保存失败: ${error.message}`
+     }, 500);
+   }
+ }
+
+ // GET /api/config/load
+ if (path === "/api/config/load" && method === "GET") {
+   try {
+     log("info", "[config] 开始加载环境变量配置");
+
+     let config = {};
+     let loadedFrom = [];
+
+     if (globals.databaseValid) {
+       const { loadEnvConfigs } = await import('./utils/db-util.js');
+       const dbConfig = await loadEnvConfigs();
+       if (Object.keys(dbConfig).length > 0) {
+         config = { ...config, ...dbConfig };
+         loadedFrom.push('数据库');
+       }
+     }
+
+     if (globals.redisValid && Object.keys(config).length === 0) {
+       const { getRedisKey } = await import('./utils/redis-util.js');
+       const result = await getRedisKey('env_configs');
+       if (result && result.result) {
+         try {
+           const redisConfig = JSON.parse(result.result);
+           config = { ...config, ...redisConfig };
+           loadedFrom.push('Redis');
+         } catch (e) {
+           log("warn", "[config] Redis 配置解析失败");
+         }
+       }
+     }
+
+     if (Object.keys(config).length === 0) {
+       config = globals.accessedEnvVars;
+       loadedFrom.push('内存');
+     }
+
+     const serializedConfig = {};
+     for (const [key, value] of Object.entries(config)) {
+       if (value instanceof RegExp) {
+         serializedConfig[key] = value.source;
+       } else {
+         serializedConfig[key] = value;
+       }
+     }
+
+     log("info", `[config] 配置加载成功，来源: ${loadedFrom.join('、')}`);
+     return jsonResponse({
+       success: true,
+       config: serializedConfig,
+       loadedFrom
+     });
+
+   } catch (error) {
+     log("error", `[config] 加载配置失败: ${error.message}`);
+     return jsonResponse({
+       success: false,
+       errorMessage: `加载失败: ${error.message}`
+     }, 500);
+   }
+ }
+
+ // Token 验证
+ const parts = path.split("/").filter(Boolean);
+ const currentToken = String(globals.token || globals.envs.TOKEN || globals.accessedEnvVars.TOKEN || "87654321");
+ log("info", `[Token Check] 当前 TOKEN: ${currentToken.substring(0, 3)}***`);
+
+ if (currentToken === "87654321") {
+   const knownApiPaths = ["api", "v1", "v2"];
+   if (parts.length > 0) {
+     if (parts[0] === "87654321") {
+       path = "/" + parts.slice(1).join("/");
+     } else if (!knownApiPaths.includes(parts[0])) {
+       log("error", `Invalid token in path: ${path}`);
+       return jsonResponse(
+         { errorCode: 401, success: false, errorMessage: "Unauthorized" },
+         401
+       );
+     }
+   }
+ } else {
+   if (parts.length < 1 || parts[0] !== currentToken) {
+     log("error", `Invalid or missing token`);
+     return jsonResponse(
+       { errorCode: 401, success: false, errorMessage: "Unauthorized" },
+       401
+     );
+   }
+   path = "/" + parts.slice(1).join("/");
+ }
+
+ log("info", path);
+
+ // 路径规范化
+ const excludedPaths = [
+   '/',
+   '/api/logs',
+   '/api/config/save',
+   '/api/config/load',
+   '/api/login',
+   '/api/logout',
+   '/api/change-password',
+   '/favicon.ico',
+   '/robots.txt'
+ ];
+
+ const shouldNormalizePath = !excludedPaths.some(excluded => path === excluded || path.startsWith(excluded));
+
+ if (shouldNormalizePath) {
+   while (path.startsWith('/api/v2/api/v2/')) {
+     path = path.substring('/api/v2'.length);
+   }
+
+   if (!path.startsWith('/api/v2')) {
+     path = '/api/v2' + path;
+   }
+ }
+
+ // POST /api/login
+ if (path === "/api/login" && method === "POST") {
+   try {
+     const body = await req.json();
+     const { username, password } = body;
+     
+     let storedUsername = 'admin';
+     let storedPassword = 'admin';
+     
+     try {
+       if (globals.redisValid) {
+         const { getRedisKey } = await import('./utils/redis-util.js');
+         const userResult = await getRedisKey('admin_username');
+         const passResult = await getRedisKey('admin_password');
+         if (userResult?.result) storedUsername = userResult.result;
+         if (passResult?.result) storedPassword = passResult.result;
+       } else if (globals.databaseValid) {
+         const { loadEnvConfigs } = await import('./utils/db-util.js');
+         const configs = await loadEnvConfigs();
+         if (configs.ADMIN_USERNAME) storedUsername = configs.ADMIN_USERNAME;
+         if (configs.ADMIN_PASSWORD) storedPassword = configs.ADMIN_PASSWORD;
+       }
+     } catch (e) {
+       log("warn", "[login] 加载账号密码失败，使用默认值");
+     }
+     
+     if (username === storedUsername && password === storedPassword) {
+       const sessionId = generateSessionId();
+       sessions.set(sessionId, { 
+         username, 
+         createdAt: Date.now() 
+       });
+       
+       return new Response(JSON.stringify({ success: true }), {
+         headers: {
+           'Content-Type': 'application/json',
+           'Set-Cookie': `session=${sessionId}; Path=/; Max-Age=${SESSION_TIMEOUT / 1000}; HttpOnly; SameSite=Strict`
+         }
+       });
+     }
+     
+     return jsonResponse({ success: false, message: '用户名或密码错误' }, 401);
+   } catch (error) {
+     return jsonResponse({ success: false, message: '登录失败' }, 500);
+   }
+ }
+
+ // POST /api/logout
+ if (path === "/api/logout" && method === "POST") {
+   const cookies = req.headers.get('cookie') || '';
+   const sessionMatch = cookies.match(/session=([^;]+)/);
+   if (sessionMatch) {
+     sessions.delete(sessionMatch[1]);
+   }
+   
+   return new Response(JSON.stringify({ success: true }), {
+     headers: {
+       'Content-Type': 'application/json',
+       'Set-Cookie': 'session=; Path=/; Max-Age=0'
+     }
+   });
+ }
+
+ // POST /api/change-password
+ if (path === "/api/change-password" && method === "POST") {
+   const cookies = req.headers.get('cookie') || '';
+   const sessionMatch = cookies.match(/session=([^;]+)/);
+   const sessionId = sessionMatch ? sessionMatch[1] : null;
+   
+   if (!validateSession(sessionId)) {
+     return jsonResponse({ success: false, message: '未登录' }, 401);
+   }
+   
+   try {
+     const body = await req.json();
+     const { oldPassword, newPassword, newUsername } = body;
+     
+     let storedUsername = 'admin';
+     let storedPassword = 'admin';
+     
+     try {
+       if (globals.redisValid) {
+         const { getRedisKey } = await import('./utils/redis-util.js');
+         const userResult = await getRedisKey('admin_username');
+         const passResult = await getRedisKey('admin_password');
+         if (userResult?.result) storedUsername = userResult.result;
+         if (passResult?.result) storedPassword = passResult.result;
+       } else if (globals.databaseValid) {
+         const { loadEnvConfigs } = await import('./utils/db-util.js');
+         const configs = await loadEnvConfigs();
+         if (configs.ADMIN_USERNAME) storedUsername = configs.ADMIN_USERNAME;
+         if (configs.ADMIN_PASSWORD) storedPassword = configs.ADMIN_PASSWORD;
+       }
+     } catch (e) {
+       log("warn", "[change-password] 加载账号密码失败");
+     }
+     
+     if (oldPassword !== storedPassword) {
+       return jsonResponse({ success: false, message: '旧密码错误' }, 400);
+     }
+     
+     const saveSuccess = await saveAdminCredentials(newUsername || storedUsername, newPassword);
+     
+     if (saveSuccess) {
+       return jsonResponse({ success: true, message: '密码修改成功' });
+     } else {
+       return jsonResponse({ success: false, message: '密码修改失败' }, 500);
+     }
+   } catch (error) {
+     return jsonResponse({ success: false, message: '修改失败' }, 500);
+   }
+ }
+
+ // 弹幕 API 路由
+ if (path === "/api/v2/search/anime" && method === "GET") {
+   return searchAnime(url);
+ }
+
+ if (path === "/api/v2/search/episodes" && method === "GET") {
+   return searchEpisodes(url);
+ }
+
+ if (path === "/api/v2/match" && method === "POST") {
+   return matchAnime(url, req);
+ }
+
+ if (path.startsWith("/api/v2/bangumi/") && method === "GET") {
+   return getBangumi(path);
+ }
+
+ if (path.startsWith("/api/v2/comment") && method === "GET") {
+   const queryFormat = url.searchParams.get('format');
+   const videoUrl = url.searchParams.get('url');
+
+   if (videoUrl) {
+     const cachedComments = getCommentCache(videoUrl);
+     if (cachedComments !== null) {
+       log("info", `[Rate Limit] Cache hit for URL: ${videoUrl}`);
+       const responseData = { count: cachedComments.length, comments: cachedComments };
+       return formatDanmuResponse(responseData, queryFormat);
+     }
+
+     if (globals.rateLimitMaxRequests > 0) {
+       const currentTime = Date.now();
+       const oneMinute = 60 * 1000;
+
+       cleanupExpiredIPs(currentTime);
+
+       if (!globals.requestHistory.has(clientIp)) {
+         globals.requestHistory.set(clientIp, []);
+       }
+
+       const history = globals.requestHistory.get(clientIp);
+       const recentRequests = history.filter(timestamp => currentTime - timestamp <= oneMinute);
+
+       if (recentRequests.length >= globals.rateLimitMaxRequests) {
+         log("warn", `[Rate Limit] IP ${clientIp} exceeded rate limit`);
+         return jsonResponse(
+           { errorCode: 429, success: false, errorMessage: "Too many requests" },
+           429
+         );
+       }
+
+       recentRequests.push(currentTime);
+       globals.requestHistory.set(clientIp, recentRequests);
+     }
+
+     return getCommentByUrl(videoUrl, queryFormat);
+   }
+
+   if (!path.startsWith("/api/v2/comment/")) {
+     return jsonResponse(
+       { errorCode: 400, success: false, errorMessage: "Missing commentId or url" },
+       400
+     );
+   }
+
+   const commentId = parseInt(path.split("/").pop());
+   let urlForComment = findUrlById(commentId);
+
+   if (urlForComment) {
+     const cachedComments = getCommentCache(urlForComment);
+     if (cachedComments !== null) {
+       const responseData = { count: cachedComments.length, comments: cachedComments };
+       return formatDanmuResponse(responseData, queryFormat);
+     }
+   }
+
+   if (globals.rateLimitMaxRequests > 0) {
+     const currentTime = Date.now();
+     const oneMinute = 60 * 1000;
+
+     cleanupExpiredIPs(currentTime);
+
+     if (!globals.requestHistory.has(clientIp)) {
+       globals.requestHistory.set(clientIp, []);
+     }
+
+     const history = globals.requestHistory.get(clientIp);
+     const recentRequests = history.filter(timestamp => currentTime - timestamp <= oneMinute);
+
+     if (recentRequests.length >= globals.rateLimitMaxRequests) {
+       return jsonResponse(
+         { errorCode: 429, success: false, errorMessage: "Too many requests" },
+         429
+       );
+     }
+
+     recentRequests.push(currentTime);
+     globals.requestHistory.set(clientIp, recentRequests);
+   }
+
+   return getComment(path, queryFormat);
+ }
+
+ if (path === "/api/logs" && method === "GET") {
+   const format = url.searchParams.get('format') || 'text';
+   const level = url.searchParams.get('level');
+   const limit = parseInt(url.searchParams.get('limit')) || globals.logBuffer.length;
+   const lastId = parseInt(url.searchParams.get('lastId')) || -1;
+
+   let logs = globals.logBuffer;
+
+   if (level) {
+     logs = logs.filter(log => log.level === level);
+   }
+
+   if (lastId >= 0) {
+     const lastIndex = logs.findIndex((log, index) => index > lastId);
+     if (lastIndex > 0) {
+       logs = logs.slice(lastIndex);
+     } else {
+       logs = [];
+     }
+   }
+
+   logs = logs.slice(-limit);
+
+   if (format === 'json') {
+     return jsonResponse({
+       success: true,
+       total: globals.logBuffer.length,
+       count: logs.length,
+       logs: logs,
+       maxLogs: globals.MAX_LOGS
+     });
+   }
+
+   const logText = logs
+     .map(
+       (log) =>
+         `[${log.timestamp}] ${log.level}: ${formatLogMessage(log.message)}`
+     )
+     .join("\n");
+   return new Response(logText, { headers: { "Content-Type": "text/plain; charset=utf-8" } });
+ }
+
+ return jsonResponse({ message: "Not found" }, 404);
+}
+
+function getLoginPage() {
+ const html = `
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+ <meta charset="UTF-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+ <meta name="theme-color" content="#667eea" media="(prefers-color-scheme: dark)">
+ <meta name="theme-color" content="#6366f1" media="(prefers-color-scheme: light)">
+ <title>登录 - 弹幕 API</title>
+ <style>
+   * { 
+     margin: 0; 
+     padding: 0; 
+     box-sizing: border-box;
+     -webkit-tap-highlight-color: transparent;
+   }
+   
+   :root {
+     --primary: #667eea;
+     --secondary: #764ba2;
+     --danger: #ef4444;
+     --bg: #0f172a;
+     --card-bg: #1e293b;
+     --text: #f1f5f9;
+     --text-secondary: #94a3b8;
+     --border: #334155;
+   }
+
+   [data-theme="light"] {
+     --primary: #6366f1;
+     --secondary: #8b5cf6;
+     --bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+     --card-bg: #ffffff;
+     --text: #0f172a;
+     --text-secondary: #64748b;
+     --border: #e2e8f0;
+   }
+
+   body {
+     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+     background: var(--bg);
+     min-height: 100vh;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+     padding: 1rem;
+     -webkit-font-smoothing: antialiased;
+     transition: background 0.3s ease;
+   }
+
+   [data-theme="dark"] body {
+     background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+   }
+
+   .login-container {
+     background: var(--card-bg);
+     border-radius: 20px;
+     padding: 2rem 1.5rem;
+     width: 100%;
+     max-width: 400px;
+     box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+     animation: slideUp 0.5s ease;
+     border: 1px solid var(--border);
+   }
+
+   @keyframes slideUp {
+     from {
+       opacity: 0;
+       transform: translateY(30px);
+     }
+     to {
+       opacity: 1;
+       transform: translateY(0);
+     }
+   }
+
+   .logo {
+     text-align: center;
+     margin-bottom: 2rem;
+   }
+
+   .logo-icon {
+     font-size: 4rem;
+     margin-bottom: 0.75rem;
+     animation: float 3s ease-in-out infinite;
+   }
+
+   @keyframes float {
+     0%, 100% { transform: translateY(0); }
+     50% { transform: translateY(-10px); }
+   }
+
+   .logo-title {
+     font-size: 1.5rem;
+     font-weight: 700;
+     background: linear-gradient(135deg, var(--primary), var(--secondary));
+     -webkit-background-clip: text;
+     -webkit-text-fill-color: transparent;
+     background-clip: text;
+     margin-bottom: 0.5rem;
+   }
+
+   .logo-subtitle {
+     font-size: 0.875rem;
+     color: var(--text-secondary);
+   }
+
+   .hint {
+     background: rgba(102, 126, 234, 0.1);
+     border-left: 4px solid var(--primary);
+     padding: 0.875rem 1rem;
+     border-radius: 10px;
+     margin-bottom: 1.5rem;
+     font-size: 0.8rem;
+     color: var(--text);
+     line-height: 1.5;
+   }
+
+   .hint strong {
+     color: var(--primary);
+     font-weight: 600;
+   }
+
+   .error-message {
+     background: rgba(239, 68, 68, 0.1);
+     border-left: 4px solid var(--danger);
+     color: var(--danger);
+     padding: 0.875rem 1rem;
+     border-radius: 10px;
+     margin-bottom: 1rem;
+     font-size: 0.8rem;
+     display: none;
+     animation: shake 0.5s ease;
+   }
+
+   @keyframes shake {
+     0%, 100% { transform: translateX(0); }
+     25% { transform: translateX(-10px); }
+     75% { transform: translateX(10px); }
+   }
+
+   .form-group {
+     margin-bottom: 1.25rem;
+   }
+
+   .form-label {
+     display: block;
+     font-size: 0.875rem;
+     font-weight: 600;
+     margin-bottom: 0.5rem;
+     color: var(--text);
+   }
+
+   .form-input {
+     width: 100%;
+     padding: 0.875rem 1rem;
+     border: 2px solid var(--border);
+     border-radius: 10px;
+     font-size: 1rem;
+     background: var(--card-bg);
+     color: var(--text);
+     transition: all 0.2s ease;
+   }
+
+   [data-theme="light"] .form-input {
+     background: #f8fafc;
+   }
+
+   .form-input:focus {
+     outline: none;
+     border-color: var(--primary);
+     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+   }
+
+   .btn-login {
+     width: 100%;
+     padding: 1rem;
+     background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+     color: white;
+     border: none;
+     border-radius: 10px;
+     font-size: 1rem;
+     font-weight: 600;
+     cursor: pointer;
+     transition: all 0.2s ease;
+     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+     min-height: 48px;
+   }
+
+   .btn-login:active {
+     transform: scale(0.98);
+   }
+
+   .btn-login:disabled {
+     opacity: 0.6;
+     cursor: not-allowed;
+     transform: none;
+   }
+
+   .footer {
+     text-align: center;
+     margin-top: 1.5rem;
+     font-size: 0.75rem;
+     color: var(--text-secondary);
+   }
+
+   @media (min-width: 480px) {
+     .login-container {
+       padding: 2.5rem 2rem;
+     }
+     
+     .logo-icon {
+       font-size: 4.5rem;
+     }
+   }
+
+   input {
+     font-size: 16px !important;
+   }
+ </style>
+</head>
+<body>
+ <div class="login-container">
+   <div class="logo">
+     <div class="logo-icon">🎬</div>
+     <h1 class="logo-title">弹幕 API</h1>
+     <p class="logo-subtitle">管理后台登录</p>
+   </div>
+
+   <div class="hint">
+     💡 默认账号密码均为 <strong>admin</strong>
+   </div>
+
+   <div id="errorMessage" class="error-message"></div>
+
+   <form id="loginForm">
+     <div class="form-group">
+       <label class="form-label">用户名</label>
+       <input type="text" class="form-input" id="username" placeholder="请输入用户名" required autofocus autocomplete="username">
+     </div>
+
+     <div class="form-group">
+       <label class="form-label">密码</label>
+       <input type="password" class="form-input" id="password" placeholder="请输入密码" required autocomplete="current-password">
+     </div>
+
+     <button type="submit" class="btn-login" id="loginBtn">登录</button>
+   </form>
+
+   <div class="footer">
+     弹幕 API 服务 | 安全登录
+   </div>
+ </div>
+
+ <script>
+   // 主题初始化
+   function initTheme() {
+     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+     const theme = prefersDark ? 'dark' : 'light';
+     document.documentElement.setAttribute('data-theme', theme);
+   }
+
+   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+     const theme = e.matches ? 'dark' : 'light';
+     document.documentElement.setAttribute('data-theme', theme);
+   });
+
+   initTheme();
+
+   const loginForm = document.getElementById('loginForm');
+   const errorMessage = document.getElementById('errorMessage');
+   const loginBtn = document.getElementById('loginBtn');
+
+   loginForm.addEventListener('submit', async (e) => {
+     e.preventDefault();
+     
+     const username = document.getElementById('username').value;
+     const password = document.getElementById('password').value;
+
+     errorMessage.style.display = 'none';
+     loginBtn.disabled = true;
+     loginBtn.textContent = '登录中...';
+
+     try {
+       const response = await fetch('/api/login', {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({ username, password })
+       });
+
+       const result = await response.json();
+
+       if (result.success) {
+         loginBtn.textContent = '✅ 登录成功';
+         setTimeout(() => {
+           window.location.href = '/';
+         }, 500);
+       } else {
+         errorMessage.textContent = result.message || '登录失败，请检查用户名和密码';
+         errorMessage.style.display = 'block';
+         loginBtn.disabled = false;
+         loginBtn.textContent = '登录';
+       }
+     } catch (error) {
+       errorMessage.textContent = '网络错误，请重试';
+       errorMessage.style.display = 'block';
+       loginBtn.disabled = false;
+       loginBtn.textContent = '登录';
+     }
+   });
+
+   // 防止双击缩放
+   let lastTouchEnd = 0;
+   document.addEventListener('touchend', (e) => {
+     const now = Date.now();
+     if (now - lastTouchEnd <= 300) {
+       e.preventDefault();
+     }
+     lastTouchEnd = now;
+   }, false);
+ </script>
+</body>
+</html>
+ `;
+
  return new Response(html, {
    headers: {
      'Content-Type': 'text/html; charset=utf-8',
@@ -2418,916 +3170,144 @@ function handleHomepage(req) {
  });
 }
 
-if (path === "/" && method === "GET") {
- return handleHomepage(req);
-}
-
-if (path === "/favicon.ico" || path === "/robots.txt") {
- return new Response(null, { status: 204 });
-}
-
-// POST /api/config/save
-if (path === "/api/config/save" && method === "POST") {
-  try {
-    const body = await req.json();
-    const { config } = body;
-
-    if (!config || typeof config !== 'object') {
-      return jsonResponse({
-        success: false,
-        errorMessage: "无效的配置数据"
-      }, 400);
-    }
-
-    log("info", `[config] 开始保存环境变量配置，共 ${Object.keys(config).length} 个`);
-
-    const sanitizedConfig = {};
-    for (const [key, value] of Object.entries(config)) {
-      if (value === null || value === undefined) {
-        log("warn", `[config] 跳过空值配置: ${key}`);
-        continue;
-      }
-
-      if (typeof value === 'string') {
-        sanitizedConfig[key] = value;
-      } else if (typeof value === 'boolean' || typeof value === 'number') {
-        sanitizedConfig[key] = String(value);
-      } else {
-        log("warn", `[config] 跳过无效类型配置: ${key} (${typeof value})`);
-      }
-    }
-
-    if (Object.keys(sanitizedConfig).length === 0) {
-      return jsonResponse({
-        success: false,
-        errorMessage: "没有有效的配置数据"
-      }, 400);
-    }
-
-    let dbSaved = false;
-    if (globals.databaseValid) {
-      try {
-        const { saveEnvConfigs } = await import('./utils/db-util.js');
-        dbSaved = await saveEnvConfigs(sanitizedConfig);
-        log("info", `[config] 数据库保存${dbSaved ? '成功' : '失败'}`);
-      } catch (e) {
-        log("warn", `[config] 保存到数据库失败: ${e.message}`);
-      }
-    }
-    
-    let redisSaved = false;
-    if (globals.redisValid) {
-      redisSaved = await mergeSaveToRedis('env_configs', sanitizedConfig);
-      log("info", `[config] Redis保存${redisSaved ? '成功' : '失败'}`);
-    }
-
-    try {
-      const { Globals } = await import('./configs/globals.js');
-      Globals.applyConfig(sanitizedConfig);
-      log("info", `[config] 配置已应用到运行时`);
-    } catch (e) {
-      log("error", `[config] 应用配置到运行时失败: ${e.message}`);
-    }
-
-    try {
-      await applyConfigPatch(sanitizedConfig);
-      log("info", `[config] 派生缓存已重建`);
-    } catch (e) {
-      log("warn", `[config] 重建派生缓存失败: ${e.message}`);
-    }
-
-    const savedTo = [];
-    if (dbSaved) savedTo.push('数据库');
-    if (redisSaved) savedTo.push('Redis');
-    savedTo.push('运行时内存');
-
-    log("info", `[config] 配置保存完成: ${savedTo.join('、')}`);
-    return jsonResponse({
-      success: true,
-      message: `配置已保存至 ${savedTo.join('、')}`,
-      savedTo,
-      appliedConfig: sanitizedConfig
-    });
-
-  } catch (error) {
-    log("error", `[config] 保存配置失败: ${error.message}`);
-    return jsonResponse({
-      success: false,
-      errorMessage: `保存失败: ${error.message}`
-    }, 500);
-  }
-}
-
-// GET /api/config/load
-if (path === "/api/config/load" && method === "GET") {
-  try {
-    log("info", "[config] 开始加载环境变量配置");
-
-    let config = {};
-    let loadedFrom = [];
-
-    if (globals.databaseValid) {
-      const { loadEnvConfigs } = await import('./utils/db-util.js');
-      const dbConfig = await loadEnvConfigs();
-      if (Object.keys(dbConfig).length > 0) {
-        config = { ...config, ...dbConfig };
-        loadedFrom.push('数据库');
-      }
-    }
-
-    if (globals.redisValid && Object.keys(config).length === 0) {
-      const { getRedisKey } = await import('./utils/redis-util.js');
-      const result = await getRedisKey('env_configs');
-      if (result && result.result) {
-        try {
-          const redisConfig = JSON.parse(result.result);
-          config = { ...config, ...redisConfig };
-          loadedFrom.push('Redis');
-        } catch (e) {
-          log("warn", "[config] Redis 配置解析失败");
-        }
-      }
-    }
-
-    if (Object.keys(config).length === 0) {
-      config = globals.accessedEnvVars;
-      loadedFrom.push('内存');
-    }
-
-    const serializedConfig = {};
-    for (const [key, value] of Object.entries(config)) {
-      if (value instanceof RegExp) {
-        serializedConfig[key] = value.source;
-      } else {
-        serializedConfig[key] = value;
-      }
-    }
-
-    log("info", `[config] 配置加载成功，来源: ${loadedFrom.join('、')}`);
-    return jsonResponse({
-      success: true,
-      config: serializedConfig,
-      loadedFrom
-    });
-
-  } catch (error) {
-    log("error", `[config] 加载配置失败: ${error.message}`);
-    return jsonResponse({
-      success: false,
-      errorMessage: `加载失败: ${error.message}`
-    }, 500);
-  }
-}
-
-// Token 验证
-const parts = path.split("/").filter(Boolean);
-const currentToken = String(globals.token || globals.envs.TOKEN || globals.accessedEnvVars.TOKEN || "87654321");
-log("info", `[Token Check] 当前 TOKEN: ${currentToken.substring(0, 3)}***`);
-
-if (currentToken === "87654321") {
-  const knownApiPaths = ["api", "v1", "v2"];
-  if (parts.length > 0) {
-    if (parts[0] === "87654321") {
-      path = "/" + parts.slice(1).join("/");
-    } else if (!knownApiPaths.includes(parts[0])) {
-      log("error", `Invalid token in path: ${path}`);
-      return jsonResponse(
-        { errorCode: 401, success: false, errorMessage: "Unauthorized" },
-        401
-      );
-    }
-  }
-} else {
-  if (parts.length < 1 || parts[0] !== currentToken) {
-    log("error", `Invalid or missing token`);
-    return jsonResponse(
-      { errorCode: 401, success: false, errorMessage: "Unauthorized" },
-      401
-    );
-  }
-  path = "/" + parts.slice(1).join("/");
-}
-
-log("info", path);
-
-// 路径规范化
-const excludedPaths = [
-  '/',
-  '/api/logs',
-  '/api/config/save',
-  '/api/config/load',
-  '/api/login',
-  '/api/logout',
-  '/api/change-password',
-  '/favicon.ico',
-  '/robots.txt'
-];
-
-const shouldNormalizePath = !excludedPaths.some(excluded => path === excluded || path.startsWith(excluded));
-
-if (shouldNormalizePath) {
-  while (path.startsWith('/api/v2/api/v2/')) {
-    path = path.substring('/api/v2'.length);
-  }
-
-  if (!path.startsWith('/api/v2')) {
-    path = '/api/v2' + path;
-  }
-}
-
-// POST /api/login
-if (path === "/api/login" && method === "POST") {
-  try {
-    const body = await req.json();
-    const { username, password } = body;
-    
-    let storedUsername = 'admin';
-    let storedPassword = 'admin';
-    
-    try {
-      if (globals.redisValid) {
-        const { getRedisKey } = await import('./utils/redis-util.js');
-        const userResult = await getRedisKey('admin_username');
-        const passResult = await getRedisKey('admin_password');
-        if (userResult?.result) storedUsername = userResult.result;
-        if (passResult?.result) storedPassword = passResult.result;
-      } else if (globals.databaseValid) {
-        const { loadEnvConfigs } = await import('./utils/db-util.js');
-        const configs = await loadEnvConfigs();
-        if (configs.ADMIN_USERNAME) storedUsername = configs.ADMIN_USERNAME;
-        if (configs.ADMIN_PASSWORD) storedPassword = configs.ADMIN_PASSWORD;
-      }
-    } catch (e) {
-      log("warn", "[login] 加载账号密码失败，使用默认值");
-    }
-    
-    if (username === storedUsername && password === storedPassword) {
-      const sessionId = generateSessionId();
-      sessions.set(sessionId, { 
-        username, 
-        createdAt: Date.now() 
-      });
-      
-      return new Response(JSON.stringify({ success: true }), {
-        headers: {
-          'Content-Type': 'application/json',
-          'Set-Cookie': `session=${sessionId}; Path=/; Max-Age=${SESSION_TIMEOUT / 1000}; HttpOnly; SameSite=Strict`
-        }
-      });
-    }
-    
-    return jsonResponse({ success: false, message: '用户名或密码错误' }, 401);
-  } catch (error) {
-    return jsonResponse({ success: false, message: '登录失败' }, 500);
-  }
-}
-
-// POST /api/logout
-if (path === "/api/logout" && method === "POST") {
-  const cookies = req.headers.get('cookie') || '';
-  const sessionMatch = cookies.match(/session=([^;]+)/);
-  if (sessionMatch) {
-    sessions.delete(sessionMatch[1]);
-  }
-  
-  return new Response(JSON.stringify({ success: true }), {
-    headers: {
-      'Content-Type': 'application/json',
-      'Set-Cookie': 'session=; Path=/; Max-Age=0'
-    }
-  });
-}
-
-// POST /api/change-password
-if (path === "/api/change-password" && method === "POST") {
-  const cookies = req.headers.get('cookie') || '';
-  const sessionMatch = cookies.match(/session=([^;]+)/);
-  const sessionId = sessionMatch ? sessionMatch[1] : null;
-  
-  if (!validateSession(sessionId)) {
-    return jsonResponse({ success: false, message: '未登录' }, 401);
-  }
-  
-  try {
-    const body = await req.json();
-    const { oldPassword, newPassword, newUsername } = body;
-    
-    let storedUsername = 'admin';
-    let storedPassword = 'admin';
-    
-    try {
-      if (globals.redisValid) {
-        const { getRedisKey } = await import('./utils/redis-util.js');
-        const userResult = await getRedisKey('admin_username');
-        const passResult = await getRedisKey('admin_password');
-        if (userResult?.result) storedUsername = userResult.result;
-        if (passResult?.result) storedPassword = passResult.result;
-      } else if (globals.databaseValid) {
-        const { loadEnvConfigs } = await import('./utils/db-util.js');
-        const configs = await loadEnvConfigs();
-        if (configs.ADMIN_USERNAME) storedUsername = configs.ADMIN_USERNAME;
-        if (configs.ADMIN_PASSWORD) storedPassword = configs.ADMIN_PASSWORD;
-      }
-    } catch (e) {
-      log("warn", "[change-password] 加载账号密码失败");
-    }
-    
-    if (oldPassword !== storedPassword) {
-      return jsonResponse({ success: false, message: '旧密码错误' }, 400);
-    }
-    
-    const saveSuccess = await saveAdminCredentials(newUsername || storedUsername, newPassword);
-    
-    if (saveSuccess) {
-      return jsonResponse({ success: true, message: '密码修改成功' });
-    } else {
-      return jsonResponse({ success: false, message: '密码修改失败' }, 500);
-    }
-  } catch (error) {
-    return jsonResponse({ success: false, message: '修改失败' }, 500);
-  }
-}
-
-// 弹幕 API 路由（保持完整）
-if (path === "/api/v2/search/anime" && method === "GET") {
-  return searchAnime(url);
-}
-
-if (path === "/api/v2/search/episodes" && method === "GET") {
-  return searchEpisodes(url);
-}
-
-if (path === "/api/v2/match" && method === "POST") {
-  return matchAnime(url, req);
-}
-
-if (path.startsWith("/api/v2/bangumi/") && method === "GET") {
-  return getBangumi(path);
-}
-
-if (path.startsWith("/api/v2/comment") && method === "GET") {
-  const queryFormat = url.searchParams.get('format');
-  const videoUrl = url.searchParams.get('url');
-
-  if (videoUrl) {
-    const cachedComments = getCommentCache(videoUrl);
-    if (cachedComments !== null) {
-      log("info", `[Rate Limit] Cache hit for URL: ${videoUrl}`);
-      const responseData = { count: cachedComments.length, comments: cachedComments };
-      return formatDanmuResponse(responseData, queryFormat);
-    }
-
-    if (globals.rateLimitMaxRequests > 0) {
-      const currentTime = Date.now();
-      const oneMinute = 60 * 1000;
-
-      cleanupExpiredIPs(currentTime);
-
-      if (!globals.requestHistory.has(clientIp)) {
-        globals.requestHistory.set(clientIp, []);
-      }
-
-      const history = globals.requestHistory.get(clientIp);
-      const recentRequests = history.filter(timestamp => currentTime - timestamp <= oneMinute);
-
-      if (recentRequests.length >= globals.rateLimitMaxRequests) {
-        log("warn", `[Rate Limit] IP ${clientIp} exceeded rate limit`);
-        return jsonResponse(
-          { errorCode: 429, success: false, errorMessage: "Too many requests" },
-          429
-        );
-      }
-
-      recentRequests.push(currentTime);
-      globals.requestHistory.set(clientIp, recentRequests);
-    }
-
-    return getCommentByUrl(videoUrl, queryFormat);
-  }
-
-  if (!path.startsWith("/api/v2/comment/")) {
-    return jsonResponse(
-      { errorCode: 400, success: false, errorMessage: "Missing commentId or url" },
-      400
-    );
-  }
-
-  const commentId = parseInt(path.split("/").pop());
-  let urlForComment = findUrlById(commentId);
-
-  if (urlForComment) {
-    const cachedComments = getCommentCache(urlForComment);
-    if (cachedComments !== null) {
-      const responseData = { count: cachedComments.length, comments: cachedComments };
-      return formatDanmuResponse(responseData, queryFormat);
-    }
-  }
-
-  if (globals.rateLimitMaxRequests > 0) {
-    const currentTime = Date.now();
-    const oneMinute = 60 * 1000;
-
-    cleanupExpiredIPs(currentTime);
-
-    if (!globals.requestHistory.has(clientIp)) {
-      globals.requestHistory.set(clientIp, []);
-    }
-
-    const history = globals.requestHistory.get(clientIp);
-    const recentRequests = history.filter(timestamp => currentTime - timestamp <= oneMinute);
-
-    if (recentRequests.length >= globals.rateLimitMaxRequests) {
-      return jsonResponse(
-        { errorCode: 429, success: false, errorMessage: "Too many requests" },
-        429
-      );
-    }
-
-    recentRequests.push(currentTime);
-    globals.requestHistory.set(clientIp, recentRequests);
-  }
-
-  return getComment(path, queryFormat);
-}
-
-if (path === "/api/logs" && method === "GET") {
-  const format = url.searchParams.get('format') || 'text';
-  const level = url.searchParams.get('level');
-  const limit = parseInt(url.searchParams.get('limit')) || globals.logBuffer.length;
-  const lastId = parseInt(url.searchParams.get('lastId')) || -1;
-
-  let logs = globals.logBuffer;
-
-  if (level) {
-    logs = logs.filter(log => log.level === level);
-  }
-
-  if (lastId >= 0) {
-    const lastIndex = logs.findIndex((log, index) => index > lastId);
-    if (lastIndex > 0) {
-      logs = logs.slice(lastIndex);
-    } else {
-      logs = [];
-    }
-  }
-
-  logs = logs.slice(-limit);
-
-  if (format === 'json') {
-    return jsonResponse({
-      success: true,
-      total: globals.logBuffer.length,
-      count: logs.length,
-      logs: logs,
-      maxLogs: globals.MAX_LOGS
-    });
-  }
-
-  const logText = logs
-    .map(
-      (log) =>
-        `[${log.timestamp}] ${log.level}: ${formatLogMessage(log.message)}`
-    )
-    .join("\n");
-  return new Response(logText, { headers: { "Content-Type": "text/plain; charset=utf-8" } });
-}
-
-return jsonResponse({ message: "Not found" }, 404);
-}
-
-function getLoginPage() {
-const html = `
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="theme-color" content="#667eea">
-<title>登录 - 弹幕 API</title>
-<style>
-  * { 
-    margin: 0; 
-    padding: 0; 
-    box-sizing: border-box;
-    -webkit-tap-highlight-color: transparent;
-  }
-  
-  :root {
-    --primary: #667eea;
-    --secondary: #764ba2;
-    --danger: #ef4444;
-  }
-
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 1rem;
-    -webkit-font-smoothing: antialiased;
-  }
-
-  .login-container {
-    background: white;
-    border-radius: 20px;
-    padding: 2rem 1.5rem;
-    width: 100%;
-    max-width: 400px;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-    animation: slideUp 0.5s ease;
-  }
-
-  @keyframes slideUp {
-    from {
-      opacity: 0;
-      transform: translateY(30px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  .logo {
-    text-align: center;
-    margin-bottom: 2rem;
-  }
-
-  .logo-icon {
-    font-size: 4rem;
-    margin-bottom: 0.75rem;
-    animation: float 3s ease-in-out infinite;
-  }
-
-  @keyframes float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-10px); }
-  }
-
-  .logo-title {
-    font-size: 1.5rem;
-    font-weight: 700;
-    background: linear-gradient(135deg, var(--primary), var(--secondary));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    margin-bottom: 0.5rem;
-  }
-
-  .logo-subtitle {
-    font-size: 0.875rem;
-    color: #64748b;
-  }
-
-  .hint {
-    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
-    border-left: 4px solid var(--primary);
-    padding: 0.875rem 1rem;
-    border-radius: 10px;
-    margin-bottom: 1.5rem;
-    font-size: 0.8rem;
-    color: #334155;
-    line-height: 1.5;
-  }
-
-  .hint strong {
-    color: var(--primary);
-    font-weight: 600;
-  }
-
-  .error-message {
-    background: rgba(239, 68, 68, 0.1);
-    border-left: 4px solid var(--danger);
-    color: #dc2626;
-    padding: 0.875rem 1rem;
-    border-radius: 10px;
-    margin-bottom: 1rem;
-    font-size: 0.8rem;
-    display: none;
-    animation: shake 0.5s ease;
-  }
-
-  @keyframes shake {
-    0%, 100% { transform: translateX(0); }
-    25% { transform: translateX(-10px); }
-    75% { transform: translateX(10px); }
-  }
-
-  .form-group {
-    margin-bottom: 1.25rem;
-  }
-
-  .form-label {
-    display: block;
-    font-size: 0.875rem;
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-    color: #0f172a;
-  }
-
-  .form-input {
-    width: 100%;
-    padding: 0.875rem 1rem;
-    border: 2px solid #e2e8f0;
-    border-radius: 10px;
-    font-size: 1rem;
-    background: #f8fafc;
-    color: #0f172a;
-    transition: all 0.2s ease;
-  }
-
-  .form-input:focus {
-    outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-    background: white;
-  }
-
-  .btn-login {
-    width: 100%;
-    padding: 1rem;
-    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-    color: white;
-    border: none;
-    border-radius: 10px;
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-    min-height: 48px;
-  }
-
-  .btn-login:active {
-    transform: scale(0.98);
-  }
-
-  .btn-login:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
-  }
-
-  .footer {
-    text-align: center;
-    margin-top: 1.5rem;
-    font-size: 0.75rem;
-    color: #64748b;
-  }
-
-  @media (min-width: 480px) {
-    .login-container {
-      padding: 2.5rem 2rem;
-    }
-    
-    .logo-icon {
-      font-size: 4.5rem;
-    }
-  }
-
-  /* 防止输入框缩放 */
-  input {
-    font-size: 16px !important;
-  }
-</style>
-</head>
-<body>
-<div class="login-container">
-  <div class="logo">
-    <div class="logo-icon">🎬</div>
-    <h1 class="logo-title">弹幕 API</h1>
-    <p class="logo-subtitle">管理后台登录</p>
-  </div>
-
-  <div class="hint">
-    💡 默认账号密码均为 <strong>admin</strong>
-  </div>
-
-  <div id="errorMessage" class="error-message"></div>
-
-  <form id="loginForm">
-    <div class="form-group">
-      <label class="form-label">用户名</label>
-      <input type="text" class="form-input" id="username" placeholder="请输入用户名" required autofocus autocomplete="username">
-    </div>
-
-    <div class="form-group">
-      <label class="form-label">密码</label>
-      <input type="password" class="form-input" id="password" placeholder="请输入密码" required autocomplete="current-password">
-    </div>
-
-    <button type="submit" class="btn-login" id="loginBtn">登录</button>
-  </form>
-
-  <div class="footer">
-    弹幕 API 服务 | 安全登录
-  </div>
-</div>
-
-<script>
-  const loginForm = document.getElementById('loginForm');
-  const errorMessage = document.getElementById('errorMessage');
-  const loginBtn = document.getElementById('loginBtn');
-
-  loginForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const username = document.getElementById('username').value;
-    const password = document.getElementById('password').value;
-
-    errorMessage.style.display = 'none';
-    loginBtn.disabled = true;
-    loginBtn.textContent = '登录中...';
-
-    try {
-      const response = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        loginBtn.textContent = '✅ 登录成功';
-        setTimeout(() => {
-          window.location.href = '/';
-        }, 500);
-      } else {
-        errorMessage.textContent = result.message || '登录失败，请检查用户名和密码';
-        errorMessage.style.display = 'block';
-        loginBtn.disabled = false;
-        loginBtn.textContent = '登录';
-      }
-    } catch (error) {
-      errorMessage.textContent = '网络错误，请重试';
-      errorMessage.style.display = 'block';
-      loginBtn.disabled = false;
-      loginBtn.textContent = '登录';
-    }
-  });
-
-  // 防止双击缩放
-  let lastTouchEnd = 0;
-  document.addEventListener('touchend', (e) => {
-    const now = Date.now();
-    if (now - lastTouchEnd <= 300) {
-      e.preventDefault();
-    }
-    lastTouchEnd = now;
-  }, false);
-</script>
-</body>
-</html>
-`;
-
-return new Response(html, {
-  headers: {
-    'Content-Type': 'text/html; charset=utf-8',
-    'Cache-Control': 'no-cache'
-  }
-});
-}
-
 async function saveAdminCredentials(username, password) {
-try {
-  let saved = false;
-  
-  if (globals.redisValid) {
-    const { setRedisKey } = await import('./utils/redis-util.js');
-    const userResult = await setRedisKey('admin_username', username, true);
-    const passResult = await setRedisKey('admin_password', password, true);
-    saved = userResult?.result === 'OK' && passResult?.result === 'OK';
-    log("info", `[save-credentials] Redis 保存${saved ? '成功' : '失败'}`);
-  }
-  
-  if (globals.databaseValid) {
-    const { saveEnvConfigs } = await import('./utils/db-util.js');
-    const dbSaved = await saveEnvConfigs({
-      ADMIN_USERNAME: username,
-      ADMIN_PASSWORD: password
-    });
-    saved = saved || dbSaved;
-    log("info", `[save-credentials] 数据库保存${dbSaved ? '成功' : '失败'}`);
-  }
-  
-  return saved;
-} catch (error) {
-  log("error", `[save-credentials] 保存失败: ${error.message}`);
-  return false;
-}
+ try {
+   let saved = false;
+   
+   if (globals.redisValid) {
+     const { setRedisKey } = await import('./utils/redis-util.js');
+     const userResult = await setRedisKey('admin_username', username, true);
+     const passResult = await setRedisKey('admin_password', password, true);
+     saved = userResult?.result === 'OK' && passResult?.result === 'OK';
+     log("info", `[save-credentials] Redis 保存${saved ? '成功' : '失败'}`);
+   }
+   
+   if (globals.databaseValid) {
+     const { saveEnvConfigs } = await import('./utils/db-util.js');
+     const dbSaved = await saveEnvConfigs({
+       ADMIN_USERNAME: username,
+       ADMIN_PASSWORD: password
+     });
+     saved = saved || dbSaved;
+     log("info", `[save-credentials] 数据库保存${dbSaved ? '成功' : '失败'}`);
+   }
+   
+   return saved;
+ } catch (error) {
+   log("error", `[save-credentials] 保存失败: ${error.message}`);
+   return false;
+ }
 }
 
 // Cloudflare Workers 入口
 export default {
-async fetch(request, env, ctx) {
-  const clientIp = request.headers.get('cf-connecting-ip') || 
-                   request.headers.get('x-forwarded-for') || 
-                   'unknown';
-  return handleRequest(request, env, "cloudflare", clientIp);
-},
+ async fetch(request, env, ctx) {
+   const clientIp = request.headers.get('cf-connecting-ip') || 
+                    request.headers.get('x-forwarded-for') || 
+                    'unknown';
+   return handleRequest(request, env, "cloudflare", clientIp);
+ },
 };
 
 // Vercel 入口
 export async function vercelHandler(req, res) {
-try {
-  const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || 
-                   req.headers['x-real-ip'] || 
-                   req.socket?.remoteAddress || 
-                   'unknown';
+ try {
+   const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || 
+                    req.headers['x-real-ip'] || 
+                    req.socket?.remoteAddress || 
+                    'unknown';
 
-  const protocol = req.headers['x-forwarded-proto'] || 'https';
-  const host = req.headers['host'] || 'localhost';
-  const fullUrl = `${protocol}://${host}${req.url}`;
+   const protocol = req.headers['x-forwarded-proto'] || 'https';
+   const host = req.headers['host'] || 'localhost';
+   const fullUrl = `${protocol}://${host}${req.url}`;
 
-  let body = undefined;
-  if (req.method === "POST" || req.method === "PUT") {
-    if (typeof req.body === 'string') {
-      body = req.body;
-    } else if (req.body && typeof req.body === 'object') {
-      body = JSON.stringify(req.body);
-    }
-  }
+   let body = undefined;
+   if (req.method === "POST" || req.method === "PUT") {
+     if (typeof req.body === 'string') {
+       body = req.body;
+     } else if (req.body && typeof req.body === 'object') {
+       body = JSON.stringify(req.body);
+     }
+   }
 
-  const cfReq = new Request(fullUrl, {
-    method: req.method,
-    headers: req.headers,
-    body: body,
-  });
+   const cfReq = new Request(fullUrl, {
+     method: req.method,
+     headers: req.headers,
+     body: body,
+   });
 
-  const response = await handleRequest(cfReq, process.env, "vercel", clientIp);
+   const response = await handleRequest(cfReq, process.env, "vercel", clientIp);
 
-  res.status(response.status);
-  response.headers.forEach((value, key) => {
-    res.setHeader(key, value);
-  });
+   res.status(response.status);
+   response.headers.forEach((value, key) => {
+     res.setHeader(key, value);
+   });
 
-  const text = await response.text();
-  res.send(text);
-} catch (error) {
-  console.error('Vercel handler error:', error);
-  res.status(500).json({ 
-    errorCode: 500, 
-    success: false, 
-    errorMessage: "Internal Server Error",
-    error: error.message 
-  });
-}
+   const text = await response.text();
+   res.send(text);
+ } catch (error) {
+   console.error('Vercel handler error:', error);
+   res.status(500).json({ 
+     errorCode: 500, 
+     success: false, 
+     errorMessage: "Internal Server Error",
+     error: error.message 
+   });
+ }
 }
 
 // Netlify 入口
 export async function netlifyHandler(event, context) {
-try {
-  const clientIp = event.headers['x-nf-client-connection-ip'] ||
-                   event.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
-                   context.ip ||
-                   'unknown';
+ try {
+   const clientIp = event.headers['x-nf-client-connection-ip'] ||
+                    event.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
+                    context.ip ||
+                    'unknown';
 
-  const url = event.rawUrl || `https://${event.headers.host}${event.path}`;
+   const url = event.rawUrl || `https://${event.headers.host}${event.path}`;
 
-  let body = undefined;
-  if (event.body) {
-    if (event.isBase64Encoded) {
-      body = Buffer.from(event.body, 'base64').toString('utf-8');
-    } else {
-      body = event.body;
-    }
-  }
+   let body = undefined;
+   if (event.body) {
+     if (event.isBase64Encoded) {
+       body = Buffer.from(event.body, 'base64').toString('utf-8');
+     } else {
+       body = event.body;
+     }
+   }
 
-  const request = new Request(url, {
-    method: event.httpMethod,
-    headers: new Headers(event.headers),
-    body: body,
-  });
+   const request = new Request(url, {
+     method: event.httpMethod,
+     headers: new Headers(event.headers),
+     body: body,
+   });
 
-  const response = await handleRequest(request, process.env, "netlify", clientIp);
+   const response = await handleRequest(request, process.env, "netlify", clientIp);
 
-  const headers = {};
-  response.headers.forEach((value, key) => {
-    headers[key] = value;
-  });
+   const headers = {};
+   response.headers.forEach((value, key) => {
+     headers[key] = value;
+   });
 
-  return {
-    statusCode: response.status,
-    headers,
-    body: await response.text(),
-  };
-} catch (error) {
-  console.error('Netlify handler error:', error);
-  return {
-    statusCode: 500,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ 
-      errorCode: 500, 
-      success: false, 
-      errorMessage: "Internal Server Error",
-      error: error.message 
-    }),
-  };
-}
+   return {
+     statusCode: response.status,
+     headers,
+     body: await response.text(),
+   };
+ } catch (error) {
+   console.error('Netlify handler error:', error);
+   return {
+     statusCode: 500,
+     headers: { 'Content-Type': 'application/json' },
+     body: JSON.stringify({ 
+       errorCode: 500, 
+       success: false, 
+       errorMessage: "Internal Server Error",
+       error: error.message 
+     }),
+   };
+ }
 }
 
 export { handleRequest };
+
 
