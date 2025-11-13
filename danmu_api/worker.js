@@ -4934,7 +4934,7 @@ async function handleHomepage(req) {
        : LogManager.logs.filter(log => log.level === LogManager.currentFilter);
      
      if (filteredLogs.length === 0) {
-       logContent.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--text-tertiary); font-size: 13px;">暂无日志</div>';
+       logContent.innerHTML = '<div style="text-align: center; padding: 3rem; color: var(--text-tertiary);">暂无日志</div>';
        return;
      }
      
@@ -4950,25 +4950,10 @@ async function handleHomepage(req) {
          .replace(/"/g, '&quot;')
          .replace(/'/g, '&#39;');
        
-       // 格式化时间戳：只显示月-日 时:分:秒
-       let formattedTime = '';
-       if (log.timestamp) {
-         try {
-           const date = new Date(log.timestamp);
-           const month = String(date.getMonth() + 1).padStart(2, '0');
-           const day = String(date.getDate()).padStart(2, '0');
-           const hours = String(date.getHours()).padStart(2, '0');
-           const minutes = String(date.getMinutes()).padStart(2, '0');
-           const seconds = String(date.getSeconds()).padStart(2, '0');
-           formattedTime = `${month}-${day} ${hours}:${minutes}:${seconds}`;
-         } catch (e) {
-           formattedTime = log.timestamp;
-         }
-       }
-       
+       const shortTime = log.timestamp ? log.timestamp.substring(5, 19) : '';
        return `
          <div class="log-line ${log.level}">
-           <span class="log-timestamp">${formattedTime}</span>
+           <span class="log-timestamp">${shortTime}</span>
            <span class="log-level">[${log.level}]</span>
            <span>${escapedMessage}</span>
          </div>
