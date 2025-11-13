@@ -2181,7 +2181,7 @@ async function handleHomepage(req, deployPlatform) {
              <span>限制条数</span>
              <div style="display: flex; align-items: center; gap: 0.5rem;">
                <span class="config-value" id="danmuLimitValue">-1 (不限制)</span>
-               <button class="lock-btn" onclick="toggleSliderLock('danmuLimit')" id="danmuLimitLock" title="点击解锁"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6zm9 14H6V10h12v10zm-6-3c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"/></svg></button>
+               <button class="lock-btn" onclick="toggleSliderLock('danmuLimit')" id="danmuLimitLock" title="点击解锁">🔒</button>
              </div>
            </div>
            <div class="slider-container">
@@ -2198,11 +2198,10 @@ async function handleHomepage(req, deployPlatform) {
          <div class="config-control">
            <div class="config-label">
              <span>占比百分比</span>
-               <div style="display: flex; align-items: center; gap: 0.5rem;">
-                 <span class="config-value" id="whiteRatioValue">${globals.envs.WHITE_RATIO || 30}%</span>
-                 <button class="lock-btn" onclick="toggleSliderLock('whiteRatio')" id="whiteRatioLock" title="点击解锁"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6zm9 14H6V10h12v10zm-6-3c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"/></svg></button>
-               </div>
-
+             <div style="display: flex; align-items: center; gap: 0.5rem;">
+               <span class="config-value" id="whiteRatioValue">${globals.envs.WHITE_RATIO || 30}%</span>
+               <button class="lock-btn" onclick="toggleSliderLock('whiteRatio')" id="whiteRatioLock" title="点击解锁">🔒</button>
+             </div>
            </div>
            <div class="slider-container">
              <input type="range" min="0" max="100" value="${globals.envs.WHITE_RATIO || 30}" class="slider locked" id="whiteRatioSlider" oninput="updateWhiteRatio(this.value)" disabled>
@@ -2218,11 +2217,10 @@ async function handleHomepage(req, deployPlatform) {
          <div class="config-control">
            <div class="config-label">
              <span>时间窗口（分钟）</span>
-               <div style="display: flex; align-items: center; gap: 0.5rem;">
-                 <span class="config-value" id="groupMinuteValue">${globals.envs.GROUP_MINUTE || 1} 分钟</span>
-                 <button class="lock-btn" onclick="toggleSliderLock('groupMinute')" id="groupMinuteLock" title="点击解锁"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6zm9 14H6V10h12v10zm-6-3c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"/></svg></button>
-               </div>
-
+             <div style="display: flex; align-items: center; gap: 0.5rem;">
+               <span class="config-value" id="groupMinuteValue">${globals.envs.GROUP_MINUTE || 1} 分钟</span>
+               <button class="lock-btn" onclick="toggleSliderLock('groupMinute')" id="groupMinuteLock" title="点击解锁">🔒</button>
+             </div>
            </div>
            <div class="slider-container">
              <input type="range" min="1" max="10" value="${globals.envs.GROUP_MINUTE || 1}" class="slider locked" id="groupMinuteSlider" oninput="updateGroupMinute(this.value)" disabled>
