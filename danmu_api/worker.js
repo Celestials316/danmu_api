@@ -2798,7 +2798,7 @@ async function handleHomepage(req) {
      border-radius: 12px;
      padding: 16px;
      min-height: 400px;
-     max-height: 500px;
+     max-height: 600px;
      overflow-y: auto;
    }
 
@@ -2846,13 +2846,14 @@ async function handleHomepage(req) {
    }
 
    .log-line {
-     padding: 8px 12px;
-     margin-bottom: 4px;
-     border-radius: 6px;
-     line-height: 1.6;
+     padding: 4px 8px;
+     margin-bottom: 2px;
+     border-radius: 4px;
+     line-height: 1.4;
      word-break: break-all;
-     font-size: 12px;
+     font-size: 11px;
      transition: all 0.2s var(--ease-smooth);
+     border-left: 2px solid transparent;
    }
 
    .log-line:hover {
@@ -2861,36 +2862,33 @@ async function handleHomepage(req) {
 
    .log-line.info {
      color: var(--info);
-     border-left: 3px solid var(--info);
-     background: rgba(59, 130, 246, 0.05);
+     border-left-color: var(--info);
    }
 
    .log-line.warn {
      color: var(--warning);
-     border-left: 3px solid var(--warning);
-     background: rgba(245, 158, 11, 0.05);
+     border-left-color: var(--warning);
    }
 
    .log-line.error {
      color: var(--error);
-     border-left: 3px solid var(--error);
-     background: rgba(239, 68, 68, 0.05);
+     border-left-color: var(--error);
    }
 
    .log-timestamp {
      opacity: 0.7;
-     margin-right: 8px;
-     font-size: 11px;
+     margin-right: 6px;
+     font-size: 10px;
      color: var(--text-tertiary);
    }
 
    .log-level {
      display: inline-block;
-     padding: 2px 8px;
-     border-radius: 4px;
-     font-size: 10px;
+     padding: 1px 6px;
+     border-radius: 3px;
+     font-size: 9px;
      font-weight: 700;
-     margin-right: 8px;
+     margin-right: 6px;
      text-transform: uppercase;
    }
 
@@ -2913,7 +2911,7 @@ async function handleHomepage(req) {
    @media (max-width: 768px) {
      .log-container {
        min-height: 300px;
-       max-height: 400px;
+       max-height: 500px;
      }
 
      .log-header {
@@ -2929,6 +2927,19 @@ async function handleHomepage(req) {
        flex: 1;
        text-align: center;
        min-width: 60px;
+     }
+
+     .log-line {
+       font-size: 10px;
+     }
+
+     .log-timestamp {
+       font-size: 9px;
+     }
+
+     .log-level {
+       font-size: 8px;
+       padding: 1px 4px;
      }
    }
 
@@ -3946,7 +3957,7 @@ async function handleHomepage(req) {
 
  <!-- 日志查看模态框 -->
  <div class="modal-overlay" id="logsModal">
-   <div class="modal" style="max-width: 900px;">
+   <div class="modal" style="max-width: 1000px; max-height: 90vh;">
      <div class="modal-header">
        <h3 class="modal-title">
          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor">
@@ -3960,7 +3971,7 @@ async function handleHomepage(req) {
          </svg>
        </button>
      </div>
-     <div class="modal-body" style="max-height: 65vh; overflow-y: auto;">
+     <div class="modal-body" style="max-height: 70vh; overflow-y: auto; padding: 0;">
        <div class="log-container">
          <div class="log-header">
            <span style="font-weight: 600; font-size: 14px; color: var(--text-primary);">📋 实时日志</span>
@@ -3972,7 +3983,7 @@ async function handleHomepage(req) {
              <button class="log-filter" onclick="clearLogs()" style="margin-left: 8px;">🗑️ 清空</button>
            </div>
          </div>
-         <div id="logContent" style="font-family: 'Monaco', 'Menlo', 'Consolas', monospace; font-size: 12px; line-height: 1.6; color: var(--text-secondary); white-space: pre-wrap; word-break: break-all;"></div>
+         <div id="logContent" style="font-family: 'Monaco', 'Menlo', 'Consolas', monospace; font-size: 11px; line-height: 1.5; color: var(--text-secondary); white-space: pre-wrap; word-break: break-all;"></div>
        </div>
      </div>
      <div class="modal-footer">
