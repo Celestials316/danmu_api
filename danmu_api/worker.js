@@ -976,6 +976,54 @@ async function handleHomepage(req, deployPlatform) {
      display: grid;
      gap: 1rem;
    }
+   /* 环境变量统计横幅 */
+   .env-stats-banner {
+     display: grid;
+     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+     gap: 0.75rem;
+     margin-bottom: 1.5rem;
+     padding: 1rem;
+     background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+     border-radius: 12px;
+     border: 2px solid var(--border);
+   }
+
+   .env-stat-item {
+     display: flex;
+     align-items: center;
+     gap: 0.75rem;
+     padding: 0.75rem;
+     background: var(--bg-2);
+     border-radius: 10px;
+     transition: all 0.2s ease;
+   }
+
+   .env-stat-item:active {
+     transform: scale(0.98);
+   }
+
+   .env-stat-icon {
+     font-size: 1.5rem;
+     flex-shrink: 0;
+   }
+
+   .env-stat-content {
+     flex: 1;
+     min-width: 0;
+   }
+
+   .env-stat-label {
+     font-size: 0.7rem;
+     color: var(--text-3);
+     margin-bottom: 0.25rem;
+   }
+
+   .env-stat-value {
+     font-size: 0.85rem;
+     font-weight: 600;
+     color: var(--primary);
+     word-break: break-all;
+   }
 
    .config-group {
      background: var(--bg-3);
@@ -1788,6 +1836,16 @@ async function handleHomepage(req, deployPlatform) {
 
  <div class="container">
    <div class="dashboard">
+     <div class="stat-card" onclick="showApiInfo()" style="cursor: pointer;" title="点击查看API信息">
+       <div class="stat-header">
+         <div class="stat-icon">🔗</div>
+         <span class="stat-status status-online">API</span>
+       </div>
+       <div class="stat-title">接口地址</div>
+       <div class="stat-value" style="font-size: 0.9rem; word-break: break-all;">${window.location.origin}</div>
+       <div class="stat-footer">点击复制完整API</div>
+     </div>
+     
      <div class="stat-card">
        <div class="stat-header">
          <div class="stat-icon">⚙️</div>
@@ -1845,6 +1903,36 @@ async function handleHomepage(req, deployPlatform) {
          <span>⚡ 快速配置</span>
        </h2>
      </div>
+     
+     <!-- 环境变量统计信息 -->
+     <div class="env-stats-banner">
+       <div class="env-stat-item">
+         <div class="env-stat-icon">📦</div>
+         <div class="env-stat-content">
+           <div class="env-stat-label">存储方式</div>
+           <div class="env-stat-value">${
+             globals.databaseValid ? 'Database' : 
+             (globals.redisUrl && globals.redisToken && globals.redisValid) ? 'Redis' : 
+             'Memory'
+           }</div>
+         </div>
+       </div>
+       <div class="env-stat-item">
+         <div class="env-stat-icon">🔧</div>
+         <div class="env-stat-content">
+           <div class="env-stat-label">已配置项</div>
+           <div class="env-stat-value">${configuredEnvCount} / ${totalEnvCount}</div>
+         </div>
+       </div>
+       <div class="env-stat-item">
+         <div class="env-stat-icon">🎯</div>
+         <div class="env-stat-content">
+           <div class="env-stat-label">弹幕源</div>
+           <div class="env-stat-value">${globals.sourceOrderArr[0] || 'DanDan'}</div>
+         </div>
+       </div>
+     </div>
+     
      <div class="quick-configs">
        <div class="config-group">
          <div class="config-group-title">🎯 弹幕数量</div>
@@ -1927,28 +2015,14 @@ async function handleHomepage(req, deployPlatform) {
          <div class="config-group-title">💾 快速操作</div>
          <div class="config-control">
            <button class="btn btn-primary" style="width: 100%; margin-bottom: 0.5rem;" onclick="saveQuickConfigs()">💾 保存快速配置</button>
-           <button class="btn btn-secondary" style="width: 100%;" onclick="resetQuickConfigs()">🔄 重置为默认</button>
+           <button class="btn btn-secondary" style="width: 100%; margin-bottom: 0.5rem;" onclick="resetQuickConfigs()">🔄 重置为默认</button>
+           <button class="btn btn-secondary" style="width: 100%;" onclick="showAllEnvs()">🗂️ 全部环境变量</button>
          </div>
        </div>
      </div>
    </div>
 
-   <div class="section">
-     <div class="section-header">
-       <h2 class="section-title">
-         <span>🔧 环境变量</span>
-       </h2>
-       <button class="btn btn-primary btn-small" onclick="saveAll()">💾 保存</button>
-     </div>
-     
-     <div class="search-box">
-       <input type="text" class="search-input" placeholder="搜索配置项..." id="searchInput" oninput="filterEnvs()">
-     </div>
-
-     <div class="env-grid" id="envGrid">
-       ${envItemsHtml}
-     </div>
-   </div>
+   <!-- 环境变量配置区域移除，改为弹窗 -->
  </div>
 
  <!-- 编辑环境变量弹窗 -->
@@ -2031,6 +2105,63 @@ async function handleHomepage(req, deployPlatform) {
    </div>
  </div>
 
+ <!-- 全部环境变量弹窗 -->
+ <div class="modal" id="allEnvsModal">
+   <div class="modal-content" style="max-width: 900px;">
+     <div class="modal-header">
+       <h3 class="modal-title">🗂️ 全部环境变量配置</h3>
+       <button class="close-btn" onclick="closeAllEnvsModal()">×</button>
+     </div>
+     
+     <div class="search-box" style="margin-bottom: 1rem;">
+       <input type="text" class="search-input" placeholder="搜索配置项..." id="allEnvsSearchInput" oninput="filterAllEnvs()">
+     </div>
+
+     <div class="env-grid" id="allEnvGrid" style="max-height: 60vh; overflow-y: auto;">
+       ${envItemsHtml}
+     </div>
+     
+     <div class="modal-footer">
+       <button class="btn btn-secondary" onclick="closeAllEnvsModal()">关闭</button>
+       <button class="btn btn-primary" onclick="saveAllFromModal()">💾 保存全部</button>
+     </div>
+   </div>
+ </div>
+
+ <!-- API信息弹窗 -->
+ <div class="modal" id="apiInfoModal">
+   <div class="modal-content">
+     <div class="modal-header">
+       <h3 class="modal-title">🔗 API 接口信息</h3>
+       <button class="close-btn" onclick="closeApiInfoModal()">×</button>
+     </div>
+     
+     <div class="form-group">
+       <label class="form-label">完整API地址</label>
+       <div style="display: flex; gap: 0.5rem;">
+         <input type="text" class="form-input" id="fullApiUrl" readonly style="flex: 1;">
+         <button class="btn btn-primary" onclick="copyApiUrl()" style="white-space: nowrap;">📋 复制</button>
+       </div>
+       <div class="form-hint" id="apiHint"></div>
+     </div>
+     
+     <div class="form-group">
+       <label class="form-label">当前Token</label>
+       <input type="text" class="form-input" id="currentToken" readonly>
+     </div>
+     
+     <div class="form-group">
+       <label class="form-label">使用示例</label>
+       <textarea class="form-textarea" id="apiExample" readonly style="font-size: 0.75rem;"></textarea>
+     </div>
+     
+     <div class="modal-footer">
+       <button class="btn btn-secondary" onclick="closeApiInfoModal()">关闭</button>
+       <button class="btn btn-primary" onclick="openApiInBrowser()">🌐 浏览器打开</button>
+     </div>
+   </div>
+ </div>
+
  <!-- Toast 提示 -->
  <div class="toast" id="toast">
    <span class="toast-icon" id="toastIcon"></span>
@@ -2083,6 +2214,81 @@ async function handleHomepage(req, deployPlatform) {
        lockBtn.classList.add('unlocked');
        lockBtn.title = '点击锁定';
      }
+   }
+   // API信息显示
+   function showApiInfo() {
+     const modal = document.getElementById('apiInfoModal');
+     const token = '${globals.token || '87654321'}';
+     const baseUrl = window.location.origin;
+     const fullApiUrl = token === '87654321' ? baseUrl : \`\${baseUrl}/\${token}\`;
+     
+     document.getElementById('fullApiUrl').value = fullApiUrl;
+     document.getElementById('currentToken').value = token;
+     document.getElementById('apiExample').value = 
+       \`# 弹幕API使用示例\\n\\n\` +
+       \`# 1. 搜索动画\\nGET \${fullApiUrl}/api/v2/search/anime?anime=葬送的芙莉莲\\n\\n\` +
+       \`# 2. 获取弹幕（使用番剧ID）\\nGET \${fullApiUrl}/api/v2/comment/12345678?format=json\\n\\n\` +
+       \`# 3. 获取弹幕（使用视频URL）\\nGET \${fullApiUrl}/api/v2/comment?url=视频地址&format=xml\`;
+     
+     const hint = token === '87654321' 
+       ? '⚠️ 当前使用默认Token，API地址无需包含Token路径' 
+       : '✅ 当前使用自定义Token，请妥善保管';
+     document.getElementById('apiHint').textContent = hint;
+     
+     modal.classList.add('show');
+   }
+
+   function closeApiInfoModal() {
+     document.getElementById('apiInfoModal').classList.remove('show');
+   }
+
+   function copyApiUrl() {
+     const input = document.getElementById('fullApiUrl');
+     input.select();
+     copyToClipboard(input.value);
+     showToast('✅ API地址已复制', 'success');
+   }
+
+   function openApiInBrowser() {
+     const url = document.getElementById('fullApiUrl').value;
+     window.open(url, '_blank');
+   }
+
+   // 全部环境变量弹窗
+   function showAllEnvs() {
+     document.getElementById('allEnvsModal').classList.add('show');
+   }
+
+   function closeAllEnvsModal() {
+     document.getElementById('allEnvsModal').classList.remove('show');
+   }
+
+   function filterAllEnvs() {
+     const query = document.getElementById('allEnvsSearchInput').value.toLowerCase();
+     const items = document.querySelectorAll('#allEnvGrid .env-item');
+     
+     let visibleCount = 0;
+     items.forEach(item => {
+       const label = item.querySelector('.env-label').textContent.toLowerCase();
+       const value = item.querySelector('.env-value').textContent.toLowerCase();
+       const desc = item.querySelector('.env-desc').textContent.toLowerCase();
+       
+       if (label.includes(query) || value.includes(query) || desc.includes(query)) {
+         item.style.display = '';
+         visibleCount++;
+       } else {
+         item.style.display = 'none';
+       }
+     });
+     
+     if (query && visibleCount === 0) {
+       showToast('未找到匹配项', 'warning');
+     }
+   }
+
+   async function saveAllFromModal() {
+     await saveAll();
+     showToast('✅ 配置已保存', 'success');
    }
 
    // 主题管理
