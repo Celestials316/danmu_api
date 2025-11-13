@@ -521,6 +521,10 @@ async function handleHomepage(req, deployPlatform) {
     return getLoginPage();
   }
 
+  // 从请求对象获取 origin
+  const url = new URL(req.url);
+  const origin = `${url.protocol}//${url.host}`;
+
   // 确保 deployPlatform 正确
   if (typeof process !== 'undefined' && process.env?.VERCEL) {
     globals.deployPlatform = 'Vercel';
@@ -1842,7 +1846,7 @@ async function handleHomepage(req, deployPlatform) {
          <span class="stat-status status-online">API</span>
        </div>
        <div class="stat-title">接口地址</div>
-       <div class="stat-value" style="font-size: 0.9rem; word-break: break-all;">${window.location.origin}</div>
+       <div class="stat-value" style="font-size: 0.9rem; word-break: break-all;">${origin}</div>
        <div class="stat-footer">点击复制完整API</div>
      </div>
      
@@ -2219,7 +2223,7 @@ async function handleHomepage(req, deployPlatform) {
    function showApiInfo() {
      const modal = document.getElementById('apiInfoModal');
      const token = '${globals.token || '87654321'}';
-     const baseUrl = window.location.origin;
+     const baseUrl = '${origin}';
      const fullApiUrl = token === '87654321' ? baseUrl : \`\${baseUrl}/\${token}\`;
      
      document.getElementById('fullApiUrl').value = fullApiUrl;
