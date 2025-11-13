@@ -4832,7 +4832,7 @@ async function handleHomepage(req) {
        }
        
        closeModal('quickConfigModal');
-       showToast(`配置已保存到浏览器本地（服务器保存失败: ${error.message}）`, 'warning');
+       showToast(`配置已保存到浏览器本地(服务器保存失败: ${error.message})`, 'warning');
      }
    }
 
