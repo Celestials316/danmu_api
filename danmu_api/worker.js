@@ -327,50 +327,50 @@ const SENSITIVE_KEYS = [
 
 // 常用弹幕配置模板
 const QUICK_CONFIGS = {
-  'danmu_limit_500': {
-    name: '限制500条',
-    icon: '🎯',
-    desc: '限制弹幕数量为500条',
-    configs: {
-      'DANMU_LIMIT': '500'
-    }
-  },
-  'danmu_limit_1000': {
-    name: '限制1000条',
-    icon: '📊',
-    desc: '限制弹幕数量为1000条',
-    configs: {
-      'DANMU_LIMIT': '1000'
-    }
-  },
-  'danmu_no_limit': {
-    name: '不限制',
-    icon: '♾️',
-    desc: '不限制弹幕数量',
-    configs: {
-      'DANMU_LIMIT': '-1'
-    }
-  },
-  'white_ratio_30': {
-    name: '白色30%',
+  'adjust_white_ratio': {
+    name: '白色弹幕占比',
     icon: '⚪',
-    desc: '白色弹幕占比30%',
-    configs: {
-      'WHITE_RATIO': '30'
-    }
+    desc: '点击调节白色弹幕比例',
+    type: 'slider',
+    configKey: 'WHITE_RATIO',
+    min: -1,
+    max: 100,
+    step: 1,
+    unit: '%',
+    defaultValue: 30,
+    hint: '设置白色弹幕的占比。-1表示不处理，0表示全部转换，100表示全部保留为白色'
   },
-  'white_ratio_50': {
-    name: '白色50%',
-    icon: '◯',
-    desc: '白色弹幕占比50%',
-    configs: {
-      'WHITE_RATIO': '50'
-    }
+  'adjust_danmu_limit': {
+    name: '弹幕数量限制',
+    icon: '📊',
+    desc: '点击调节弹幕数量上限',
+    type: 'slider',
+    configKey: 'DANMU_LIMIT',
+    min: -1,
+    max: 5000,
+    step: 100,
+    unit: '条',
+    defaultValue: -1,
+    hint: '限制返回的弹幕数量。-1表示不限制'
+  },
+  'adjust_group_minute': {
+    name: '弹幕合并时间',
+    icon: '⏱️',
+    desc: '点击调节合并时间窗口',
+    type: 'slider',
+    configKey: 'GROUP_MINUTE',
+    min: 1,
+    max: 10,
+    step: 1,
+    unit: '分钟',
+    defaultValue: 1,
+    hint: '设置弹幕合并的时间窗口，相同内容在此时间内只保留一条'
   },
   'format_json': {
     name: 'JSON格式',
     icon: '📝',
     desc: '输出JSON格式弹幕',
+    type: 'direct',
     configs: {
       'DANMU_OUTPUT_FORMAT': 'json'
     }
@@ -379,6 +379,7 @@ const QUICK_CONFIGS = {
     name: 'XML格式',
     icon: '📄',
     desc: '输出XML格式弹幕',
+    type: 'direct',
     configs: {
       'DANMU_OUTPUT_FORMAT': 'xml'
     }
@@ -387,9 +388,26 @@ const QUICK_CONFIGS = {
     name: 'ASS格式',
     icon: '🎬',
     desc: '输出ASS字幕格式',
+    type: 'direct',
     configs: {
       'DANMU_OUTPUT_FORMAT': 'ass'
     }
+  },
+  'toggle_simplified': {
+    name: '繁简转换',
+    icon: '🔄',
+    desc: '切换弹幕繁简转换',
+    type: 'toggle',
+    configKey: 'DANMU_SIMPLIFIED',
+    hint: '开启后将繁体弹幕转换为简体'
+  },
+  'toggle_convert_position': {
+    name: '转换顶底弹幕',
+    icon: '↕️',
+    desc: '切换顶底弹幕转换',
+    type: 'toggle',
+    configKey: 'CONVERT_TOP_BOTTOM_TO_SCROLL',
+    hint: '开启后将顶部和底部弹幕转换为滚动弹幕'
   }
 };
 
@@ -625,13 +643,19 @@ function handleHomepage(req) {
 
     /* 顶栏优化 - 移动端适配 */
     .header {
-      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       padding: 0.75rem 1rem;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
       position: sticky;
       top: 0;
       z-index: 100;
       padding-top: max(0.75rem, env(safe-area-inset-top));
+      transition: all 0.3s ease;
+    }
+
+    [data-theme="light"] .header {
+      background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+      box-shadow: 0 2px 15px rgba(99, 102, 241, 0.2);
     }
 
     .header-content {
@@ -834,46 +858,67 @@ function handleHomepage(req) {
    }
 
    .quick-config-card {
-     background: var(--bg-3);
-     border-radius: 10px;
+     background: linear-gradient(135deg, var(--bg-3), var(--bg-2));
+     border-radius: 12px;
      padding: 1rem;
      cursor: pointer;
-     border: 2px solid transparent;
-     transition: all 0.2s ease;
+     border: 2px solid var(--border);
+     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
      display: flex;
      flex-direction: column;
      align-items: center;
      text-align: center;
-     min-height: 85px;
+     min-height: 100px;
+     position: relative;
+     overflow: hidden;
+   }
+
+   .quick-config-card::before {
+     content: '';
+     position: absolute;
+     top: 0;
+     left: 0;
+     right: 0;
+     height: 3px;
+     background: linear-gradient(90deg, var(--primary), var(--secondary));
+     transform: scaleX(0);
+     transition: transform 0.3s ease;
+   }
+
+   .quick-config-card:hover::before,
+   .quick-config-card:active::before {
+     transform: scaleX(1);
    }
 
    .quick-config-card:active {
-     transform: scale(0.97);
+     transform: translateY(-2px);
      border-color: var(--primary);
+     box-shadow: 0 6px 20px rgba(102, 126, 234, 0.25);
    }
 
    .quick-config-icon {
-     font-size: 1.75rem;
-     margin-bottom: 0.375rem;
+     font-size: 2rem;
+     margin-bottom: 0.5rem;
+     filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
    }
 
    .quick-config-info {
      flex: 1;
      display: flex;
      flex-direction: column;
-     gap: 0.125rem;
+     gap: 0.25rem;
    }
 
    .quick-config-name {
-     font-size: 0.8rem;
-     font-weight: 600;
+     font-size: 0.85rem;
+     font-weight: 700;
      color: var(--text-1);
    }
 
    .quick-config-desc {
-     font-size: 0.65rem;
+     font-size: 0.7rem;
      color: var(--text-3);
-     line-height: 1.3;
+     line-height: 1.4;
    }
 
    /* 搜索框 */
@@ -1192,6 +1237,110 @@ function handleHomepage(req) {
      margin-top: 1.5rem;
      padding-top: 1rem;
      border-top: 2px solid var(--border);
+   }
+   /* 滑块配置模态框 */
+   .slider-modal .modal-content {
+     max-width: 500px;
+   }
+
+   .slider-group {
+     margin: 1.5rem 0;
+   }
+
+   .slider-header {
+     display: flex;
+     justify-content: space-between;
+     align-items: center;
+     margin-bottom: 1rem;
+   }
+
+   .slider-label {
+     font-size: 0.9rem;
+     font-weight: 600;
+     color: var(--text-1);
+   }
+
+   .slider-value {
+     font-size: 1.25rem;
+     font-weight: 700;
+     color: var(--primary);
+     font-family: 'Courier New', monospace;
+   }
+
+   .slider-container {
+     position: relative;
+     padding: 1rem 0;
+   }
+
+   .slider {
+     -webkit-appearance: none;
+     appearance: none;
+     width: 100%;
+     height: 8px;
+     border-radius: 5px;
+     background: linear-gradient(to right, var(--primary) 0%, var(--primary) 50%, var(--bg-3) 50%, var(--bg-3) 100%);
+     outline: none;
+     transition: all 0.2s ease;
+   }
+
+   .slider::-webkit-slider-thumb {
+     -webkit-appearance: none;
+     appearance: none;
+     width: 24px;
+     height: 24px;
+     border-radius: 50%;
+     background: linear-gradient(135deg, var(--primary), var(--secondary));
+     cursor: pointer;
+     box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+     transition: all 0.2s ease;
+   }
+
+   .slider::-webkit-slider-thumb:hover {
+     transform: scale(1.2);
+     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.6);
+   }
+
+   .slider::-webkit-slider-thumb:active {
+     transform: scale(1.1);
+   }
+
+   .slider::-moz-range-thumb {
+     width: 24px;
+     height: 24px;
+     border-radius: 50%;
+     background: linear-gradient(135deg, var(--primary), var(--secondary));
+     cursor: pointer;
+     border: none;
+     box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+     transition: all 0.2s ease;
+   }
+
+   .slider::-moz-range-thumb:hover {
+     transform: scale(1.2);
+     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.6);
+   }
+
+   .slider-marks {
+     display: flex;
+     justify-content: space-between;
+     margin-top: 0.5rem;
+     padding: 0 2px;
+   }
+
+   .slider-mark {
+     font-size: 0.7rem;
+     color: var(--text-3);
+     font-weight: 500;
+   }
+
+   .slider-hint {
+     font-size: 0.75rem;
+     color: var(--text-3);
+     margin-top: 0.75rem;
+     padding: 0.75rem;
+     background: var(--bg-3);
+     border-radius: 8px;
+     line-height: 1.5;
    }
 
    /* Toast 提示 */
@@ -1554,6 +1703,33 @@ function handleHomepage(req) {
      </div>
    </div>
  </div>
+ <!-- 滑块配置弹窗 -->
+ <div class="modal slider-modal" id="sliderModal">
+   <div class="modal-content">
+     <div class="modal-header">
+       <h3 class="modal-title" id="sliderModalTitle">⚙️ 调节配置</h3>
+       <button class="close-btn" onclick="closeSliderModal()">×</button>
+     </div>
+     <div class="slider-group">
+       <div class="slider-header">
+         <span class="slider-label" id="sliderLabel">配置值</span>
+         <span class="slider-value" id="sliderValue">0</span>
+       </div>
+       <div class="slider-container">
+         <input type="range" class="slider" id="configSlider" min="0" max="100" step="1" value="0">
+         <div class="slider-marks">
+           <span class="slider-mark" id="sliderMin">0</span>
+           <span class="slider-mark" id="sliderMax">100</span>
+         </div>
+       </div>
+       <div class="slider-hint" id="sliderHint">拖动滑块调节配置值</div>
+     </div>
+     <div class="modal-footer">
+       <button class="btn btn-secondary" onclick="closeSliderModal()">取消</button>
+       <button class="btn btn-primary" onclick="saveSliderConfig()">💾 应用</button>
+     </div>
+   </div>
+ </div>
 
  <!-- 日志查看弹窗 -->
  <div class="modal" id="logsModal">
@@ -1840,37 +2016,161 @@ function handleHomepage(req) {
    }
 
    // 快捷配置应用
+   // 快捷配置相关变量
+   let currentSliderConfig = null;
+
    async function applyQuickConfig(configId) {
      const config = QUICK_CONFIGS[configId];
      if (!config) {
        showToast('配置模板不存在', 'error');
        return;
      }
+
+     // 滑块类型配置
+     if (config.type === 'slider') {
+       openSliderModal(configId, config);
+       return;
+     }
+
+     // 切换类型配置
+     if (config.type === 'toggle') {
+       const currentValue = AppState.config[config.configKey];
+       const newValue = String(currentValue).toLowerCase() !== 'true';
+       const configToSave = { [config.configKey]: String(newValue) };
+       
+       showToast(`正在${newValue ? '启用' : '禁用'} ${config.name}...`, 'info');
+       
+       try {
+         const response = await fetch('/api/config/save', {
+           method: 'POST',
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify({ config: configToSave })
+         });
+
+         const result = await response.json();
+         
+         if (result.success) {
+           AppState.config[config.configKey] = String(newValue);
+           showToast(`✅ ${config.name} 已${newValue ? '启用' : '禁用'}`, 'success');
+           updateEnvDisplay(config.configKey, String(newValue));
+         } else {
+           showToast('操作失败: ' + (result.errorMessage || '未知错误'), 'error');
+         }
+       } catch (error) {
+         showToast('操作失败: ' + error.message, 'error');
+       }
+       return;
+     }
+
+     // 直接应用类型配置
+     if (config.type === 'direct') {
+       showToast(`正在应用 ${config.name}...`, 'info');
+       
+       Object.assign(AppState.config, config.configs);
+       
+       try {
+         const response = await fetch('/api/config/save', {
+           method: 'POST',
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify({ config: config.configs })
+         });
+
+         const result = await response.json();
+         
+         if (result.success) {
+           showToast(`✅ ${config.name} 已应用`, 'success');
+           
+           for (const [key, value] of Object.entries(config.configs)) {
+             updateEnvDisplay(key, value);
+           }
+         } else {
+           showToast('应用失败: ' + (result.errorMessage || '未知错误'), 'error');
+         }
+       } catch (error) {
+         showToast('应用失败: ' + error.message, 'error');
+       }
+     }
+   }
+
+   function openSliderModal(configId, config) {
+     currentSliderConfig = { id: configId, ...config };
      
-     showToast(\`正在应用 \${config.name}...\`, 'info');
+     document.getElementById('sliderModalTitle').innerHTML = `${config.icon} ${config.name}`;
+     document.getElementById('sliderLabel').textContent = config.name;
+     document.getElementById('sliderHint').textContent = config.hint || '拖动滑块调节配置值';
      
-     Object.assign(AppState.config, config.configs);
+     const slider = document.getElementById('configSlider');
+     slider.min = config.min;
+     slider.max = config.max;
+     slider.step = config.step;
+     
+     const currentValue = AppState.config[config.configKey];
+     const numValue = parseInt(currentValue) || config.defaultValue;
+     slider.value = numValue;
+     
+     updateSliderDisplay(numValue, config);
+     
+     document.getElementById('sliderMin').textContent = config.min === -1 ? '不限' : config.min + config.unit;
+     document.getElementById('sliderMax').textContent = config.max + config.unit;
+     
+     document.getElementById('sliderModal').classList.add('show');
+     
+     slider.oninput = function() {
+       updateSliderDisplay(parseInt(this.value), config);
+       updateSliderBackground(this);
+     };
+     
+     updateSliderBackground(slider);
+   }
+
+   function updateSliderDisplay(value, config) {
+     const displayValue = value === -1 ? '不限制' : value + config.unit;
+     document.getElementById('sliderValue').textContent = displayValue;
+   }
+
+   function updateSliderBackground(slider) {
+     const value = slider.value;
+     const min = slider.min;
+     const max = slider.max;
+     const percentage = ((value - min) / (max - min)) * 100;
+     slider.style.background = `linear-gradient(to right, var(--primary) 0%, var(--primary) ${percentage}%, var(--bg-3) ${percentage}%, var(--bg-3) 100%)`;
+   }
+
+   function closeSliderModal() {
+     document.getElementById('sliderModal').classList.remove('show');
+     currentSliderConfig = null;
+   }
+
+   async function saveSliderConfig() {
+     if (!currentSliderConfig) return;
+     
+     const slider = document.getElementById('configSlider');
+     const value = slider.value;
+     const config = currentSliderConfig;
+     
+     const configToSave = { [config.configKey]: value };
+     
+     showToast(`正在保存 ${config.name}...`, 'info');
      
      try {
        const response = await fetch('/api/config/save', {
          method: 'POST',
          headers: { 'Content-Type': 'application/json' },
-         body: JSON.stringify({ config: config.configs })
+         body: JSON.stringify({ config: configToSave })
        });
 
        const result = await response.json();
        
        if (result.success) {
-         showToast(\`✅ \${config.name} 已应用\`, 'success');
-         
-         for (const [key, value] of Object.entries(config.configs)) {
-           updateEnvDisplay(key, value);
-         }
+         AppState.config[config.configKey] = value;
+         showToast(`✅ ${config.name} 已设置为 ${value === '-1' ? '不限制' : value + config.unit}`, 'success');
+         updateEnvDisplay(config.configKey, value);
+         closeSliderModal();
        } else {
-         showToast('应用失败: ' + (result.errorMessage || '未知错误'), 'error');
+         showToast('保存失败: ' + (result.errorMessage || '未知错误'), 'error');
        }
      } catch (error) {
-       showToast('应用失败: ' + error.message, 'error');
+       showToast('保存失败: ' + error.message, 'error');
      }
    }
 
@@ -2077,6 +2377,7 @@ function handleHomepage(req) {
        closeModal();
        closePasswordModal();
        closeLogsModal();
+       closeSliderModal();
      }
      
      if ((e.ctrlKey || e.metaKey) && e.key === 'l') {
