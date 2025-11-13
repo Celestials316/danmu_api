@@ -4934,7 +4934,7 @@ async function handleHomepage(req) {
        : LogManager.logs.filter(log => log.level === LogManager.currentFilter);
      
      if (filteredLogs.length === 0) {
-       logContent.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--text-tertiary); font-size: 13px;">暂无日志</div>';
+       logContent.innerHTML = '<div style="text-align: center; padding: 3rem; color: var(--text-tertiary);">暂无日志</div>';
        return;
      }
      
@@ -4950,17 +4950,20 @@ async function handleHomepage(req) {
          .replace(/"/g, '&quot;')
          .replace(/'/g, '&#39;');
        
-       return `<div class="log-line ${log.level}"><span class="log-timestamp">${log.timestamp || ''}</span><span class="log-level">[${log.level}]</span> ${escapedMessage}</div>`;
+       return \`
+         <div class="log-line \${log.level}">
+           <span class="log-timestamp">\${log.timestamp || ''}</span>
+           <span class="log-level">[\${log.level}]</span>
+           <span>\${escapedMessage}</span>
+         </div>
+       \`;
      }).join('');
      
      logContent.innerHTML = logsHtml;
      
      // 自动滚动到底部
      setTimeout(() => {
-       const container = logContent.closest('.log-container');
-       if (container) {
-         container.scrollTop = container.scrollHeight;
-       }
+       logContent.scrollTop = logContent.scrollHeight;
      }, 100);
    }
 
