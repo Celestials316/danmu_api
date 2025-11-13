@@ -2791,6 +2791,147 @@ async function handleHomepage(req) {
      font-family: 'Monaco', 'Menlo', monospace;
    }
 
+   /* 日志容器样式 */
+   .log-container {
+     background: var(--bg-primary);
+     border: 1px solid var(--border-color);
+     border-radius: 12px;
+     padding: 16px;
+     min-height: 400px;
+     max-height: 500px;
+     overflow-y: auto;
+   }
+
+   .log-header {
+     display: flex;
+     justify-content: space-between;
+     align-items: center;
+     margin-bottom: 16px;
+     padding-bottom: 12px;
+     border-bottom: 2px solid var(--border-color);
+     flex-wrap: wrap;
+     gap: 12px;
+   }
+
+   .log-controls {
+     display: flex;
+     gap: 8px;
+     flex-wrap: wrap;
+   }
+
+   .log-filter {
+     padding: 6px 14px;
+     border-radius: 8px;
+     border: 1px solid var(--border-color);
+     background: var(--bg-tertiary);
+     color: var(--text-secondary);
+     cursor: pointer;
+     font-size: 12px;
+     font-weight: 600;
+     transition: all 0.3s var(--ease-smooth);
+     white-space: nowrap;
+   }
+
+   .log-filter:hover {
+     border-color: var(--primary-500);
+     background: var(--bg-hover);
+     color: var(--text-primary);
+   }
+
+   .log-filter.active {
+     background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+     color: white;
+     border-color: var(--primary-500);
+     box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+   }
+
+   .log-line {
+     padding: 8px 12px;
+     margin-bottom: 4px;
+     border-radius: 6px;
+     line-height: 1.6;
+     word-break: break-all;
+     font-size: 12px;
+     transition: all 0.2s var(--ease-smooth);
+   }
+
+   .log-line:hover {
+     background: var(--bg-hover);
+   }
+
+   .log-line.info {
+     color: var(--info);
+     border-left: 3px solid var(--info);
+     background: rgba(59, 130, 246, 0.05);
+   }
+
+   .log-line.warn {
+     color: var(--warning);
+     border-left: 3px solid var(--warning);
+     background: rgba(245, 158, 11, 0.05);
+   }
+
+   .log-line.error {
+     color: var(--error);
+     border-left: 3px solid var(--error);
+     background: rgba(239, 68, 68, 0.05);
+   }
+
+   .log-timestamp {
+     opacity: 0.7;
+     margin-right: 8px;
+     font-size: 11px;
+     color: var(--text-tertiary);
+   }
+
+   .log-level {
+     display: inline-block;
+     padding: 2px 8px;
+     border-radius: 4px;
+     font-size: 10px;
+     font-weight: 700;
+     margin-right: 8px;
+     text-transform: uppercase;
+   }
+
+   .log-line.info .log-level {
+     background: rgba(59, 130, 246, 0.2);
+     color: var(--info);
+   }
+
+   .log-line.warn .log-level {
+     background: rgba(245, 158, 11, 0.2);
+     color: var(--warning);
+   }
+
+   .log-line.error .log-level {
+     background: rgba(239, 68, 68, 0.2);
+     color: var(--error);
+   }
+
+   /* 移动端适配 */
+   @media (max-width: 768px) {
+     .log-container {
+       min-height: 300px;
+       max-height: 400px;
+     }
+
+     .log-header {
+       flex-direction: column;
+       align-items: flex-start;
+     }
+
+     .log-controls {
+       width: 100%;
+     }
+
+     .log-filter {
+       flex: 1;
+       text-align: center;
+       min-width: 60px;
+     }
+   }
+
    /* 数据表格 */
    .data-table {
      width: 100%;
@@ -2948,6 +3089,12 @@ async function handleHomepage(req) {
              <path d="m21 21-4.35-4.35" stroke-width="2" stroke-linecap="round"/>
            </svg>
          </div>
+         <!-- 日志按钮 -->
+         <button class="icon-btn" onclick="showLogsModal()" title="查看日志 (Ctrl+L)">
+           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+             <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" stroke-width="2" stroke-linecap="round"/>
+           </svg>
+         </button>
          <!-- 桌面端显示通知按钮 -->
          <button class="icon-btn notification-btn desktop-only" title="通知">
            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -3797,6 +3944,48 @@ async function handleHomepage(req) {
   </div>
 </div>
 
+ <!-- 日志查看模态框 -->
+ <div class="modal-overlay" id="logsModal">
+   <div class="modal" style="max-width: 900px;">
+     <div class="modal-header">
+       <h3 class="modal-title">
+         <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor">
+           <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" stroke-width="2" stroke-linecap="round"/>
+         </svg>
+         系统日志
+       </h3>
+       <button class="modal-close" onclick="closeModal('logsModal')">
+         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor">
+           <path d="M6 18L18 6M6 6l12 12" stroke-width="2" stroke-linecap="round"/>
+         </svg>
+       </button>
+     </div>
+     <div class="modal-body" style="max-height: 65vh; overflow-y: auto;">
+       <div class="log-container">
+         <div class="log-header">
+           <span style="font-weight: 600; font-size: 14px; color: var(--text-primary);">📋 实时日志</span>
+           <div class="log-controls">
+             <button class="log-filter active" data-level="all" onclick="filterLogs('all')">全部</button>
+             <button class="log-filter" data-level="info" onclick="filterLogs('info')">信息</button>
+             <button class="log-filter" data-level="warn" onclick="filterLogs('warn')">警告</button>
+             <button class="log-filter" data-level="error" onclick="filterLogs('error')">错误</button>
+             <button class="log-filter" onclick="clearLogs()" style="margin-left: 8px;">🗑️ 清空</button>
+           </div>
+         </div>
+         <div id="logContent" style="font-family: 'Monaco', 'Menlo', 'Consolas', monospace; font-size: 12px; line-height: 1.6; color: var(--text-secondary); white-space: pre-wrap; word-break: break-all;"></div>
+       </div>
+     </div>
+     <div class="modal-footer">
+       <button class="btn btn-secondary" onclick="closeModal('logsModal')">关闭</button>
+       <button class="btn btn-primary" onclick="refreshLogs()">
+         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+           <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-width="2" stroke-linecap="round"/>
+         </svg>
+         刷新
+       </button>
+     </div>
+   </div>
+ </div>
 
  <!-- 快捷操作按钮 -->
  <button class="fab" onclick="saveAllConfig()" title="保存所有配置 (Ctrl+S)">
@@ -4690,6 +4879,129 @@ async function handleHomepage(req) {
        showToast('修改失败，请稍后重试', 'error');
      }
    }
+
+   // ========== 日志管理功能 ==========
+   const LogManager = {
+     logs: [],
+     currentFilter: 'all',
+     refreshInterval: null
+   };
+
+   async function showLogsModal() {
+     showModal('logsModal');
+     await refreshLogs();
+     
+     // 每3秒自动刷新
+     LogManager.refreshInterval = setInterval(() => {
+       refreshLogs(true);
+     }, 3000);
+   }
+
+   async function refreshLogs(silent = false) {
+     try {
+       const response = await fetch('/api/logs?format=json&limit=200');
+       const result = await response.json();
+       
+       if (result.success && result.logs) {
+         LogManager.logs = result.logs;
+         displayLogs();
+         
+         if (!silent) {
+           showToast(\`已加载 \${result.logs.length} 条日志\`, 'success', 1500);
+         }
+       }
+     } catch (error) {
+       console.error('加载日志失败:', error);
+       if (!silent) {
+         showToast('加载日志失败: ' + error.message, 'error');
+       }
+     }
+   }
+
+   function displayLogs() {
+     const logContent = document.getElementById('logContent');
+     if (!logContent) return;
+     
+     const filteredLogs = LogManager.currentFilter === 'all' 
+       ? LogManager.logs 
+       : LogManager.logs.filter(log => log.level === LogManager.currentFilter);
+     
+     if (filteredLogs.length === 0) {
+       logContent.innerHTML = '<div style="text-align: center; padding: 3rem; color: var(--text-tertiary);">暂无日志</div>';
+       return;
+     }
+     
+     const logsHtml = filteredLogs.map(log => {
+       const message = typeof log.message === 'string' 
+         ? log.message 
+         : JSON.stringify(log.message);
+       
+       const escapedMessage = message
+         .replace(/&/g, '&amp;')
+         .replace(/</g, '&lt;')
+         .replace(/>/g, '&gt;')
+         .replace(/"/g, '&quot;')
+         .replace(/'/g, '&#39;');
+       
+       return \`
+         <div class="log-line \${log.level}">
+           <span class="log-timestamp">\${log.timestamp || ''}</span>
+           <span class="log-level">[\${log.level}]</span>
+           <span>\${escapedMessage}</span>
+         </div>
+       \`;
+     }).join('');
+     
+     logContent.innerHTML = logsHtml;
+     
+     // 自动滚动到底部
+     setTimeout(() => {
+       logContent.scrollTop = logContent.scrollHeight;
+     }, 100);
+   }
+
+   function filterLogs(level) {
+     LogManager.currentFilter = level;
+     
+     document.querySelectorAll('.log-filter').forEach(btn => {
+       btn.classList.remove('active');
+       if (btn.dataset.level === level) {
+         btn.classList.add('active');
+       }
+     });
+     
+     displayLogs();
+   }
+
+   function clearLogs() {
+     if (!confirm('确定清空日志显示？')) return;
+     
+     LogManager.logs = [];
+     displayLogs();
+     showToast('日志已清空', 'success');
+   }
+
+   // 关闭日志窗口时停止自动刷新
+   const originalCloseModal = closeModal;
+   closeModal = function(modalId) {
+     if (modalId === 'logsModal' && LogManager.refreshInterval) {
+       clearInterval(LogManager.refreshInterval);
+       LogManager.refreshInterval = null;
+     }
+     originalCloseModal(modalId);
+   };
+
+   // 快捷键支持
+   document.addEventListener('keydown', function(e) {
+     // Ctrl+L 打开日志
+     if ((e.ctrlKey || e.metaKey) && e.key === 'l') {
+       e.preventDefault();
+       const logsModal = document.getElementById('logsModal');
+       if (logsModal && !logsModal.classList.contains('show')) {
+         showLogsModal();
+       }
+     }
+   });
 
  </script>
 
