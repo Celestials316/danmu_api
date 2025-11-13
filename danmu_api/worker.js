@@ -2796,19 +2796,20 @@ async function handleHomepage(req) {
      background: var(--bg-primary);
      border: 1px solid var(--border-color);
      border-radius: 12px;
-     padding: 16px;
+     padding: 12px;
      min-height: 400px;
-     max-height: 600px;
+     max-height: 650px;
      overflow-y: auto;
+     font-family: 'Monaco', 'Menlo', 'Consolas', 'SF Mono', monospace;
    }
 
    .log-header {
      display: flex;
      justify-content: space-between;
      align-items: center;
-     margin-bottom: 16px;
-     padding-bottom: 12px;
-     border-bottom: 2px solid var(--border-color);
+     margin-bottom: 12px;
+     padding-bottom: 10px;
+     border-bottom: 1px solid var(--border-color);
      flex-wrap: wrap;
      gap: 12px;
    }
@@ -2820,8 +2821,8 @@ async function handleHomepage(req) {
    }
 
    .log-filter {
-     padding: 6px 14px;
-     border-radius: 8px;
+     padding: 5px 12px;
+     border-radius: 6px;
      border: 1px solid var(--border-color);
      background: var(--bg-tertiary);
      color: var(--text-secondary);
@@ -2846,64 +2847,58 @@ async function handleHomepage(req) {
    }
 
    .log-line {
-     padding: 4px 8px;
-     margin-bottom: 2px;
-     border-radius: 4px;
-     line-height: 1.4;
+     padding: 2px 0;
+     line-height: 1.3;
      word-break: break-all;
      font-size: 11px;
-     transition: all 0.2s var(--ease-smooth);
-     border-left: 2px solid transparent;
+     color: var(--text-secondary);
+     transition: color 0.2s var(--ease-smooth);
+     border: none;
+     background: none;
+     margin: 0;
    }
 
    .log-line:hover {
-     background: var(--bg-hover);
+     color: var(--text-primary);
    }
 
    .log-line.info {
      color: var(--info);
-     border-left-color: var(--info);
    }
 
    .log-line.warn {
      color: var(--warning);
-     border-left-color: var(--warning);
    }
 
    .log-line.error {
      color: var(--error);
-     border-left-color: var(--error);
    }
 
    .log-timestamp {
-     opacity: 0.7;
-     margin-right: 6px;
+     opacity: 0.6;
+     margin-right: 8px;
      font-size: 10px;
      color: var(--text-tertiary);
    }
 
    .log-level {
      display: inline-block;
-     padding: 1px 6px;
-     border-radius: 3px;
-     font-size: 9px;
+     padding: 0 4px;
+     font-size: 10px;
      font-weight: 700;
-     margin-right: 6px;
+     margin-right: 8px;
      text-transform: uppercase;
    }
 
    .log-line.info .log-level {
-     background: rgba(59, 130, 246, 0.2);
      color: var(--info);
    }
 
    .log-line.warn .log-level {
-     background: rgba(245, 158, 11, 0.2);
      color: var(--warning);
    }
 
    .log-line.error .log-level {
-     background: rgba(239, 68, 68, 0.2);
      color: var(--error);
    }
 
@@ -2912,6 +2907,7 @@ async function handleHomepage(req) {
      .log-container {
        min-height: 300px;
        max-height: 500px;
+       padding: 10px;
      }
 
      .log-header {
@@ -2931,6 +2927,7 @@ async function handleHomepage(req) {
 
      .log-line {
        font-size: 10px;
+       line-height: 1.2;
      }
 
      .log-timestamp {
@@ -2938,8 +2935,7 @@ async function handleHomepage(req) {
      }
 
      .log-level {
-       font-size: 8px;
-       padding: 1px 4px;
+       font-size: 9px;
      }
    }
 
@@ -3957,7 +3953,7 @@ async function handleHomepage(req) {
 
  <!-- 日志查看模态框 -->
  <div class="modal-overlay" id="logsModal">
-   <div class="modal" style="max-width: 1000px; max-height: 90vh;">
+   <div class="modal" style="max-width: 1100px; max-height: 90vh;">
      <div class="modal-header">
        <h3 class="modal-title">
          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor">
@@ -3971,10 +3967,10 @@ async function handleHomepage(req) {
          </svg>
        </button>
      </div>
-     <div class="modal-body" style="max-height: 70vh; overflow-y: auto; padding: 0;">
+     <div class="modal-body" style="max-height: 75vh; overflow-y: auto; padding: 0;">
        <div class="log-container">
          <div class="log-header">
-           <span style="font-weight: 600; font-size: 14px; color: var(--text-primary);">📋 实时日志</span>
+           <span style="font-weight: 600; font-size: 13px; color: var(--text-primary);">📋 实时日志</span>
            <div class="log-controls">
              <button class="log-filter active" data-level="all" onclick="filterLogs('all')">全部</button>
              <button class="log-filter" data-level="info" onclick="filterLogs('info')">信息</button>
@@ -3983,7 +3979,7 @@ async function handleHomepage(req) {
              <button class="log-filter" onclick="clearLogs()" style="margin-left: 8px;">🗑️ 清空</button>
            </div>
          </div>
-         <div id="logContent" style="font-family: 'Monaco', 'Menlo', 'Consolas', monospace; font-size: 11px; line-height: 1.5; color: var(--text-secondary); white-space: pre-wrap; word-break: break-all;"></div>
+         <div id="logContent"></div>
        </div>
      </div>
      <div class="modal-footer">
@@ -4938,7 +4934,7 @@ async function handleHomepage(req) {
        : LogManager.logs.filter(log => log.level === LogManager.currentFilter);
      
      if (filteredLogs.length === 0) {
-       logContent.innerHTML = '<div style="text-align: center; padding: 3rem; color: var(--text-tertiary);">暂无日志</div>';
+       logContent.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--text-tertiary); font-size: 13px;">暂无日志</div>';
        return;
      }
      
@@ -4954,20 +4950,17 @@ async function handleHomepage(req) {
          .replace(/"/g, '&quot;')
          .replace(/'/g, '&#39;');
        
-       return \`
-         <div class="log-line \${log.level}">
-           <span class="log-timestamp">\${log.timestamp || ''}</span>
-           <span class="log-level">[\${log.level}]</span>
-           <span>\${escapedMessage}</span>
-         </div>
-       \`;
+       return `<div class="log-line ${log.level}"><span class="log-timestamp">${log.timestamp || ''}</span><span class="log-level">[${log.level}]</span> ${escapedMessage}</div>`;
      }).join('');
      
      logContent.innerHTML = logsHtml;
      
      // 自动滚动到底部
      setTimeout(() => {
-       logContent.scrollTop = logContent.scrollHeight;
+       const container = logContent.closest('.log-container');
+       if (container) {
+         container.scrollTop = container.scrollHeight;
+       }
      }, 100);
    }
 
