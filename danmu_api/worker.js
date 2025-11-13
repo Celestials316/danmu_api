@@ -1168,6 +1168,20 @@ async function handleHomepage(req, deployPlatform) {
      color: #0f172a;
    }
 
+   /* 确保 select 本身在浅色模式下文字清晰 */
+   [data-theme="light"] .custom-select {
+     color: #0f172a;
+   }
+
+   /* 针对不同浏览器的 option 样式优化 */
+   @supports (-webkit-appearance: none) {
+     [data-theme="light"] .custom-select option {
+       background: white !important;
+       color: black !important;
+     }
+   }
+
+
    .custom-select:focus {
      outline: none;
      border-color: var(--primary);
