@@ -481,6 +481,80 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
     await getRedisCaches();
   }
 
+// 检查版本更新
+async function handleCheckUpdate() {
+  try {
+    const githubUrl = 'https://raw.githubusercontent.com/huangxd-/danmu_api/refs/heads/main/danmu_api/configs/globals.js';
+    
+    log("info", "[update] 正在检查更新...");
+    
+    const response = await fetch(githubUrl, {
+      headers: {
+        'User-Agent': 'DanmuAPI-UpdateChecker'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`GitHub 请求失败: ${response.status}`);
+    }
+
+    const text = await response.text();
+    
+    // 提取版本号
+    const versionMatch = text.match(/VERSION:\s*['"]([^'"]+)['"]/);
+    
+    if (!versionMatch) {
+      throw new Error('无法解析版本号');
+    }
+
+    const latestVersion = versionMatch[1];
+    const currentVersion = globals.VERSION;
+    
+    const hasUpdate = compareVersions(latestVersion, currentVersion) > 0;
+    
+    log("info", `[update] 当前版本: ${currentVersion}, 最新版本: ${latestVersion}, 需要更新: ${hasUpdate}`);
+
+    return new Response(JSON.stringify({
+      success: true,
+      currentVersion,
+      latestVersion,
+      hasUpdate,
+      updateUrl: 'https://github.com/huangxd-/danmu_api'
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+  } catch (error) {
+    log("error", `[update] 检查更新失败: ${error.message}`);
+    
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message,
+      currentVersion: globals.VERSION
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+// 版本号比较函数
+function compareVersions(v1, v2) {
+  const parts1 = v1.split('.').map(Number);
+  const parts2 = v2.split('.').map(Number);
+  
+  for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
+    const num1 = parts1[i] || 0;
+    const num2 = parts2[i] || 0;
+    
+    if (num1 > num2) return 1;
+    if (num1 < num2) return -1;
+  }
+  
+  return 0;
+}
+
 async function handleHomepage(req, deployPlatform) {
   log("info", "Accessed homepage");
   
@@ -1756,8 +1830,26 @@ async function handleHomepage(req, deployPlatform) {
          <span class="stat-status status-online">v${globals.VERSION}</span>
        </div>
        <div class="stat-title">服务版本</div>
-       <div class="stat-value">${globals.deployPlatform || 'Unknown'}</div>
-       <div class="stat-footer">部署平台</div>
+       <div class="stat-value" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+         <span>${globals.deployPlatform || 'Unknown'}</span>
+         <button id="checkUpdateBtn" onclick="checkUpdate()" style="
+           padding: 4px 8px;
+           font-size: 12px;
+           background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+           color: white;
+           border: none;
+           border-radius: 4px;
+           cursor: pointer;
+           transition: all 0.3s;
+           white-space: nowrap;
+         " onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
+           检查更新
+         </button>
+       </div>
+       <div class="stat-footer">
+         <span>部署平台</span>
+         <span id="updateStatus" style="margin-left: 8px; font-size: 12px;"></span>
+       </div>
      </div>
    </div>
 
@@ -2605,6 +2697,70 @@ async function handleHomepage(req, deployPlatform) {
    console.log('Ctrl/Cmd + S: 保存配置');
    console.log('Ctrl/Cmd + L: 查看日志');
    console.log('ESC: 关闭弹窗');
+
+// 检查更新功能
+async function checkUpdate() {
+  const btn = document.getElementById('checkUpdateBtn');
+  const status = document.getElementById('updateStatus');
+  
+  if (!btn || !status) return;
+  
+  // 禁用按钮，显示检查中状态
+  btn.disabled = true;
+  btn.textContent = '检查中...';
+  status.textContent = '⏳ 检查中...';
+  status.style.color = '#ffa500';
+  
+  try {
+    const response = await fetch('/api/check-update');
+    const data = await response.json();
+    
+    if (data.success) {
+      if (data.hasUpdate) {
+        status.innerHTML = `🎉 <a href="${data.updateUrl}" target="_blank" style="color: #4CAF50; text-decoration: none;">发现新版本 v${data.latestVersion}</a>`;
+        btn.textContent = '有更新';
+        btn.style.background = 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)';
+      } else {
+        status.textContent = '✅ 已是最新版本';
+        status.style.color = '#4CAF50';
+        btn.textContent = '已是最新';
+      }
+    } else {
+      status.textContent = '❌ 检查失败';
+      status.style.color = '#f44336';
+      btn.textContent = '检查失败';
+    }
+  } catch (error) {
+    console.error('检查更新失败:', error);
+    status.textContent = '❌ 网络错误';
+    status.style.color = '#f44336';
+    btn.textContent = '检查失败';
+  } finally {
+    // 3秒后恢复按钮状态
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.textContent = '检查更新';
+      btn.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+    }, 3000);
+  }
+}
+
+// 页面加载时自动检查更新（静默检查）
+window.addEventListener('DOMContentLoaded', async () => {
+  try {
+    const response = await fetch('/api/check-update');
+    const data = await response.json();
+    
+    if (data.success && data.hasUpdate) {
+      const status = document.getElementById('updateStatus');
+      if (status) {
+        status.innerHTML = `🎉 <a href="${data.updateUrl}" target="_blank" style="color: #4CAF50; text-decoration: none;">v${data.latestVersion} 可用</a>`;
+      }
+    }
+  } catch (error) {
+    console.log('自动检查更新失败:', error);
+  }
+});
  </script>
 </body>
 </html>
@@ -2621,6 +2777,11 @@ async function handleHomepage(req, deployPlatform) {
  if (path === "/" && method === "GET") {
    return await handleHomepage(req, deployPlatform);
  }
+ 
+// 检查更新 API
+if (path === "/api/check-update" && method === "GET") {
+  return await handleCheckUpdate();
+}
 
  if (path === "/favicon.ico" || path === "/robots.txt") {
    return new Response(null, { status: 204 });
