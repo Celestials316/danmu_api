@@ -2721,8 +2721,9 @@ async function handleHomepage(req, deployPlatform) {
      }
    }
 
-   // 自动检测版本（每24小时一次）
+// 自动检测版本（每24小时一次）
    function autoCheckVersion() {
+     // 延迟检测，避免阻塞页面加载
      const lastCheck = localStorage.getItem('lastVersionCheck');
      
      if (lastCheck) {
@@ -2759,8 +2760,12 @@ async function handleHomepage(req, deployPlatform) {
    // 初始化
    initTheme();
    initDanmuLimitDisplay();
-   loadConfig();
-   autoCheckVersion();
+   
+   // 延迟加载非关键功能
+   setTimeout(() => {
+     loadConfig();
+     autoCheckVersion();
+   }, 100);
    
    console.log('%c🎬 弹幕 API 管理中心', 'font-size: 20px; font-weight: bold; color: #667eea;');
    console.log('%c快捷键提示:', 'font-weight: bold; color: #8b5cf6;');
