@@ -1119,9 +1119,8 @@ async function handleHomepage(req, deployPlatform) {
    .lock-btn {
      background: var(--bg-2);
      border: 2px solid var(--border);
-     border-radius: 10px;
-     padding: 0.5rem 0.75rem;
-     font-size: 1.1rem;
+     border-radius: 12px;
+     padding: 0.625rem;
      cursor: pointer;
      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
      min-width: 44px;
@@ -1132,6 +1131,15 @@ async function handleHomepage(req, deployPlatform) {
      flex-shrink: 0;
      position: relative;
      overflow: hidden;
+   }
+
+   .lock-icon {
+     width: 20px;
+     height: 20px;
+     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+     position: relative;
+     z-index: 1;
+     color: var(--text-2);
    }
 
    .lock-btn::before {
@@ -1149,6 +1157,10 @@ async function handleHomepage(req, deployPlatform) {
      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
    }
 
+   .lock-btn:hover .lock-icon {
+     transform: scale(1.1);
+   }
+
    .lock-btn:active {
      transform: translateY(0) scale(0.95);
    }
@@ -1160,8 +1172,19 @@ async function handleHomepage(req, deployPlatform) {
      animation: pulse-glow 2s ease-in-out infinite;
    }
 
+   .lock-btn.unlocked .lock-icon {
+     color: white;
+     animation: unlock-rotate 0.5s ease;
+   }
+
    .lock-btn.unlocked::before {
      opacity: 1;
+   }
+
+   @keyframes unlock-rotate {
+     0% { transform: rotate(0deg) scale(1); }
+     50% { transform: rotate(180deg) scale(1.2); }
+     100% { transform: rotate(360deg) scale(1); }
    }
 
    @keyframes pulse-glow {
@@ -1173,22 +1196,96 @@ async function handleHomepage(req, deployPlatform) {
      }
    }
 
+   /* 数值输入框样式 */
+   .config-value-input {
+     width: 120px;
+     padding: 0.625rem 0.875rem;
+     background: linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(118, 75, 162, 0.1));
+     border: 2px solid rgba(102, 126, 234, 0.2);
+     border-radius: 10px;
+     color: var(--primary);
+     font-weight: 700;
+     font-size: 1rem;
+     text-align: center;
+     box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+     transition: all 0.3s ease;
+     -moz-appearance: textfield;
+   }
+
+   .config-value-input::-webkit-outer-spin-button,
+   .config-value-input::-webkit-inner-spin-button {
+     -webkit-appearance: none;
+     margin: 0;
+   }
+
+   [data-theme="light"] .config-value-input {
+     background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(139, 92, 246, 0.08));
+     border-color: rgba(99, 102, 241, 0.2);
+     box-shadow: 0 2px 8px rgba(99, 102, 241, 0.08);
+   }
+
+   .config-value-input:disabled {
+     cursor: not-allowed;
+     opacity: 0.7;
+   }
+
+   .config-value-input:not(:disabled):hover {
+     transform: scale(1.02);
+     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+     border-color: rgba(102, 126, 234, 0.4);
+   }
+
+   .config-value-input:not(:disabled):focus {
+     outline: none;
+     transform: scale(1.05);
+     box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
+     border-color: var(--primary);
+     background: linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(118, 75, 162, 0.15));
+   }
 
    /* 滑块样式 */
    .slider-container {
      position: relative;
-     padding: 1rem 0;
+     padding: 1.25rem 0 0.5rem;
    }
 
    .slider {
      -webkit-appearance: none;
      width: 100%;
-     height: 10px;
+     height: 8px;
      border-radius: 10px;
-     background: var(--border);
+     background: transparent;
      outline: none;
      transition: all 0.3s ease;
      position: relative;
+     z-index: 2;
+   }
+
+   .slider-track-fill {
+     position: absolute;
+     top: 1.25rem;
+     left: 0;
+     height: 8px;
+     background: linear-gradient(90deg, var(--primary), var(--secondary));
+     border-radius: 10px;
+     pointer-events: none;
+     transition: width 0.2s ease;
+     opacity: 0;
+   }
+
+   .slider:not(.locked) + .slider-track-fill {
+     opacity: 1;
+   }
+
+   .slider::before {
+     content: '';
+     position: absolute;
+     top: 0;
+     left: 0;
+     right: 0;
+     height: 8px;
+     background: var(--border);
+     border-radius: 10px;
      box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
    }
 
@@ -2084,14 +2181,20 @@ async function handleHomepage(req, deployPlatform) {
          </div>
          <div class="config-control">
            <div class="config-label">
-             <span>限制条数</span>
+             <span>💫 限制条数</span>
              <div style="display: flex; align-items: center; gap: 0.5rem;">
-               <span class="config-value" id="danmuLimitValue">-1 (不限制)</span>
-               <button class="lock-btn" onclick="toggleSliderLock('danmuLimit')" id="danmuLimitLock" title="点击解锁">🔒</button>
+               <input type="number" class="config-value-input" id="danmuLimitInput" value="${globals.envs.DANMU_LIMIT || -1}" min="-1" max="20000" onchange="updateDanmuLimitFromInput(this.value)" disabled>
+               <button class="lock-btn" onclick="toggleSliderLock('danmuLimit')" id="danmuLimitLock" title="点击解锁">
+                 <svg class="lock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                   <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                   <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                 </svg>
+               </button>
              </div>
            </div>
            <div class="slider-container">
              <input type="range" min="-1" max="20000" value="${globals.envs.DANMU_LIMIT || -1}" class="slider locked" id="danmuLimitSlider" oninput="updateDanmuLimit(this.value)" disabled>
+             <div class="slider-track-fill" id="danmuLimitTrack"></div>
            </div>
          </div>
        </div>
@@ -2103,14 +2206,20 @@ async function handleHomepage(req, deployPlatform) {
          </div>
          <div class="config-control">
            <div class="config-label">
-             <span>占比百分比</span>
+             <span>🎨 占比百分比</span>
              <div style="display: flex; align-items: center; gap: 0.5rem;">
-               <span class="config-value" id="whiteRatioValue">${globals.envs.WHITE_RATIO || 30}%</span>
-               <button class="lock-btn" onclick="toggleSliderLock('whiteRatio')" id="whiteRatioLock" title="点击解锁">🔒</button>
+               <input type="number" class="config-value-input" id="whiteRatioInput" value="${globals.envs.WHITE_RATIO || 30}" min="0" max="100" onchange="updateWhiteRatioFromInput(this.value)" disabled>
+               <button class="lock-btn" onclick="toggleSliderLock('whiteRatio')" id="whiteRatioLock" title="点击解锁">
+                 <svg class="lock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                   <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                   <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                 </svg>
+               </button>
              </div>
            </div>
            <div class="slider-container">
              <input type="range" min="0" max="100" value="${globals.envs.WHITE_RATIO || 30}" class="slider locked" id="whiteRatioSlider" oninput="updateWhiteRatio(this.value)" disabled>
+             <div class="slider-track-fill" id="whiteRatioTrack"></div>
            </div>
          </div>
        </div>
@@ -2122,14 +2231,20 @@ async function handleHomepage(req, deployPlatform) {
          </div>
          <div class="config-control">
            <div class="config-label">
-             <span>时间窗口（分钟）</span>
+             <span>⏰ 时间窗口（分钟）</span>
              <div style="display: flex; align-items: center; gap: 0.5rem;">
-               <span class="config-value" id="groupMinuteValue">${globals.envs.GROUP_MINUTE || 1} 分钟</span>
-               <button class="lock-btn" onclick="toggleSliderLock('groupMinute')" id="groupMinuteLock" title="点击解锁">🔒</button>
+               <input type="number" class="config-value-input" id="groupMinuteInput" value="${globals.envs.GROUP_MINUTE || 1}" min="1" max="10" onchange="updateGroupMinuteFromInput(this.value)" disabled>
+               <button class="lock-btn" onclick="toggleSliderLock('groupMinute')" id="groupMinuteLock" title="点击解锁">
+                 <svg class="lock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                   <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                   <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                 </svg>
+               </button>
              </div>
            </div>
            <div class="slider-container">
              <input type="range" min="1" max="10" value="${globals.envs.GROUP_MINUTE || 1}" class="slider locked" id="groupMinuteSlider" oninput="updateGroupMinute(this.value)" disabled>
+             <div class="slider-track-fill" id="groupMinuteTrack"></div>
            </div>
          </div>
        </div>
@@ -2376,24 +2491,40 @@ async function handleHomepage(req, deployPlatform) {
    };
 
    function toggleSliderLock(name) {
-     const slider = document.getElementById(\`\${name}Slider\`);
-     const lockBtn = document.getElementById(\`\${name}Lock\`);
+     const slider = document.getElementById(`${name}Slider`);
+     const lockBtn = document.getElementById(`${name}Lock`);
+     const input = document.getElementById(`${name}Input`);
+     const track = document.getElementById(`${name}Track`);
      
      sliderLockStates[name] = !sliderLockStates[name];
      
      if (sliderLockStates[name]) {
        slider.disabled = true;
        slider.classList.add('locked');
-       lockBtn.textContent = '🔒';
+       if (input) input.disabled = true;
        lockBtn.classList.remove('unlocked');
        lockBtn.title = '点击解锁';
+       if (track) track.style.opacity = '0';
      } else {
        slider.disabled = false;
        slider.classList.remove('locked');
-       lockBtn.textContent = '🔓';
+       if (input) input.disabled = false;
        lockBtn.classList.add('unlocked');
        lockBtn.title = '点击锁定';
+       updateSliderTrack(name);
      }
+   }
+
+   function updateSliderTrack(name) {
+     const slider = document.getElementById(`${name}Slider`);
+     const track = document.getElementById(`${name}Track`);
+     if (!slider || !track || slider.disabled) return;
+     
+     const min = parseFloat(slider.min);
+     const max = parseFloat(slider.max);
+     const value = parseFloat(slider.value);
+     const percentage = ((value - min) / (max - min)) * 100;
+     track.style.width = `${percentage}%`;
    }
    // API信息显示
    function showApiInfo() {
@@ -2534,10 +2665,41 @@ async function handleHomepage(req, deployPlatform) {
    function updateDanmuLimit(value) {
      const val = parseInt(value);
      AppState.quickConfigs.DANMU_LIMIT = val;
-     const display = val === -1 ? '-1 (不限制)' : val + ' 条';
-     document.getElementById('danmuLimitValue').textContent = display;
+     const input = document.getElementById('danmuLimitInput');
+     if (input) input.value = val;
+     updateSliderTrack('danmuLimit');
    }
-   
+
+   function updateDanmuLimitFromInput(value) {
+     const val = parseInt(value);
+     if (isNaN(val)) return;
+     
+     const slider = document.getElementById('danmuLimitSlider');
+     slider.value = val;
+     updateDanmuLimit(val);
+     updateSliderTrack('danmuLimit');
+   }
+
+   function updateWhiteRatioFromInput(value) {
+     const val = parseInt(value);
+     if (isNaN(val)) return;
+     
+     const slider = document.getElementById('whiteRatioSlider');
+     slider.value = val;
+     updateWhiteRatio(val);
+     updateSliderTrack('whiteRatio');
+   }
+
+   function updateGroupMinuteFromInput(value) {
+     const val = parseInt(value);
+     if (isNaN(val)) return;
+     
+     const slider = document.getElementById('groupMinuteSlider');
+     slider.value = val;
+     updateGroupMinute(val);
+     updateSliderTrack('groupMinute');
+   }
+
    // 页面加载时初始化弹幕数量显示
    function initDanmuLimitDisplay() {
      const currentValue = ${globals.envs.DANMU_LIMIT || -1};
@@ -2547,7 +2709,9 @@ async function handleHomepage(req, deployPlatform) {
    function updateWhiteRatio(value) {
      const val = parseInt(value);
      AppState.quickConfigs.WHITE_RATIO = val;
-     document.getElementById('whiteRatioValue').textContent = val + '%';
+     const input = document.getElementById('whiteRatioInput');
+     if (input) input.value = val;
+     updateSliderTrack('whiteRatio');
    }
 
    function updateOutputFormat(value) {
@@ -2557,7 +2721,9 @@ async function handleHomepage(req, deployPlatform) {
    function updateGroupMinute(value) {
      const val = parseInt(value);
      AppState.quickConfigs.GROUP_MINUTE = val;
-     document.getElementById('groupMinuteValue').textContent = val + ' 分钟';
+     const input = document.getElementById('groupMinuteInput');
+     if (input) input.value = val;
+     updateSliderTrack('groupMinute');
    }
 
    function updateSimplified(checked) {
@@ -3182,6 +3348,13 @@ async function handleHomepage(req, deployPlatform) {
    // 初始化
    initTheme();
    initDanmuLimitDisplay();
+   
+   // 初始化滑块轨道
+   setTimeout(() => {
+     ['danmuLimit', 'whiteRatio', 'groupMinute'].forEach(name => {
+       updateSliderTrack(name);
+     });
+   }, 100);
    
    // 延迟加载非关键功能
    setTimeout(() => {
@@ -4202,5 +4375,3 @@ export async function netlifyHandler(event, context) {
 }
 
 export { handleRequest };
-
-
