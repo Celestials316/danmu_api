@@ -442,6 +442,19 @@ function getRealEnvValue(key) {
 }
 
 async function handleRequest(req, env, deployPlatform, clientIp) {
+  // 自动检测部署平台（如果未明确指定）
+  if (!deployPlatform || deployPlatform === 'unknown') {
+    if (typeof process !== 'undefined' && process.env?.VERCEL) {
+      deployPlatform = 'vercel';
+    } else if (typeof process !== 'undefined' && process.env?.NETLIFY) {
+      deployPlatform = 'netlify';
+    } else if (env?.ASSETS !== undefined || req.headers.get('cf-ray')) {
+      deployPlatform = 'cloudflare';
+    } else {
+      deployPlatform = 'unknown';
+    }
+  }
+
   if (!Globals.configLoaded) {
     log("info", "[init] 🚀 首次启动，初始化全局配置...");
     globals = await Globals.init(env, deployPlatform);
