@@ -12,6 +12,22 @@ let globals;
 const sessions = new Map();
 const SESSION_TIMEOUT = 24 * 60 * 60 * 1000;
 
+// 版本号比较函数
+function compareVersions(v1, v2) {
+  const parts1 = v1.split('.').map(Number);
+  const parts2 = v2.split('.').map(Number);
+  
+  for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
+    const part1 = parts1[i] || 0;
+    const part2 = parts2[i] || 0;
+    
+    if (part1 > part2) return 1;
+    if (part1 < part2) return -1;
+  }
+  
+  return 0;
+}
+
 function generateSessionId() {
   return Array.from(crypto.getRandomValues(new Uint8Array(32)))
     .map(b => b.toString(16).padStart(2, '0'))
@@ -838,6 +854,32 @@ async function handleHomepage(req, deployPlatform) {
       transform: scale(0.98);
     }
 
+   #versionCard {
+     transition: all 0.3s ease;
+   }
+
+   #versionCard:hover {
+     border-color: var(--primary);
+     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+   }
+
+   .version-checking {
+     animation: pulse 1.5s ease-in-out infinite;
+   }
+
+   @keyframes pulse {
+     0%, 100% { opacity: 1; }
+     50% { opacity: 0.6; }
+   }
+
+   .version-update-available {
+     background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.05));
+   }
+
+   .version-update-available::before {
+     background: linear-gradient(90deg, var(--success), #059669);
+   }
+   
     .stat-header {
       display: flex;
       justify-content: space-between;
@@ -1750,14 +1792,14 @@ async function handleHomepage(req, deployPlatform) {
        <div class="stat-footer">优先源</div>
      </div>
 
-     <div class="stat-card">
+     <div class="stat-card" id="versionCard" style="cursor: pointer;" onclick="checkVersion()" title="点击检测更新">
        <div class="stat-header">
          <div class="stat-icon">📊</div>
-         <span class="stat-status status-online">v${globals.VERSION}</span>
+         <span class="stat-status status-online" id="versionStatus">v${globals.VERSION}</span>
        </div>
        <div class="stat-title">服务版本</div>
        <div class="stat-value">${globals.deployPlatform || 'Unknown'}</div>
-       <div class="stat-footer">部署平台</div>
+       <div class="stat-footer" id="versionFooter">点击检测更新</div>
      </div>
    </div>
 
@@ -2596,9 +2638,113 @@ async function handleHomepage(req, deployPlatform) {
      lastTouchEnd = now;
    }, false);
 
+
+   // 版本检测功能
+   let isCheckingVersion = false;
+
+   async function checkVersion(silent = false) {
+     if (isCheckingVersion) return;
+     
+     isCheckingVersion = true;
+     const versionCard = document.getElementById('versionCard');
+     const versionStatus = document.getElementById('versionStatus');
+     const versionFooter = document.getElementById('versionFooter');
+     const originalFooter = versionFooter.textContent;
+     
+     if (!silent) {
+       versionCard.classList.add('version-checking');
+       versionFooter.textContent = '检测中...';
+     }
+     
+     try {
+       const response = await fetch('/api/version/check');
+       const result = await response.json();
+       
+       if (result.success) {
+         const { currentVersion, latestVersion, hasUpdate, updateUrl } = result;
+         
+         if (hasUpdate) {
+           versionStatus.textContent = \`v\${currentVersion} → v\${latestVersion}\`;
+           versionStatus.className = 'stat-status status-offline';
+           versionFooter.innerHTML = \`<a href="\${updateUrl}" target="_blank" style="color: var(--success); text-decoration: none;">🎉 发现新版本</a>\`;
+           versionCard.classList.add('version-update-available');
+           
+           if (!silent) {
+             showToast(\`🎉 发现新版本 v\${latestVersion}\`, 'success');
+           }
+         } else {
+           versionStatus.textContent = \`v\${currentVersion}\`;
+           versionStatus.className = 'stat-status status-online';
+           versionFooter.textContent = '✅ 已是最新';
+           versionCard.classList.remove('version-update-available');
+           
+           if (!silent) {
+             showToast('✅ 当前已是最新版本', 'success');
+           }
+         }
+         
+         // 保存检测结果到本地
+         localStorage.setItem('lastVersionCheck', JSON.stringify({
+           time: Date.now(),
+           currentVersion,
+           latestVersion,
+           hasUpdate
+         }));
+       } else {
+         throw new Error(result.errorMessage || '检测失败');
+       }
+     } catch (error) {
+       console.error('版本检测失败:', error);
+       versionFooter.textContent = originalFooter;
+       
+       if (!silent) {
+         showToast('版本检测失败: ' + error.message, 'error');
+       }
+     } finally {
+       versionCard.classList.remove('version-checking');
+       isCheckingVersion = false;
+     }
+   }
+
+   // 自动检测版本（每24小时一次）
+   function autoCheckVersion() {
+     const lastCheck = localStorage.getItem('lastVersionCheck');
+     
+     if (lastCheck) {
+       try {
+         const { time, hasUpdate } = JSON.parse(lastCheck);
+         const dayInMs = 24 * 60 * 60 * 1000;
+         
+         // 如果上次检测距今不到24小时，加载缓存结果
+         if (Date.now() - time < dayInMs) {
+           const cached = JSON.parse(lastCheck);
+           const versionStatus = document.getElementById('versionStatus');
+           const versionFooter = document.getElementById('versionFooter');
+           const versionCard = document.getElementById('versionCard');
+           
+           if (cached.hasUpdate) {
+             versionStatus.textContent = \`v\${cached.currentVersion} → v\${cached.latestVersion}\`;
+             versionStatus.className = 'stat-status status-offline';
+             versionFooter.innerHTML = '<a href="https://github.com/huangxd-/danmu_api" target="_blank" style="color: var(--success); text-decoration: none;">🎉 发现新版本</a>';
+             versionCard.classList.add('version-update-available');
+           } else {
+             versionFooter.textContent = '✅ 已是最新';
+           }
+           return;
+         }
+       } catch (e) {
+         console.error('加载版本缓存失败:', e);
+       }
+     }
+     
+     // 超过24小时或没有缓存，自动检测
+     checkVersion(true);
+   }
+
    // 初始化
    initTheme();
    loadConfig();
+   autoCheckVersion();
    
    console.log('%c🎬 弹幕 API 管理中心', 'font-size: 20px; font-weight: bold; color: #667eea;');
    console.log('%c快捷键提示:', 'font-weight: bold; color: #8b5cf6;');
@@ -3048,6 +3194,51 @@ async function handleHomepage(req, deployPlatform) {
    }
 
    return getComment(path, queryFormat);
+ }
+
+ // GET /api/version/check - 检测版本更新
+ if (path === "/api/version/check" && method === "GET") {
+   try {
+     const currentVersion = globals.VERSION || '1.0.0';
+     
+     const response = await fetch('https://raw.githubusercontent.com/huangxd-/danmu_api/refs/heads/main/danmu_api/configs/globals.js', {
+       headers: {
+         'User-Agent': 'Danmu-API-Version-Checker'
+       }
+     });
+     
+     if (!response.ok) {
+       throw new Error('Failed to fetch version info');
+     }
+     
+     const text = await response.text();
+     const versionMatch = text.match(/VERSION:\s*['"]([^'"]+)['"]/);
+     
+     if (!versionMatch) {
+       throw new Error('Version not found in file');
+     }
+     
+     const latestVersion = versionMatch[1];
+     const hasUpdate = compareVersions(latestVersion, currentVersion) > 0;
+     
+     log("info", `[version] Current: ${currentVersion}, Latest: ${latestVersion}, Has Update: ${hasUpdate}`);
+     
+     return jsonResponse({
+       success: true,
+       currentVersion,
+       latestVersion,
+       hasUpdate,
+       updateUrl: 'https://github.com/huangxd-/danmu_api'
+     });
+     
+   } catch (error) {
+     log("error", `[version] Check failed: ${error.message}`);
+     return jsonResponse({
+       success: false,
+       errorMessage: `版本检测失败: ${error.message}`,
+       currentVersion: globals.VERSION || '1.0.0'
+     }, 500);
+   }
  }
 
  if (path === "/api/logs" && method === "GET") {
