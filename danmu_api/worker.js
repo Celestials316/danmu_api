@@ -1580,7 +1580,7 @@ async function handleHomepage(req, deployPlatform) {
 
    /* 日志容器 */
    .log-container {
-     background: var(--bg-3);
+     background: #1a1f2e;
      border-radius: 10px;
      padding: 1rem;
      font-family: 'Courier New', monospace;
@@ -1611,8 +1611,8 @@ async function handleHomepage(req, deployPlatform) {
      padding: 0.375rem 0.625rem;
      border-radius: 6px;
      border: none;
-     background: var(--bg-2);
-     color: var(--text-2);
+     background: #2d3548;
+     color: #cbd5e1;
      cursor: pointer;
      font-size: 0.7rem;
      transition: all 0.2s ease;
@@ -1634,22 +1634,22 @@ async function handleHomepage(req, deployPlatform) {
      border-radius: 4px;
      line-height: 1.5;
      word-break: break-all;
-     color: var(--text-1);
+     color: #e2e8f0;
    }
 
-   .log-line.info { color: #3b82f6; }
+   .log-line.info { color: #60a5fa; }
    .log-line.warn { color: #fbbf24; }
-   .log-line.error { color: #f87171; }
+   .log-line.error { color: #fca5a5; }
 
    [data-theme="light"] .log-line.info { color: #60a5fa; }
    [data-theme="light"] .log-line.warn { color: #d97706; }
    [data-theme="light"] .log-line.error { color: #dc2626; }
 
    .log-timestamp {
-     opacity: 0.7;
+     opacity: 0.8;
      margin-right: 0.375rem;
      font-size: 0.65rem;
-     color: var(--text-2);
+     color: #94a3b8;
    }
 
    /* 平板适配 */
