@@ -490,77 +490,16 @@ async function handleHomepage(req) {
       globals.sourceOrderArr = [];
     }
 
-    // 定义需要显示的环境变量白名单
-    const ALLOWED_ENV_KEYS = [
-      'TOKEN', 'VERSION', 'LOG_LEVEL', 'OTHER_SERVER',
-      'VOD_SERVERS', 'VOD_RETURN_MODE', 'VOD_REQUEST_TIMEOUT',
-      'BILIBILI_COOKIE', 'TMDB_API_KEY',
-      'SOURCE_ORDER', 'PLATFORM_ORDER',
-      'TITLE_TO_CHINESE', 'STRICT_TITLE_MATCH',
-      'EPISODE_TITLE_FILTER', 'ENABLE_EPISODE_FILTER',
-      'DANMU_OUTPUT_FORMAT', 'DANMU_SIMPLIFIED', 'DANMU_LIMIT',
-      'BLOCKED_WORDS', 'GROUP_MINUTE', 'CONVERT_TOP_BOTTOM_TO_SCROLL',
-      'WHITE_RATIO', 'YOUKU_CONCURRENCY',
-      'SEARCH_CACHE_MINUTES', 'COMMENT_CACHE_MINUTES',
-      'REMEMBER_LAST_SELECT', 'MAX_LAST_SELECT_MAP',
-      'PROXY_URL', 'RATE_LIMIT_MAX_REQUESTS',
-      'UPSTASH_REDIS_REST_URL', 'UPSTASH_REDIS_REST_TOKEN',
-      'DATABASE_URL', 'DATABASE_AUTH_TOKEN'
-    ];
-
-    // 过滤有效的环境变量
-    const validEnvVars = Object.entries(globals.accessedEnvVars).filter(([key]) => {
-      if (ALLOWED_ENV_KEYS.includes(key)) return true;
-      if (key.startsWith('session_')) return false;
-      const systemPrefixes = ['npm_', 'NODE_', 'PATH', 'HOME', 'USER', 'SHELL', 'LANG', 'LC_'];
-      if (systemPrefixes.some(prefix => key.startsWith(prefix))) return false;
-      return false;
-    });
-
-    const configuredEnvCount = validEnvVars.filter(([key, value]) => {
+    const configuredEnvCount = Object.entries(globals.accessedEnvVars).filter(([key, value]) => {
       if (value === null || value === undefined) return false;
       if (typeof value === 'string' && value.length === 0) return false;
       if (Array.isArray(value) && value.length === 0) return false;
       return true;
     }).length;
 
-    const totalEnvCount = validEnvVars.length;
+    const totalEnvCount = Object.keys(globals.accessedEnvVars).length;
 
-    // 定义需要显示的环境变量白名单
-    const ALLOWED_ENV_KEYS = [
-      'TOKEN', 'VERSION', 'LOG_LEVEL', 'OTHER_SERVER',
-      'VOD_SERVERS', 'VOD_RETURN_MODE', 'VOD_REQUEST_TIMEOUT',
-      'BILIBILI_COOKIE', 'TMDB_API_KEY',
-      'SOURCE_ORDER', 'PLATFORM_ORDER',
-      'TITLE_TO_CHINESE', 'STRICT_TITLE_MATCH',
-      'EPISODE_TITLE_FILTER', 'ENABLE_EPISODE_FILTER',
-      'DANMU_OUTPUT_FORMAT', 'DANMU_SIMPLIFIED', 'DANMU_LIMIT',
-      'BLOCKED_WORDS', 'GROUP_MINUTE', 'CONVERT_TOP_BOTTOM_TO_SCROLL',
-      'WHITE_RATIO', 'YOUKU_CONCURRENCY',
-      'SEARCH_CACHE_MINUTES', 'COMMENT_CACHE_MINUTES',
-      'REMEMBER_LAST_SELECT', 'MAX_LAST_SELECT_MAP',
-      'PROXY_URL', 'RATE_LIMIT_MAX_REQUESTS',
-      'UPSTASH_REDIS_REST_URL', 'UPSTASH_REDIS_REST_TOKEN',
-      'DATABASE_URL', 'DATABASE_AUTH_TOKEN'
-    ];
-
-    // 过滤环境变量
-    const filteredEnvVars = Object.entries(globals.accessedEnvVars)
-      .filter(([key]) => {
-        // 只显示白名单中的变量
-        if (ALLOWED_ENV_KEYS.includes(key)) return true;
-        
-        // 排除以 session_ 开头的变量（session 数据）
-        if (key.startsWith('session_')) return false;
-        
-        // 排除系统相关变量
-        const systemPrefixes = ['npm_', 'NODE_', 'PATH', 'HOME', 'USER', 'SHELL', 'LANG', 'LC_'];
-        if (systemPrefixes.some(prefix => key.startsWith(prefix))) return false;
-        
-        return false;
-      });
-
-    const envItemsHtml = filteredEnvVars
+    const envItemsHtml = Object.entries(globals.accessedEnvVars)
       .map(([key, value]) => {
         let displayValue = value;
         const description = ENV_DESCRIPTIONS[key] || '环境变量';
