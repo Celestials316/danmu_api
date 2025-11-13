@@ -1590,6 +1590,11 @@ async function handleHomepage(req, deployPlatform) {
      border: 2px solid var(--border);
    }
 
+   [data-theme="light"] .log-container {
+     background: #f8fafc;
+     border: 2px solid #e2e8f0;
+   }
+
    .log-header {
      display: flex;
      justify-content: space-between;
@@ -1599,6 +1604,10 @@ async function handleHomepage(req, deployPlatform) {
      border-bottom: 1px solid var(--border);
      gap: 0.5rem;
      flex-wrap: wrap;
+   }
+
+   [data-theme="light"] .log-header {
+     border-bottom-color: #cbd5e1;
    }
 
    .log-controls {
@@ -1619,11 +1628,21 @@ async function handleHomepage(req, deployPlatform) {
      white-space: nowrap;
    }
 
+   [data-theme="light"] .log-filter {
+     background: #e2e8f0;
+     color: #475569;
+   }
+
    .log-filter:active {
      transform: scale(0.95);
    }
 
    .log-filter.active {
+     background: var(--primary);
+     color: white;
+   }
+
+   [data-theme="light"] .log-filter.active {
      background: var(--primary);
      color: white;
    }
@@ -1637,11 +1656,15 @@ async function handleHomepage(req, deployPlatform) {
      color: #e2e8f0;
    }
 
+   [data-theme="light"] .log-line {
+     color: #1e293b;
+   }
+
    .log-line.info { color: #60a5fa; }
    .log-line.warn { color: #fbbf24; }
    .log-line.error { color: #fca5a5; }
 
-   [data-theme="light"] .log-line.info { color: #60a5fa; }
+   [data-theme="light"] .log-line.info { color: #2563eb; }
    [data-theme="light"] .log-line.warn { color: #d97706; }
    [data-theme="light"] .log-line.error { color: #dc2626; }
 
@@ -1650,6 +1673,10 @@ async function handleHomepage(req, deployPlatform) {
      margin-right: 0.375rem;
      font-size: 0.65rem;
      color: #94a3b8;
+   }
+
+   [data-theme="light"] .log-timestamp {
+     color: #64748b;
    }
 
    /* 平板适配 */
