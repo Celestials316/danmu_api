@@ -996,18 +996,18 @@ async function handleHomepage(req, deployPlatform) {
 
    .config-group {
      background: var(--bg-3);
-     border-radius: 20px;
-     padding: 1.5rem;
+     border-radius: 24px;
+     padding: 1.75rem;
      border: 2px solid var(--border);
-     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
      position: relative;
      overflow: hidden;
-     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
    }
 
    [data-theme="light"] .config-group {
-     background: linear-gradient(135deg, rgba(99, 102, 241, 0.03), rgba(139, 92, 246, 0.03));
-     box-shadow: 0 2px 12px rgba(99, 102, 241, 0.08);
+     background: linear-gradient(135deg, rgba(99, 102, 241, 0.04), rgba(139, 92, 246, 0.04));
+     box-shadow: 0 4px 20px rgba(99, 102, 241, 0.1);
    }
 
    .config-group::before {
@@ -1016,26 +1016,41 @@ async function handleHomepage(req, deployPlatform) {
      top: 0;
      left: 0;
      right: 0;
-     height: 3px;
+     height: 4px;
      background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
      transform: scaleX(0);
      transform-origin: left;
-     transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+     transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+   }
+
+   .config-group::after {
+     content: '';
+     position: absolute;
+     inset: -2px;
+     background: linear-gradient(135deg, var(--primary), var(--secondary));
+     border-radius: 24px;
+     opacity: 0;
+     z-index: -1;
+     transition: opacity 0.4s ease;
    }
 
    .config-group:hover {
-     border-color: rgba(102, 126, 234, 0.4);
-     box-shadow: 0 8px 24px rgba(102, 126, 234, 0.12);
-     transform: translateY(-4px);
+     border-color: rgba(102, 126, 234, 0.5);
+     box-shadow: 0 12px 32px rgba(102, 126, 234, 0.18), inset 0 1px 3px rgba(255, 255, 255, 0.05);
+     transform: translateY(-6px) scale(1.01);
    }
 
    [data-theme="light"] .config-group:hover {
-     border-color: rgba(99, 102, 241, 0.3);
-     box-shadow: 0 8px 32px rgba(99, 102, 241, 0.15);
+     border-color: rgba(99, 102, 241, 0.4);
+     box-shadow: 0 12px 40px rgba(99, 102, 241, 0.2), inset 0 1px 3px rgba(255, 255, 255, 0.1);
    }
 
    .config-group:hover::before {
      transform: scaleX(1);
+   }
+
+   .config-group:hover::after {
+     opacity: 0.05;
    }
 
    .config-group-title {
@@ -1095,197 +1110,166 @@ async function handleHomepage(req, deployPlatform) {
      font-weight: 700;
      color: var(--primary);
      font-size: 1rem;
-     padding: 0.5rem 1rem;
-     background: linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(118, 75, 162, 0.1));
-     border-radius: 10px;
-     min-width: 100px;
+     padding: 0.625rem 1.125rem;
+     background: linear-gradient(135deg, rgba(102, 126, 234, 0.18), rgba(118, 75, 162, 0.12));
+     border-radius: 12px;
+     min-width: 110px;
      text-align: center;
-     border: 1px solid rgba(102, 126, 234, 0.2);
-     box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
-     transition: all 0.3s ease;
+     border: 2px solid rgba(102, 126, 234, 0.25);
+     box-shadow: 0 3px 12px rgba(102, 126, 234, 0.15), inset 0 1px 3px rgba(255, 255, 255, 0.1);
+     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+     cursor: pointer;
+     position: relative;
+     overflow: hidden;
+   }
+
+   .config-value::before {
+     content: '✏️';
+     position: absolute;
+     right: 0.5rem;
+     top: 50%;
+     transform: translateY(-50%);
+     opacity: 0;
+     transition: opacity 0.3s ease;
+     font-size: 0.875rem;
    }
 
    [data-theme="light"] .config-value {
-     background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(139, 92, 246, 0.08));
-     border-color: rgba(99, 102, 241, 0.2);
-     box-shadow: 0 2px 8px rgba(99, 102, 241, 0.08);
+     background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.1));
+     border-color: rgba(99, 102, 241, 0.3);
+     box-shadow: 0 3px 12px rgba(99, 102, 241, 0.12), inset 0 1px 3px rgba(255, 255, 255, 0.2);
    }
 
    .config-value:hover {
-     transform: scale(1.05);
-     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+     transform: scale(1.08) translateY(-2px);
+     box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3), inset 0 1px 3px rgba(255, 255, 255, 0.2);
+     border-color: rgba(102, 126, 234, 0.4);
+   }
+
+   .config-value:hover::before {
+     opacity: 1;
+   }
+
+   [data-theme="light"] .config-value:hover {
+     box-shadow: 0 6px 20px rgba(99, 102, 241, 0.25), inset 0 1px 3px rgba(255, 255, 255, 0.3);
+     border-color: rgba(99, 102, 241, 0.5);
+   }
+
+   .config-value:active {
+     transform: scale(1.02);
+     box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
    }
 
    .lock-btn {
      background: var(--bg-2);
      border: 2px solid var(--border);
      border-radius: 12px;
-     padding: 0.625rem;
+     padding: 0.5rem 0.75rem;
+     font-size: 1.25rem;
      cursor: pointer;
      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-     min-width: 44px;
-     height: 44px;
+     min-width: 48px;
+     height: 48px;
      display: flex;
      align-items: center;
      justify-content: center;
      flex-shrink: 0;
      position: relative;
      overflow: hidden;
-   }
-
-   .lock-icon {
-     width: 20px;
-     height: 20px;
-     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-     position: relative;
-     z-index: 1;
-     color: var(--text-2);
+     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
    }
 
    .lock-btn::before {
      content: '';
      position: absolute;
      inset: 0;
-     background: linear-gradient(135deg, var(--primary), var(--secondary));
+     background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
      opacity: 0;
+     transition: opacity 0.3s ease;
+   }
+
+   .lock-btn::after {
+     content: '';
+     position: absolute;
+     inset: -2px;
+     background: linear-gradient(135deg, var(--primary), var(--secondary));
+     border-radius: 12px;
+     opacity: 0;
+     z-index: -1;
      transition: opacity 0.3s ease;
    }
 
    .lock-btn:hover {
      border-color: var(--primary);
-     transform: translateY(-2px);
-     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+     transform: translateY(-3px) scale(1.05);
+     box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
    }
 
-   .lock-btn:hover .lock-icon {
-     transform: scale(1.1);
+   [data-theme="light"] .lock-btn:hover {
+     box-shadow: 0 6px 20px rgba(99, 102, 241, 0.25);
    }
 
    .lock-btn:active {
-     transform: translateY(0) scale(0.95);
+     transform: translateY(-1px) scale(0.98);
+     box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
    }
 
    .lock-btn.unlocked {
-     background: linear-gradient(135deg, var(--primary), var(--secondary));
+     background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
      border-color: transparent;
-     box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
-     animation: pulse-glow 2s ease-in-out infinite;
+     box-shadow: 0 6px 24px rgba(102, 126, 234, 0.5);
+     animation: pulse-glow 2.5s ease-in-out infinite;
+     color: white;
    }
 
-   .lock-btn.unlocked .lock-icon {
-     color: white;
-     animation: unlock-rotate 0.5s ease;
+   [data-theme="light"] .lock-btn.unlocked {
+     box-shadow: 0 6px 24px rgba(99, 102, 241, 0.4);
    }
 
    .lock-btn.unlocked::before {
      opacity: 1;
    }
 
-   @keyframes unlock-rotate {
-     0% { transform: rotate(0deg) scale(1); }
-     50% { transform: rotate(180deg) scale(1.2); }
-     100% { transform: rotate(360deg) scale(1); }
+   .lock-btn.unlocked::after {
+     opacity: 1;
+     animation: rotate-border 3s linear infinite;
    }
 
    @keyframes pulse-glow {
      0%, 100% {
-       box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
+       box-shadow: 0 6px 24px rgba(102, 126, 234, 0.5);
+       transform: scale(1);
      }
      50% {
-       box-shadow: 0 4px 24px rgba(102, 126, 234, 0.6);
+       box-shadow: 0 8px 32px rgba(102, 126, 234, 0.7);
+       transform: scale(1.02);
      }
    }
 
-   /* 数值输入框样式 */
-   .config-value-input {
-     width: 120px;
-     padding: 0.625rem 0.875rem;
-     background: linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(118, 75, 162, 0.1));
-     border: 2px solid rgba(102, 126, 234, 0.2);
-     border-radius: 10px;
-     color: var(--primary);
-     font-weight: 700;
-     font-size: 1rem;
-     text-align: center;
-     box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
-     transition: all 0.3s ease;
-     -moz-appearance: textfield;
-   }
-
-   .config-value-input::-webkit-outer-spin-button,
-   .config-value-input::-webkit-inner-spin-button {
-     -webkit-appearance: none;
-     margin: 0;
-   }
-
-   [data-theme="light"] .config-value-input {
-     background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(139, 92, 246, 0.08));
-     border-color: rgba(99, 102, 241, 0.2);
-     box-shadow: 0 2px 8px rgba(99, 102, 241, 0.08);
-   }
-
-   .config-value-input:disabled {
-     cursor: not-allowed;
-     opacity: 0.7;
-   }
-
-   .config-value-input:not(:disabled):hover {
-     transform: scale(1.02);
-     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
-     border-color: rgba(102, 126, 234, 0.4);
-   }
-
-   .config-value-input:not(:disabled):focus {
-     outline: none;
-     transform: scale(1.05);
-     box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
-     border-color: var(--primary);
-     background: linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(118, 75, 162, 0.15));
+   @keyframes rotate-border {
+     0% {
+       transform: rotate(0deg);
+     }
+     100% {
+       transform: rotate(360deg);
+     }
    }
 
    /* 滑块样式 */
    .slider-container {
      position: relative;
-     padding: 1.25rem 0 0.5rem;
+     padding: 1rem 0;
    }
 
    .slider {
      -webkit-appearance: none;
      width: 100%;
-     height: 8px;
+     height: 10px;
      border-radius: 10px;
-     background: transparent;
+     background: var(--border);
      outline: none;
      transition: all 0.3s ease;
      position: relative;
-     z-index: 2;
-   }
-
-   .slider-track-fill {
-     position: absolute;
-     top: 1.25rem;
-     left: 0;
-     height: 8px;
-     background: linear-gradient(90deg, var(--primary), var(--secondary));
-     border-radius: 10px;
-     pointer-events: none;
-     transition: width 0.2s ease;
-     opacity: 0;
-   }
-
-   .slider:not(.locked) + .slider-track-fill {
-     opacity: 1;
-   }
-
-   .slider::before {
-     content: '';
-     position: absolute;
-     top: 0;
-     left: 0;
-     right: 0;
-     height: 8px;
-     background: var(--border);
-     border-radius: 10px;
      box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
    }
 
@@ -1301,74 +1285,87 @@ async function handleHomepage(req, deployPlatform) {
    .slider::-webkit-slider-thumb {
      -webkit-appearance: none;
      appearance: none;
-     width: 28px;
-     height: 28px;
+     width: 32px;
+     height: 32px;
      border-radius: 50%;
-     background: linear-gradient(135deg, var(--primary), var(--secondary));
-     cursor: pointer;
-     box-shadow: 0 3px 12px rgba(102, 126, 234, 0.5);
-     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-     border: 4px solid white;
+     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+     cursor: grab;
+     box-shadow: 0 4px 16px rgba(102, 126, 234, 0.6), 0 0 0 4px rgba(255, 255, 255, 0.3);
+     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+     border: 3px solid white;
      position: relative;
+     z-index: 10;
    }
 
    [data-theme="light"] .slider::-webkit-slider-thumb {
-     box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
+     background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+     box-shadow: 0 4px 20px rgba(99, 102, 241, 0.5), 0 0 0 4px rgba(99, 102, 241, 0.15);
    }
 
    .slider::-webkit-slider-thumb:hover {
-     width: 32px;
-     height: 32px;
-     box-shadow: 0 4px 20px rgba(102, 126, 234, 0.7);
+     width: 36px;
+     height: 36px;
+     box-shadow: 0 6px 24px rgba(102, 126, 234, 0.8), 0 0 0 6px rgba(102, 126, 234, 0.2);
+     transform: scale(1.05);
    }
 
    .slider::-webkit-slider-thumb:active {
-     width: 30px;
-     height: 30px;
-     box-shadow: 0 2px 8px rgba(102, 126, 234, 0.5);
+     cursor: grabbing;
+     width: 34px;
+     height: 34px;
+     box-shadow: 0 3px 12px rgba(102, 126, 234, 0.6), 0 0 0 4px rgba(102, 126, 234, 0.25);
    }
 
    .slider::-moz-range-thumb {
-     width: 28px;
-     height: 28px;
+     width: 32px;
+     height: 32px;
      border-radius: 50%;
-     background: linear-gradient(135deg, var(--primary), var(--secondary));
-     cursor: pointer;
-     border: 4px solid white;
-     box-shadow: 0 3px 12px rgba(102, 126, 234, 0.5);
-     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+     cursor: grab;
+     border: 3px solid white;
+     box-shadow: 0 4px 16px rgba(102, 126, 234, 0.6), 0 0 0 4px rgba(255, 255, 255, 0.3);
+     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+     z-index: 10;
+   }
+
+   [data-theme="light"] .slider::-moz-range-thumb {
+     background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+     box-shadow: 0 4px 20px rgba(99, 102, 241, 0.5), 0 0 0 4px rgba(99, 102, 241, 0.15);
    }
 
    .slider::-moz-range-thumb:hover {
-     width: 32px;
-     height: 32px;
-     box-shadow: 0 4px 20px rgba(102, 126, 234, 0.7);
+     width: 36px;
+     height: 36px;
+     box-shadow: 0 6px 24px rgba(102, 126, 234, 0.8), 0 0 0 6px rgba(102, 126, 234, 0.2);
+     transform: scale(1.05);
    }
 
    .slider::-moz-range-thumb:active {
-     width: 30px;
-     height: 30px;
-     box-shadow: 0 2px 8px rgba(102, 126, 234, 0.5);
+     cursor: grabbing;
+     width: 34px;
+     height: 34px;
+     box-shadow: 0 3px 12px rgba(102, 126, 234, 0.6), 0 0 0 4px rgba(102, 126, 234, 0.25);
    }
 
    .slider.locked {
-     opacity: 0.5;
+     opacity: 0.4;
      cursor: not-allowed;
      background: var(--border);
+     filter: grayscale(1);
    }
 
    .slider.locked::-webkit-slider-thumb {
      cursor: not-allowed;
-     background: var(--text-3);
-     box-shadow: none;
-     border-color: var(--border);
+     background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
+     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+     border-color: #cbd5e1;
    }
 
    .slider.locked::-moz-range-thumb {
      cursor: not-allowed;
-     background: var(--text-3);
-     box-shadow: none;
-     border-color: var(--border);
+     background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
+     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+     border-color: #cbd5e1;
    }
 
    /* 选择器样式 */
@@ -2181,20 +2178,14 @@ async function handleHomepage(req, deployPlatform) {
          </div>
          <div class="config-control">
            <div class="config-label">
-             <span>💫 限制条数</span>
+             <span>限制条数</span>
              <div style="display: flex; align-items: center; gap: 0.5rem;">
-               <input type="number" class="config-value-input" id="danmuLimitInput" value="${globals.envs.DANMU_LIMIT || -1}" min="-1" max="20000" onchange="updateDanmuLimitFromInput(this.value)" disabled>
-               <button class="lock-btn" onclick="toggleSliderLock('danmuLimit')" id="danmuLimitLock" title="点击解锁">
-                 <svg class="lock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                   <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                   <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                 </svg>
-               </button>
+               <span class="config-value" id="danmuLimitValue">-1 (不限制)</span>
+               <button class="lock-btn" onclick="toggleSliderLock('danmuLimit')" id="danmuLimitLock" title="点击解锁"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6zm9 14H6V10h12v10zm-6-3c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"/></svg></button>
              </div>
            </div>
            <div class="slider-container">
              <input type="range" min="-1" max="20000" value="${globals.envs.DANMU_LIMIT || -1}" class="slider locked" id="danmuLimitSlider" oninput="updateDanmuLimit(this.value)" disabled>
-             <div class="slider-track-fill" id="danmuLimitTrack"></div>
            </div>
          </div>
        </div>
@@ -2206,20 +2197,15 @@ async function handleHomepage(req, deployPlatform) {
          </div>
          <div class="config-control">
            <div class="config-label">
-             <span>🎨 占比百分比</span>
-             <div style="display: flex; align-items: center; gap: 0.5rem;">
-               <input type="number" class="config-value-input" id="whiteRatioInput" value="${globals.envs.WHITE_RATIO || 30}" min="0" max="100" onchange="updateWhiteRatioFromInput(this.value)" disabled>
-               <button class="lock-btn" onclick="toggleSliderLock('whiteRatio')" id="whiteRatioLock" title="点击解锁">
-                 <svg class="lock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                   <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                   <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                 </svg>
-               </button>
-             </div>
+             <span>占比百分比</span>
+               <div style="display: flex; align-items: center; gap: 0.5rem;">
+                 <span class="config-value" id="whiteRatioValue">${globals.envs.WHITE_RATIO || 30}%</span>
+                 <button class="lock-btn" onclick="toggleSliderLock('whiteRatio')" id="whiteRatioLock" title="点击解锁"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6zm9 14H6V10h12v10zm-6-3c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"/></svg></button>
+               </div>
+
            </div>
            <div class="slider-container">
              <input type="range" min="0" max="100" value="${globals.envs.WHITE_RATIO || 30}" class="slider locked" id="whiteRatioSlider" oninput="updateWhiteRatio(this.value)" disabled>
-             <div class="slider-track-fill" id="whiteRatioTrack"></div>
            </div>
          </div>
        </div>
@@ -2231,20 +2217,15 @@ async function handleHomepage(req, deployPlatform) {
          </div>
          <div class="config-control">
            <div class="config-label">
-             <span>⏰ 时间窗口（分钟）</span>
-             <div style="display: flex; align-items: center; gap: 0.5rem;">
-               <input type="number" class="config-value-input" id="groupMinuteInput" value="${globals.envs.GROUP_MINUTE || 1}" min="1" max="10" onchange="updateGroupMinuteFromInput(this.value)" disabled>
-               <button class="lock-btn" onclick="toggleSliderLock('groupMinute')" id="groupMinuteLock" title="点击解锁">
-                 <svg class="lock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                   <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                   <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                 </svg>
-               </button>
-             </div>
+             <span>时间窗口（分钟）</span>
+               <div style="display: flex; align-items: center; gap: 0.5rem;">
+                 <span class="config-value" id="groupMinuteValue">${globals.envs.GROUP_MINUTE || 1} 分钟</span>
+                 <button class="lock-btn" onclick="toggleSliderLock('groupMinute')" id="groupMinuteLock" title="点击解锁"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6zm9 14H6V10h12v10zm-6-3c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"/></svg></button>
+               </div>
+
            </div>
            <div class="slider-container">
              <input type="range" min="1" max="10" value="${globals.envs.GROUP_MINUTE || 1}" class="slider locked" id="groupMinuteSlider" oninput="updateGroupMinute(this.value)" disabled>
-             <div class="slider-track-fill" id="groupMinuteTrack"></div>
            </div>
          </div>
        </div>
@@ -2493,38 +2474,25 @@ async function handleHomepage(req, deployPlatform) {
    function toggleSliderLock(name) {
      const slider = document.getElementById(`${name}Slider`);
      const lockBtn = document.getElementById(`${name}Lock`);
-     const input = document.getElementById(`${name}Input`);
-     const track = document.getElementById(`${name}Track`);
      
      sliderLockStates[name] = !sliderLockStates[name];
+     
+     const lockedIcon = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6zm9 14H6V10h12v10zm-6-3c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"/></svg>';
+     const unlockedIcon = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6h2c0-1.66 1.34-3 3-3s3 1.34 3 3v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm0 12H6V10h12v10zm-6-3c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"/></svg>';
      
      if (sliderLockStates[name]) {
        slider.disabled = true;
        slider.classList.add('locked');
-       if (input) input.disabled = true;
+       lockBtn.innerHTML = lockedIcon;
        lockBtn.classList.remove('unlocked');
        lockBtn.title = '点击解锁';
-       if (track) track.style.opacity = '0';
      } else {
        slider.disabled = false;
        slider.classList.remove('locked');
-       if (input) input.disabled = false;
+       lockBtn.innerHTML = unlockedIcon;
        lockBtn.classList.add('unlocked');
        lockBtn.title = '点击锁定';
-       updateSliderTrack(name);
      }
-   }
-
-   function updateSliderTrack(name) {
-     const slider = document.getElementById(`${name}Slider`);
-     const track = document.getElementById(`${name}Track`);
-     if (!slider || !track || slider.disabled) return;
-     
-     const min = parseFloat(slider.min);
-     const max = parseFloat(slider.max);
-     const value = parseFloat(slider.value);
-     const percentage = ((value - min) / (max - min)) * 100;
-     track.style.width = `${percentage}%`;
    }
    // API信息显示
    function showApiInfo() {
@@ -2665,39 +2633,97 @@ async function handleHomepage(req, deployPlatform) {
    function updateDanmuLimit(value) {
      const val = parseInt(value);
      AppState.quickConfigs.DANMU_LIMIT = val;
-     const input = document.getElementById('danmuLimitInput');
-     if (input) input.value = val;
-     updateSliderTrack('danmuLimit');
+     const display = val === -1 ? '-1 (不限制)' : val + ' 条';
+     document.getElementById('danmuLimitValue').textContent = display;
    }
-
-   function updateDanmuLimitFromInput(value) {
-     const val = parseInt(value);
-     if (isNaN(val)) return;
+   
+   // 点击配置值进行手动输入
+   function enableValueEdit(elementId, configKey, updateFunc, validator) {
+     const element = document.getElementById(elementId);
+     if (!element) return;
      
-     const slider = document.getElementById('danmuLimitSlider');
-     slider.value = val;
-     updateDanmuLimit(val);
-     updateSliderTrack('danmuLimit');
+     element.style.cursor = 'pointer';
+     element.title = '点击输入数值';
+     
+     element.addEventListener('click', function(e) {
+       e.stopPropagation();
+       
+       const currentText = this.textContent;
+       const currentValue = AppState.quickConfigs[configKey];
+       
+       const input = document.createElement('input');
+       input.type = 'number';
+       input.value = currentValue;
+       input.className = 'form-input';
+       input.style.cssText = `
+         width: 100%;
+         padding: 0.5rem;
+         text-align: center;
+         font-size: 0.875rem;
+         font-weight: 600;
+         border: 2px solid var(--primary);
+         border-radius: 8px;
+         background: var(--bg-2);
+         color: var(--text-1);
+       `;
+       
+       const originalParent = this.parentElement;
+       const originalElement = this;
+       
+       this.style.display = 'none';
+       originalParent.appendChild(input);
+       input.focus();
+       input.select();
+       
+       function finishEdit() {
+         const newValue = parseInt(input.value);
+         
+         if (validator && !validator(newValue)) {
+           showToast('❌ 输入值无效', 'error');
+           input.focus();
+           return;
+         }
+         
+         if (!isNaN(newValue)) {
+           AppState.quickConfigs[configKey] = newValue;
+           
+           const slider = document.getElementById(configKey.charAt(0).toLowerCase() + configKey.slice(1) + 'Slider');
+           if (slider) {
+             const needRelock = sliderLockStates[configKey.charAt(0).toLowerCase() + configKey.slice(1)];
+             if (needRelock) {
+               toggleSliderLock(configKey.charAt(0).toLowerCase() + configKey.slice(1));
+             }
+             slider.value = newValue;
+             if (needRelock) {
+               toggleSliderLock(configKey.charAt(0).toLowerCase() + configKey.slice(1));
+             }
+           }
+           
+           updateFunc(newValue);
+           showToast('✅ 数值已更新', 'success');
+         }
+         
+         input.remove();
+         originalElement.style.display = '';
+       }
+       
+       input.addEventListener('blur', finishEdit);
+       input.addEventListener('keydown', function(e) {
+         if (e.key === 'Enter') {
+           finishEdit();
+         } else if (e.key === 'Escape') {
+           input.remove();
+           originalElement.style.display = '';
+         }
+       });
+     });
    }
-
-   function updateWhiteRatioFromInput(value) {
-     const val = parseInt(value);
-     if (isNaN(val)) return;
-     
-     const slider = document.getElementById('whiteRatioSlider');
-     slider.value = val;
-     updateWhiteRatio(val);
-     updateSliderTrack('whiteRatio');
-   }
-
-   function updateGroupMinuteFromInput(value) {
-     const val = parseInt(value);
-     if (isNaN(val)) return;
-     
-     const slider = document.getElementById('groupMinuteSlider');
-     slider.value = val;
-     updateGroupMinute(val);
-     updateSliderTrack('groupMinute');
+   
+   // 初始化可编辑配置值
+   function initEditableValues() {
+     enableValueEdit('danmuLimitValue', 'DANMU_LIMIT', updateDanmuLimit, (val) => val >= -1 && val <= 20000);
+     enableValueEdit('whiteRatioValue', 'WHITE_RATIO', updateWhiteRatio, (val) => val >= 0 && val <= 100);
+     enableValueEdit('groupMinuteValue', 'GROUP_MINUTE', updateGroupMinute, (val) => val >= 1 && val <= 10);
    }
 
    // 页面加载时初始化弹幕数量显示
@@ -2709,9 +2735,7 @@ async function handleHomepage(req, deployPlatform) {
    function updateWhiteRatio(value) {
      const val = parseInt(value);
      AppState.quickConfigs.WHITE_RATIO = val;
-     const input = document.getElementById('whiteRatioInput');
-     if (input) input.value = val;
-     updateSliderTrack('whiteRatio');
+     document.getElementById('whiteRatioValue').textContent = val + '%';
    }
 
    function updateOutputFormat(value) {
@@ -2721,9 +2745,7 @@ async function handleHomepage(req, deployPlatform) {
    function updateGroupMinute(value) {
      const val = parseInt(value);
      AppState.quickConfigs.GROUP_MINUTE = val;
-     const input = document.getElementById('groupMinuteInput');
-     if (input) input.value = val;
-     updateSliderTrack('groupMinute');
+     document.getElementById('groupMinuteValue').textContent = val + ' 分钟';
    }
 
    function updateSimplified(checked) {
@@ -3348,13 +3370,7 @@ async function handleHomepage(req, deployPlatform) {
    // 初始化
    initTheme();
    initDanmuLimitDisplay();
-   
-   // 初始化滑块轨道
-   setTimeout(() => {
-     ['danmuLimit', 'whiteRatio', 'groupMinute'].forEach(name => {
-       updateSliderTrack(name);
-     });
-   }, 100);
+   initEditableValues();
    
    // 延迟加载非关键功能
    setTimeout(() => {
