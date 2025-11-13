@@ -979,47 +979,51 @@ async function handleHomepage(req, deployPlatform) {
    .quick-configs {
      display: grid;
      gap: 1rem;
-   }
-   /* 移除环境变量统计横幅样式 */
-
-   .env-stat-icon {
-     font-size: 1.5rem;
-     flex-shrink: 0;
-   }
-
-   .env-stat-content {
-     flex: 1;
-     min-width: 0;
-   }
-
-   .env-stat-label {
-     font-size: 0.7rem;
-     color: var(--text-3);
-     margin-bottom: 0.25rem;
-   }
-
-   .env-stat-value {
-     font-size: 0.85rem;
-     font-weight: 600;
-     color: var(--primary);
-     word-break: break-all;
+     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
    }
 
    .config-group {
-     background: var(--bg-3);
-     border-radius: 10px;
-     padding: 1rem;
-     border: 1px solid var(--border);
+     background: linear-gradient(135deg, rgba(102, 126, 234, 0.05), rgba(118, 75, 162, 0.05));
+     border-radius: 16px;
+     padding: 1.25rem;
+     border: 2px solid var(--border);
+     transition: all 0.3s ease;
+     position: relative;
+     overflow: hidden;
+   }
+
+   .config-group::before {
+     content: '';
+     position: absolute;
+     top: 0;
+     left: 0;
+     right: 0;
+     height: 4px;
+     background: linear-gradient(90deg, var(--primary), var(--secondary));
+     opacity: 0;
+     transition: opacity 0.3s ease;
+   }
+
+   .config-group:hover {
+     border-color: var(--primary);
+     box-shadow: 0 4px 20px rgba(102, 126, 234, 0.15);
+     transform: translateY(-2px);
+   }
+
+   .config-group:hover::before {
+     opacity: 1;
    }
 
    .config-group-title {
-     font-size: 0.875rem;
-     font-weight: 600;
+     font-size: 1rem;
+     font-weight: 700;
      color: var(--text-1);
-     margin-bottom: 0.75rem;
+     margin-bottom: 1rem;
      display: flex;
      align-items: center;
-     gap: 0.5rem;
+     gap: 0.625rem;
+     padding-bottom: 0.75rem;
+     border-bottom: 2px solid var(--border);
    }
 
    .config-control {
@@ -1034,31 +1038,42 @@ async function handleHomepage(req, deployPlatform) {
      display: flex;
      justify-content: space-between;
      align-items: center;
-     margin-bottom: 0.5rem;
-     font-size: 0.8rem;
+     margin-bottom: 0.75rem;
+     font-size: 0.875rem;
      color: var(--text-2);
+     font-weight: 500;
    }
 
    .config-value {
-     font-weight: 600;
+     font-weight: 700;
      color: var(--primary);
-     font-size: 0.85rem;
+     font-size: 0.9rem;
+     padding: 0.25rem 0.625rem;
+     background: rgba(102, 126, 234, 0.1);
+     border-radius: 6px;
+     min-width: 80px;
+     text-align: center;
    }
 
    .lock-btn {
-     background: var(--bg-2);
-     border: 1px solid var(--border);
-     border-radius: 6px;
-     padding: 0.25rem 0.5rem;
-     font-size: 0.9rem;
+     background: var(--bg-3);
+     border: 2px solid var(--border);
+     border-radius: 8px;
+     padding: 0.375rem 0.625rem;
+     font-size: 1rem;
      cursor: pointer;
-     transition: all 0.2s ease;
-     min-width: 32px;
-     height: 28px;
+     transition: all 0.3s ease;
+     min-width: 36px;
+     height: 32px;
      display: flex;
      align-items: center;
      justify-content: center;
      flex-shrink: 0;
+   }
+
+   .lock-btn:hover {
+     border-color: var(--primary);
+     transform: scale(1.05);
    }
 
    .lock-btn:active {
@@ -1066,57 +1081,77 @@ async function handleHomepage(req, deployPlatform) {
    }
 
    .lock-btn.unlocked {
-     background: var(--primary);
+     background: linear-gradient(135deg, var(--primary), var(--secondary));
      border-color: var(--primary);
+     box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
    }
 
    /* 滑块样式 */
    .slider-container {
      position: relative;
-     padding: 0.5rem 0;
+     padding: 0.75rem 0;
    }
 
    .slider {
      -webkit-appearance: none;
      width: 100%;
-     height: 6px;
-     border-radius: 5px;
+     height: 8px;
+     border-radius: 10px;
      background: var(--border);
      outline: none;
-     transition: opacity 0.2s;
+     transition: all 0.3s ease;
+     position: relative;
+   }
+
+   .slider:hover:not(.locked) {
+     background: var(--primary);
+     opacity: 0.7;
    }
 
    .slider::-webkit-slider-thumb {
      -webkit-appearance: none;
      appearance: none;
-     width: 20px;
-     height: 20px;
+     width: 24px;
+     height: 24px;
      border-radius: 50%;
-     background: var(--primary);
+     background: linear-gradient(135deg, var(--primary), var(--secondary));
      cursor: pointer;
-     box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+     box-shadow: 0 2px 10px rgba(102, 126, 234, 0.4);
      transition: all 0.2s ease;
+     border: 3px solid white;
+   }
+
+   .slider::-webkit-slider-thumb:hover {
+     width: 28px;
+     height: 28px;
+     box-shadow: 0 4px 16px rgba(102, 126, 234, 0.6);
    }
 
    .slider::-webkit-slider-thumb:active {
-     width: 24px;
-     height: 24px;
+     width: 26px;
+     height: 26px;
    }
 
    .slider::-moz-range-thumb {
-     width: 20px;
-     height: 20px;
+     width: 24px;
+     height: 24px;
      border-radius: 50%;
-     background: var(--primary);
+     background: linear-gradient(135deg, var(--primary), var(--secondary));
      cursor: pointer;
-     border: none;
-     box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+     border: 3px solid white;
+     box-shadow: 0 2px 10px rgba(102, 126, 234, 0.4);
      transition: all 0.2s ease;
    }
 
+   .slider::-moz-range-thumb:hover {
+     width: 28px;
+     height: 28px;
+     box-shadow: 0 4px 16px rgba(102, 126, 234, 0.6);
+   }
+
    .slider::-moz-range-thumb:active {
-     width: 24px;
-     height: 24px;
+     width: 26px;
+     height: 26px;
    }
 
    .slider.locked {
@@ -1126,12 +1161,14 @@ async function handleHomepage(req, deployPlatform) {
 
    .slider.locked::-webkit-slider-thumb {
      cursor: not-allowed;
-     background: var(--border);
+     background: var(--text-3);
+     box-shadow: none;
    }
 
    .slider.locked::-moz-range-thumb {
      cursor: not-allowed;
-     background: var(--border);
+     background: var(--text-3);
+     box-shadow: none;
    }
 
    /* 选择器样式 */
@@ -1141,15 +1178,16 @@ async function handleHomepage(req, deployPlatform) {
 
    .custom-select {
      width: 100%;
-     padding: 0.75rem 2.5rem 0.75rem 1rem;
+     padding: 0.875rem 2.75rem 0.875rem 1.125rem;
      border: 2px solid var(--border);
-     border-radius: 8px;
-     background: var(--bg-2);
+     border-radius: 10px;
+     background: var(--bg-3);
      color: var(--text-1);
-     font-size: 0.875rem;
+     font-size: 0.9rem;
+     font-weight: 500;
      cursor: pointer;
      appearance: none;
-     transition: all 0.2s ease;
+     transition: all 0.3s ease;
    }
 
    [data-theme="light"] .custom-select {
@@ -1157,10 +1195,22 @@ async function handleHomepage(req, deployPlatform) {
      color: #0f172a;
    }
 
+   .custom-select:hover {
+     border-color: var(--primary);
+     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+   }
+
+   .custom-select:focus {
+     outline: none;
+     border-color: var(--primary);
+     box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15);
+   }
+
    .custom-select option {
      background: var(--bg-2);
      color: var(--text-1);
-     padding: 0.5rem;
+     padding: 0.75rem;
+     font-weight: 500;
    }
 
    [data-theme="light"] .custom-select option {
@@ -1168,12 +1218,6 @@ async function handleHomepage(req, deployPlatform) {
      color: #0f172a;
    }
 
-   /* 确保 select 本身在浅色模式下文字清晰 */
-   [data-theme="light"] .custom-select {
-     color: #0f172a;
-   }
-
-   /* 针对不同浏览器的 option 样式优化 */
    @supports (-webkit-appearance: none) {
      [data-theme="light"] .custom-select option {
        background: white !important;
@@ -1181,22 +1225,21 @@ async function handleHomepage(req, deployPlatform) {
      }
    }
 
-
-   .custom-select:focus {
-     outline: none;
-     border-color: var(--primary);
-     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-   }
-
    .select-wrapper::after {
      content: '▼';
      position: absolute;
-     right: 1rem;
+     right: 1.125rem;
      top: 50%;
      transform: translateY(-50%);
-     color: var(--text-2);
+     color: var(--primary);
      pointer-events: none;
-     font-size: 0.75rem;
+     font-size: 0.875rem;
+     font-weight: bold;
+     transition: transform 0.3s ease;
+   }
+
+   .select-wrapper:hover::after {
+     transform: translateY(-50%) scale(1.2);
    }
 
    /* 开关按钮 */
@@ -1204,13 +1247,29 @@ async function handleHomepage(req, deployPlatform) {
      display: flex;
      align-items: center;
      justify-content: space-between;
+     padding: 0.75rem 1rem;
+     background: var(--bg-3);
+     border-radius: 10px;
+     border: 2px solid var(--border);
+     transition: all 0.3s ease;
+   }
+
+   .switch-container:hover {
+     border-color: var(--primary);
+     background: var(--bg-2);
+   }
+
+   .switch-container span {
+     font-size: 0.875rem;
+     font-weight: 500;
+     color: var(--text-1);
    }
 
    .switch {
      position: relative;
      display: inline-block;
-     width: 48px;
-     height: 26px;
+     width: 52px;
+     height: 28px;
    }
 
    .switch input {
@@ -1227,21 +1286,35 @@ async function handleHomepage(req, deployPlatform) {
      right: 0;
      bottom: 0;
      background-color: var(--border);
-     transition: 0.3s;
-     border-radius: 26px;
+     transition: 0.4s;
+     border-radius: 28px;
+     box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
    }
 
    .switch-slider:before {
      position: absolute;
      content: "";
-     height: 20px;
-     width: 20px;
+     height: 22px;
+     width: 22px;
      left: 3px;
      bottom: 3px;
      background-color: white;
-     transition: 0.3s;
+     transition: 0.4s;
      border-radius: 50%;
-     box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+     box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+   }
+
+   input:checked + .switch-slider {
+     background: linear-gradient(135deg, var(--primary), var(--secondary));
+     box-shadow: 0 2px 10px rgba(102, 126, 234, 0.4);
+   }
+
+   input:checked + .switch-slider:before {
+     transform: translateX(24px);
+   }
+
+   .switch-slider:hover {
+     opacity: 0.9;
    }
 
    input:checked + .switch-slider {
@@ -1902,12 +1975,17 @@ async function handleHomepage(req, deployPlatform) {
      
      <div class="quick-configs">
        <div class="config-group">
-         <div class="config-group-title">🎯 弹幕数量</div>
+         <div class="config-group-title">
+           <span>🎯</span>
+           <span>弹幕数量限制</span>
+         </div>
          <div class="config-control">
            <div class="config-label">
              <span>限制条数</span>
-             <span class="config-value" id="danmuLimitValue">-1 (不限制)</span>
-             <button class="lock-btn" onclick="toggleSliderLock('danmuLimit')" id="danmuLimitLock" title="点击解锁">🔒</button>
+             <div style="display: flex; align-items: center; gap: 0.5rem;">
+               <span class="config-value" id="danmuLimitValue">-1 (不限制)</span>
+               <button class="lock-btn" onclick="toggleSliderLock('danmuLimit')" id="danmuLimitLock" title="点击解锁">🔒</button>
+             </div>
            </div>
            <div class="slider-container">
              <input type="range" min="-1" max="20000" value="${globals.envs.DANMU_LIMIT || -1}" class="slider locked" id="danmuLimitSlider" oninput="updateDanmuLimit(this.value)" disabled>
@@ -1916,12 +1994,17 @@ async function handleHomepage(req, deployPlatform) {
        </div>
 
        <div class="config-group">
-         <div class="config-group-title">⚪ 白色弹幕</div>
+         <div class="config-group-title">
+           <span>⚪</span>
+           <span>白色弹幕占比</span>
+         </div>
          <div class="config-control">
            <div class="config-label">
              <span>占比百分比</span>
-             <span class="config-value" id="whiteRatioValue">${globals.envs.WHITE_RATIO || 30}%</span>
-             <button class="lock-btn" onclick="toggleSliderLock('whiteRatio')" id="whiteRatioLock" title="点击解锁">🔒</button>
+             <div style="display: flex; align-items: center; gap: 0.5rem;">
+               <span class="config-value" id="whiteRatioValue">${globals.envs.WHITE_RATIO || 30}%</span>
+               <button class="lock-btn" onclick="toggleSliderLock('whiteRatio')" id="whiteRatioLock" title="点击解锁">🔒</button>
+             </div>
            </div>
            <div class="slider-container">
              <input type="range" min="0" max="100" value="${globals.envs.WHITE_RATIO || 30}" class="slider locked" id="whiteRatioSlider" oninput="updateWhiteRatio(this.value)" disabled>
@@ -1930,25 +2013,17 @@ async function handleHomepage(req, deployPlatform) {
        </div>
 
        <div class="config-group">
-         <div class="config-group-title">📄 输出格式</div>
-         <div class="config-control">
-           <div class="select-wrapper">
-             <select class="custom-select" id="outputFormatSelect" onchange="updateOutputFormat(this.value)">
-               <option value="json" ${globals.envs.DANMU_OUTPUT_FORMAT === 'json' ? 'selected' : ''}>JSON 格式</option>
-               <option value="xml" ${globals.envs.DANMU_OUTPUT_FORMAT === 'xml' ? 'selected' : ''}>XML 格式</option>
-               <option value="ass" ${globals.envs.DANMU_OUTPUT_FORMAT === 'ass' ? 'selected' : ''}>ASS 字幕</option>
-             </select>
-           </div>
+         <div class="config-group-title">
+           <span>⏱️</span>
+           <span>弹幕合并窗口</span>
          </div>
-       </div>
-
-       <div class="config-group">
-         <div class="config-group-title">⏱️ 合并时间</div>
          <div class="config-control">
            <div class="config-label">
              <span>时间窗口（分钟）</span>
-             <span class="config-value" id="groupMinuteValue">${globals.envs.GROUP_MINUTE || 1} 分钟</span>
-             <button class="lock-btn" onclick="toggleSliderLock('groupMinute')" id="groupMinuteLock" title="点击解锁">🔒</button>
+             <div style="display: flex; align-items: center; gap: 0.5rem;">
+               <span class="config-value" id="groupMinuteValue">${globals.envs.GROUP_MINUTE || 1} 分钟</span>
+               <button class="lock-btn" onclick="toggleSliderLock('groupMinute')" id="groupMinuteLock" title="点击解锁">🔒</button>
+             </div>
            </div>
            <div class="slider-container">
              <input type="range" min="1" max="10" value="${globals.envs.GROUP_MINUTE || 1}" class="slider locked" id="groupMinuteSlider" oninput="updateGroupMinute(this.value)" disabled>
@@ -1957,7 +2032,26 @@ async function handleHomepage(req, deployPlatform) {
        </div>
 
        <div class="config-group">
-         <div class="config-group-title">🔄 弹幕转换</div>
+         <div class="config-group-title">
+           <span>📄</span>
+           <span>输出格式</span>
+         </div>
+         <div class="config-control">
+           <div class="select-wrapper">
+             <select class="custom-select" id="outputFormatSelect" onchange="updateOutputFormat(this.value)">
+               <option value="json" ${globals.envs.DANMU_OUTPUT_FORMAT === 'json' ? 'selected' : ''}>📝 JSON 格式</option>
+               <option value="xml" ${globals.envs.DANMU_OUTPUT_FORMAT === 'xml' ? 'selected' : ''}>📰 XML 格式</option>
+               <option value="ass" ${globals.envs.DANMU_OUTPUT_FORMAT === 'ass' ? 'selected' : ''}>🎬 ASS 字幕</option>
+             </select>
+           </div>
+         </div>
+       </div>
+
+       <div class="config-group">
+         <div class="config-group-title">
+           <span>🔄</span>
+           <span>弹幕转换设置</span>
+         </div>
          <div class="config-control">
            <div class="switch-container">
              <span>繁简转换</span>
@@ -1969,7 +2063,7 @@ async function handleHomepage(req, deployPlatform) {
          </div>
          <div class="config-control">
            <div class="switch-container">
-             <span>转换顶底弹幕</span>
+             <span>转换顶底弹幕为滚动</span>
              <label class="switch">
                <input type="checkbox" id="convertSwitch" ${globals.envs.CONVERT_TOP_BOTTOM_TO_SCROLL ? 'checked' : ''} onchange="updateConvert(this.checked)">
                <span class="switch-slider"></span>
@@ -1979,15 +2073,27 @@ async function handleHomepage(req, deployPlatform) {
        </div>
 
        <div class="config-group">
-         <div class="config-group-title">💾 快速操作</div>
+         <div class="config-group-title">
+           <span>💾</span>
+           <span>快速操作</span>
+         </div>
          <div class="config-control">
-           <button class="btn btn-primary" style="width: 100%; margin-bottom: 0.5rem;" onclick="saveQuickConfigs()">💾 保存快速配置</button>
-           <button class="btn btn-secondary" style="width: 100%; margin-bottom: 0.5rem;" onclick="resetQuickConfigs()">🔄 重置为默认</button>
-           <button class="btn btn-secondary" style="width: 100%;" onclick="showAllEnvs()">🗂️ 全部环境变量</button>
+           <button class="btn btn-primary" style="width: 100%; margin-bottom: 0.625rem; font-size: 0.9rem;" onclick="saveQuickConfigs()">
+             <span>💾</span>
+             <span>保存快速配置</span>
+           </button>
+           <button class="btn btn-secondary" style="width: 100%; margin-bottom: 0.625rem; font-size: 0.9rem;" onclick="resetQuickConfigs()">
+             <span>🔄</span>
+             <span>重置为默认</span>
+           </button>
+           <button class="btn btn-secondary" style="width: 100%; font-size: 0.9rem;" onclick="showAllEnvs()">
+             <span>🗂️</span>
+             <span>全部环境变量</span>
+           </button>
          </div>
        </div>
      </div>
-   </div>
+
 
    <!-- 环境变量配置区域移除，改为弹窗 -->
  </div>
