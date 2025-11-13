@@ -661,7 +661,16 @@ async function handleHomepage(req, deployPlatform) {
   <meta name="theme-color" content="#667eea" media="(prefers-color-scheme: dark)">
   <meta name="theme-color" content="#6366f1" media="(prefers-color-scheme: light)">
   <title>弹幕 API 管理中心</title>
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('theme');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const theme = savedTheme || (prefersDark ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', theme);
+    })();
+  </script>
   <style>
+
     * { 
       margin: 0; 
       padding: 0; 
