@@ -978,36 +978,18 @@ async function handleHomepage(req, deployPlatform) {
    /* 快速配置区域 */
    .quick-configs {
      display: grid;
-     gap: 1.25rem;
-     grid-template-columns: 1fr;
-   }
-
-   @media (min-width: 768px) {
-     .quick-configs {
-       grid-template-columns: repeat(2, 1fr);
-     }
-   }
-
-   @media (min-width: 1024px) {
-     .quick-configs {
-       grid-template-columns: repeat(3, 1fr);
-     }
+     gap: 1rem;
+     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
    }
 
    .config-group {
-     background: var(--bg-3);
-     border-radius: 24px;
-     padding: 1.75rem;
+     background: linear-gradient(135deg, rgba(102, 126, 234, 0.05), rgba(118, 75, 162, 0.05));
+     border-radius: 16px;
+     padding: 1.25rem;
      border: 2px solid var(--border);
-     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+     transition: all 0.3s ease;
      position: relative;
      overflow: hidden;
-     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-   }
-
-   [data-theme="light"] .config-group {
-     background: linear-gradient(135deg, rgba(99, 102, 241, 0.04), rgba(139, 92, 246, 0.04));
-     box-shadow: 0 4px 20px rgba(99, 102, 241, 0.1);
    }
 
    .config-group::before {
@@ -1017,73 +999,35 @@ async function handleHomepage(req, deployPlatform) {
      left: 0;
      right: 0;
      height: 4px;
-     background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
-     transform: scaleX(0);
-     transform-origin: left;
-     transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-   }
-
-   .config-group::after {
-     content: '';
-     position: absolute;
-     inset: -2px;
-     background: linear-gradient(135deg, var(--primary), var(--secondary));
-     border-radius: 24px;
+     background: linear-gradient(90deg, var(--primary), var(--secondary));
      opacity: 0;
-     z-index: -1;
-     transition: opacity 0.4s ease;
+     transition: opacity 0.3s ease;
    }
 
    .config-group:hover {
-     border-color: rgba(102, 126, 234, 0.5);
-     box-shadow: 0 12px 32px rgba(102, 126, 234, 0.18), inset 0 1px 3px rgba(255, 255, 255, 0.05);
-     transform: translateY(-6px) scale(1.01);
-   }
-
-   [data-theme="light"] .config-group:hover {
-     border-color: rgba(99, 102, 241, 0.4);
-     box-shadow: 0 12px 40px rgba(99, 102, 241, 0.2), inset 0 1px 3px rgba(255, 255, 255, 0.1);
+     border-color: var(--primary);
+     box-shadow: 0 4px 20px rgba(102, 126, 234, 0.15);
+     transform: translateY(-2px);
    }
 
    .config-group:hover::before {
-     transform: scaleX(1);
-   }
-
-   .config-group:hover::after {
-     opacity: 0.05;
+     opacity: 1;
    }
 
    .config-group-title {
-     font-size: 1.125rem;
+     font-size: 1rem;
      font-weight: 700;
      color: var(--text-1);
-     margin-bottom: 1.25rem;
+     margin-bottom: 1rem;
      display: flex;
      align-items: center;
-     gap: 0.75rem;
-     padding-bottom: 1rem;
+     gap: 0.625rem;
+     padding-bottom: 0.75rem;
      border-bottom: 2px solid var(--border);
-     letter-spacing: -0.02em;
-   }
-
-   .config-group-title span:first-child {
-     font-size: 1.5rem;
-     display: flex;
-     align-items: center;
-     justify-content: center;
-     width: 40px;
-     height: 40px;
-     background: linear-gradient(135deg, var(--primary), var(--secondary));
-     border-radius: 12px;
-     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.25);
-   }
-
-   [data-theme="light"] .config-group-title span:first-child {
-     box-shadow: 0 4px 16px rgba(99, 102, 241, 0.2);
    }
 
    .config-control {
-     margin-bottom: 1.25rem;
+     margin-bottom: 1rem;
    }
 
    .config-control:last-child {
@@ -1094,278 +1038,137 @@ async function handleHomepage(req, deployPlatform) {
      display: flex;
      justify-content: space-between;
      align-items: center;
-     margin-bottom: 1rem;
-     font-size: 0.9rem;
-     color: var(--text-1);
-     font-weight: 600;
-   }
-
-   .config-label > span:first-child {
-     display: flex;
-     align-items: center;
-     gap: 0.5rem;
+     margin-bottom: 0.75rem;
+     font-size: 0.875rem;
+     color: var(--text-2);
+     font-weight: 500;
    }
 
    .config-value {
      font-weight: 700;
      color: var(--primary);
-     font-size: 1rem;
-     padding: 0.625rem 1.125rem;
-     background: linear-gradient(135deg, rgba(102, 126, 234, 0.18), rgba(118, 75, 162, 0.12));
-     border-radius: 12px;
-     min-width: 110px;
+     font-size: 0.9rem;
+     padding: 0.25rem 0.625rem;
+     background: rgba(102, 126, 234, 0.1);
+     border-radius: 6px;
+     min-width: 80px;
      text-align: center;
-     border: 2px solid rgba(102, 126, 234, 0.25);
-     box-shadow: 0 3px 12px rgba(102, 126, 234, 0.15), inset 0 1px 3px rgba(255, 255, 255, 0.1);
-     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-     cursor: pointer;
-     position: relative;
-     overflow: hidden;
-   }
-
-   .config-value::before {
-     content: '✏️';
-     position: absolute;
-     right: 0.5rem;
-     top: 50%;
-     transform: translateY(-50%);
-     opacity: 0;
-     transition: opacity 0.3s ease;
-     font-size: 0.875rem;
-   }
-
-   [data-theme="light"] .config-value {
-     background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.1));
-     border-color: rgba(99, 102, 241, 0.3);
-     box-shadow: 0 3px 12px rgba(99, 102, 241, 0.12), inset 0 1px 3px rgba(255, 255, 255, 0.2);
-   }
-
-   .config-value:hover {
-     transform: scale(1.08) translateY(-2px);
-     box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3), inset 0 1px 3px rgba(255, 255, 255, 0.2);
-     border-color: rgba(102, 126, 234, 0.4);
-   }
-
-   .config-value:hover::before {
-     opacity: 1;
-   }
-
-   [data-theme="light"] .config-value:hover {
-     box-shadow: 0 6px 20px rgba(99, 102, 241, 0.25), inset 0 1px 3px rgba(255, 255, 255, 0.3);
-     border-color: rgba(99, 102, 241, 0.5);
-   }
-
-   .config-value:active {
-     transform: scale(1.02);
-     box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
    }
 
    .lock-btn {
-     background: var(--bg-2);
+     background: var(--bg-3);
      border: 2px solid var(--border);
-     border-radius: 12px;
-     padding: 0.5rem 0.75rem;
-     font-size: 1.25rem;
+     border-radius: 8px;
+     padding: 0.375rem 0.625rem;
+     font-size: 1rem;
      cursor: pointer;
-     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-     min-width: 48px;
-     height: 48px;
+     transition: all 0.3s ease;
+     min-width: 36px;
+     height: 32px;
      display: flex;
      align-items: center;
      justify-content: center;
      flex-shrink: 0;
-     position: relative;
-     overflow: hidden;
-     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-   }
-
-   .lock-btn::before {
-     content: '';
-     position: absolute;
-     inset: 0;
-     background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-     opacity: 0;
-     transition: opacity 0.3s ease;
-   }
-
-   .lock-btn::after {
-     content: '';
-     position: absolute;
-     inset: -2px;
-     background: linear-gradient(135deg, var(--primary), var(--secondary));
-     border-radius: 12px;
-     opacity: 0;
-     z-index: -1;
-     transition: opacity 0.3s ease;
    }
 
    .lock-btn:hover {
      border-color: var(--primary);
-     transform: translateY(-3px) scale(1.05);
-     box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
-   }
-
-   [data-theme="light"] .lock-btn:hover {
-     box-shadow: 0 6px 20px rgba(99, 102, 241, 0.25);
+     transform: scale(1.05);
    }
 
    .lock-btn:active {
-     transform: translateY(-1px) scale(0.98);
-     box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+     transform: scale(0.95);
    }
 
    .lock-btn.unlocked {
-     background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-     border-color: transparent;
-     box-shadow: 0 6px 24px rgba(102, 126, 234, 0.5);
-     animation: pulse-glow 2.5s ease-in-out infinite;
-     color: white;
-   }
-
-   [data-theme="light"] .lock-btn.unlocked {
-     box-shadow: 0 6px 24px rgba(99, 102, 241, 0.4);
-   }
-
-   .lock-btn.unlocked::before {
-     opacity: 1;
-   }
-
-   .lock-btn.unlocked::after {
-     opacity: 1;
-     animation: rotate-border 3s linear infinite;
-   }
-
-   @keyframes pulse-glow {
-     0%, 100% {
-       box-shadow: 0 6px 24px rgba(102, 126, 234, 0.5);
-       transform: scale(1);
-     }
-     50% {
-       box-shadow: 0 8px 32px rgba(102, 126, 234, 0.7);
-       transform: scale(1.02);
-     }
-   }
-
-   @keyframes rotate-border {
-     0% {
-       transform: rotate(0deg);
-     }
-     100% {
-       transform: rotate(360deg);
-     }
+     background: linear-gradient(135deg, var(--primary), var(--secondary));
+     border-color: var(--primary);
+     box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
    }
 
    /* 滑块样式 */
    .slider-container {
      position: relative;
-     padding: 1rem 0;
+     padding: 0.75rem 0;
    }
 
    .slider {
      -webkit-appearance: none;
      width: 100%;
-     height: 10px;
+     height: 8px;
      border-radius: 10px;
      background: var(--border);
      outline: none;
      transition: all 0.3s ease;
      position: relative;
-     box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
-   }
-
-   [data-theme="light"] .slider {
-     background: #e2e8f0;
-     box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
    }
 
    .slider:hover:not(.locked) {
-     background: linear-gradient(90deg, var(--primary) var(--slider-value, 0%), var(--border) var(--slider-value, 0%));
+     background: var(--primary);
+     opacity: 0.7;
    }
 
    .slider::-webkit-slider-thumb {
      -webkit-appearance: none;
      appearance: none;
-     width: 32px;
-     height: 32px;
+     width: 24px;
+     height: 24px;
      border-radius: 50%;
-     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-     cursor: grab;
-     box-shadow: 0 4px 16px rgba(102, 126, 234, 0.6), 0 0 0 4px rgba(255, 255, 255, 0.3);
-     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+     background: linear-gradient(135deg, var(--primary), var(--secondary));
+     cursor: pointer;
+     box-shadow: 0 2px 10px rgba(102, 126, 234, 0.4);
+     transition: all 0.2s ease;
      border: 3px solid white;
-     position: relative;
-     z-index: 10;
-   }
-
-   [data-theme="light"] .slider::-webkit-slider-thumb {
-     background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-     box-shadow: 0 4px 20px rgba(99, 102, 241, 0.5), 0 0 0 4px rgba(99, 102, 241, 0.15);
    }
 
    .slider::-webkit-slider-thumb:hover {
-     width: 36px;
-     height: 36px;
-     box-shadow: 0 6px 24px rgba(102, 126, 234, 0.8), 0 0 0 6px rgba(102, 126, 234, 0.2);
-     transform: scale(1.05);
+     width: 28px;
+     height: 28px;
+     box-shadow: 0 4px 16px rgba(102, 126, 234, 0.6);
    }
 
    .slider::-webkit-slider-thumb:active {
-     cursor: grabbing;
-     width: 34px;
-     height: 34px;
-     box-shadow: 0 3px 12px rgba(102, 126, 234, 0.6), 0 0 0 4px rgba(102, 126, 234, 0.25);
+     width: 26px;
+     height: 26px;
    }
 
    .slider::-moz-range-thumb {
-     width: 32px;
-     height: 32px;
+     width: 24px;
+     height: 24px;
      border-radius: 50%;
-     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-     cursor: grab;
+     background: linear-gradient(135deg, var(--primary), var(--secondary));
+     cursor: pointer;
      border: 3px solid white;
-     box-shadow: 0 4px 16px rgba(102, 126, 234, 0.6), 0 0 0 4px rgba(255, 255, 255, 0.3);
-     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-     z-index: 10;
-   }
-
-   [data-theme="light"] .slider::-moz-range-thumb {
-     background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-     box-shadow: 0 4px 20px rgba(99, 102, 241, 0.5), 0 0 0 4px rgba(99, 102, 241, 0.15);
+     box-shadow: 0 2px 10px rgba(102, 126, 234, 0.4);
+     transition: all 0.2s ease;
    }
 
    .slider::-moz-range-thumb:hover {
-     width: 36px;
-     height: 36px;
-     box-shadow: 0 6px 24px rgba(102, 126, 234, 0.8), 0 0 0 6px rgba(102, 126, 234, 0.2);
-     transform: scale(1.05);
+     width: 28px;
+     height: 28px;
+     box-shadow: 0 4px 16px rgba(102, 126, 234, 0.6);
    }
 
    .slider::-moz-range-thumb:active {
-     cursor: grabbing;
-     width: 34px;
-     height: 34px;
-     box-shadow: 0 3px 12px rgba(102, 126, 234, 0.6), 0 0 0 4px rgba(102, 126, 234, 0.25);
+     width: 26px;
+     height: 26px;
    }
 
    .slider.locked {
      opacity: 0.4;
      cursor: not-allowed;
-     background: var(--border);
-     filter: grayscale(1);
    }
 
    .slider.locked::-webkit-slider-thumb {
      cursor: not-allowed;
-     background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
-     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-     border-color: #cbd5e1;
+     background: var(--text-3);
+     box-shadow: none;
    }
 
    .slider.locked::-moz-range-thumb {
      cursor: not-allowed;
-     background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
-     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-     border-color: #cbd5e1;
+     background: var(--text-3);
+     box-shadow: none;
    }
 
    /* 选择器样式 */
@@ -2470,24 +2273,21 @@ async function handleHomepage(req, deployPlatform) {
    };
 
    function toggleSliderLock(name) {
-     const slider = document.getElementById(`${name}Slider`);
-     const lockBtn = document.getElementById(`${name}Lock`);
+     const slider = document.getElementById(\`\${name}Slider\`);
+     const lockBtn = document.getElementById(\`\${name}Lock\`);
      
      sliderLockStates[name] = !sliderLockStates[name];
-     
-     const lockedIcon = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6zm9 14H6V10h12v10zm-6-3c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"/></svg>';
-     const unlockedIcon = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6h2c0-1.66 1.34-3 3-3s3 1.34 3 3v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm0 12H6V10h12v10zm-6-3c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"/></svg>';
      
      if (sliderLockStates[name]) {
        slider.disabled = true;
        slider.classList.add('locked');
-       lockBtn.innerHTML = lockedIcon;
+       lockBtn.textContent = '🔒';
        lockBtn.classList.remove('unlocked');
        lockBtn.title = '点击解锁';
      } else {
        slider.disabled = false;
        slider.classList.remove('locked');
-       lockBtn.innerHTML = unlockedIcon;
+       lockBtn.textContent = '🔓';
        lockBtn.classList.add('unlocked');
        lockBtn.title = '点击锁定';
      }
@@ -2635,95 +2435,6 @@ async function handleHomepage(req, deployPlatform) {
      document.getElementById('danmuLimitValue').textContent = display;
    }
    
-   // 点击配置值进行手动输入
-   function enableValueEdit(elementId, configKey, updateFunc, validator) {
-     const element = document.getElementById(elementId);
-     if (!element) return;
-     
-     element.style.cursor = 'pointer';
-     element.title = '点击输入数值';
-     
-     element.addEventListener('click', function(e) {
-       e.stopPropagation();
-       
-       const currentText = this.textContent;
-       const currentValue = AppState.quickConfigs[configKey];
-       
-       const input = document.createElement('input');
-       input.type = 'number';
-       input.value = currentValue;
-       input.className = 'form-input';
-       input.style.cssText = `
-         width: 100%;
-         padding: 0.5rem;
-         text-align: center;
-         font-size: 0.875rem;
-         font-weight: 600;
-         border: 2px solid var(--primary);
-         border-radius: 8px;
-         background: var(--bg-2);
-         color: var(--text-1);
-       `;
-       
-       const originalParent = this.parentElement;
-       const originalElement = this;
-       
-       this.style.display = 'none';
-       originalParent.appendChild(input);
-       input.focus();
-       input.select();
-       
-       function finishEdit() {
-         const newValue = parseInt(input.value);
-         
-         if (validator && !validator(newValue)) {
-           showToast('❌ 输入值无效', 'error');
-           input.focus();
-           return;
-         }
-         
-         if (!isNaN(newValue)) {
-           AppState.quickConfigs[configKey] = newValue;
-           
-           const slider = document.getElementById(configKey.charAt(0).toLowerCase() + configKey.slice(1) + 'Slider');
-           if (slider) {
-             const needRelock = sliderLockStates[configKey.charAt(0).toLowerCase() + configKey.slice(1)];
-             if (needRelock) {
-               toggleSliderLock(configKey.charAt(0).toLowerCase() + configKey.slice(1));
-             }
-             slider.value = newValue;
-             if (needRelock) {
-               toggleSliderLock(configKey.charAt(0).toLowerCase() + configKey.slice(1));
-             }
-           }
-           
-           updateFunc(newValue);
-           showToast('✅ 数值已更新', 'success');
-         }
-         
-         input.remove();
-         originalElement.style.display = '';
-       }
-       
-       input.addEventListener('blur', finishEdit);
-       input.addEventListener('keydown', function(e) {
-         if (e.key === 'Enter') {
-           finishEdit();
-         } else if (e.key === 'Escape') {
-           input.remove();
-           originalElement.style.display = '';
-         }
-       });
-     });
-   }
-   
-   // 初始化可编辑配置值
-   function initEditableValues() {
-     enableValueEdit('danmuLimitValue', 'DANMU_LIMIT', updateDanmuLimit, (val) => val >= -1 && val <= 20000);
-     enableValueEdit('whiteRatioValue', 'WHITE_RATIO', updateWhiteRatio, (val) => val >= 0 && val <= 100);
-     enableValueEdit('groupMinuteValue', 'GROUP_MINUTE', updateGroupMinute, (val) => val >= 1 && val <= 10);
-   }
-
    // 页面加载时初始化弹幕数量显示
    function initDanmuLimitDisplay() {
      const currentValue = ${globals.envs.DANMU_LIMIT || -1};
@@ -3368,7 +3079,6 @@ async function handleHomepage(req, deployPlatform) {
    // 初始化
    initTheme();
    initDanmuLimitDisplay();
-   initEditableValues();
    
    // 延迟加载非关键功能
    setTimeout(() => {
@@ -4389,3 +4099,4 @@ export async function netlifyHandler(event, context) {
 }
 
 export { handleRequest };
+
