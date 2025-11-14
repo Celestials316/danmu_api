@@ -4368,13 +4368,13 @@ async function handleHomepage(req) {
          </div>
          <div class="range-wrapper">
            <div class="range-progress" id="danmuLimitProgress" style="width: 0%"></div>
-           <input type="range" class="form-range locked" id="quickDanmuLimit" min="-1" max="10000" step="100" value="-1" disabled
-                  oninput="updateRangeProgress(this, 'danmuLimitProgress', 'danmuLimitValue', -1, 10000, val => val === -1 ? '不限制' : val)">
+           <input type="range" class="form-range locked" id="quickDanmuLimit" min="-1" max="15000" step="100" value="-1" disabled
+                  oninput="updateRangeProgress(this, 'danmuLimitProgress', 'danmuLimitValue', -1, 15000, val => val === -1 ? '不限制' : val)">
          </div>
          <div class="range-labels">
            <span>不限制</span>
-           <span>5000条</span>
-           <span>10000条</span>
+           <span>7500条</span>
+           <span>15000条</span>
          </div>
          <div class="form-hint">设置每次请求返回的最大弹幕条数（-1 表示不限制）</div>
        </div>
@@ -4502,7 +4502,7 @@ async function handleHomepage(req) {
          <span>💡 点击🔒图标解锁后才能修改配置，防止滑轮误触</span>
        </div>
      </div>
-     <div class="modal-footer" style="flex-shrink: 0; display: flex; gap: 10px; align-items: center;">
+     <div class="modal-footer" id="quickConfigFooter" style="flex-shrink: 0; display: none; gap: 10px; align-items: center; position: sticky; bottom: 0; background: var(--bg-secondary); padding: 16px 32px; border-top: 1px solid var(--border-color); margin: 0 -32px -32px;">
        <button class="btn btn-secondary" onclick="closeModal('quickConfigModal')">
          取消
        </button>
@@ -5658,7 +5658,7 @@ async function handleHomepage(req) {
          document.getElementById('quickDanmuLimit'),
          'danmuLimitProgress',
          'danmuLimitValue',
-         -1, 10000,
+         -1, 15000,
          val => val === -1 ? '不限制' : val
        );
        
@@ -5675,6 +5675,42 @@ async function handleHomepage(req) {
          'commentCacheValue',
          1, 60
        );
+       
+       // 添加滚动监听，检测是否滚动到底部
+       const modalBody = document.querySelector('#quickConfigModal .modal-body');
+       const footer = document.getElementById('quickConfigFooter');
+       
+       if (modalBody && footer) {
+         // 检查滚动位置
+         const checkScroll = () => {
+           const scrollTop = modalBody.scrollTop;
+           const scrollHeight = modalBody.scrollHeight;
+           const clientHeight = modalBody.clientHeight;
+           
+           // 滚动到底部前50px时显示按钮
+           if (scrollTop + clientHeight >= scrollHeight - 50) {
+             footer.style.display = 'flex';
+           } else {
+             footer.style.display = 'none';
+           }
+         };
+         
+         // 移除旧的监听器（如果存在）
+         modalBody.removeEventListener('scroll', modalBody._quickConfigScrollHandler);
+         
+         // 添加新的监听器
+         modalBody._quickConfigScrollHandler = checkScroll;
+         modalBody.addEventListener('scroll', checkScroll);
+         
+         // 初始检查（如果内容不需要滚动，直接显示按钮）
+         setTimeout(() => {
+           if (modalBody.scrollHeight <= modalBody.clientHeight) {
+             footer.style.display = 'flex';
+           } else {
+             checkScroll();
+           }
+         }, 100);
+       }
      }, 50);
    }
 
