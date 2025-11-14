@@ -3249,9 +3249,17 @@ async function handleHomepage(req) {
              </svg>
              系统状态
            </h3>
-           <span class="badge badge-success">
-           <span class="status-dot"></span>运行正常
-           </span>
+           <div style="display: flex; align-items: center; gap: 12px;">
+             <button class="btn btn-primary" onclick="showQuickConfig()" style="padding: 8px 16px; font-size: 13px;">
+               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor">
+                 <path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" stroke-width="2" stroke-linecap="round"/>
+               </svg>
+               快速配置
+             </button>
+             <span class="badge badge-success">
+               <span class="status-dot"></span>运行正常
+             </span>
+           </div>
          </div>
          <div class="config-grid">
               <div class="config-item">
@@ -4044,6 +4052,85 @@ async function handleHomepage(req) {
            <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-width="2" stroke-linecap="round"/>
          </svg>
          刷新
+       </button>
+     </div>
+   </div>
+ </div>
+ <!-- 快速配置模态框 -->
+ <div class="modal-overlay" id="quickConfigModal">
+   <div class="modal" style="max-width: 650px;">
+     <div class="modal-header">
+       <h3 class="modal-title">
+         <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor">
+           <path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" stroke-width="2" stroke-linecap="round"/>
+         </svg>
+         快速配置
+       </h3>
+       <button class="modal-close" onclick="closeModal('quickConfigModal')">
+         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor">
+           <path d="M6 18L18 6M6 6l12 12" stroke-width="2" stroke-linecap="round"/>
+         </svg>
+       </button>
+     </div>
+     <div class="modal-body">
+       <div class="form-group">
+         <label class="form-label">
+           弹幕白色占比 (%)
+           <span style="color: var(--text-tertiary); font-size: 12px; margin-left: 8px;">-1=不转换，0-100=白色占比</span>
+         </label>
+         <input type="number" class="form-input" id="quickWhiteRatio" min="-1" max="100" step="1" placeholder="-1">
+         <div class="form-hint">设置为-1表示不转换颜色，其他值表示将指定比例弹幕转为白色</div>
+       </div>
+
+       <div class="form-group">
+         <label class="form-label">
+           弹幕数量限制
+           <span style="color: var(--text-tertiary); font-size: 12px; margin-left: 8px;">-1=不限制</span>
+         </label>
+         <input type="number" class="form-input" id="quickDanmuLimit" min="-1" step="1" placeholder="-1">
+         <div class="form-hint">设置返回的最大弹幕条数，-1表示不限制</div>
+       </div>
+
+       <div class="form-group">
+         <label class="form-label">弹幕输出格式</label>
+         <select class="form-select" id="quickOutputFormat">
+           <option value="json">JSON 格式</option>
+           <option value="xml">Bilibili XML 格式</option>
+         </select>
+         <div class="form-hint">选择弹幕数据的返回格式</div>
+       </div>
+
+       <div class="form-group">
+         <label class="form-label">API 访问令牌</label>
+         <input type="text" class="form-input" id="quickToken" placeholder="87654321">
+         <div class="form-hint">自定义API访问令牌，默认为 87654321</div>
+       </div>
+
+       <div class="form-group">
+         <label class="form-label">
+           搜索缓存时间 (分钟)
+           <span style="color: var(--text-tertiary); font-size: 12px; margin-left: 8px;">建议1-30</span>
+         </label>
+         <input type="number" class="form-input" id="quickSearchCache" min="1" step="1" placeholder="1">
+         <div class="form-hint">搜索结果的缓存时间，减少重复搜索请求</div>
+       </div>
+
+       <div class="form-group">
+         <label class="form-label">
+           弹幕缓存时间 (分钟)
+           <span style="color: var(--text-tertiary); font-size: 12px; margin-left: 8px;">建议1-60</span>
+         </label>
+         <input type="number" class="form-input" id="quickCommentCache" min="1" step="1" placeholder="1">
+         <div class="form-hint">弹幕数据的缓存时间，减少重复弹幕获取</div>
+       </div>
+     </div>
+     <div class="modal-footer">
+       <button class="btn btn-secondary" onclick="closeModal('quickConfigModal')">取消</button>
+       <button class="btn btn-primary" onclick="saveQuickConfig()">
+         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+           <path d="M5 13l4 4L19 7" stroke-width="2" stroke-linecap="round"/>
+         </svg>
+         保存配置
        </button>
      </div>
    </div>
@@ -5070,6 +5157,104 @@ async function handleHomepage(req) {
      }
    });
 
+   // ========== 快速配置功能 ==========
+   function showQuickConfig() {
+     // 加载当前配置值
+     document.getElementById('quickWhiteRatio').value = AppState.config.WHITE_RATIO || '-1';
+     document.getElementById('quickDanmuLimit').value = AppState.config.DANMU_LIMIT || '-1';
+     document.getElementById('quickOutputFormat').value = AppState.config.DANMU_OUTPUT_FORMAT || 'json';
+     document.getElementById('quickToken').value = AppState.config.TOKEN || '87654321';
+     document.getElementById('quickSearchCache').value = AppState.config.SEARCH_CACHE_MINUTES || '1';
+     document.getElementById('quickCommentCache').value = AppState.config.COMMENT_CACHE_MINUTES || '1';
+     
+     showModal('quickConfigModal');
+   }
+
+   async function saveQuickConfig() {
+     const whiteRatio = document.getElementById('quickWhiteRatio').value;
+     const danmuLimit = document.getElementById('quickDanmuLimit').value;
+     const outputFormat = document.getElementById('quickOutputFormat').value;
+     const token = document.getElementById('quickToken').value;
+     const searchCache = document.getElementById('quickSearchCache').value;
+     const commentCache = document.getElementById('quickCommentCache').value;
+
+     // 验证输入
+     if (parseInt(whiteRatio) < -1 || parseInt(whiteRatio) > 100) {
+       showToast('白色占比必须在 -1 到 100 之间', 'error');
+       return;
+     }
+
+     if (parseInt(danmuLimit) < -1) {
+       showToast('弹幕限制必须大于等于 -1', 'error');
+       return;
+     }
+
+     if (parseInt(searchCache) < 1 || parseInt(commentCache) < 1) {
+       showToast('缓存时间必须大于 0', 'error');
+       return;
+     }
+
+     // 构建配置对象
+     const config = {
+       WHITE_RATIO: whiteRatio,
+       DANMU_LIMIT: danmuLimit,
+       DANMU_OUTPUT_FORMAT: outputFormat,
+       TOKEN: token,
+       SEARCH_CACHE_MINUTES: searchCache,
+       COMMENT_CACHE_MINUTES: commentCache
+     };
+
+     // 更新本地状态
+     AppState.config = { ...AppState.config, ...config };
+     
+     // 保存到本地存储
+     localStorage.setItem('danmu_api_config', JSON.stringify(AppState.config));
+     
+     showToast('正在保存配置到服务器...', 'info', 1000);
+
+     // 保存到服务器
+     try {
+       const response = await fetch('/api/config/save', {
+         method: 'POST',
+         headers: {
+           'Content-Type': 'application/json'
+         },
+         body: JSON.stringify({ config })
+       });
+
+       const result = await response.json();
+       
+       if (result.success) {
+         // 更新显示
+         Object.keys(config).forEach(key => {
+           updateConfigDisplay(key, config[key]);
+         });
+         
+         // 更新 API 地址显示（如果 TOKEN 改变）
+         if (config.TOKEN !== AppState.config.TOKEN) {
+           updateApiUrlDisplay();
+         }
+         
+         closeModal('quickConfigModal');
+         showToast(`配置已保存到: ${result.savedTo.join('、')}`, 'success');
+         
+         // 提示可能需要刷新
+         setTimeout(() => {
+           showToast('部分配置可能需要刷新页面后生效', 'info', 3000);
+         }, 1500);
+       } else {
+         throw new Error(result.errorMessage || '保存失败');
+       }
+     } catch (error) {
+       console.error('保存到服务器失败:', error);
+       // 即使服务器保存失败，也更新本地显示
+       Object.keys(config).forEach(key => {
+         updateConfigDisplay(key, config[key]);
+       });
+       closeModal('quickConfigModal');
+       showToast(`配置已保存到浏览器本地（服务器保存失败: ${error.message})`, 'warning');
+     }
+   }
  </script>
 
 </body>
