@@ -4502,7 +4502,7 @@ async function handleHomepage(req) {
          <span>💡 点击🔒图标解锁后才能修改配置，防止滑轮误触</span>
        </div>
      </div>
-     <div class="modal-footer" id="quickConfigFooter" style="flex-shrink: 0; display: none; gap: 10px; align-items: center; position: sticky; bottom: 0; background: var(--bg-secondary); padding: 16px 32px; border-top: 1px solid var(--border-color); margin: 0 -32px -32px;">
+     <div class="modal-footer" id="quickConfigFooter" style="flex-shrink: 0; display: flex; gap: 10px; align-items: center; position: sticky; bottom: 0; background: var(--bg-secondary); padding: 16px 32px; border-top: 1px solid var(--border-color); margin: 0 -32px -32px; opacity: 0; pointer-events: none; transition: opacity 0.3s ease, transform 0.3s ease; transform: translateY(10px);">
        <button class="btn btn-secondary" onclick="closeModal('quickConfigModal')">
          取消
        </button>
@@ -5689,9 +5689,13 @@ async function handleHomepage(req) {
            
            // 滚动到底部前50px时显示按钮
            if (scrollTop + clientHeight >= scrollHeight - 50) {
-             footer.style.display = 'flex';
+             footer.style.opacity = '1';
+             footer.style.transform = 'translateY(0)';
+             footer.style.pointerEvents = 'auto';
            } else {
-             footer.style.display = 'none';
+             footer.style.opacity = '0';
+             footer.style.transform = 'translateY(10px)';
+             footer.style.pointerEvents = 'none';
            }
          };
          
@@ -5705,7 +5709,9 @@ async function handleHomepage(req) {
          // 初始检查（如果内容不需要滚动，直接显示按钮）
          setTimeout(() => {
            if (modalBody.scrollHeight <= modalBody.clientHeight) {
-             footer.style.display = 'flex';
+             footer.style.opacity = '1';
+             footer.style.transform = 'translateY(0)';
+             footer.style.pointerEvents = 'auto';
            } else {
              checkScroll();
            }
