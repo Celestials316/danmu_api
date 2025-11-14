@@ -832,7 +832,7 @@ async function handleHomepage(req) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>弹幕 API 管理后台 v${globals.VERSION}</title>
+  <title>弹幕 API 管理后台</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script>
     (function() {
