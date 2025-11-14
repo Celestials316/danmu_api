@@ -3338,19 +3338,29 @@ async function handleHomepage(req) {
          
          <div class="stat-card">
            <div class="stat-header">
-             <span class="stat-title">持久化存储</span>
-             <div class="stat-icon success">💾</div>
+             <span class="stat-title">部署平台</span>
+             <div class="stat-icon warning">🚀</div>
            </div>
            <div class="stat-value">${
-             globals.databaseValid ? '数据库' : 
-             (redisConfigured && globals.redisValid) ? 'Redis' : 
-             '内存模式'
+             process.env.VERCEL ? 'Vercel' :
+             process.env.NETLIFY ? 'Netlify' :
+             process.env.CF_PAGES ? 'Cloudflare Pages' :
+             (typeof caches !== 'undefined' && 'default' in caches) ? 'Cloudflare Workers' :
+             process.env.RENDER ? 'Render' :
+             process.env.RAILWAY_ENVIRONMENT ? 'Railway' :
+             fs.existsSync('/.dockerenv') ? 'Docker' :
+             '本地/其他'
            }</div>
            <div class="stat-footer">
              ${
-               globals.databaseValid ? '✅ 数据库存储' : 
-               (redisConfigured && globals.redisValid) ? '✅ Redis存储' : 
-               '📝 仅内存缓存'
+               process.env.VERCEL ? '▲ Vercel 部署' :
+               process.env.NETLIFY ? '🌐 Netlify 部署' :
+               process.env.CF_PAGES ? '☁️ CF Pages' :
+               (typeof caches !== 'undefined' && 'default' in caches) ? '⚡ CF Workers' :
+               process.env.RENDER ? '🎨 Render 部署' :
+               process.env.RAILWAY_ENVIRONMENT ? '🚂 Railway 部署' :
+               fs.existsSync('/.dockerenv') ? '🐳 容器化部署' :
+               '🖥️ 标准环境'
              }
            </div>
          </div>
