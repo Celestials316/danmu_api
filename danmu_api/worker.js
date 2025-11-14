@@ -4317,7 +4317,7 @@ async function handleHomepage(req) {
            <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
            <path d="M12 16v-4m0-4h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
          </svg>
-         <span>💡 点击🔒图标解锁后才能修改配置，防止滑轮误触</span>
+         <span>💡 点击🔒图标解锁后才能修改配置</span>
        </div>
 
        <!-- 弹幕白色占比 -->
