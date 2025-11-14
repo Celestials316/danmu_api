@@ -2145,6 +2145,64 @@ async function handleHomepage(req) {
      font-family: inherit;
      transition: all 0.3s var(--ease-smooth);
    }
+   .form-range {
+     -webkit-appearance: none;
+     width: 100%;
+     height: 8px;
+     border-radius: 5px;
+     background: linear-gradient(to right, var(--primary-500) 0%, var(--primary-500) 50%, var(--bg-tertiary) 50%, var(--bg-tertiary) 100%);
+     outline: none;
+     transition: all 0.3s var(--ease-smooth);
+   }
+
+   .form-range::-webkit-slider-thumb {
+     -webkit-appearance: none;
+     appearance: none;
+     width: 20px;
+     height: 20px;
+     border-radius: 50%;
+     background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+     cursor: pointer;
+     box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
+     transition: all 0.3s var(--ease-smooth);
+   }
+
+   .form-range::-webkit-slider-thumb:hover {
+     transform: scale(1.2);
+     box-shadow: 0 4px 12px rgba(99, 102, 241, 0.6);
+   }
+
+   .form-range::-moz-range-thumb {
+     width: 20px;
+     height: 20px;
+     border-radius: 50%;
+     background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+     cursor: pointer;
+     border: none;
+     box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
+     transition: all 0.3s var(--ease-smooth);
+   }
+
+   .form-range::-moz-range-thumb:hover {
+     transform: scale(1.2);
+     box-shadow: 0 4px 12px rgba(99, 102, 241, 0.6);
+   }
+
+   .form-range::-webkit-slider-runnable-track {
+     width: 100%;
+     height: 8px;
+     cursor: pointer;
+     background: transparent;
+     border-radius: 5px;
+   }
+
+   .form-range::-moz-range-track {
+     width: 100%;
+     height: 8px;
+     cursor: pointer;
+     background: var(--bg-tertiary);
+     border-radius: 5px;
+   }
 
    .form-input:focus,
    .form-textarea:focus,
@@ -3250,15 +3308,15 @@ async function handleHomepage(req) {
              系统状态
            </h3>
            <div style="display: flex; align-items: center; gap: 12px;">
+             <span class="badge badge-success">
+               <span class="status-dot"></span>运行正常
+             </span>
              <button class="btn btn-primary" onclick="showQuickConfig()" style="padding: 8px 16px; font-size: 13px;">
                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor">
                  <path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" stroke-width="2" stroke-linecap="round"/>
                </svg>
                快速配置
              </button>
-             <span class="badge badge-success">
-               <span class="status-dot"></span>运行正常
-             </span>
            </div>
          </div>
          <div class="config-grid">
@@ -4075,20 +4133,22 @@ async function handleHomepage(req) {
      <div class="modal-body">
        <div class="form-group">
          <label class="form-label">
-           弹幕白色占比 (%)
-           <span style="color: var(--text-tertiary); font-size: 12px; margin-left: 8px;">-1=不转换，0-100=白色占比</span>
+           弹幕白色占比: <span id="whiteRatioValue" style="color: var(--primary-500); font-weight: 700;">-1</span>
+           <span style="color: var(--text-tertiary); font-size: 12px; margin-left: 8px;">(-1=不转换)</span>
          </label>
-         <input type="number" class="form-input" id="quickWhiteRatio" min="-1" max="100" step="1" placeholder="-1">
-         <div class="form-hint">设置为-1表示不转换颜色，其他值表示将指定比例弹幕转为白色</div>
+         <input type="range" class="form-range" id="quickWhiteRatio" min="-1" max="100" step="1" value="-1" 
+                oninput="document.getElementById('whiteRatioValue').textContent = this.value">
+         <div class="form-hint">设置为-1表示不转换颜色，0-100表示白色弹幕占比</div>
        </div>
 
        <div class="form-group">
          <label class="form-label">
-           弹幕数量限制
-           <span style="color: var(--text-tertiary); font-size: 12px; margin-left: 8px;">-1=不限制</span>
+           弹幕数量限制: <span id="danmuLimitValue" style="color: var(--primary-500); font-weight: 700;">-1</span>
+           <span style="color: var(--text-tertiary); font-size: 12px; margin-left: 8px;">(-1=不限制)</span>
          </label>
-         <input type="number" class="form-input" id="quickDanmuLimit" min="-1" step="1" placeholder="-1">
-         <div class="form-hint">设置返回的最大弹幕条数，-1表示不限制</div>
+         <input type="range" class="form-range" id="quickDanmuLimit" min="-1" max="10000" step="100" value="-1"
+                oninput="document.getElementById('danmuLimitValue').textContent = this.value === '-1' ? '不限制' : this.value">
+         <div class="form-hint">设置返回的最大弹幕条数</div>
        </div>
 
        <div class="form-group">
@@ -4108,26 +4168,42 @@ async function handleHomepage(req) {
 
        <div class="form-group">
          <label class="form-label">
-           搜索缓存时间 (分钟)
-           <span style="color: var(--text-tertiary); font-size: 12px; margin-left: 8px;">建议1-30</span>
+           搜索缓存时间: <span id="searchCacheValue" style="color: var(--primary-500); font-weight: 700;">1</span> 分钟
          </label>
-         <input type="number" class="form-input" id="quickSearchCache" min="1" step="1" placeholder="1">
+         <input type="range" class="form-range" id="quickSearchCache" min="1" max="30" step="1" value="1"
+                oninput="document.getElementById('searchCacheValue').textContent = this.value">
          <div class="form-hint">搜索结果的缓存时间，减少重复搜索请求</div>
        </div>
 
        <div class="form-group">
          <label class="form-label">
-           弹幕缓存时间 (分钟)
-           <span style="color: var(--text-tertiary); font-size: 12px; margin-left: 8px;">建议1-60</span>
+           弹幕缓存时间: <span id="commentCacheValue" style="color: var(--primary-500); font-weight: 700;">1</span> 分钟
          </label>
-         <input type="number" class="form-input" id="quickCommentCache" min="1" step="1" placeholder="1">
+         <input type="range" class="form-range" id="quickCommentCache" min="1" max="60" step="1" value="1"
+                oninput="document.getElementById('commentCacheValue').textContent = this.value">
          <div class="form-hint">弹幕数据的缓存时间，减少重复弹幕获取</div>
        </div>
+
+       <div class="alert alert-info" style="margin-top: 20px;">
+         <svg class="alert-icon" viewBox="0 0 24 24" width="20" height="20">
+           <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
+           <path d="M12 16v-4m0-4h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+         </svg>
+         <span>需要更多配置选项？</span>
+       </div>
      </div>
-     <div class="modal-footer">
+     <div class="modal-footer" style="display: flex; gap: 8px;">
        <button class="btn btn-secondary" onclick="closeModal('quickConfigModal')">取消</button>
+       <button class="btn btn-secondary" onclick="closeModal('quickConfigModal'); switchPage('config');" 
+               style="flex: 1;">
+         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor">
+           <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke-width="2"/>
+           <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-width="2"/>
+         </svg>
+         全部环境变量
+       </button>
        <button class="btn btn-primary" onclick="saveQuickConfig()">
-         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor">
            <path d="M5 13l4 4L19 7" stroke-width="2" stroke-linecap="round"/>
          </svg>
          保存配置
@@ -5160,12 +5236,25 @@ async function handleHomepage(req) {
    // ========== 快速配置功能 ==========
    function showQuickConfig() {
      // 加载当前配置值
-     document.getElementById('quickWhiteRatio').value = AppState.config.WHITE_RATIO || '-1';
-     document.getElementById('quickDanmuLimit').value = AppState.config.DANMU_LIMIT || '-1';
+     const whiteRatio = AppState.config.WHITE_RATIO || '-1';
+     const danmuLimit = AppState.config.DANMU_LIMIT || '-1';
+     const searchCache = AppState.config.SEARCH_CACHE_MINUTES || '1';
+     const commentCache = AppState.config.COMMENT_CACHE_MINUTES || '1';
+     
+     document.getElementById('quickWhiteRatio').value = whiteRatio;
+     document.getElementById('whiteRatioValue').textContent = whiteRatio;
+     
+     document.getElementById('quickDanmuLimit').value = danmuLimit;
+     document.getElementById('danmuLimitValue').textContent = danmuLimit === '-1' ? '不限制' : danmuLimit;
+     
      document.getElementById('quickOutputFormat').value = AppState.config.DANMU_OUTPUT_FORMAT || 'json';
      document.getElementById('quickToken').value = AppState.config.TOKEN || '87654321';
-     document.getElementById('quickSearchCache').value = AppState.config.SEARCH_CACHE_MINUTES || '1';
-     document.getElementById('quickCommentCache').value = AppState.config.COMMENT_CACHE_MINUTES || '1';
+     
+     document.getElementById('quickSearchCache').value = searchCache;
+     document.getElementById('searchCacheValue').textContent = searchCache;
+     
+     document.getElementById('quickCommentCache').value = commentCache;
+     document.getElementById('commentCacheValue').textContent = commentCache;
      
      showModal('quickConfigModal');
    }
