@@ -4311,6 +4311,15 @@ async function handleHomepage(req) {
        </button>
      </div>
      <div class="modal-body">
+       <!-- 提示信息 -->
+       <div class="alert alert-info" style="margin: 0 0 24px 0; border-radius: 12px;">
+         <svg class="alert-icon" viewBox="0 0 24 24" width="20" height="20">
+           <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
+           <path d="M12 16v-4m0-4h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+         </svg>
+         <span>💡 点击🔒图标解锁后才能修改配置，防止滑轮误触</span>
+       </div>
+
        <!-- 弹幕白色占比 -->
        <div class="quick-config-item">
          <div class="config-item-header">
@@ -4491,15 +4500,6 @@ async function handleHomepage(req) {
            <span>60分钟</span>
          </div>
          <div class="form-hint">弹幕数据缓存时间，减少重复弹幕获取</div>
-       </div>
-
-       <!-- 提示信息 -->
-       <div class="alert alert-info" style="margin: 0; border-radius: 12px;">
-         <svg class="alert-icon" viewBox="0 0 24 24" width="20" height="20">
-           <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
-           <path d="M12 16v-4m0-4h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-         </svg>
-         <span>💡 点击🔒图标解锁后才能修改配置，防止滑轮误触</span>
        </div>
      </div>
      <div class="modal-footer" style="display: flex; gap: 10px; align-items: center;">
