@@ -3083,6 +3083,7 @@ async function handleHomepage(req) {
        transform: scale(1);
      }
    }
+   
    /* 滑块样式 */
    .form-range {
      -webkit-appearance: none;
@@ -3090,6 +3091,7 @@ async function handleHomepage(req) {
      width: 100%;
      height: 8px;
      border-radius: 4px;
+     background: var(--bg-tertiary);
      outline: none;
      cursor: pointer;
      transition: all 0.3s;
@@ -3126,6 +3128,10 @@ async function handleHomepage(req) {
    .form-range::-moz-range-thumb:hover {
      transform: scale(1.2);
      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.6);
+   }
+
+   html.light .form-range {
+     background: var(--border-color);
    }
 
    html.light .form-range::-webkit-slider-thumb {
@@ -4131,20 +4137,16 @@ async function handleHomepage(req) {
            <span>弹幕白色占比 (%)</span>
            <span style="color: var(--primary-500); font-weight: 700; font-size: 16px;" id="whiteRatioValue">-1</span>
          </label>
-         <input type="range" class="form-range" id="quickWhiteRatio" min="-1" max="100" step="1" value="-1" 
-                oninput="document.getElementById('whiteRatioValue').textContent = this.value" 
-                style="width: 100%; height: 8px; border-radius: 4px; background: linear-gradient(to right, var(--primary-500) 0%, var(--bg-tertiary) 0%); outline: none; -webkit-appearance: none; appearance: none; cursor: pointer;">
+         <input type="range" class="form-range" id="quickWhiteRatio" min="-1" max="100" step="1" value="-1" oninput="document.getElementById('whiteRatioValue').textContent = this.value">
          <div class="form-hint">-1 = 不转换颜色 | 0-100 = 白色弹幕占比</div>
        </div>
 
        <div class="form-group">
          <label class="form-label" style="display: flex; justify-content: space-between; align-items: center;">
            <span>弹幕数量限制</span>
-           <span style="color: var(--primary-500); font-weight: 700; font-size: 16px;" id="danmuLimitValue">-1</span>
+           <span style="color: var(--primary-500); font-weight: 700; font-size: 16px;" id="danmuLimitValue">不限制</span>
          </label>
-         <input type="range" class="form-range" id="quickDanmuLimit" min="-1" max="10000" step="100" value="-1" 
-                oninput="document.getElementById('danmuLimitValue').textContent = this.value === '-1' ? '不限制' : this.value" 
-                style="width: 100%; height: 8px; border-radius: 4px; background: linear-gradient(to right, var(--primary-500) 0%, var(--bg-tertiary) 0%); outline: none; -webkit-appearance: none; appearance: none; cursor: pointer;">
+         <input type="range" class="form-range" id="quickDanmuLimit" min="-1" max="10000" step="100" value="-1" oninput="document.getElementById('danmuLimitValue').textContent = this.value === '-1' ? '不限制' : this.value">
          <div class="form-hint">-1 = 不限制 | 100-10000 = 最大弹幕条数</div>
        </div>
 
@@ -4168,9 +4170,7 @@ async function handleHomepage(req) {
            <span>搜索缓存时间 (分钟)</span>
            <span style="color: var(--primary-500); font-weight: 700; font-size: 16px;" id="searchCacheValue">1</span>
          </label>
-         <input type="range" class="form-range" id="quickSearchCache" min="1" max="60" step="1" value="1" 
-                oninput="document.getElementById('searchCacheValue').textContent = this.value" 
-                style="width: 100%; height: 8px; border-radius: 4px; background: linear-gradient(to right, var(--primary-500) 0%, var(--bg-tertiary) 0%); outline: none; -webkit-appearance: none; appearance: none; cursor: pointer;">
+         <input type="range" class="form-range" id="quickSearchCache" min="1" max="60" step="1" value="1" oninput="document.getElementById('searchCacheValue').textContent = this.value">
          <div class="form-hint">搜索结果缓存时间，减少重复请求</div>
        </div>
 
@@ -4179,9 +4179,7 @@ async function handleHomepage(req) {
            <span>弹幕缓存时间 (分钟)</span>
            <span style="color: var(--primary-500); font-weight: 700; font-size: 16px;" id="commentCacheValue">1</span>
          </label>
-         <input type="range" class="form-range" id="quickCommentCache" min="1" max="120" step="1" value="1" 
-                oninput="document.getElementById('commentCacheValue').textContent = this.value" 
-                style="width: 100%; height: 8px; border-radius: 4px; background: linear-gradient(to right, var(--primary-500) 0%, var(--bg-tertiary) 0%); outline: none; -webkit-appearance: none; appearance: none; cursor: pointer;">
+         <input type="range" class="form-range" id="quickCommentCache" min="1" max="120" step="1" value="1" oninput="document.getElementById('commentCacheValue').textContent = this.value">
          <div class="form-hint">弹幕数据缓存时间，减少重复获取</div>
        </div>
 
@@ -5230,7 +5228,6 @@ async function handleHomepage(req) {
 
    // ========== 快速配置功能 ==========
    function showQuickConfig() {
-     // 加载当前配置值
      const whiteRatio = AppState.config.WHITE_RATIO || '-1';
      const danmuLimit = AppState.config.DANMU_LIMIT || '-1';
      const searchCache = AppState.config.SEARCH_CACHE_MINUTES || '1';
@@ -5250,12 +5247,6 @@ async function handleHomepage(req) {
      
      document.getElementById('quickCommentCache').value = commentCache;
      document.getElementById('commentCacheValue').textContent = commentCache;
-     
-     // 更新滑块背景色（显示进度）
-     updateSliderBackground('quickWhiteRatio', -1, 100);
-     updateSliderBackground('quickDanmuLimit', -1, 10000);
-     updateSliderBackground('quickSearchCache', 1, 60);
-     updateSliderBackground('quickCommentCache', 1, 120);
      
      showModal('quickConfigModal');
    }
