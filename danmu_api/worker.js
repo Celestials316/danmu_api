@@ -3338,19 +3338,25 @@ async function handleHomepage(req) {
          
          <div class="stat-card">
            <div class="stat-header">
-             <span class="stat-title">持久化存储</span>
-             <div class="stat-icon success">💾</div>
+             <span class="stat-title">部署平台</span>
+             <div class="stat-icon warning">🚀</div>
            </div>
            <div class="stat-value">${
-             globals.databaseValid ? '数据库' : 
-             (redisConfigured && globals.redisValid) ? 'Redis' : 
-             '内存模式'
+             deployPlatform === 'cloudflare' ? 'Cloudflare' :
+             deployPlatform === 'vercel' ? 'Vercel' :
+             deployPlatform === 'netlify' ? 'Netlify' :
+             deployPlatform === 'docker' ? 'Docker' :
+             deployPlatform === 'edge' ? 'Edge' :
+             '未知平台'
            }</div>
            <div class="stat-footer">
              ${
-               globals.databaseValid ? '✅ 数据库存储' : 
-               (redisConfigured && globals.redisValid) ? '✅ Redis存储' : 
-               '📝 仅内存缓存'
+               deployPlatform === 'cloudflare' ? '☁️ Workers 平台' :
+               deployPlatform === 'vercel' ? '▲ Serverless 平台' :
+               deployPlatform === 'netlify' ? '🌐 JAMstack 平台' :
+               deployPlatform === 'docker' ? '🐳 容器化部署' :
+               deployPlatform === 'edge' ? '⚡ 边缘计算' :
+               '🖥️ 标准部署'
              }
            </div>
          </div>
