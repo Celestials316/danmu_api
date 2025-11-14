@@ -2145,17 +2145,13 @@ async function handleHomepage(req) {
      font-family: inherit;
      transition: all 0.3s var(--ease-smooth);
    }
-   /* 滑块样式 - 重新设计 */
+   /* 滑块样式 - 简化版（单进度条） */
    .form-range {
      -webkit-appearance: none;
      width: 100%;
      height: 8px;
      border-radius: 10px;
-     background: linear-gradient(to right, 
-       var(--bg-tertiary) 0%, 
-       var(--bg-tertiary) var(--range-value, 0%), 
-       var(--border-color) var(--range-value, 0%), 
-       var(--border-color) 100%);
+     background: var(--border-color);
      outline: none;
      transition: all 0.3s var(--ease-smooth);
      position: relative;
@@ -2165,45 +2161,51 @@ async function handleHomepage(req) {
    .form-range::-webkit-slider-thumb {
      -webkit-appearance: none;
      appearance: none;
-     width: 24px;
-     height: 24px;
+     width: 22px;
+     height: 22px;
      border-radius: 50%;
      background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
      cursor: pointer;
-     border: 4px solid var(--bg-secondary);
-     box-shadow: 0 3px 12px rgba(99, 102, 241, 0.4), 0 0 0 1px rgba(99, 102, 241, 0.2);
+     border: 3px solid var(--bg-secondary);
+     box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
      transition: all 0.2s var(--ease-smooth);
+     position: relative;
+     z-index: 2;
    }
 
    .form-range::-webkit-slider-thumb:hover {
      transform: scale(1.15);
-     box-shadow: 0 4px 16px rgba(99, 102, 241, 0.6), 0 0 0 2px rgba(99, 102, 241, 0.3);
+     box-shadow: 0 3px 12px rgba(99, 102, 241, 0.6);
+     border-width: 4px;
    }
 
    .form-range::-webkit-slider-thumb:active {
      transform: scale(1.05);
-     box-shadow: 0 2px 8px rgba(99, 102, 241, 0.8), 0 0 0 3px rgba(99, 102, 241, 0.4);
+     box-shadow: 0 2px 6px rgba(99, 102, 241, 0.8);
    }
 
    .form-range::-moz-range-thumb {
-     width: 24px;
-     height: 24px;
+     width: 22px;
+     height: 22px;
      border-radius: 50%;
      background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
      cursor: pointer;
-     border: 4px solid var(--bg-secondary);
-     box-shadow: 0 3px 12px rgba(99, 102, 241, 0.4), 0 0 0 1px rgba(99, 102, 241, 0.2);
+     border: 3px solid var(--bg-secondary);
+     box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
      transition: all 0.2s var(--ease-smooth);
+     position: relative;
+     z-index: 2;
    }
 
    .form-range::-moz-range-thumb:hover {
      transform: scale(1.15);
-     box-shadow: 0 4px 16px rgba(99, 102, 241, 0.6), 0 0 0 2px rgba(99, 102, 241, 0.3);
+     box-shadow: 0 3px 12px rgba(99, 102, 241, 0.6);
+     border-width: 4px;
    }
 
    .form-range::-moz-range-thumb:active {
      transform: scale(1.05);
-     box-shadow: 0 2px 8px rgba(99, 102, 241, 0.8), 0 0 0 3px rgba(99, 102, 241, 0.4);
+     box-shadow: 0 2px 6px rgba(99, 102, 241, 0.8);
    }
 
    .form-range::-webkit-slider-runnable-track {
@@ -2222,60 +2224,56 @@ async function handleHomepage(req) {
      border-radius: 10px;
    }
 
-   /* 滑块容器 - 改进版 */
+   /* 滑块容器 - 单进度条版本 */
    .range-wrapper {
      position: relative;
      width: 100%;
-     padding: 8px 0 12px 0;
-     margin: 12px 0;
+     padding: 0;
+     margin: 12px 0 8px 0;
    }
 
    .range-progress {
      position: absolute;
-     top: 8px;
+     top: 0;
      left: 0;
      height: 8px;
      background: linear-gradient(90deg, 
-       rgba(99, 102, 241, 0.8) 0%, 
-       rgba(99, 102, 241, 0.95) 50%, 
-       var(--primary-500) 100%);
+       var(--primary-500) 0%, 
+       var(--primary-600) 100%);
      border-radius: 10px 0 0 10px;
      pointer-events: none;
      transition: width 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-     z-index: 0;
-     box-shadow: 0 0 10px rgba(99, 102, 241, 0.3);
+     z-index: 1;
+     box-shadow: 0 0 8px rgba(99, 102, 241, 0.3);
    }
 
    .form-range {
      position: relative;
-     z-index: 1;
-     background: transparent;
+     z-index: 2;
    }
 
-   /* 滑块标签组 - 优化字体 */
+   /* 滑块标签组 - 精简版 */
    .range-labels {
      display: flex;
      justify-content: space-between;
-     margin-top: 10px;
-     padding: 0 2px;
-     font-size: 12px;
+     margin-top: 8px;
+     padding: 0;
+     font-size: 11px;
      font-weight: 600;
-     color: var(--text-secondary);
+     color: var(--text-tertiary);
      user-select: none;
    }
 
    .range-labels span {
-     padding: 4px 8px;
-     background: var(--bg-tertiary);
-     border-radius: 6px;
-     border: 1px solid var(--border-color);
+     padding: 3px 6px;
+     background: transparent;
+     border-radius: 4px;
      transition: all 0.2s var(--ease-smooth);
    }
 
    .range-labels span:hover {
      background: var(--bg-hover);
      color: var(--text-primary);
-     border-color: var(--primary-500);
    }
 
    .form-input:focus,
@@ -4324,23 +4322,24 @@ async function handleHomepage(req) {
          <span>需要更多高级配置选项？点击下方"全部环境变量"按钮</span>
        </div>
      </div>
-     <div class="modal-footer" style="display: flex; gap: 10px; flex-wrap: wrap;">
-       <button class="btn btn-secondary" onclick="closeModal('quickConfigModal')" style="flex: 0 1 auto; min-width: 100px;">
+     <div class="modal-footer" style="display: flex; gap: 10px; align-items: center;">
+       <button class="btn btn-secondary" onclick="closeModal('quickConfigModal')" style="padding: 10px 20px; font-size: 14px;">
          取消
        </button>
        <button class="btn btn-secondary" onclick="closeModal('quickConfigModal'); switchPage('config');" 
-               style="flex: 1 1 200px; display: flex; align-items: center; justify-content: center; gap: 8px;">
-         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor">
+               style="padding: 10px 16px; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor">
            <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke-width="2"/>
            <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-width="2"/>
          </svg>
-         全部环境变量
+         <span>高级配置</span>
        </button>
-       <button class="btn btn-primary" onclick="saveQuickConfig()" style="flex: 0 1 auto; min-width: 140px; display: flex; align-items: center; justify-content: center; gap: 8px;">
-         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor">
+       <div style="flex: 1;"></div>
+       <button class="btn btn-primary" onclick="saveQuickConfig()" style="padding: 10px 24px; font-size: 14px; display: flex; align-items: center; gap: 8px;">
+         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor">
            <path d="M5 13l4 4L19 7" stroke-width="2" stroke-linecap="round"/>
          </svg>
-         保存配置
+         <span>保存配置</span>
        </button>
      </div>
    </div>
@@ -5366,45 +5365,46 @@ async function handleHomepage(req) {
        }
      }
    });
-   // 更新滑块进度条和显示值 - 增强版
+   // 更新滑块进度条和显示值 - 优化版
    function updateRangeProgress(input, progressId, valueId, min, max, formatter = null) {
      const value = parseFloat(input.value);
      const progress = document.getElementById(progressId);
      const valueDisplay = document.getElementById(valueId);
      
+     if (!progress || !valueDisplay) return;
+     
      // 计算进度百分比
      const percentage = ((value - min) / (max - min)) * 100;
-     progress.style.width = percentage + '%';
+     progress.style.width = Math.max(0, Math.min(100, percentage)) + '%';
      
-     // 添加进度条末端圆角效果
-     if (percentage >= 99) {
+     // 进度条末端圆角处理
+     if (percentage >= 98) {
        progress.style.borderRadius = '10px';
+     } else if (percentage <= 2) {
+       progress.style.borderRadius = '10px 0 0 10px';
+       progress.style.minWidth = '8px'; // 确保最小可见宽度
      } else {
        progress.style.borderRadius = '10px 0 0 10px';
+       progress.style.minWidth = '0';
      }
      
-     // 更新显示值，添加动画效果
-     if (formatter && typeof formatter === 'function') {
-       const formattedValue = formatter(value);
-       if (valueDisplay.textContent !== formattedValue) {
-         valueDisplay.style.transform = 'scale(1.1)';
-         valueDisplay.textContent = formattedValue;
-         setTimeout(() => {
-           valueDisplay.style.transform = 'scale(1)';
-         }, 150);
-       }
-     } else {
-       if (valueDisplay.textContent !== String(value)) {
-         valueDisplay.style.transform = 'scale(1.1)';
-         valueDisplay.textContent = value;
-         setTimeout(() => {
-           valueDisplay.style.transform = 'scale(1)';
-         }, 150);
-       }
+     // 更新显示值，添加微动画
+     const newValue = formatter && typeof formatter === 'function' 
+       ? formatter(value) 
+       : String(value);
+     
+     if (valueDisplay.textContent !== newValue) {
+       valueDisplay.style.transform = 'scale(1.08)';
+       valueDisplay.textContent = newValue;
+       setTimeout(() => {
+         valueDisplay.style.transform = 'scale(1)';
+       }, 120);
      }
      
      // 为显示值添加过渡效果
-     valueDisplay.style.transition = 'transform 0.15s cubic-bezier(0.4, 0, 0.2, 1)';
+     if (!valueDisplay.style.transition) {
+       valueDisplay.style.transition = 'transform 0.12s cubic-bezier(0.4, 0, 0.2, 1)';
+     }
    }
 
    // ========== 快速配置功能 ==========
