@@ -2145,63 +2145,109 @@ async function handleHomepage(req) {
      font-family: inherit;
      transition: all 0.3s var(--ease-smooth);
    }
+   /* 滑块样式 */
    .form-range {
      -webkit-appearance: none;
      width: 100%;
-     height: 8px;
-     border-radius: 5px;
-     background: linear-gradient(to right, var(--primary-500) 0%, var(--primary-500) 50%, var(--bg-tertiary) 50%, var(--bg-tertiary) 100%);
+     height: 6px;
+     border-radius: 3px;
+     background: var(--bg-tertiary);
      outline: none;
      transition: all 0.3s var(--ease-smooth);
+     position: relative;
    }
 
    .form-range::-webkit-slider-thumb {
      -webkit-appearance: none;
      appearance: none;
-     width: 20px;
-     height: 20px;
+     width: 18px;
+     height: 18px;
      border-radius: 50%;
-     background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+     background: white;
      cursor: pointer;
-     box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
-     transition: all 0.3s var(--ease-smooth);
+     border: 3px solid var(--primary-500);
+     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+     transition: all 0.2s var(--ease-smooth);
    }
 
    .form-range::-webkit-slider-thumb:hover {
      transform: scale(1.2);
-     box-shadow: 0 4px 12px rgba(99, 102, 241, 0.6);
+     box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+   }
+
+   .form-range::-webkit-slider-thumb:active {
+     transform: scale(1.1);
+     border-width: 4px;
    }
 
    .form-range::-moz-range-thumb {
-     width: 20px;
-     height: 20px;
+     width: 18px;
+     height: 18px;
      border-radius: 50%;
-     background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+     background: white;
      cursor: pointer;
-     border: none;
-     box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
-     transition: all 0.3s var(--ease-smooth);
+     border: 3px solid var(--primary-500);
+     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+     transition: all 0.2s var(--ease-smooth);
    }
 
    .form-range::-moz-range-thumb:hover {
      transform: scale(1.2);
-     box-shadow: 0 4px 12px rgba(99, 102, 241, 0.6);
+     box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+   }
+
+   .form-range::-moz-range-thumb:active {
+     transform: scale(1.1);
+     border-width: 4px;
    }
 
    .form-range::-webkit-slider-runnable-track {
      width: 100%;
-     height: 8px;
+     height: 6px;
      cursor: pointer;
-     background: transparent;
-     border-radius: 5px;
+     background: var(--bg-tertiary);
+     border-radius: 3px;
    }
 
    .form-range::-moz-range-track {
      width: 100%;
-     height: 8px;
+     height: 6px;
      cursor: pointer;
      background: var(--bg-tertiary);
-     border-radius: 5px;
+     border-radius: 3px;
+   }
+
+   /* 滑块容器 - 用于进度条效果 */
+   .range-wrapper {
+     position: relative;
+     width: 100%;
+     padding: 10px 0;
+   }
+
+   .range-progress {
+     position: absolute;
+     top: 10px;
+     left: 0;
+     height: 6px;
+     background: linear-gradient(90deg, var(--primary-500), var(--primary-600));
+     border-radius: 3px;
+     pointer-events: none;
+     transition: width 0.1s ease;
+     z-index: 0;
+   }
+
+   .form-range {
+     position: relative;
+     z-index: 1;
+   }
+
+   /* 滑块标签组 */
+   .range-labels {
+     display: flex;
+     justify-content: space-between;
+     margin-top: 8px;
+     font-size: 11px;
+     color: var(--text-tertiary);
    }
 
    .form-input:focus,
@@ -4136,18 +4182,33 @@ async function handleHomepage(req) {
            弹幕白色占比: <span id="whiteRatioValue" style="color: var(--primary-500); font-weight: 700;">-1</span>
            <span style="color: var(--text-tertiary); font-size: 12px; margin-left: 8px;">(-1=不转换)</span>
          </label>
-         <input type="range" class="form-range" id="quickWhiteRatio" min="-1" max="100" step="1" value="-1" 
-                oninput="document.getElementById('whiteRatioValue').textContent = this.value">
+         <div class="range-wrapper">
+           <div class="range-progress" id="whiteRatioProgress" style="width: 0%"></div>
+           <input type="range" class="form-range" id="quickWhiteRatio" min="-1" max="100" step="1" value="-1" 
+                  oninput="updateRangeProgress(this, 'whiteRatioProgress', 'whiteRatioValue', -1, 100)">
+         </div>
+         <div class="range-labels">
+           <span>不转换</span>
+           <span>50%</span>
+           <span>100%</span>
+         </div>
          <div class="form-hint">设置为-1表示不转换颜色，0-100表示白色弹幕占比</div>
        </div>
 
        <div class="form-group">
          <label class="form-label">
-           弹幕数量限制: <span id="danmuLimitValue" style="color: var(--primary-500); font-weight: 700;">-1</span>
-           <span style="color: var(--text-tertiary); font-size: 12px; margin-left: 8px;">(-1=不限制)</span>
+           弹幕数量限制: <span id="danmuLimitValue" style="color: var(--primary-500); font-weight: 700;">不限制</span>
          </label>
-         <input type="range" class="form-range" id="quickDanmuLimit" min="-1" max="10000" step="100" value="-1"
-                oninput="document.getElementById('danmuLimitValue').textContent = this.value === '-1' ? '不限制' : this.value">
+         <div class="range-wrapper">
+           <div class="range-progress" id="danmuLimitProgress" style="width: 0%"></div>
+           <input type="range" class="form-range" id="quickDanmuLimit" min="-1" max="10000" step="100" value="-1"
+                  oninput="updateRangeProgress(this, 'danmuLimitProgress', 'danmuLimitValue', -1, 10000, val => val === -1 ? '不限制' : val)">
+         </div>
+         <div class="range-labels">
+           <span>不限制</span>
+           <span>5000</span>
+           <span>10000</span>
+         </div>
          <div class="form-hint">设置返回的最大弹幕条数</div>
        </div>
 
@@ -4170,8 +4231,16 @@ async function handleHomepage(req) {
          <label class="form-label">
            搜索缓存时间: <span id="searchCacheValue" style="color: var(--primary-500); font-weight: 700;">1</span> 分钟
          </label>
-         <input type="range" class="form-range" id="quickSearchCache" min="1" max="30" step="1" value="1"
-                oninput="document.getElementById('searchCacheValue').textContent = this.value">
+         <div class="range-wrapper">
+           <div class="range-progress" id="searchCacheProgress" style="width: 0%"></div>
+           <input type="range" class="form-range" id="quickSearchCache" min="1" max="30" step="1" value="1"
+                  oninput="updateRangeProgress(this, 'searchCacheProgress', 'searchCacheValue', 1, 30)">
+         </div>
+         <div class="range-labels">
+           <span>1分钟</span>
+           <span>15分钟</span>
+           <span>30分钟</span>
+         </div>
          <div class="form-hint">搜索结果的缓存时间，减少重复搜索请求</div>
        </div>
 
@@ -4179,8 +4248,16 @@ async function handleHomepage(req) {
          <label class="form-label">
            弹幕缓存时间: <span id="commentCacheValue" style="color: var(--primary-500); font-weight: 700;">1</span> 分钟
          </label>
-         <input type="range" class="form-range" id="quickCommentCache" min="1" max="60" step="1" value="1"
-                oninput="document.getElementById('commentCacheValue').textContent = this.value">
+         <div class="range-wrapper">
+           <div class="range-progress" id="commentCacheProgress" style="width: 0%"></div>
+           <input type="range" class="form-range" id="quickCommentCache" min="1" max="60" step="1" value="1"
+                  oninput="updateRangeProgress(this, 'commentCacheProgress', 'commentCacheValue', 1, 60)">
+         </div>
+         <div class="range-labels">
+           <span>1分钟</span>
+           <span>30分钟</span>
+           <span>60分钟</span>
+         </div>
          <div class="form-hint">弹幕数据的缓存时间，减少重复弹幕获取</div>
        </div>
 
@@ -5232,6 +5309,23 @@ async function handleHomepage(req) {
        }
      }
    });
+   // 更新滑块进度条和显示值
+   function updateRangeProgress(input, progressId, valueId, min, max, formatter = null) {
+     const value = parseFloat(input.value);
+     const progress = document.getElementById(progressId);
+     const valueDisplay = document.getElementById(valueId);
+     
+     // 计算进度百分比
+     const percentage = ((value - min) / (max - min)) * 100;
+     progress.style.width = percentage + '%';
+     
+     // 更新显示值
+     if (formatter && typeof formatter === 'function') {
+       valueDisplay.textContent = formatter(value);
+     } else {
+       valueDisplay.textContent = value;
+     }
+   }
 
    // ========== 快速配置功能 ==========
    function showQuickConfig() {
@@ -5241,22 +5335,48 @@ async function handleHomepage(req) {
      const searchCache = AppState.config.SEARCH_CACHE_MINUTES || '1';
      const commentCache = AppState.config.COMMENT_CACHE_MINUTES || '1';
      
+     // 设置滑块值
      document.getElementById('quickWhiteRatio').value = whiteRatio;
-     document.getElementById('whiteRatioValue').textContent = whiteRatio;
-     
      document.getElementById('quickDanmuLimit').value = danmuLimit;
-     document.getElementById('danmuLimitValue').textContent = danmuLimit === '-1' ? '不限制' : danmuLimit;
-     
      document.getElementById('quickOutputFormat').value = AppState.config.DANMU_OUTPUT_FORMAT || 'json';
      document.getElementById('quickToken').value = AppState.config.TOKEN || '87654321';
-     
      document.getElementById('quickSearchCache').value = searchCache;
-     document.getElementById('searchCacheValue').textContent = searchCache;
-     
      document.getElementById('quickCommentCache').value = commentCache;
-     document.getElementById('commentCacheValue').textContent = commentCache;
      
+     // 显示模态框
      showModal('quickConfigModal');
+     
+     // 延迟更新进度条（确保模态框已显示）
+     setTimeout(() => {
+       updateRangeProgress(
+         document.getElementById('quickWhiteRatio'),
+         'whiteRatioProgress',
+         'whiteRatioValue',
+         -1, 100
+       );
+       
+       updateRangeProgress(
+         document.getElementById('quickDanmuLimit'),
+         'danmuLimitProgress',
+         'danmuLimitValue',
+         -1, 10000,
+         val => val === -1 ? '不限制' : val
+       );
+       
+       updateRangeProgress(
+         document.getElementById('quickSearchCache'),
+         'searchCacheProgress',
+         'searchCacheValue',
+         1, 30
+       );
+       
+       updateRangeProgress(
+         document.getElementById('quickCommentCache'),
+         'commentCacheProgress',
+         'commentCacheValue',
+         1, 60
+       );
+     }, 50);
    }
 
    async function saveQuickConfig() {
