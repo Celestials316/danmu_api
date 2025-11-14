@@ -2145,7 +2145,33 @@ async function handleHomepage(req) {
      font-family: inherit;
      transition: all 0.3s var(--ease-smooth);
    }
-   /* 滑块样式 - 简化版（单进度条） */
+   /* 滑块容器 - 优化对齐版本 */
+   .range-wrapper {
+     position: relative;
+     width: 100%;
+     height: 22px;
+     display: flex;
+     align-items: center;
+     margin: 12px 0 8px 0;
+   }
+
+   .range-progress {
+     position: absolute;
+     top: 50%;
+     transform: translateY(-50%);
+     left: 0;
+     height: 8px;
+     background: linear-gradient(90deg, 
+       var(--primary-500) 0%, 
+       var(--primary-600) 100%);
+     border-radius: 10px 0 0 10px;
+     pointer-events: none;
+     transition: width 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+     z-index: 1;
+     box-shadow: 0 0 8px rgba(99, 102, 241, 0.3);
+   }
+
+   /* 滑块样式 - 优化对齐版本 */
    .form-range {
      -webkit-appearance: none;
      width: 100%;
@@ -2156,6 +2182,8 @@ async function handleHomepage(req) {
      transition: all 0.3s var(--ease-smooth);
      position: relative;
      cursor: pointer;
+     z-index: 2;
+     margin: 0;
    }
 
    .form-range::-webkit-slider-thumb {
@@ -2169,8 +2197,7 @@ async function handleHomepage(req) {
      border: 3px solid var(--bg-secondary);
      box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
      transition: all 0.2s var(--ease-smooth);
-     position: relative;
-     z-index: 2;
+     margin-top: -7px;
    }
 
    .form-range::-webkit-slider-thumb:hover {
@@ -2193,14 +2220,12 @@ async function handleHomepage(req) {
      border: 3px solid var(--bg-secondary);
      box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
      transition: all 0.2s var(--ease-smooth);
-     position: relative;
-     z-index: 2;
+     border: none;
    }
 
    .form-range::-moz-range-thumb:hover {
      transform: scale(1.15);
      box-shadow: 0 3px 12px rgba(99, 102, 241, 0.6);
-     border-width: 4px;
    }
 
    .form-range::-moz-range-thumb:active {
@@ -2222,34 +2247,7 @@ async function handleHomepage(req) {
      cursor: pointer;
      background: transparent;
      border-radius: 10px;
-   }
-
-   /* 滑块容器 - 单进度条版本 */
-   .range-wrapper {
-     position: relative;
-     width: 100%;
-     padding: 0;
-     margin: 12px 0 8px 0;
-   }
-
-   .range-progress {
-     position: absolute;
-     top: 0;
-     left: 0;
-     height: 8px;
-     background: linear-gradient(90deg, 
-       var(--primary-500) 0%, 
-       var(--primary-600) 100%);
-     border-radius: 10px 0 0 10px;
-     pointer-events: none;
-     transition: width 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-     z-index: 1;
-     box-shadow: 0 0 8px rgba(99, 102, 241, 0.3);
-   }
-
-   .form-range {
-     position: relative;
-     z-index: 2;
+     border: none;
    }
 
    /* 滑块标签组 - 精简版 */
