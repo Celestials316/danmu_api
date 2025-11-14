@@ -4296,8 +4296,8 @@ async function handleHomepage(req) {
  </div>
  <!-- 快速配置模态框 - 优化版（防误触 + 单滚动条）-->
  <div class="modal-overlay" id="quickConfigModal">
-   <div class="modal" style="max-width: 760px; max-height: 90vh; display: flex; flex-direction: column;">
-     <div class="modal-header" style="flex-shrink: 0;">
+   <div class="modal" style="max-width: 760px; max-height: 90vh;">
+     <div class="modal-header">
        <h3 class="modal-title">
          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor">
            <path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" stroke-width="2" stroke-linecap="round"/>
@@ -4310,7 +4310,7 @@ async function handleHomepage(req) {
          </svg>
        </button>
      </div>
-     <div class="modal-body" style="flex: 1; overflow-y: auto; padding-right: 8px;">
+     <div class="modal-body">
        <!-- 弹幕白色占比 -->
        <div class="quick-config-item">
          <div class="config-item-header">
@@ -4502,7 +4502,7 @@ async function handleHomepage(req) {
          <span>💡 点击🔒图标解锁后才能修改配置，防止滑轮误触</span>
        </div>
      </div>
-     <div class="modal-footer" style="display: flex; gap: 10px; align-items: center; padding-top: 20px; border-top: 1px solid var(--border-color); margin-top: 20px;">
+     <div class="modal-footer" style="display: flex; gap: 10px; align-items: center;">
        <button class="btn btn-secondary" onclick="closeModal('quickConfigModal')">
          取消
        </button>
