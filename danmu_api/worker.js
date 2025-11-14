@@ -5236,10 +5236,11 @@ async function handleHomepage(req) {
          }
          
          closeModal('quickConfigModal');
-         showToast(`配置已保存到: ${result.savedTo.join('、')}`, 'success');
+         const savedToText = result.savedTo.join('、');
+         showToast('配置已保存到: ' + savedToText, 'success');
          
          // 提示可能需要刷新
-         setTimeout(() => {
+         setTimeout(function() {
            showToast('部分配置可能需要刷新页面后生效', 'info', 3000);
          }, 1500);
        } else {
@@ -5252,9 +5253,10 @@ async function handleHomepage(req) {
          updateConfigDisplay(key, config[key]);
        });
        closeModal('quickConfigModal');
-       showToast(`配置已保存到浏览器本地（服务器保存失败: ${error.message})`, 'warning');
+       showToast('配置已保存到浏览器本地（服务器保存失败: ' + error.message + ')', 'warning');
      }
    }
+
  </script>
 
 </body>
