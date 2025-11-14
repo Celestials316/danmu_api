@@ -2145,6 +2145,134 @@ async function handleHomepage(req) {
      font-family: inherit;
      transition: all 0.3s var(--ease-smooth);
    }
+   /* 滑块容器 - 优化对齐版本 */
+   .range-wrapper {
+     position: relative;
+     width: 100%;
+     height: 22px;
+     display: flex;
+     align-items: center;
+     margin: 12px 0 8px 0;
+   }
+
+   .range-progress {
+     position: absolute;
+     top: 50%;
+     transform: translateY(-50%);
+     left: 0;
+     height: 8px;
+     background: linear-gradient(90deg, 
+       var(--primary-500) 0%, 
+       var(--primary-600) 100%);
+     border-radius: 10px 0 0 10px;
+     pointer-events: none;
+     transition: width 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+     z-index: 1;
+     box-shadow: 0 0 8px rgba(99, 102, 241, 0.3);
+   }
+
+   /* 滑块样式 - 优化对齐版本 */
+   .form-range {
+     -webkit-appearance: none;
+     width: 100%;
+     height: 8px;
+     border-radius: 10px;
+     background: var(--border-color);
+     outline: none;
+     transition: all 0.3s var(--ease-smooth);
+     position: relative;
+     cursor: pointer;
+     z-index: 2;
+     margin: 0;
+   }
+
+   .form-range::-webkit-slider-thumb {
+     -webkit-appearance: none;
+     appearance: none;
+     width: 22px;
+     height: 22px;
+     border-radius: 50%;
+     background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+     cursor: pointer;
+     border: 3px solid var(--bg-secondary);
+     box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
+     transition: all 0.2s var(--ease-smooth);
+     margin-top: -7px;
+   }
+
+   .form-range::-webkit-slider-thumb:hover {
+     transform: scale(1.15);
+     box-shadow: 0 3px 12px rgba(99, 102, 241, 0.6);
+     border-width: 4px;
+   }
+
+   .form-range::-webkit-slider-thumb:active {
+     transform: scale(1.05);
+     box-shadow: 0 2px 6px rgba(99, 102, 241, 0.8);
+   }
+
+   .form-range::-moz-range-thumb {
+     width: 22px;
+     height: 22px;
+     border-radius: 50%;
+     background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+     cursor: pointer;
+     border: 3px solid var(--bg-secondary);
+     box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
+     transition: all 0.2s var(--ease-smooth);
+     border: none;
+   }
+
+   .form-range::-moz-range-thumb:hover {
+     transform: scale(1.15);
+     box-shadow: 0 3px 12px rgba(99, 102, 241, 0.6);
+   }
+
+   .form-range::-moz-range-thumb:active {
+     transform: scale(1.05);
+     box-shadow: 0 2px 6px rgba(99, 102, 241, 0.8);
+   }
+
+   .form-range::-webkit-slider-runnable-track {
+     width: 100%;
+     height: 8px;
+     cursor: pointer;
+     background: transparent;
+     border-radius: 10px;
+   }
+
+   .form-range::-moz-range-track {
+     width: 100%;
+     height: 8px;
+     cursor: pointer;
+     background: transparent;
+     border-radius: 10px;
+     border: none;
+   }
+
+   /* 滑块标签组 - 精简版 */
+   .range-labels {
+     display: flex;
+     justify-content: space-between;
+     margin-top: 8px;
+     padding: 0;
+     font-size: 11px;
+     font-weight: 600;
+     color: var(--text-tertiary);
+     user-select: none;
+   }
+
+   .range-labels span {
+     padding: 3px 6px;
+     background: transparent;
+     border-radius: 4px;
+     transition: all 0.2s var(--ease-smooth);
+   }
+
+   .range-labels span:hover {
+     background: var(--bg-hover);
+     color: var(--text-primary);
+   }
 
    .form-input:focus,
    .form-textarea:focus,
@@ -2566,12 +2694,17 @@ async function handleHomepage(req) {
      }
 
      .modal-footer {
-       flex-direction: column-reverse;
+       flex-direction: column;
        gap: 8px;
      }
 
      .modal-footer .btn {
        width: 100%;
+       justify-content: center;
+     }
+
+     .modal-footer > div {
+       display: none;
      }
 
      .config-actions {
@@ -3249,9 +3382,17 @@ async function handleHomepage(req) {
              </svg>
              系统状态
            </h3>
-           <span class="badge badge-success">
-           <span class="status-dot"></span>运行正常
-           </span>
+           <div style="display: flex; align-items: center; gap: 12px;">
+             <span class="badge badge-success">
+               <span class="status-dot"></span>运行正常
+             </span>
+             <button class="btn btn-primary" onclick="showQuickConfig()" style="padding: 8px 16px; font-size: 13px;">
+               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor">
+                 <path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" stroke-width="2" stroke-linecap="round"/>
+               </svg>
+               快速配置
+             </button>
+           </div>
          </div>
          <div class="config-grid">
               <div class="config-item">
@@ -4044,6 +4185,164 @@ async function handleHomepage(req) {
            <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-width="2" stroke-linecap="round"/>
          </svg>
          刷新
+       </button>
+     </div>
+   </div>
+ </div>
+ <!-- 快速配置模态框 - 重新设计 -->
+ <div class="modal-overlay" id="quickConfigModal">
+   <div class="modal" style="max-width: 720px;">
+     <div class="modal-header">
+       <h3 class="modal-title">
+         <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor">
+           <path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" stroke-width="2" stroke-linecap="round"/>
+         </svg>
+         快速配置
+       </h3>
+       <button class="modal-close" onclick="closeModal('quickConfigModal')">
+         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor">
+           <path d="M6 18L18 6M6 6l12 12" stroke-width="2" stroke-linecap="round"/>
+         </svg>
+       </button>
+     </div>
+     <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+       <!-- 弹幕白色占比 -->
+       <div class="form-group" style="padding: 20px; background: var(--bg-tertiary); border-radius: 12px; margin-bottom: 20px;">
+         <label class="form-label" style="display: flex; align-items: center; justify-content: space-between; font-size: 15px; margin-bottom: 16px;">
+           <span style="display: flex; align-items: center; gap: 8px;">
+             <span style="font-size: 20px;">🎨</span>
+             <span>弹幕白色占比</span>
+           </span>
+           <span id="whiteRatioValue" style="color: var(--primary-400); font-weight: 800; font-size: 18px; font-family: 'Monaco', monospace;">-1</span>
+         </label>
+         <div class="range-wrapper">
+           <div class="range-progress" id="whiteRatioProgress" style="width: 0%"></div>
+           <input type="range" class="form-range" id="quickWhiteRatio" min="-1" max="100" step="1" value="-1" 
+                  oninput="updateRangeProgress(this, 'whiteRatioProgress', 'whiteRatioValue', -1, 100)">
+         </div>
+         <div class="range-labels">
+           <span>不转换</span>
+           <span>50%</span>
+           <span>全白</span>
+         </div>
+         <div class="form-hint" style="margin-top: 12px;">-1 = 不转换颜色 | 0-100 = 指定白色弹幕占比百分比</div>
+       </div>
+
+       <!-- 弹幕数量限制 -->
+       <div class="form-group" style="padding: 20px; background: var(--bg-tertiary); border-radius: 12px; margin-bottom: 20px;">
+         <label class="form-label" style="display: flex; align-items: center; justify-content: space-between; font-size: 15px; margin-bottom: 16px;">
+           <span style="display: flex; align-items: center; gap: 8px;">
+             <span style="font-size: 20px;">📊</span>
+             <span>弹幕数量限制</span>
+           </span>
+           <span id="danmuLimitValue" style="color: var(--primary-400); font-weight: 800; font-size: 18px; font-family: 'Monaco', monospace;">不限制</span>
+         </label>
+         <div class="range-wrapper">
+           <div class="range-progress" id="danmuLimitProgress" style="width: 0%"></div>
+           <input type="range" class="form-range" id="quickDanmuLimit" min="-1" max="10000" step="100" value="-1"
+                  oninput="updateRangeProgress(this, 'danmuLimitProgress', 'danmuLimitValue', -1, 10000, val => val === -1 ? '不限制' : val)">
+         </div>
+         <div class="range-labels">
+           <span>不限制</span>
+           <span>5000条</span>
+           <span>10000条</span>
+         </div>
+         <div class="form-hint" style="margin-top: 12px;">设置每次请求返回的最大弹幕条数（-1 表示不限制）</div>
+       </div>
+
+       <!-- 输出格式和令牌 -->
+       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+         <div class="form-group" style="padding: 20px; background: var(--bg-tertiary); border-radius: 12px; margin-bottom: 0;">
+           <label class="form-label" style="font-size: 15px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+             <span style="font-size: 20px;">📝</span>
+             <span>输出格式</span>
+           </label>
+           <select class="form-select" id="quickOutputFormat" style="font-size: 14px; font-weight: 600;">
+             <option value="json">JSON 格式</option>
+             <option value="xml">XML 格式</option>
+           </select>
+         </div>
+
+         <div class="form-group" style="padding: 20px; background: var(--bg-tertiary); border-radius: 12px; margin-bottom: 0;">
+           <label class="form-label" style="font-size: 15px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+             <span style="font-size: 20px;">🔑</span>
+             <span>访问令牌</span>
+           </label>
+           <input type="text" class="form-input" id="quickToken" placeholder="87654321" style="font-size: 14px; font-weight: 600; font-family: 'Monaco', monospace;">
+         </div>
+       </div>
+
+       <!-- 搜索缓存时间 -->
+       <div class="form-group" style="padding: 20px; background: var(--bg-tertiary); border-radius: 12px; margin-bottom: 20px;">
+         <label class="form-label" style="display: flex; align-items: center; justify-content: space-between; font-size: 15px; margin-bottom: 16px;">
+           <span style="display: flex; align-items: center; gap: 8px;">
+             <span style="font-size: 20px;">🔍</span>
+             <span>搜索缓存时间</span>
+           </span>
+           <span id="searchCacheValue" style="color: var(--primary-400); font-weight: 800; font-size: 18px; font-family: 'Monaco', monospace;">1</span>
+         </label>
+         <div class="range-wrapper">
+           <div class="range-progress" id="searchCacheProgress" style="width: 0%"></div>
+           <input type="range" class="form-range" id="quickSearchCache" min="1" max="30" step="1" value="1"
+                  oninput="updateRangeProgress(this, 'searchCacheProgress', 'searchCacheValue', 1, 30, val => val + ' 分钟')">
+         </div>
+         <div class="range-labels">
+           <span>1分钟</span>
+           <span>15分钟</span>
+           <span>30分钟</span>
+         </div>
+         <div class="form-hint" style="margin-top: 12px;">搜索结果缓存时间，减少重复API请求</div>
+       </div>
+
+       <!-- 弹幕缓存时间 -->
+       <div class="form-group" style="padding: 20px; background: var(--bg-tertiary); border-radius: 12px; margin-bottom: 20px;">
+         <label class="form-label" style="display: flex; align-items: center; justify-content: space-between; font-size: 15px; margin-bottom: 16px;">
+           <span style="display: flex; align-items: center; gap: 8px;">
+             <span style="font-size: 20px;">💬</span>
+             <span>弹幕缓存时间</span>
+           </span>
+           <span id="commentCacheValue" style="color: var(--primary-400); font-weight: 800; font-size: 18px; font-family: 'Monaco', monospace;">1</span>
+         </label>
+         <div class="range-wrapper">
+           <div class="range-progress" id="commentCacheProgress" style="width: 0%"></div>
+           <input type="range" class="form-range" id="quickCommentCache" min="1" max="60" step="1" value="1"
+                  oninput="updateRangeProgress(this, 'commentCacheProgress', 'commentCacheValue', 1, 60, val => val + ' 分钟')">
+         </div>
+         <div class="range-labels">
+           <span>1分钟</span>
+           <span>30分钟</span>
+           <span>60分钟</span>
+         </div>
+         <div class="form-hint" style="margin-top: 12px;">弹幕数据缓存时间，减少重复弹幕获取</div>
+       </div>
+
+       <!-- 提示信息 -->
+       <div class="alert alert-info" style="margin-top: 0; border-radius: 12px; font-size: 14px; font-weight: 600;">
+         <svg class="alert-icon" viewBox="0 0 24 24" width="20" height="20">
+           <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
+           <path d="M12 16v-4m0-4h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+         </svg>
+         <span>需要更多高级配置选项？点击下方"全部环境变量"按钮</span>
+       </div>
+     </div>
+     <div class="modal-footer" style="display: flex; gap: 10px; align-items: center;">
+       <button class="btn btn-secondary" onclick="closeModal('quickConfigModal')" style="padding: 10px 20px; font-size: 14px;">
+         取消
+       </button>
+       <button class="btn btn-secondary" onclick="closeModal('quickConfigModal'); switchPage('config');" 
+               style="padding: 10px 16px; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor">
+           <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke-width="2"/>
+           <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-width="2"/>
+         </svg>
+         <span>高级配置</span>
+       </button>
+       <div style="flex: 1;"></div>
+       <button class="btn btn-primary" onclick="saveQuickConfig()" style="padding: 10px 24px; font-size: 14px; display: flex; align-items: center; gap: 8px;">
+         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor">
+           <path d="M5 13l4 4L19 7" stroke-width="2" stroke-linecap="round"/>
+         </svg>
+         <span>保存配置</span>
        </button>
      </div>
    </div>
@@ -5069,6 +5368,186 @@ async function handleHomepage(req) {
        }
      }
    });
+   // 更新滑块进度条和显示值 - 优化版
+   function updateRangeProgress(input, progressId, valueId, min, max, formatter = null) {
+     const value = parseFloat(input.value);
+     const progress = document.getElementById(progressId);
+     const valueDisplay = document.getElementById(valueId);
+     
+     if (!progress || !valueDisplay) return;
+     
+     // 计算进度百分比
+     const percentage = ((value - min) / (max - min)) * 100;
+     progress.style.width = Math.max(0, Math.min(100, percentage)) + '%';
+     
+     // 进度条末端圆角处理
+     if (percentage >= 98) {
+       progress.style.borderRadius = '10px';
+     } else if (percentage <= 2) {
+       progress.style.borderRadius = '10px 0 0 10px';
+       progress.style.minWidth = '8px'; // 确保最小可见宽度
+     } else {
+       progress.style.borderRadius = '10px 0 0 10px';
+       progress.style.minWidth = '0';
+     }
+     
+     // 更新显示值，添加微动画
+     const newValue = formatter && typeof formatter === 'function' 
+       ? formatter(value) 
+       : String(value);
+     
+     if (valueDisplay.textContent !== newValue) {
+       valueDisplay.style.transform = 'scale(1.08)';
+       valueDisplay.textContent = newValue;
+       setTimeout(() => {
+         valueDisplay.style.transform = 'scale(1)';
+       }, 120);
+     }
+     
+     // 为显示值添加过渡效果
+     if (!valueDisplay.style.transition) {
+       valueDisplay.style.transition = 'transform 0.12s cubic-bezier(0.4, 0, 0.2, 1)';
+     }
+   }
+
+   // ========== 快速配置功能 ==========
+   function showQuickConfig() {
+     // 加载当前配置值
+     const whiteRatio = AppState.config.WHITE_RATIO || '-1';
+     const danmuLimit = AppState.config.DANMU_LIMIT || '-1';
+     const searchCache = AppState.config.SEARCH_CACHE_MINUTES || '1';
+     const commentCache = AppState.config.COMMENT_CACHE_MINUTES || '1';
+     
+     // 设置滑块值
+     document.getElementById('quickWhiteRatio').value = whiteRatio;
+     document.getElementById('quickDanmuLimit').value = danmuLimit;
+     document.getElementById('quickOutputFormat').value = AppState.config.DANMU_OUTPUT_FORMAT || 'json';
+     document.getElementById('quickToken').value = AppState.config.TOKEN || '87654321';
+     document.getElementById('quickSearchCache').value = searchCache;
+     document.getElementById('quickCommentCache').value = commentCache;
+     
+     // 显示模态框
+     showModal('quickConfigModal');
+     
+     // 延迟更新进度条（确保模态框已显示）
+     setTimeout(() => {
+       updateRangeProgress(
+         document.getElementById('quickWhiteRatio'),
+         'whiteRatioProgress',
+         'whiteRatioValue',
+         -1, 100
+       );
+       
+       updateRangeProgress(
+         document.getElementById('quickDanmuLimit'),
+         'danmuLimitProgress',
+         'danmuLimitValue',
+         -1, 10000,
+         val => val === -1 ? '不限制' : val
+       );
+       
+       updateRangeProgress(
+         document.getElementById('quickSearchCache'),
+         'searchCacheProgress',
+         'searchCacheValue',
+         1, 30
+       );
+       
+       updateRangeProgress(
+         document.getElementById('quickCommentCache'),
+         'commentCacheProgress',
+         'commentCacheValue',
+         1, 60
+       );
+     }, 50);
+   }
+
+   async function saveQuickConfig() {
+     const whiteRatio = document.getElementById('quickWhiteRatio').value;
+     const danmuLimit = document.getElementById('quickDanmuLimit').value;
+     const outputFormat = document.getElementById('quickOutputFormat').value;
+     const token = document.getElementById('quickToken').value;
+     const searchCache = document.getElementById('quickSearchCache').value;
+     const commentCache = document.getElementById('quickCommentCache').value;
+
+     // 验证输入
+     if (parseInt(whiteRatio) < -1 || parseInt(whiteRatio) > 100) {
+       showToast('白色占比必须在 -1 到 100 之间', 'error');
+       return;
+     }
+
+     if (parseInt(danmuLimit) < -1) {
+       showToast('弹幕限制必须大于等于 -1', 'error');
+       return;
+     }
+
+     if (parseInt(searchCache) < 1 || parseInt(commentCache) < 1) {
+       showToast('缓存时间必须大于 0', 'error');
+       return;
+     }
+
+     // 构建配置对象
+     const config = {
+       WHITE_RATIO: whiteRatio,
+       DANMU_LIMIT: danmuLimit,
+       DANMU_OUTPUT_FORMAT: outputFormat,
+       TOKEN: token,
+       SEARCH_CACHE_MINUTES: searchCache,
+       COMMENT_CACHE_MINUTES: commentCache
+     };
+
+     // 更新本地状态
+     AppState.config = { ...AppState.config, ...config };
+     
+     // 保存到本地存储
+     localStorage.setItem('danmu_api_config', JSON.stringify(AppState.config));
+     
+     showToast('正在保存配置到服务器...', 'info', 1000);
+
+     // 保存到服务器
+     try {
+       const response = await fetch('/api/config/save', {
+         method: 'POST',
+         headers: {
+           'Content-Type': 'application/json'
+         },
+         body: JSON.stringify({ config })
+       });
+
+       const result = await response.json();
+       
+       if (result.success) {
+         // 更新显示
+         Object.keys(config).forEach(key => {
+           updateConfigDisplay(key, config[key]);
+         });
+         
+         // 更新 API 地址显示（如果 TOKEN 改变）
+         if (config.TOKEN !== AppState.config.TOKEN) {
+           updateApiUrlDisplay();
+         }
+         
+         closeModal('quickConfigModal');
+         const savedToText = result.savedTo.join('、');
+         showToast('配置已保存到: ' + savedToText, 'success');
+         
+         // 提示可能需要刷新
+         setTimeout(function() {
+           showToast('部分配置可能需要刷新页面后生效', 'info', 3000);
+         }, 1500);
+       } else {
+         throw new Error(result.errorMessage || '保存失败');
+       }
+     } catch (error) {
+       console.error('保存到服务器失败:', error);
+       // 即使服务器保存失败，也更新本地显示
+       Object.keys(config).forEach(key => {
+         updateConfigDisplay(key, config[key]);
+       });
+       closeModal('quickConfigModal');
+       showToast('配置已保存到浏览器本地（服务器保存失败: ' + error.message + ')', 'warning');
+     }
+   }
 
  </script>
 
