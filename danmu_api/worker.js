@@ -2145,111 +2145,137 @@ async function handleHomepage(req) {
      font-family: inherit;
      transition: all 0.3s var(--ease-smooth);
    }
-   /* 滑块样式 */
+   /* 滑块样式 - 重新设计 */
    .form-range {
      -webkit-appearance: none;
      width: 100%;
-     height: 6px;
-     border-radius: 3px;
-     background: var(--bg-tertiary);
+     height: 8px;
+     border-radius: 10px;
+     background: linear-gradient(to right, 
+       var(--bg-tertiary) 0%, 
+       var(--bg-tertiary) var(--range-value, 0%), 
+       var(--border-color) var(--range-value, 0%), 
+       var(--border-color) 100%);
      outline: none;
      transition: all 0.3s var(--ease-smooth);
      position: relative;
+     cursor: pointer;
    }
 
    .form-range::-webkit-slider-thumb {
      -webkit-appearance: none;
      appearance: none;
-     width: 18px;
-     height: 18px;
+     width: 24px;
+     height: 24px;
      border-radius: 50%;
-     background: white;
+     background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
      cursor: pointer;
-     border: 3px solid var(--primary-500);
-     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+     border: 4px solid var(--bg-secondary);
+     box-shadow: 0 3px 12px rgba(99, 102, 241, 0.4), 0 0 0 1px rgba(99, 102, 241, 0.2);
      transition: all 0.2s var(--ease-smooth);
    }
 
    .form-range::-webkit-slider-thumb:hover {
-     transform: scale(1.2);
-     box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+     transform: scale(1.15);
+     box-shadow: 0 4px 16px rgba(99, 102, 241, 0.6), 0 0 0 2px rgba(99, 102, 241, 0.3);
    }
 
    .form-range::-webkit-slider-thumb:active {
-     transform: scale(1.1);
-     border-width: 4px;
+     transform: scale(1.05);
+     box-shadow: 0 2px 8px rgba(99, 102, 241, 0.8), 0 0 0 3px rgba(99, 102, 241, 0.4);
    }
 
    .form-range::-moz-range-thumb {
-     width: 18px;
-     height: 18px;
+     width: 24px;
+     height: 24px;
      border-radius: 50%;
-     background: white;
+     background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
      cursor: pointer;
-     border: 3px solid var(--primary-500);
-     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+     border: 4px solid var(--bg-secondary);
+     box-shadow: 0 3px 12px rgba(99, 102, 241, 0.4), 0 0 0 1px rgba(99, 102, 241, 0.2);
      transition: all 0.2s var(--ease-smooth);
    }
 
    .form-range::-moz-range-thumb:hover {
-     transform: scale(1.2);
-     box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+     transform: scale(1.15);
+     box-shadow: 0 4px 16px rgba(99, 102, 241, 0.6), 0 0 0 2px rgba(99, 102, 241, 0.3);
    }
 
    .form-range::-moz-range-thumb:active {
-     transform: scale(1.1);
-     border-width: 4px;
+     transform: scale(1.05);
+     box-shadow: 0 2px 8px rgba(99, 102, 241, 0.8), 0 0 0 3px rgba(99, 102, 241, 0.4);
    }
 
    .form-range::-webkit-slider-runnable-track {
      width: 100%;
-     height: 6px;
+     height: 8px;
      cursor: pointer;
-     background: var(--bg-tertiary);
-     border-radius: 3px;
+     background: transparent;
+     border-radius: 10px;
    }
 
    .form-range::-moz-range-track {
      width: 100%;
-     height: 6px;
+     height: 8px;
      cursor: pointer;
-     background: var(--bg-tertiary);
-     border-radius: 3px;
+     background: transparent;
+     border-radius: 10px;
    }
 
-   /* 滑块容器 - 用于进度条效果 */
+   /* 滑块容器 - 改进版 */
    .range-wrapper {
      position: relative;
      width: 100%;
-     padding: 0;
-     margin: 10px 0;
+     padding: 8px 0 12px 0;
+     margin: 12px 0;
    }
 
    .range-progress {
      position: absolute;
-     top: 50%;
-     transform: translateY(-40%);  /* 从 -50% 改为 -40% */
+     top: 8px;
      left: 0;
-     height: 6px;
-     background: linear-gradient(90deg, var(--primary-500), var(--primary-600));
-     border-radius: 3px;
+     height: 8px;
+     background: linear-gradient(90deg, 
+       rgba(99, 102, 241, 0.8) 0%, 
+       rgba(99, 102, 241, 0.95) 50%, 
+       var(--primary-500) 100%);
+     border-radius: 10px 0 0 10px;
      pointer-events: none;
-     transition: width 0.1s ease;
+     transition: width 0.15s cubic-bezier(0.4, 0, 0.2, 1);
      z-index: 0;
+     box-shadow: 0 0 10px rgba(99, 102, 241, 0.3);
    }
 
    .form-range {
      position: relative;
      z-index: 1;
+     background: transparent;
    }
 
-   /* 滑块标签组 */
+   /* 滑块标签组 - 优化字体 */
    .range-labels {
      display: flex;
      justify-content: space-between;
-     margin-top: 8px;
-     font-size: 11px;
-     color: var(--text-tertiary);
+     margin-top: 10px;
+     padding: 0 2px;
+     font-size: 12px;
+     font-weight: 600;
+     color: var(--text-secondary);
+     user-select: none;
+   }
+
+   .range-labels span {
+     padding: 4px 8px;
+     background: var(--bg-tertiary);
+     border-radius: 6px;
+     border: 1px solid var(--border-color);
+     transition: all 0.2s var(--ease-smooth);
+   }
+
+   .range-labels span:hover {
+     background: var(--bg-hover);
+     color: var(--text-primary);
+     border-color: var(--primary-500);
    }
 
    .form-input:focus,
@@ -4162,9 +4188,9 @@ async function handleHomepage(req) {
      </div>
    </div>
  </div>
- <!-- 快速配置模态框 -->
+ <!-- 快速配置模态框 - 重新设计 -->
  <div class="modal-overlay" id="quickConfigModal">
-   <div class="modal" style="max-width: 650px;">
+   <div class="modal" style="max-width: 720px;">
      <div class="modal-header">
        <h3 class="modal-title">
          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor">
@@ -4178,11 +4204,15 @@ async function handleHomepage(req) {
          </svg>
        </button>
      </div>
-     <div class="modal-body">
-       <div class="form-group">
-         <label class="form-label">
-           弹幕白色占比: <span id="whiteRatioValue" style="color: var(--primary-500); font-weight: 700;">-1</span>
-           <span style="color: var(--text-tertiary); font-size: 12px; margin-left: 8px;">(-1=不转换)</span>
+     <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+       <!-- 弹幕白色占比 -->
+       <div class="form-group" style="padding: 20px; background: var(--bg-tertiary); border-radius: 12px; margin-bottom: 20px;">
+         <label class="form-label" style="display: flex; align-items: center; justify-content: space-between; font-size: 15px; margin-bottom: 16px;">
+           <span style="display: flex; align-items: center; gap: 8px;">
+             <span style="font-size: 20px;">🎨</span>
+             <span>弹幕白色占比</span>
+           </span>
+           <span id="whiteRatioValue" style="color: var(--primary-400); font-weight: 800; font-size: 18px; font-family: 'Monaco', monospace;">-1</span>
          </label>
          <div class="range-wrapper">
            <div class="range-progress" id="whiteRatioProgress" style="width: 0%"></div>
@@ -4192,14 +4222,19 @@ async function handleHomepage(req) {
          <div class="range-labels">
            <span>不转换</span>
            <span>50%</span>
-           <span>100%</span>
+           <span>全白</span>
          </div>
-         <div class="form-hint">设置为-1表示不转换颜色，0-100表示白色弹幕占比</div>
+         <div class="form-hint" style="margin-top: 12px;">-1 = 不转换颜色 | 0-100 = 指定白色弹幕占比百分比</div>
        </div>
 
-       <div class="form-group">
-         <label class="form-label">
-           弹幕数量限制: <span id="danmuLimitValue" style="color: var(--primary-500); font-weight: 700;">不限制</span>
+       <!-- 弹幕数量限制 -->
+       <div class="form-group" style="padding: 20px; background: var(--bg-tertiary); border-radius: 12px; margin-bottom: 20px;">
+         <label class="form-label" style="display: flex; align-items: center; justify-content: space-between; font-size: 15px; margin-bottom: 16px;">
+           <span style="display: flex; align-items: center; gap: 8px;">
+             <span style="font-size: 20px;">📊</span>
+             <span>弹幕数量限制</span>
+           </span>
+           <span id="danmuLimitValue" style="color: var(--primary-400); font-weight: 800; font-size: 18px; font-family: 'Monaco', monospace;">不限制</span>
          </label>
          <div class="range-wrapper">
            <div class="range-progress" id="danmuLimitProgress" style="width: 0%"></div>
@@ -4208,81 +4243,101 @@ async function handleHomepage(req) {
          </div>
          <div class="range-labels">
            <span>不限制</span>
-           <span>5000</span>
-           <span>10000</span>
+           <span>5000条</span>
+           <span>10000条</span>
          </div>
-         <div class="form-hint">设置返回的最大弹幕条数</div>
+         <div class="form-hint" style="margin-top: 12px;">设置每次请求返回的最大弹幕条数（-1 表示不限制）</div>
        </div>
 
-       <div class="form-group">
-         <label class="form-label">弹幕输出格式</label>
-         <select class="form-select" id="quickOutputFormat">
-           <option value="json">JSON 格式</option>
-           <option value="xml">Bilibili XML 格式</option>
-         </select>
-         <div class="form-hint">选择弹幕数据的返回格式</div>
+       <!-- 输出格式和令牌 -->
+       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+         <div class="form-group" style="padding: 20px; background: var(--bg-tertiary); border-radius: 12px; margin-bottom: 0;">
+           <label class="form-label" style="font-size: 15px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+             <span style="font-size: 20px;">📝</span>
+             <span>输出格式</span>
+           </label>
+           <select class="form-select" id="quickOutputFormat" style="font-size: 14px; font-weight: 600;">
+             <option value="json">JSON 格式</option>
+             <option value="xml">XML 格式</option>
+           </select>
+         </div>
+
+         <div class="form-group" style="padding: 20px; background: var(--bg-tertiary); border-radius: 12px; margin-bottom: 0;">
+           <label class="form-label" style="font-size: 15px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+             <span style="font-size: 20px;">🔑</span>
+             <span>访问令牌</span>
+           </label>
+           <input type="text" class="form-input" id="quickToken" placeholder="87654321" style="font-size: 14px; font-weight: 600; font-family: 'Monaco', monospace;">
+         </div>
        </div>
 
-       <div class="form-group">
-         <label class="form-label">API 访问令牌</label>
-         <input type="text" class="form-input" id="quickToken" placeholder="87654321">
-         <div class="form-hint">自定义API访问令牌，默认为 87654321</div>
-       </div>
-
-       <div class="form-group">
-         <label class="form-label">
-           搜索缓存时间: <span id="searchCacheValue" style="color: var(--primary-500); font-weight: 700;">1</span> 分钟
+       <!-- 搜索缓存时间 -->
+       <div class="form-group" style="padding: 20px; background: var(--bg-tertiary); border-radius: 12px; margin-bottom: 20px;">
+         <label class="form-label" style="display: flex; align-items: center; justify-content: space-between; font-size: 15px; margin-bottom: 16px;">
+           <span style="display: flex; align-items: center; gap: 8px;">
+             <span style="font-size: 20px;">🔍</span>
+             <span>搜索缓存时间</span>
+           </span>
+           <span id="searchCacheValue" style="color: var(--primary-400); font-weight: 800; font-size: 18px; font-family: 'Monaco', monospace;">1</span>
          </label>
          <div class="range-wrapper">
            <div class="range-progress" id="searchCacheProgress" style="width: 0%"></div>
            <input type="range" class="form-range" id="quickSearchCache" min="1" max="30" step="1" value="1"
-                  oninput="updateRangeProgress(this, 'searchCacheProgress', 'searchCacheValue', 1, 30)">
+                  oninput="updateRangeProgress(this, 'searchCacheProgress', 'searchCacheValue', 1, 30, val => val + ' 分钟')">
          </div>
          <div class="range-labels">
            <span>1分钟</span>
            <span>15分钟</span>
            <span>30分钟</span>
          </div>
-         <div class="form-hint">搜索结果的缓存时间，减少重复搜索请求</div>
+         <div class="form-hint" style="margin-top: 12px;">搜索结果缓存时间，减少重复API请求</div>
        </div>
 
-       <div class="form-group">
-         <label class="form-label">
-           弹幕缓存时间: <span id="commentCacheValue" style="color: var(--primary-500); font-weight: 700;">1</span> 分钟
+       <!-- 弹幕缓存时间 -->
+       <div class="form-group" style="padding: 20px; background: var(--bg-tertiary); border-radius: 12px; margin-bottom: 20px;">
+         <label class="form-label" style="display: flex; align-items: center; justify-content: space-between; font-size: 15px; margin-bottom: 16px;">
+           <span style="display: flex; align-items: center; gap: 8px;">
+             <span style="font-size: 20px;">💬</span>
+             <span>弹幕缓存时间</span>
+           </span>
+           <span id="commentCacheValue" style="color: var(--primary-400); font-weight: 800; font-size: 18px; font-family: 'Monaco', monospace;">1</span>
          </label>
          <div class="range-wrapper">
            <div class="range-progress" id="commentCacheProgress" style="width: 0%"></div>
            <input type="range" class="form-range" id="quickCommentCache" min="1" max="60" step="1" value="1"
-                  oninput="updateRangeProgress(this, 'commentCacheProgress', 'commentCacheValue', 1, 60)">
+                  oninput="updateRangeProgress(this, 'commentCacheProgress', 'commentCacheValue', 1, 60, val => val + ' 分钟')">
          </div>
          <div class="range-labels">
            <span>1分钟</span>
            <span>30分钟</span>
            <span>60分钟</span>
          </div>
-         <div class="form-hint">弹幕数据的缓存时间，减少重复弹幕获取</div>
+         <div class="form-hint" style="margin-top: 12px;">弹幕数据缓存时间，减少重复弹幕获取</div>
        </div>
 
-       <div class="alert alert-info" style="margin-top: 20px;">
+       <!-- 提示信息 -->
+       <div class="alert alert-info" style="margin-top: 0; border-radius: 12px; font-size: 14px; font-weight: 600;">
          <svg class="alert-icon" viewBox="0 0 24 24" width="20" height="20">
            <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
            <path d="M12 16v-4m0-4h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
          </svg>
-         <span>需要更多配置选项？</span>
+         <span>需要更多高级配置选项？点击下方"全部环境变量"按钮</span>
        </div>
      </div>
-     <div class="modal-footer" style="display: flex; gap: 8px;">
-       <button class="btn btn-secondary" onclick="closeModal('quickConfigModal')">取消</button>
+     <div class="modal-footer" style="display: flex; gap: 10px; flex-wrap: wrap;">
+       <button class="btn btn-secondary" onclick="closeModal('quickConfigModal')" style="flex: 0 1 auto; min-width: 100px;">
+         取消
+       </button>
        <button class="btn btn-secondary" onclick="closeModal('quickConfigModal'); switchPage('config');" 
-               style="flex: 1;">
-         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor">
+               style="flex: 1 1 200px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor">
            <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke-width="2"/>
            <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-width="2"/>
          </svg>
          全部环境变量
        </button>
-       <button class="btn btn-primary" onclick="saveQuickConfig()">
-         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor">
+       <button class="btn btn-primary" onclick="saveQuickConfig()" style="flex: 0 1 auto; min-width: 140px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor">
            <path d="M5 13l4 4L19 7" stroke-width="2" stroke-linecap="round"/>
          </svg>
          保存配置
@@ -5311,7 +5366,7 @@ async function handleHomepage(req) {
        }
      }
    });
-   // 更新滑块进度条和显示值
+   // 更新滑块进度条和显示值 - 增强版
    function updateRangeProgress(input, progressId, valueId, min, max, formatter = null) {
      const value = parseFloat(input.value);
      const progress = document.getElementById(progressId);
@@ -5321,12 +5376,35 @@ async function handleHomepage(req) {
      const percentage = ((value - min) / (max - min)) * 100;
      progress.style.width = percentage + '%';
      
-     // 更新显示值
-     if (formatter && typeof formatter === 'function') {
-       valueDisplay.textContent = formatter(value);
+     // 添加进度条末端圆角效果
+     if (percentage >= 99) {
+       progress.style.borderRadius = '10px';
      } else {
-       valueDisplay.textContent = value;
+       progress.style.borderRadius = '10px 0 0 10px';
      }
+     
+     // 更新显示值，添加动画效果
+     if (formatter && typeof formatter === 'function') {
+       const formattedValue = formatter(value);
+       if (valueDisplay.textContent !== formattedValue) {
+         valueDisplay.style.transform = 'scale(1.1)';
+         valueDisplay.textContent = formattedValue;
+         setTimeout(() => {
+           valueDisplay.style.transform = 'scale(1)';
+         }, 150);
+       }
+     } else {
+       if (valueDisplay.textContent !== String(value)) {
+         valueDisplay.style.transform = 'scale(1.1)';
+         valueDisplay.textContent = value;
+         setTimeout(() => {
+           valueDisplay.style.transform = 'scale(1)';
+         }, 150);
+       }
+     }
+     
+     // 为显示值添加过渡效果
+     valueDisplay.style.transition = 'transform 0.15s cubic-bezier(0.4, 0, 0.2, 1)';
    }
 
    // ========== 快速配置功能 ==========
