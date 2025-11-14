@@ -2228,7 +2228,7 @@ async function handleHomepage(req) {
    .range-progress {
      position: absolute;
      top: 50%;
-     transform: translateY(-45%);  /* 从 -50% 改为 -45% */
+     transform: translateY(-40%);  /* 从 -50% 改为 -40% */
      left: 0;
      height: 6px;
      background: linear-gradient(90deg, var(--primary-500), var(--primary-600));
