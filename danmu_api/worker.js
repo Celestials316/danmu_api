@@ -2696,12 +2696,17 @@ async function handleHomepage(req) {
      }
 
      .modal-footer {
-       flex-direction: column-reverse;
+       flex-direction: column;
        gap: 8px;
      }
 
      .modal-footer .btn {
        width: 100%;
+       justify-content: center;
+     }
+
+     .modal-footer > div {
+       display: none;
      }
 
      .config-actions {
