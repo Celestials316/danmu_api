@@ -2221,12 +2221,14 @@ async function handleHomepage(req) {
    .range-wrapper {
      position: relative;
      width: 100%;
-     padding: 10px 0;
+     padding: 0;
+     margin: 10px 0;
    }
 
    .range-progress {
      position: absolute;
-     top: 10px;
+     top: 50%;
+     transform: translateY(-50%);
      left: 0;
      height: 6px;
      background: linear-gradient(90deg, var(--primary-500), var(--primary-600));
