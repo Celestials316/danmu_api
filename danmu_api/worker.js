@@ -2756,6 +2756,101 @@ async function handleHomepage(req) {
      display: block;
      opacity: 1;
    }
+   /* 快速配置专用样式 */
+   .quick-config-item {
+     background: var(--bg-tertiary);
+     border: 1px solid var(--border-color);
+     border-radius: 12px;
+     padding: 20px;
+     margin-bottom: 20px;
+     transition: all 0.3s var(--ease-smooth);
+   }
+
+   .quick-config-item:hover {
+     border-color: var(--border-light);
+     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+   }
+
+   .config-item-header {
+     display: flex;
+     align-items: center;
+     justify-content: space-between;
+     margin-bottom: 16px;
+   }
+
+   .config-item-title {
+     display: flex;
+     align-items: center;
+     gap: 8px;
+     font-size: 15px;
+     font-weight: 600;
+     color: var(--text-primary);
+   }
+
+   .config-icon {
+     font-size: 20px;
+   }
+
+   .config-value-display {
+     color: var(--primary-400);
+     font-weight: 800;
+     font-size: 18px;
+     font-family: 'Monaco', monospace;
+     min-width: 80px;
+     text-align: right;
+   }
+
+   .edit-lock-btn {
+     width: 32px;
+     height: 32px;
+     border-radius: 8px;
+     background: var(--bg-primary);
+     border: 1px solid var(--border-color);
+     cursor: pointer;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+     transition: all 0.3s var(--ease-smooth);
+     color: var(--text-secondary);
+     position: relative;
+   }
+
+   .edit-lock-btn:hover {
+     background: var(--bg-hover);
+     border-color: var(--primary-500);
+     color: var(--primary-500);
+     transform: scale(1.05);
+   }
+
+   .edit-lock-btn.unlocked {
+     background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(99, 102, 241, 0.05));
+     border-color: var(--primary-500);
+     color: var(--primary-500);
+   }
+
+   .edit-lock-btn.unlocked:hover {
+     background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(99, 102, 241, 0.1));
+   }
+
+   .form-range.locked {
+     cursor: not-allowed;
+     opacity: 0.6;
+   }
+
+   .form-range.locked::-webkit-slider-thumb {
+     cursor: not-allowed;
+   }
+
+   .form-range.locked::-moz-range-thumb {
+     cursor: not-allowed;
+   }
+
+   .form-select.locked,
+   .form-input.locked {
+     cursor: not-allowed;
+     opacity: 0.6;
+     background: var(--bg-secondary);
+   }
 
    /* 滚动条美化 */
    ::-webkit-scrollbar {
@@ -4199,9 +4294,9 @@ async function handleHomepage(req) {
      </div>
    </div>
  </div>
- <!-- 快速配置模态框 - 重新设计 -->
+ <!-- 快速配置模态框 - 优化版（防误触 + 单滚动条）-->
  <div class="modal-overlay" id="quickConfigModal">
-   <div class="modal" style="max-width: 720px;">
+   <div class="modal" style="max-width: 760px; max-height: 90vh;">
      <div class="modal-header">
        <h3 class="modal-title">
          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor">
@@ -4215,19 +4310,40 @@ async function handleHomepage(req) {
          </svg>
        </button>
      </div>
-     <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+     <div class="modal-body">
+       <!-- 提示信息 -->
+       <div class="alert alert-info" style="margin: 0 0 24px 0; border-radius: 12px;">
+         <svg class="alert-icon" viewBox="0 0 24 24" width="20" height="20">
+           <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
+           <path d="M12 16v-4m0-4h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+         </svg>
+         <span>💡 点击🔒图标解锁后才能修改配置</span>
+       </div>
+
        <!-- 弹幕白色占比 -->
-       <div class="form-group" style="padding: 20px; background: var(--bg-tertiary); border-radius: 12px; margin-bottom: 20px;">
-         <label class="form-label" style="display: flex; align-items: center; justify-content: space-between; font-size: 15px; margin-bottom: 16px;">
-           <span style="display: flex; align-items: center; gap: 8px;">
-             <span style="font-size: 20px;">🎨</span>
+       <div class="quick-config-item">
+         <div class="config-item-header">
+           <div class="config-item-title">
+             <span class="config-icon">🎨</span>
              <span>弹幕白色占比</span>
-           </span>
-           <span id="whiteRatioValue" style="color: var(--primary-400); font-weight: 800; font-size: 18px; font-family: 'Monaco', monospace;">-1</span>
-         </label>
+           </div>
+           <div style="display: flex; align-items: center; gap: 12px;">
+             <span id="whiteRatioValue" class="config-value-display">-1</span>
+             <button class="edit-lock-btn" onclick="toggleQuickConfigLock(this, 'quickWhiteRatio')" title="点击解锁编辑">
+               <svg class="lock-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor">
+                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke-width="2"/>
+                 <path d="M7 11V7a5 5 0 0110 0v4" stroke-width="2"/>
+               </svg>
+               <svg class="unlock-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" style="display: none;">
+                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke-width="2"/>
+                 <path d="M7 11V7a5 5 0 019.9-1" stroke-width="2"/>
+               </svg>
+             </button>
+           </div>
+         </div>
          <div class="range-wrapper">
            <div class="range-progress" id="whiteRatioProgress" style="width: 0%"></div>
-           <input type="range" class="form-range" id="quickWhiteRatio" min="-1" max="100" step="1" value="-1" 
+           <input type="range" class="form-range locked" id="quickWhiteRatio" min="-1" max="100" step="1" value="-1" disabled
                   oninput="updateRangeProgress(this, 'whiteRatioProgress', 'whiteRatioValue', -1, 100)">
          </div>
          <div class="range-labels">
@@ -4235,65 +4351,113 @@ async function handleHomepage(req) {
            <span>50%</span>
            <span>全白</span>
          </div>
-         <div class="form-hint" style="margin-top: 12px;">-1 = 不转换颜色 | 0-100 = 指定白色弹幕占比百分比</div>
+         <div class="form-hint">-1 = 不转换颜色 | 0-100 = 指定白色弹幕占比百分比</div>
        </div>
 
-       <!-- 弹幕数量限制 -->
-       <div class="form-group" style="padding: 20px; background: var(--bg-tertiary); border-radius: 12px; margin-bottom: 20px;">
-         <label class="form-label" style="display: flex; align-items: center; justify-content: space-between; font-size: 15px; margin-bottom: 16px;">
-           <span style="display: flex; align-items: center; gap: 8px;">
-             <span style="font-size: 20px;">📊</span>
+<!-- 弹幕数量限制 -->
+       <div class="quick-config-item">
+         <div class="config-item-header">
+           <div class="config-item-title">
+             <span class="config-icon">📊</span>
              <span>弹幕数量限制</span>
-           </span>
-           <span id="danmuLimitValue" style="color: var(--primary-400); font-weight: 800; font-size: 18px; font-family: 'Monaco', monospace;">不限制</span>
-         </label>
+           </div>
+           <div style="display: flex; align-items: center; gap: 12px;">
+             <span id="danmuLimitValue" class="config-value-display">不限制</span>
+             <button class="edit-lock-btn" onclick="toggleQuickConfigLock(this, 'quickDanmuLimit')" title="点击解锁编辑">
+               <svg class="lock-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor">
+                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke-width="2"/>
+                 <path d="M7 11V7a5 5 0 0110 0v4" stroke-width="2"/>
+               </svg>
+               <svg class="unlock-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" style="display: none;">
+                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke-width="2"/>
+                 <path d="M7 11V7a5 5 0 019.9-1" stroke-width="2"/>
+               </svg>
+             </button>
+           </div>
+         </div>
          <div class="range-wrapper">
            <div class="range-progress" id="danmuLimitProgress" style="width: 0%"></div>
-           <input type="range" class="form-range" id="quickDanmuLimit" min="-1" max="10000" step="100" value="-1"
-                  oninput="updateRangeProgress(this, 'danmuLimitProgress', 'danmuLimitValue', -1, 10000, val => val === -1 ? '不限制' : val)">
+           <input type="range" class="form-range locked" id="quickDanmuLimit" min="-1" max="15000" step="100" value="-1" disabled
+                  oninput="updateRangeProgress(this, 'danmuLimitProgress', 'danmuLimitValue', -1, 15000, val => val === -1 ? '不限制' : val)">
          </div>
          <div class="range-labels">
            <span>不限制</span>
-           <span>5000条</span>
-           <span>10000条</span>
+           <span>7500条</span>
+           <span>15000条</span>
          </div>
-         <div class="form-hint" style="margin-top: 12px;">设置每次请求返回的最大弹幕条数（-1 表示不限制）</div>
+         <div class="form-hint">设置每次请求返回的最大弹幕条数（-1 表示不限制）</div>
        </div>
 
        <!-- 输出格式和令牌 -->
        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
-         <div class="form-group" style="padding: 20px; background: var(--bg-tertiary); border-radius: 12px; margin-bottom: 0;">
-           <label class="form-label" style="font-size: 15px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
-             <span style="font-size: 20px;">📝</span>
-             <span>输出格式</span>
-           </label>
-           <select class="form-select" id="quickOutputFormat" style="font-size: 14px; font-weight: 600;">
+         <div class="quick-config-item" style="margin-bottom: 0;">
+           <div class="config-item-header">
+             <div class="config-item-title">
+               <span class="config-icon">📝</span>
+               <span>输出格式</span>
+             </div>
+             <button class="edit-lock-btn" onclick="toggleQuickConfigLock(this, 'quickOutputFormat')" title="点击解锁编辑">
+               <svg class="lock-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor">
+                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke-width="2"/>
+                 <path d="M7 11V7a5 5 0 0110 0v4" stroke-width="2"/>
+               </svg>
+               <svg class="unlock-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" style="display: none;">
+                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke-width="2"/>
+                 <path d="M7 11V7a5 5 0 019.9-1" stroke-width="2"/>
+               </svg>
+             </button>
+           </div>
+           <select class="form-select locked" id="quickOutputFormat" disabled>
              <option value="json">JSON 格式</option>
              <option value="xml">XML 格式</option>
            </select>
          </div>
 
-         <div class="form-group" style="padding: 20px; background: var(--bg-tertiary); border-radius: 12px; margin-bottom: 0;">
-           <label class="form-label" style="font-size: 15px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
-             <span style="font-size: 20px;">🔑</span>
-             <span>访问令牌</span>
-           </label>
-           <input type="text" class="form-input" id="quickToken" placeholder="87654321" style="font-size: 14px; font-weight: 600; font-family: 'Monaco', monospace;">
+         <div class="quick-config-item" style="margin-bottom: 0;">
+           <div class="config-item-header">
+             <div class="config-item-title">
+               <span class="config-icon">🔑</span>
+               <span>访问令牌</span>
+             </div>
+             <button class="edit-lock-btn" onclick="toggleQuickConfigLock(this, 'quickToken')" title="点击解锁编辑">
+               <svg class="lock-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor">
+                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke-width="2"/>
+                 <path d="M7 11V7a5 5 0 0110 0v4" stroke-width="2"/>
+               </svg>
+               <svg class="unlock-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" style="display: none;">
+                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke-width="2"/>
+                 <path d="M7 11V7a5 5 0 019.9-1" stroke-width="2"/>
+               </svg>
+             </button>
+           </div>
+           <input type="text" class="form-input locked" id="quickToken" placeholder="87654321" readonly>
          </div>
        </div>
 
        <!-- 搜索缓存时间 -->
-       <div class="form-group" style="padding: 20px; background: var(--bg-tertiary); border-radius: 12px; margin-bottom: 20px;">
-         <label class="form-label" style="display: flex; align-items: center; justify-content: space-between; font-size: 15px; margin-bottom: 16px;">
-           <span style="display: flex; align-items: center; gap: 8px;">
-             <span style="font-size: 20px;">🔍</span>
+       <div class="quick-config-item">
+         <div class="config-item-header">
+           <div class="config-item-title">
+             <span class="config-icon">🔍</span>
              <span>搜索缓存时间</span>
-           </span>
-           <span id="searchCacheValue" style="color: var(--primary-400); font-weight: 800; font-size: 18px; font-family: 'Monaco', monospace;">1</span>
-         </label>
+           </div>
+           <div style="display: flex; align-items: center; gap: 12px;">
+             <span id="searchCacheValue" class="config-value-display">1</span>
+             <button class="edit-lock-btn" onclick="toggleQuickConfigLock(this, 'quickSearchCache')" title="点击解锁编辑">
+               <svg class="lock-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor">
+                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke-width="2"/>
+                 <path d="M7 11V7a5 5 0 0110 0v4" stroke-width="2"/>
+               </svg>
+               <svg class="unlock-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" style="display: none;">
+                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke-width="2"/>
+                 <path d="M7 11V7a5 5 0 019.9-1" stroke-width="2"/>
+               </svg>
+             </button>
+           </div>
+         </div>
          <div class="range-wrapper">
            <div class="range-progress" id="searchCacheProgress" style="width: 0%"></div>
-           <input type="range" class="form-range" id="quickSearchCache" min="1" max="30" step="1" value="1"
+           <input type="range" class="form-range locked" id="quickSearchCache" min="1" max="30" step="1" value="1" disabled
                   oninput="updateRangeProgress(this, 'searchCacheProgress', 'searchCacheValue', 1, 30, val => val + ' 分钟')">
          </div>
          <div class="range-labels">
@@ -4301,21 +4465,33 @@ async function handleHomepage(req) {
            <span>15分钟</span>
            <span>30分钟</span>
          </div>
-         <div class="form-hint" style="margin-top: 12px;">搜索结果缓存时间，减少重复API请求</div>
+         <div class="form-hint">搜索结果缓存时间，减少重复API请求</div>
        </div>
 
        <!-- 弹幕缓存时间 -->
-       <div class="form-group" style="padding: 20px; background: var(--bg-tertiary); border-radius: 12px; margin-bottom: 20px;">
-         <label class="form-label" style="display: flex; align-items: center; justify-content: space-between; font-size: 15px; margin-bottom: 16px;">
-           <span style="display: flex; align-items: center; gap: 8px;">
-             <span style="font-size: 20px;">💬</span>
+       <div class="quick-config-item">
+         <div class="config-item-header">
+           <div class="config-item-title">
+             <span class="config-icon">💬</span>
              <span>弹幕缓存时间</span>
-           </span>
-           <span id="commentCacheValue" style="color: var(--primary-400); font-weight: 800; font-size: 18px; font-family: 'Monaco', monospace;">1</span>
-         </label>
+           </div>
+           <div style="display: flex; align-items: center; gap: 12px;">
+             <span id="commentCacheValue" class="config-value-display">1</span>
+             <button class="edit-lock-btn" onclick="toggleQuickConfigLock(this, 'quickCommentCache')" title="点击解锁编辑">
+               <svg class="lock-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor">
+                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke-width="2"/>
+                 <path d="M7 11V7a5 5 0 0110 0v4" stroke-width="2"/>
+               </svg>
+               <svg class="unlock-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" style="display: none;">
+                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke-width="2"/>
+                 <path d="M7 11V7a5 5 0 019.9-1" stroke-width="2"/>
+               </svg>
+             </button>
+           </div>
+         </div>
          <div class="range-wrapper">
            <div class="range-progress" id="commentCacheProgress" style="width: 0%"></div>
-           <input type="range" class="form-range" id="quickCommentCache" min="1" max="60" step="1" value="1"
+           <input type="range" class="form-range locked" id="quickCommentCache" min="1" max="60" step="1" value="1" disabled
                   oninput="updateRangeProgress(this, 'commentCacheProgress', 'commentCacheValue', 1, 60, val => val + ' 分钟')">
          </div>
          <div class="range-labels">
@@ -4323,32 +4499,23 @@ async function handleHomepage(req) {
            <span>30分钟</span>
            <span>60分钟</span>
          </div>
-         <div class="form-hint" style="margin-top: 12px;">弹幕数据缓存时间，减少重复弹幕获取</div>
-       </div>
-
-       <!-- 提示信息 -->
-       <div class="alert alert-info" style="margin-top: 0; border-radius: 12px; font-size: 14px; font-weight: 600;">
-         <svg class="alert-icon" viewBox="0 0 24 24" width="20" height="20">
-           <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
-           <path d="M12 16v-4m0-4h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-         </svg>
-         <span>需要更多高级配置选项？点击下方"全部环境变量"按钮</span>
+         <div class="form-hint">弹幕数据缓存时间，减少重复弹幕获取</div>
        </div>
      </div>
      <div class="modal-footer" style="display: flex; gap: 10px; align-items: center;">
-       <button class="btn btn-secondary" onclick="closeModal('quickConfigModal')" style="padding: 10px 20px; font-size: 14px;">
+       <button class="btn btn-secondary" onclick="closeModal('quickConfigModal')">
          取消
        </button>
        <button class="btn btn-secondary" onclick="closeModal('quickConfigModal'); switchPage('config');" 
-               style="padding: 10px 16px; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+               style="display: flex; align-items: center; gap: 6px;">
          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor">
            <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke-width="2"/>
            <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-width="2"/>
          </svg>
-         <span>高级配置</span>
+         <span>全部变量</span>
        </button>
        <div style="flex: 1;"></div>
-       <button class="btn btn-primary" onclick="saveQuickConfig()" style="padding: 10px 24px; font-size: 14px; display: flex; align-items: center; gap: 8px;">
+       <button class="btn btn-primary" onclick="saveQuickConfig()" style="display: flex; align-items: center; gap: 8px;">
          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor">
            <path d="M5 13l4 4L19 7" stroke-width="2" stroke-linecap="round"/>
          </svg>
@@ -5417,6 +5584,45 @@ async function handleHomepage(req) {
      // 为显示值添加过渡效果
      if (!valueDisplay.style.transition) {
        valueDisplay.style.transition = 'transform 0.12s cubic-bezier(0.4, 0, 0.2, 1)';
+     }
+   }
+   // 快速配置锁定/解锁功能
+   function toggleQuickConfigLock(button, inputId) {
+     const input = document.getElementById(inputId);
+     const lockIcon = button.querySelector('.lock-icon');
+     const unlockIcon = button.querySelector('.unlock-icon');
+     const isLocked = input.disabled || input.readOnly;
+     
+     if (isLocked) {
+       // 解锁
+       if (input.type === 'range') {
+         input.disabled = false;
+       } else {
+         input.readOnly = false;
+       }
+       input.classList.remove('locked');
+       button.classList.add('unlocked');
+       lockIcon.style.display = 'none';
+       unlockIcon.style.display = 'block';
+       button.title = '点击锁定';
+       
+       // 聚焦到输入框（仅输入框类型）
+       if (input.tagName === 'INPUT' && input.type === 'text') {
+         input.focus();
+         input.select();
+       }
+     } else {
+       // 锁定
+       if (input.type === 'range') {
+         input.disabled = true;
+       } else {
+         input.readOnly = true;
+       }
+       input.classList.add('locked');
+       button.classList.remove('unlocked');
+       lockIcon.style.display = 'block';
+       unlockIcon.style.display = 'none';
+       button.title = '点击解锁编辑';
      }
    }
 
