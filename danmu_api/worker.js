@@ -3348,8 +3348,8 @@ async function handleHomepage(req) {
              (typeof caches !== 'undefined' && 'default' in caches) ? 'Cloudflare Workers' :
              process.env.RENDER ? 'Render' :
              process.env.RAILWAY_ENVIRONMENT ? 'Railway' :
-             fs.existsSync('/.dockerenv') ? 'Docker' :
-             '本地/其他'
+             process.env.KUBERNETES_SERVICE_HOST ? 'Kubernetes' :
+             '标准部署'
            }</div>
            <div class="stat-footer">
              ${
@@ -3359,8 +3359,8 @@ async function handleHomepage(req) {
                (typeof caches !== 'undefined' && 'default' in caches) ? '⚡ CF Workers' :
                process.env.RENDER ? '🎨 Render 部署' :
                process.env.RAILWAY_ENVIRONMENT ? '🚂 Railway 部署' :
-               fs.existsSync('/.dockerenv') ? '🐳 容器化部署' :
-               '🖥️ 标准环境'
+               process.env.KUBERNETES_SERVICE_HOST ? '☸️ K8s 部署' :
+               '🐳 容器/本地'
              }
            </div>
          </div>
