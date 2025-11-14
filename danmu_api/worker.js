@@ -3342,21 +3342,25 @@ async function handleHomepage(req) {
              <div class="stat-icon warning">🚀</div>
            </div>
            <div class="stat-value">${
-             deployPlatform === 'cloudflare' ? 'Cloudflare' :
-             deployPlatform === 'vercel' ? 'Vercel' :
-             deployPlatform === 'netlify' ? 'Netlify' :
-             deployPlatform === 'docker' ? 'Docker' :
-             deployPlatform === 'edge' ? 'Edge' :
-             '未知平台'
+             process.env.VERCEL ? 'Vercel' :
+             process.env.NETLIFY ? 'Netlify' :
+             process.env.CF_PAGES ? 'Cloudflare Pages' :
+             (typeof caches !== 'undefined' && 'default' in caches) ? 'Cloudflare Workers' :
+             process.env.RENDER ? 'Render' :
+             process.env.RAILWAY_ENVIRONMENT ? 'Railway' :
+             fs.existsSync('/.dockerenv') ? 'Docker' :
+             '本地/其他'
            }</div>
            <div class="stat-footer">
              ${
-               deployPlatform === 'cloudflare' ? '☁️ Workers 平台' :
-               deployPlatform === 'vercel' ? '▲ Serverless 平台' :
-               deployPlatform === 'netlify' ? '🌐 JAMstack 平台' :
-               deployPlatform === 'docker' ? '🐳 容器化部署' :
-               deployPlatform === 'edge' ? '⚡ 边缘计算' :
-               '🖥️ 标准部署'
+               process.env.VERCEL ? '▲ Vercel 部署' :
+               process.env.NETLIFY ? '🌐 Netlify 部署' :
+               process.env.CF_PAGES ? '☁️ CF Pages' :
+               (typeof caches !== 'undefined' && 'default' in caches) ? '⚡ CF Workers' :
+               process.env.RENDER ? '🎨 Render 部署' :
+               process.env.RAILWAY_ENVIRONMENT ? '🚂 Railway 部署' :
+               fs.existsSync('/.dockerenv') ? '🐳 容器化部署' :
+               '🖥️ 标准环境'
              }
            </div>
          </div>
