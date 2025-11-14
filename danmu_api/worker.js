@@ -3216,6 +3216,155 @@ async function handleHomepage(req) {
        transform: scale(1);
      }
    }
+   /* ========== 快速配置卡片样式 ========== */
+   .quick-config-card {
+     background: var(--bg-tertiary);
+     border: 2px solid var(--border-color);
+     border-radius: 14px;
+     padding: 20px;
+     transition: all 0.3s var(--ease-smooth);
+   }
+
+   .quick-config-card:hover {
+     border-color: var(--border-light);
+     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+   }
+
+   .quick-config-header {
+     display: flex;
+     align-items: center;
+     justify-content: space-between;
+     margin-bottom: 16px;
+   }
+
+   .quick-config-value {
+     color: var(--primary-400);
+     font-weight: 800;
+     font-size: 17px;
+     font-family: 'Monaco', monospace;
+     transition: transform 0.12s cubic-bezier(0.4, 0, 0.2, 1);
+   }
+
+   /* 单一进度条滑块样式 */
+   .range-container {
+     position: relative;
+     width: 100%;
+     height: 32px;
+     display: flex;
+     align-items: center;
+     margin: 14px 0 10px 0;
+   }
+
+   .form-range-single {
+     -webkit-appearance: none;
+     width: 100%;
+     height: 10px;
+     border-radius: 12px;
+     background: linear-gradient(to right, 
+       var(--primary-500) 0%, 
+       var(--primary-500) var(--value-percent, 0%), 
+       var(--border-color) var(--value-percent, 0%), 
+       var(--border-color) 100%);
+     outline: none;
+     transition: all 0.3s var(--ease-smooth);
+     cursor: pointer;
+     position: relative;
+     z-index: 2;
+   }
+
+   .form-range-single:disabled {
+     cursor: not-allowed;
+     opacity: 0.5;
+     background: var(--border-color);
+   }
+
+   .form-range-single::-webkit-slider-thumb {
+     -webkit-appearance: none;
+     appearance: none;
+     width: 24px;
+     height: 24px;
+     border-radius: 50%;
+     background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+     cursor: pointer;
+     border: 3px solid var(--bg-secondary);
+     box-shadow: 0 3px 10px rgba(99, 102, 241, 0.4);
+     transition: all 0.2s var(--ease-smooth);
+   }
+
+   .form-range-single::-webkit-slider-thumb:hover {
+     transform: scale(1.2);
+     box-shadow: 0 4px 15px rgba(99, 102, 241, 0.6);
+   }
+
+   .form-range-single::-webkit-slider-thumb:active {
+     transform: scale(1.1);
+   }
+
+   .form-range-single:disabled::-webkit-slider-thumb {
+     background: var(--text-tertiary);
+     cursor: not-allowed;
+     transform: scale(1);
+   }
+
+   .form-range-single::-moz-range-thumb {
+     width: 24px;
+     height: 24px;
+     border-radius: 50%;
+     background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+     cursor: pointer;
+     border: 3px solid var(--bg-secondary);
+     box-shadow: 0 3px 10px rgba(99, 102, 241, 0.4);
+     transition: all 0.2s var(--ease-smooth);
+   }
+
+   .form-range-single::-moz-range-thumb:hover {
+     transform: scale(1.2);
+     box-shadow: 0 4px 15px rgba(99, 102, 241, 0.6);
+   }
+
+   .form-range-single:disabled::-moz-range-thumb {
+     background: var(--text-tertiary);
+     cursor: not-allowed;
+   }
+
+   /* 精简标签 */
+   .range-labels-compact {
+     display: flex;
+     justify-content: space-between;
+     margin-top: 6px;
+     font-size: 11px;
+     font-weight: 600;
+     color: var(--text-tertiary);
+     user-select: none;
+   }
+
+   /* 移动端适配 */
+   @media (max-width: 768px) {
+     .quick-config-card {
+       padding: 16px;
+     }
+
+     .quick-config-header {
+       flex-direction: column;
+       align-items: flex-start;
+       gap: 8px;
+     }
+
+     .quick-config-value {
+       font-size: 15px;
+     }
+
+     .form-range-single::-webkit-slider-thumb {
+       width: 20px;
+       height: 20px;
+     }
+
+     .form-range-single::-moz-range-thumb {
+       width: 20px;
+       height: 20px;
+     }
+   }
+
  </style>
 </head>
 <body>
@@ -4199,9 +4348,9 @@ async function handleHomepage(req) {
      </div>
    </div>
  </div>
- <!-- 快速配置模态框 - 重新设计 -->
+ <!-- 快速配置模态框 - 全新设计 -->
  <div class="modal-overlay" id="quickConfigModal">
-   <div class="modal" style="max-width: 720px;">
+   <div class="modal" style="max-width: 800px;">
      <div class="modal-header">
        <h3 class="modal-title">
          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor">
@@ -4209,130 +4358,153 @@ async function handleHomepage(req) {
          </svg>
          快速配置
        </h3>
-       <button class="modal-close" onclick="closeModal('quickConfigModal')">
-         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor">
-           <path d="M6 18L18 6M6 6l12 12" stroke-width="2" stroke-linecap="round"/>
-         </svg>
-       </button>
+       <div style="display: flex; align-items: center; gap: 12px;">
+         <button class="icon-btn" id="toggleEditMode" onclick="toggleQuickConfigEdit()" title="切换编辑模式">
+           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor">
+             <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke-width="2"/>
+             <path d="M7 11V7a5 5 0 0110 0v4" stroke-width="2"/>
+           </svg>
+         </button>
+         <button class="modal-close" onclick="closeModal('quickConfigModal')">
+           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor">
+             <path d="M6 18L18 6M6 6l12 12" stroke-width="2" stroke-linecap="round"/>
+           </svg>
+         </button>
+       </div>
      </div>
-     <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
-       <!-- 弹幕白色占比 -->
-       <div class="form-group" style="padding: 20px; background: var(--bg-tertiary); border-radius: 12px; margin-bottom: 20px;">
-         <label class="form-label" style="display: flex; align-items: center; justify-content: space-between; font-size: 15px; margin-bottom: 16px;">
-           <span style="display: flex; align-items: center; gap: 8px;">
-             <span style="font-size: 20px;">🎨</span>
-             <span>弹幕白色占比</span>
-           </span>
-           <span id="whiteRatioValue" style="color: var(--primary-400); font-weight: 800; font-size: 18px; font-family: 'Monaco', monospace;">-1</span>
-         </label>
-         <div class="range-wrapper">
-           <div class="range-progress" id="whiteRatioProgress" style="width: 0%"></div>
-           <input type="range" class="form-range" id="quickWhiteRatio" min="-1" max="100" step="1" value="-1" 
-                  oninput="updateRangeProgress(this, 'whiteRatioProgress', 'whiteRatioValue', -1, 100)">
-         </div>
-         <div class="range-labels">
-           <span>不转换</span>
-           <span>50%</span>
-           <span>全白</span>
-         </div>
-         <div class="form-hint" style="margin-top: 12px;">-1 = 不转换颜色 | 0-100 = 指定白色弹幕占比百分比</div>
+     <div class="modal-body" style="max-height: 70vh; overflow-y: auto; padding: 24px;">
+       <!-- 编辑状态提示 -->
+       <div class="alert alert-warning" id="editModeHint" style="margin-bottom: 24px; display: none;">
+         <svg class="alert-icon" viewBox="0 0 24 24" width="20" height="20">
+           <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" fill="none"/>
+           <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" fill="none"/>
+         </svg>
+         <span>🔓 编辑模式已启用，可以修改配置</span>
        </div>
 
-       <!-- 弹幕数量限制 -->
-       <div class="form-group" style="padding: 20px; background: var(--bg-tertiary); border-radius: 12px; margin-bottom: 20px;">
-         <label class="form-label" style="display: flex; align-items: center; justify-content: space-between; font-size: 15px; margin-bottom: 16px;">
-           <span style="display: flex; align-items: center; gap: 8px;">
-             <span style="font-size: 20px;">📊</span>
-             <span>弹幕数量限制</span>
-           </span>
-           <span id="danmuLimitValue" style="color: var(--primary-400); font-weight: 800; font-size: 18px; font-family: 'Monaco', monospace;">不限制</span>
-         </label>
-         <div class="range-wrapper">
-           <div class="range-progress" id="danmuLimitProgress" style="width: 0%"></div>
-           <input type="range" class="form-range" id="quickDanmuLimit" min="-1" max="10000" step="100" value="-1"
-                  oninput="updateRangeProgress(this, 'danmuLimitProgress', 'danmuLimitValue', -1, 10000, val => val === -1 ? '不限制' : val)">
-         </div>
-         <div class="range-labels">
-           <span>不限制</span>
-           <span>5000条</span>
-           <span>10000条</span>
-         </div>
-         <div class="form-hint" style="margin-top: 12px;">设置每次请求返回的最大弹幕条数（-1 表示不限制）</div>
+       <div class="alert alert-info" id="lockModeHint" style="margin-bottom: 24px;">
+         <svg class="alert-icon" viewBox="0 0 24 24" width="20" height="20">
+           <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke="currentColor" stroke-width="2" fill="none"/>
+           <path d="M7 11V7a5 5 0 0110 0v4" stroke="currentColor" stroke-width="2"/>
+         </svg>
+         <span>🔒 当前为锁定状态，点击右上角锁图标解锁后可编辑</span>
        </div>
 
-       <!-- 输出格式和令牌 -->
-       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
-         <div class="form-group" style="padding: 20px; background: var(--bg-tertiary); border-radius: 12px; margin-bottom: 0;">
-           <label class="form-label" style="font-size: 15px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
-             <span style="font-size: 20px;">📝</span>
-             <span>输出格式</span>
-           </label>
-           <select class="form-select" id="quickOutputFormat" style="font-size: 14px; font-weight: 600;">
+       <!-- 配置卡片网格 -->
+       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 20px;">
+         
+         <!-- 弹幕白色占比 -->
+         <div class="quick-config-card">
+           <div class="quick-config-header">
+             <div style="display: flex; align-items: center; gap: 10px;">
+               <span style="font-size: 22px;">🎨</span>
+               <span style="font-size: 15px; font-weight: 700;">弹幕白色占比</span>
+             </div>
+             <span id="whiteRatioValue" class="quick-config-value">-1</span>
+           </div>
+           <div class="range-container">
+             <input type="range" class="form-range-single" id="quickWhiteRatio" min="-1" max="100" step="1" value="-1" disabled
+                    oninput="updateQuickConfigValue(this, 'whiteRatioValue', -1, 100)">
+           </div>
+           <div class="range-labels-compact">
+             <span>不转换</span>
+             <span>50%</span>
+             <span>全白</span>
+           </div>
+           <div class="form-hint" style="margin-top: 10px; font-size: 12px;">-1 = 不转换 | 0-100 = 白色弹幕百分比</div>
+         </div>
+
+         <!-- 弹幕数量限制 -->
+         <div class="quick-config-card">
+           <div class="quick-config-header">
+             <div style="display: flex; align-items: center; gap: 10px;">
+               <span style="font-size: 22px;">📊</span>
+               <span style="font-size: 15px; font-weight: 700;">弹幕数量限制</span>
+             </div>
+             <span id="danmuLimitValue" class="quick-config-value">不限制</span>
+           </div>
+           <div class="range-container">
+             <input type="range" class="form-range-single" id="quickDanmuLimit" min="-1" max="10000" step="100" value="-1" disabled
+                    oninput="updateQuickConfigValue(this, 'danmuLimitValue', -1, 10000, val => val === -1 ? '不限制' : val)">
+           </div>
+           <div class="range-labels-compact">
+             <span>不限制</span>
+             <span>5000</span>
+             <span>10000</span>
+           </div>
+           <div class="form-hint" style="margin-top: 10px; font-size: 12px;">设置每次返回的最大弹幕条数</div>
+         </div>
+
+         <!-- 搜索缓存时间 -->
+         <div class="quick-config-card">
+           <div class="quick-config-header">
+             <div style="display: flex; align-items: center; gap: 10px;">
+               <span style="font-size: 22px;">🔍</span>
+               <span style="font-size: 15px; font-weight: 700;">搜索缓存时间</span>
+             </div>
+             <span id="searchCacheValue" class="quick-config-value">1 分钟</span>
+           </div>
+           <div class="range-container">
+             <input type="range" class="form-range-single" id="quickSearchCache" min="1" max="30" step="1" value="1" disabled
+                    oninput="updateQuickConfigValue(this, 'searchCacheValue', 1, 30, val => val + ' 分钟')">
+           </div>
+           <div class="range-labels-compact">
+             <span>1分钟</span>
+             <span>15分钟</span>
+             <span>30分钟</span>
+           </div>
+           <div class="form-hint" style="margin-top: 10px; font-size: 12px;">搜索结果缓存时间</div>
+         </div>
+
+         <!-- 弹幕缓存时间 -->
+         <div class="quick-config-card">
+           <div class="quick-config-header">
+             <div style="display: flex; align-items: center; gap: 10px;">
+               <span style="font-size: 22px;">💬</span>
+               <span style="font-size: 15px; font-weight: 700;">弹幕缓存时间</span>
+             </div>
+             <span id="commentCacheValue" class="quick-config-value">1 分钟</span>
+           </div>
+           <div class="range-container">
+             <input type="range" class="form-range-single" id="quickCommentCache" min="1" max="60" step="1" value="1" disabled
+                    oninput="updateQuickConfigValue(this, 'commentCacheValue', 1, 60, val => val + ' 分钟')">
+           </div>
+           <div class="range-labels-compact">
+             <span>1分钟</span>
+             <span>30分钟</span>
+             <span>60分钟</span>
+           </div>
+           <div class="form-hint" style="margin-top: 10px; font-size: 12px;">弹幕数据缓存时间</div>
+         </div>
+
+         <!-- 输出格式 -->
+         <div class="quick-config-card">
+           <div class="quick-config-header">
+             <div style="display: flex; align-items: center; gap: 10px;">
+               <span style="font-size: 22px;">📝</span>
+               <span style="font-size: 15px; font-weight: 700;">输出格式</span>
+             </div>
+           </div>
+           <select class="form-select" id="quickOutputFormat" disabled style="margin-top: 12px; font-size: 14px; font-weight: 600;">
              <option value="json">JSON 格式</option>
              <option value="xml">XML 格式</option>
            </select>
+           <div class="form-hint" style="margin-top: 10px; font-size: 12px;">弹幕数据返回格式</div>
          </div>
 
-         <div class="form-group" style="padding: 20px; background: var(--bg-tertiary); border-radius: 12px; margin-bottom: 0;">
-           <label class="form-label" style="font-size: 15px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
-             <span style="font-size: 20px;">🔑</span>
-             <span>访问令牌</span>
-           </label>
-           <input type="text" class="form-input" id="quickToken" placeholder="87654321" style="font-size: 14px; font-weight: 600; font-family: 'Monaco', monospace;">
+         <!-- 访问令牌 -->
+         <div class="quick-config-card">
+           <div class="quick-config-header">
+             <div style="display: flex; align-items: center; gap: 10px;">
+               <span style="font-size: 22px;">🔑</span>
+               <span style="font-size: 15px; font-weight: 700;">访问令牌</span>
+             </div>
+           </div>
+           <input type="text" class="form-input" id="quickToken" placeholder="87654321" disabled
+                  style="margin-top: 12px; font-size: 14px; font-weight: 600; font-family: 'Monaco', monospace;">
+           <div class="form-hint" style="margin-top: 10px; font-size: 12px;">API 访问令牌（默认87654321）</div>
          </div>
-       </div>
 
-       <!-- 搜索缓存时间 -->
-       <div class="form-group" style="padding: 20px; background: var(--bg-tertiary); border-radius: 12px; margin-bottom: 20px;">
-         <label class="form-label" style="display: flex; align-items: center; justify-content: space-between; font-size: 15px; margin-bottom: 16px;">
-           <span style="display: flex; align-items: center; gap: 8px;">
-             <span style="font-size: 20px;">🔍</span>
-             <span>搜索缓存时间</span>
-           </span>
-           <span id="searchCacheValue" style="color: var(--primary-400); font-weight: 800; font-size: 18px; font-family: 'Monaco', monospace;">1</span>
-         </label>
-         <div class="range-wrapper">
-           <div class="range-progress" id="searchCacheProgress" style="width: 0%"></div>
-           <input type="range" class="form-range" id="quickSearchCache" min="1" max="30" step="1" value="1"
-                  oninput="updateRangeProgress(this, 'searchCacheProgress', 'searchCacheValue', 1, 30, val => val + ' 分钟')">
-         </div>
-         <div class="range-labels">
-           <span>1分钟</span>
-           <span>15分钟</span>
-           <span>30分钟</span>
-         </div>
-         <div class="form-hint" style="margin-top: 12px;">搜索结果缓存时间，减少重复API请求</div>
-       </div>
-
-       <!-- 弹幕缓存时间 -->
-       <div class="form-group" style="padding: 20px; background: var(--bg-tertiary); border-radius: 12px; margin-bottom: 20px;">
-         <label class="form-label" style="display: flex; align-items: center; justify-content: space-between; font-size: 15px; margin-bottom: 16px;">
-           <span style="display: flex; align-items: center; gap: 8px;">
-             <span style="font-size: 20px;">💬</span>
-             <span>弹幕缓存时间</span>
-           </span>
-           <span id="commentCacheValue" style="color: var(--primary-400); font-weight: 800; font-size: 18px; font-family: 'Monaco', monospace;">1</span>
-         </label>
-         <div class="range-wrapper">
-           <div class="range-progress" id="commentCacheProgress" style="width: 0%"></div>
-           <input type="range" class="form-range" id="quickCommentCache" min="1" max="60" step="1" value="1"
-                  oninput="updateRangeProgress(this, 'commentCacheProgress', 'commentCacheValue', 1, 60, val => val + ' 分钟')">
-         </div>
-         <div class="range-labels">
-           <span>1分钟</span>
-           <span>30分钟</span>
-           <span>60分钟</span>
-         </div>
-         <div class="form-hint" style="margin-top: 12px;">弹幕数据缓存时间，减少重复弹幕获取</div>
-       </div>
-
-       <!-- 提示信息 -->
-       <div class="alert alert-info" style="margin-top: 0; border-radius: 12px; font-size: 14px; font-weight: 600;">
-         <svg class="alert-icon" viewBox="0 0 24 24" width="20" height="20">
-           <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
-           <path d="M12 16v-4m0-4h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-         </svg>
-         <span>需要更多高级配置选项？点击下方"全部环境变量"按钮</span>
        </div>
      </div>
      <div class="modal-footer" style="display: flex; gap: 10px; align-items: center;">
@@ -4348,7 +4520,8 @@ async function handleHomepage(req) {
          <span>高级配置</span>
        </button>
        <div style="flex: 1;"></div>
-       <button class="btn btn-primary" onclick="saveQuickConfig()" style="padding: 10px 24px; font-size: 14px; display: flex; align-items: center; gap: 8px;">
+       <button class="btn btn-primary" onclick="saveQuickConfig()" id="saveQuickConfigBtn" disabled
+               style="padding: 10px 24px; font-size: 14px; display: flex; align-items: center; gap: 8px; opacity: 0.6;">
          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor">
            <path d="M5 13l4 4L19 7" stroke-width="2" stroke-linecap="round"/>
          </svg>
@@ -5421,66 +5594,147 @@ async function handleHomepage(req) {
    }
 
    // ========== 快速配置功能 ==========
+   // ========== 快速配置功能 - 新版 ==========
+   let quickConfigEditMode = false; // 编辑模式状态
+
    function showQuickConfig() {
+     // 重置编辑模式
+     quickConfigEditMode = false;
+     updateQuickConfigEditMode();
+
      // 加载当前配置值
      const whiteRatio = AppState.config.WHITE_RATIO || '-1';
      const danmuLimit = AppState.config.DANMU_LIMIT || '-1';
      const searchCache = AppState.config.SEARCH_CACHE_MINUTES || '1';
      const commentCache = AppState.config.COMMENT_CACHE_MINUTES || '1';
      
-     // 设置滑块值
-     document.getElementById('quickWhiteRatio').value = whiteRatio;
-     document.getElementById('quickDanmuLimit').value = danmuLimit;
+     // 设置滑块值和显示
+     const whiteRatioInput = document.getElementById('quickWhiteRatio');
+     const danmuLimitInput = document.getElementById('quickDanmuLimit');
+     const searchCacheInput = document.getElementById('quickSearchCache');
+     const commentCacheInput = document.getElementById('quickCommentCache');
+
+     whiteRatioInput.value = whiteRatio;
+     danmuLimitInput.value = danmuLimit;
+     searchCacheInput.value = searchCache;
+     commentCacheInput.value = commentCache;
+
      document.getElementById('quickOutputFormat').value = AppState.config.DANMU_OUTPUT_FORMAT || 'json';
      document.getElementById('quickToken').value = AppState.config.TOKEN || '87654321';
-     document.getElementById('quickSearchCache').value = searchCache;
-     document.getElementById('quickCommentCache').value = commentCache;
      
      // 显示模态框
      showModal('quickConfigModal');
      
-     // 延迟更新进度条（确保模态框已显示）
+     // 延迟更新显示值和渐变
      setTimeout(() => {
-       updateRangeProgress(
-         document.getElementById('quickWhiteRatio'),
-         'whiteRatioProgress',
-         'whiteRatioValue',
-         -1, 100
-       );
-       
-       updateRangeProgress(
-         document.getElementById('quickDanmuLimit'),
-         'danmuLimitProgress',
-         'danmuLimitValue',
-         -1, 10000,
-         val => val === -1 ? '不限制' : val
-       );
-       
-       updateRangeProgress(
-         document.getElementById('quickSearchCache'),
-         'searchCacheProgress',
-         'searchCacheValue',
-         1, 30
-       );
-       
-       updateRangeProgress(
-         document.getElementById('quickCommentCache'),
-         'commentCacheProgress',
-         'commentCacheValue',
-         1, 60
-       );
+       updateQuickConfigValue(whiteRatioInput, 'whiteRatioValue', -1, 100);
+       updateQuickConfigValue(danmuLimitInput, 'danmuLimitValue', -1, 10000, val => val === -1 ? '不限制' : val);
+       updateQuickConfigValue(searchCacheInput, 'searchCacheValue', 1, 30, val => val + ' 分钟');
+       updateQuickConfigValue(commentCacheInput, 'commentCacheValue', 1, 60, val => val + ' 分钟');
      }, 50);
    }
 
+   function toggleQuickConfigEdit() {
+     quickConfigEditMode = !quickConfigEditMode;
+     updateQuickConfigEditMode();
+   }
+
+   function updateQuickConfigEditMode() {
+     const editBtn = document.getElementById('toggleEditMode');
+     const saveBtn = document.getElementById('saveQuickConfigBtn');
+     const editHint = document.getElementById('editModeHint');
+     const lockHint = document.getElementById('lockModeHint');
+     
+     // 获取所有需要控制的元素
+     const inputs = [
+       document.getElementById('quickWhiteRatio'),
+       document.getElementById('quickDanmuLimit'),
+       document.getElementById('quickSearchCache'),
+       document.getElementById('quickCommentCache'),
+       document.getElementById('quickOutputFormat'),
+       document.getElementById('quickToken')
+     ];
+
+     if (quickConfigEditMode) {
+       // 解锁模式
+       editBtn.innerHTML = `
+         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor">
+           <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke-width="2"/>
+           <path d="M7 11V7a5 5 0 019.9-1" stroke-width="2"/>
+         </svg>
+       `;
+       editBtn.title = "锁定编辑";
+       editBtn.style.color = "var(--success)";
+       
+       saveBtn.disabled = false;
+       saveBtn.style.opacity = "1";
+       
+       editHint.style.display = "flex";
+       lockHint.style.display = "none";
+       
+       inputs.forEach(input => {
+         if (input) input.disabled = false;
+       });
+     } else {
+       // 锁定模式
+       editBtn.innerHTML = `
+         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor">
+           <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke-width="2"/>
+           <path d="M7 11V7a5 5 0 0110 0v4" stroke-width="2"/>
+         </svg>
+       `;
+       editBtn.title = "解锁编辑";
+       editBtn.style.color = "";
+       
+       saveBtn.disabled = true;
+       saveBtn.style.opacity = "0.6";
+       
+       editHint.style.display = "none";
+       lockHint.style.display = "flex";
+       
+       inputs.forEach(input => {
+         if (input) input.disabled = true;
+       });
+     }
+   }
+
+   function updateQuickConfigValue(input, valueId, min, max, formatter = null) {
+     const value = parseFloat(input.value);
+     const valueDisplay = document.getElementById(valueId);
+     
+     if (!valueDisplay) return;
+     
+     // 计算百分比并更新CSS变量（用于渐变背景）
+     const percentage = ((value - min) / (max - min)) * 100;
+     input.style.setProperty('--value-percent', Math.max(0, Math.min(100, percentage)) + '%');
+     
+     // 更新显示值
+     const newValue = formatter && typeof formatter === 'function' 
+       ? formatter(value) 
+       : String(value);
+     
+     if (valueDisplay.textContent !== newValue) {
+       valueDisplay.style.transform = 'scale(1.1)';
+       valueDisplay.textContent = newValue;
+       setTimeout(() => {
+         valueDisplay.style.transform = 'scale(1)';
+       }, 120);
+     }
+   }
+
    async function saveQuickConfig() {
+     // 检查是否处于编辑模式
+     if (!quickConfigEditMode) {
+       showToast('请先点击右上角锁图标解锁编辑模式', 'warning');
+       return;
+     }
+
      const whiteRatio = document.getElementById('quickWhiteRatio').value;
      const danmuLimit = document.getElementById('quickDanmuLimit').value;
      const outputFormat = document.getElementById('quickOutputFormat').value;
      const token = document.getElementById('quickToken').value;
      const searchCache = document.getElementById('quickSearchCache').value;
      const commentCache = document.getElementById('quickCommentCache').value;
-
-     // 验证输入
      if (parseInt(whiteRatio) < -1 || parseInt(whiteRatio) > 100) {
        showToast('白色占比必须在 -1 到 100 之间', 'error');
        return;
