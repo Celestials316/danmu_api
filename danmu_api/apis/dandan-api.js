@@ -138,9 +138,26 @@ export async function searchAnime(url) {
     addAnime(Anime.fromJson({...tmpAnime, links: links}));
     if (globals.animes.length > globals.MAX_ANIMES) removeEarliestAnime();
 
-    // 如果有新的anime获取到，则更新redis
-    if (globals.redisValid && curAnimes.length !== 0) {
+    // 🔥 优先更新数据库缓存
+    if (globals.databaseValid && curAnimes.length !== 0) {
+      try {
+        const { saveCacheBatch } = await import('../utils/db-util.js');
+        await saveCacheBatch({
+          animes: globals.animes,
+          episodeIds: globals.episodeIds,
+          episodeNum: globals.episodeNum,
+          lastSelectMap: Object.fromEntries(globals.lastSelectMap)
+        });
+        log("info", "[cache] ✅ 数据库缓存已更新");
+      } catch (error) {
+        log("error", `[cache] ❌ 数据库缓存更新失败: ${error.message}`);
+      }
+    }
+
+    // 🔥 如果数据库不可用，更新 Redis
+    if (!globals.databaseValid && globals.redisValid && curAnimes.length !== 0) {
       await updateRedisCaches();
+      log("info", "[cache] ✅ Redis缓存已更新（数据库不可用）");
     }
 
     return jsonResponse({
@@ -788,8 +805,22 @@ export async function getComment(path, queryFormat) {
 
   const animeId = findAnimeIdByCommentId(commentId);
   setPreferByAnimeId(animeId);
-  if (globals.redisValid && animeId) {
+
+  // 🔥 优先保存到数据库
+  if (globals.databaseValid && animeId) {
+    try {
+      const { saveCacheData } = await import('../utils/db-util.js');
+      await saveCacheData('lastSelectMap', Object.fromEntries(globals.lastSelectMap));
+      log("info", "[cache] ✅ lastSelectMap已保存到数据库");
+    } catch (error) {
+      log("error", `[cache] ❌ 数据库保存失败: ${error.message}`);
+    }
+  }
+
+  // 🔥 如果数据库不可用，保存到 Redis
+  if (!globals.databaseValid && globals.redisValid && animeId) {
     await setRedisKey('lastSelectMap', globals.lastSelectMap);
+    log("info", "[cache] ✅ lastSelectMap已保存到Redis（数据库不可用）");
   }
 
   // 缓存弹幕结果
