@@ -5698,9 +5698,34 @@ async function handleHomepage(req) {
        if (input.startsWith('http://') || input.startsWith('https://')) {
          apiUrl = \`/api/v2/comment?url=\${encodeURIComponent(input)}&format=json\`;
        } else {
+         // 解析输入：支持 "番剧名 第X集" 或 "番剧名 SxxExx" 格式
+         let animeName = input;
+         let episodeNumber = 1; // 默认第1集
+         
+         // 匹配 "第X集" 格式
+         const episodeMatch1 = input.match(/(.+?)\s*第\s*(\d+)\s*集/);
+         if (episodeMatch1) {
+           animeName = episodeMatch1[1].trim();
+           episodeNumber = parseInt(episodeMatch1[2]);
+         } else {
+           // 匹配 "SxxExx" 格式
+           const episodeMatch2 = input.match(/(.+?)\s+S\d+E(\d+)/i);
+           if (episodeMatch2) {
+             animeName = episodeMatch2[1].trim();
+             episodeNumber = parseInt(episodeMatch2[2]);
+           } else {
+             // 匹配纯数字格式 "番剧名 10"
+             const episodeMatch3 = input.match(/(.+?)\s+(\d+)$/);
+             if (episodeMatch3) {
+               animeName = episodeMatch3[1].trim();
+               episodeNumber = parseInt(episodeMatch3[2]);
+             }
+           }
+         }
+         
          // 先搜索番剧
-         showToast('正在搜索番剧...', 'info', 2000);
-         const searchUrl = \`/api/v2/search/anime?keyword=\${encodeURIComponent(input)}\`;
+         showToast(\`正在搜索番剧: \${animeName}...\`, 'info', 2000);
+         const searchUrl = \`/api/v2/search/anime?keyword=\${encodeURIComponent(animeName)}\`;
          const searchResponse = await fetch(searchUrl);
          const searchResult = await searchResponse.json();
 
@@ -5708,19 +5733,30 @@ async function handleHomepage(req) {
            throw new Error('未找到相关番剧');
          }
 
-         // 获取第一个结果的第一集
+         // 获取第一个结果
          const firstAnime = searchResult.animes[0];
-         showToast(\`找到番剧: \${firstAnime.animeTitle}，正在获取弹幕...\`, 'info', 2000);
+         showToast(\`找到番剧: \${firstAnime.animeTitle}，正在获取剧集信息...\`, 'info', 2000);
 
-         const episodeUrl = \`/api/v2/search/episodes?anime=\${encodeURIComponent(firstAnime.animeTitle)}&episode=1\`;
-         const episodeResponse = await fetch(episodeUrl);
-         const episodeResult = await episodeResponse.json();
+         // 使用 bangumi 接口获取完整的剧集列表
+         const bangumiUrl = \`/api/v2/bangumi/\${firstAnime.animeId}\`;
+         const bangumiResponse = await fetch(bangumiUrl);
+         const bangumiResult = await bangumiResponse.json();
 
-         if (!episodeResult.success || !episodeResult.episodeId) {
+         if (!bangumiResult.success || !bangumiResult.bangumi || !bangumiResult.bangumi.episodes || bangumiResult.bangumi.episodes.length === 0) {
            throw new Error('未找到剧集信息');
          }
 
-         apiUrl = \`/api/v2/comment/\${episodeResult.episodeId}?format=json\`;
+         // 查找指定集数
+         const targetEpisode = bangumiResult.bangumi.episodes.find(ep => 
+           parseInt(ep.episodeNumber) === episodeNumber
+         );
+
+         if (!targetEpisode) {
+           throw new Error(\`未找到第 \${episodeNumber} 集，该番剧共 \${bangumiResult.bangumi.episodes.length} 集\`);
+         }
+
+         showToast(\`正在获取 \${targetEpisode.episodeTitle || '第'+episodeNumber+'集'} 弹幕...\`, 'info', 2000);
+         apiUrl = \`/api/v2/comment/\${targetEpisode.episodeId}?format=json\`;
        }
 
        const response = await fetch(apiUrl);
@@ -5730,7 +5766,8 @@ async function handleHomepage(req) {
          throw new Error(result.errorMessage || '获取弹幕失败');
        }
 
-       currentDanmuData = result.comments || [];
+       // 弹幕数据可能在 comments 或 danmus 字段中
+       currentDanmuData = result.comments || result.danmus || [];
        filteredDanmuData = [...currentDanmuData];
 
        if (currentDanmuData.length === 0) {
