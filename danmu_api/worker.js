@@ -555,7 +555,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       await judgeRedisValid(path);
       if (globals.redisValid) {
         await getRedisCaches();
-        log("info", "[storage] ✅ 从 Redis 加载缓存数据（数据库不可用）");
+        log("info", "[storage] ✅ 从 Redis 加载缓存数据");
       }
     }
     
@@ -5882,7 +5882,7 @@ async function handleHomepage(req) {
       } else if (!dbSaved && globals.redisValid) {
         // 如果数据库保存失败，尝试直接保存到 Redis
         redisSaved = await mergeSaveToRedis('env_configs', sanitizedConfig);
-        log("info", `[config] Redis保存${redisSaved ? '成功' : '失败'}（数据库不可用）`);
+        log("info", `[config] Redis保存${redisSaved ? '成功' : '失败'}`);
       }
 
       // 3) 🔥 立即应用到当前运行时（关键步骤）
@@ -5961,7 +5961,7 @@ async function handleHomepage(req) {
           if (result && result.result) {
             const redisConfig = JSON.parse(result.result);
             config = { ...config, ...redisConfig };
-            loadedFrom.push('Redis（数据库不可用）');
+            loadedFrom.push('Redis');
             log("info", "[config] ✅ 从 Redis 加载配置成功");
           }
         } catch (e) {
