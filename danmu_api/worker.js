@@ -1,4 +1,8 @@
 import { Globals } from './configs/globals.js';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import fs from 'fs';
+import path from 'path';
 import { jsonResponse } from './utils/http-util.js';
 import { log, formatLogMessage } from './utils/log-util.js'
 import { getRedisCaches, judgeRedisValid } from "./utils/redis-util.js";
@@ -3642,11 +3646,18 @@ async function handleHomepage(req) {
                <span class="loading-spinner" style="display: inline-block; margin-right: 6px;"></span>
                正在检查更新...
              </div>
-             <button onclick="checkForUpdates()" class="icon-btn" style="width: 32px; height: 32px; margin-left: 8px; flex-shrink: 0;" title="手动检查更新">
-               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width: 16px; height: 16px;">
-                 <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-               </svg>
-             </button>
+             <div style="display: flex; gap: 8px; align-items: center;">
+               <button onclick="checkForUpdates()" class="icon-btn" style="width: 32px; height: 32px; flex-shrink: 0;" title="手动检查更新">
+                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width: 16px; height: 16px;">
+                   <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                 </svg>
+               </button>
+               <button id="updateBtn" onclick="performUpdate()" class="icon-btn" style="width: 32px; height: 32px; flex-shrink: 0; display: none; background: var(--warning); border-color: var(--warning);" title="一键更新">
+                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width: 16px; height: 16px;">
+                   <path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                 </svg>
+               </button>
+             </div>
            </div>
          </div>
 
@@ -5398,15 +5409,24 @@ async function handleHomepage(req) {
 
 
    // ========== 版本检测功能 ==========
+   // 全局变量存储版本信息
+   let versionInfo = {
+     isDocker: false,
+     canAutoUpdate: false,
+     hasUpdate: false
+   };
+
    async function checkForUpdates() {
      const versionStatus = document.getElementById('versionStatus');
+     const updateBtn = document.getElementById('updateBtn');
      if (!versionStatus) return;
 
      try {
        // 显示加载状态
        versionStatus.innerHTML = '<span class="loading-spinner" style="display: inline-block; margin-right: 6px;"></span>正在检查更新...';
+       if (updateBtn) updateBtn.style.display = 'none';
        
-       // 通过后端 API 检查版本，避免 CORS 问题
+       // 通过后端 API 检查版本
        const response = await fetch('/api/version/check', {
          cache: 'no-cache'
        });
@@ -5421,29 +5441,167 @@ async function handleHomepage(req) {
          throw new Error(result.error || '版本检查失败');
        }
 
-       const { currentVersion, latestVersion } = result;
+       const { currentVersion, latestVersion, isDocker, canAutoUpdate } = result;
+       
+       // 保存版本信息到全局变量
+       versionInfo = {
+         isDocker: isDocker || false,
+         canAutoUpdate: canAutoUpdate || false,
+         hasUpdate: false,
+         latestVersion
+       };
 
        // 比较版本号
        const isLatest = compareVersions(currentVersion, latestVersion) >= 0;
 
        if (isLatest) {
          versionStatus.innerHTML = '✅ 已是最新版本';
+         if (updateBtn) updateBtn.style.display = 'none';
        } else {
-         versionStatus.innerHTML = \`
-           <span style="color: var(--warning);">⚠️ 发现新版本 v\${latestVersion}</span>
-           <a href="https://github.com/huangxd-/danmu_api/releases" 
-              target="_blank" 
-              rel="noopener"
-              style="color: var(--primary-400); text-decoration: none; margin-left: 8px; font-weight: 600;"
-              title="查看更新日志">
-             查看详情 →
-           </a>
-         \`;
+         versionInfo.hasUpdate = true;
+         
+         if (canAutoUpdate) {
+           // Docker 环境，显示一键更新按钮
+           versionStatus.innerHTML = \`
+             <span style="color: var(--warning);">⚠️ 发现新版本 v\${latestVersion}</span>
+           \`;
+           if (updateBtn) {
+             updateBtn.style.display = 'flex';
+             updateBtn.title = '一键更新到 v' + latestVersion;
+           }
+         } else {
+           // 非 Docker 环境，显示手动更新链接
+           versionStatus.innerHTML = \`
+             <span style="color: var(--warning);">⚠️ 发现新版本 v\${latestVersion}</span>
+             <a href="https://github.com/huangxd-/danmu_api/releases" 
+                target="_blank" 
+                rel="noopener"
+                style="color: var(--primary-400); text-decoration: none; margin-left: 8px; font-weight: 600;"
+                title="查看更新日志">
+               查看详情 →
+             </a>
+           \`;
+         }
        }
      } catch (error) {
        console.error('版本检查失败:', error);
        versionStatus.innerHTML = '✅ 服务运行正常';
+       if (updateBtn) updateBtn.style.display = 'none';
      }
+   }
+
+   // 执行更新
+   async function performUpdate() {
+     if (!versionInfo.canAutoUpdate) {
+       showToast('当前环境不支持自动更新，请手动更新', 'warning');
+       return;
+     }
+
+     if (!versionInfo.hasUpdate) {
+       showToast('当前已是最新版本', 'info');
+       return;
+     }
+
+     const confirmMsg = \`确定要更新到 v\${versionInfo.latestVersion} 吗？\n\n更新过程需要 30-60 秒，期间服务会短暂中断。\`;
+     if (!confirm(confirmMsg)) {
+       return;
+     }
+
+     const updateBtn = document.getElementById('updateBtn');
+     const versionStatus = document.getElementById('versionStatus');
+
+     try {
+       // 禁用按钮
+       if (updateBtn) {
+         updateBtn.disabled = true;
+         updateBtn.style.opacity = '0.6';
+       }
+
+       versionStatus.innerHTML = '<span class="loading-spinner" style="display: inline-block; margin-right: 6px;"></span>正在更新容器...';
+       showToast('开始更新 Docker 容器...', 'info', 2000);
+
+       const response = await fetch('/api/version/update', {
+         method: 'POST',
+         headers: {
+           'Content-Type': 'application/json'
+         }
+       });
+
+       const result = await response.json();
+
+       if (result.success) {
+         versionStatus.innerHTML = '🔄 容器正在重启...';
+         showToast(result.message || '更新命令已提交，容器即将重启', 'success', 3000);
+
+         // 30秒后开始检测服务是否恢复
+         setTimeout(() => {
+           versionStatus.innerHTML = '⏳ 等待服务恢复...';
+           checkServiceRecovery();
+         }, 30000);
+
+       } else {
+         throw new Error(result.error || '更新失败');
+       }
+
+     } catch (error) {
+       console.error('更新失败:', error);
+       showToast('更新失败: ' + error.message, 'error');
+       versionStatus.innerHTML = '❌ 更新失败';
+       
+       if (updateBtn) {
+         updateBtn.disabled = false;
+         updateBtn.style.opacity = '1';
+       }
+
+       // 3秒后恢复原状态
+       setTimeout(() => {
+         checkForUpdates();
+       }, 3000);
+     }
+   }
+
+   // 检查服务是否恢复
+   async function checkServiceRecovery() {
+     const versionStatus = document.getElementById('versionStatus');
+     let attempts = 0;
+     const maxAttempts = 20; // 最多尝试20次（约60秒）
+
+     const checkInterval = setInterval(async () => {
+       attempts++;
+
+       try {
+         const response = await fetch('/api/version/check', {
+           cache: 'no-cache',
+           signal: AbortSignal.timeout(5000) // 5秒超时
+         });
+
+         if (response.ok) {
+           clearInterval(checkInterval);
+           versionStatus.innerHTML = '✅ 服务已恢复，正在刷新...';
+           showToast('服务已恢复，页面即将刷新', 'success', 2000);
+           
+           // 2秒后刷新页面
+           setTimeout(() => {
+             window.location.reload();
+           }, 2000);
+         }
+       } catch (error) {
+         // 服务未恢复，继续等待
+         console.log(\`等待服务恢复... (\${attempts}/\${maxAttempts})\`);
+       }
+
+       if (attempts >= maxAttempts) {
+         clearInterval(checkInterval);
+         versionStatus.innerHTML = '⚠️ 服务恢复超时，请手动刷新页面';
+         showToast('服务恢复超时，请手动刷新页面检查更新结果', 'warning', 5000);
+         
+         const updateBtn = document.getElementById('updateBtn');
+         if (updateBtn) {
+           updateBtn.disabled = false;
+           updateBtn.style.opacity = '1';
+         }
+       }
+     }, 3000); // 每3秒检查一次
    }
 
    /**
@@ -6679,10 +6837,16 @@ if (path === "/api/logout" && method === "POST") {
         throw new Error('无法解析版本号');
       }
       
+      // 检查是否运行在 Docker 容器中
+      const isDocker = process.env.DOCKER_ENV === 'true' || 
+                      (typeof process !== 'undefined' && process.env?.DOCKER_ENV === 'true');
+      
       return jsonResponse({
         success: true,
         latestVersion: versionMatch[1],
-        currentVersion: globals.VERSION
+        currentVersion: globals.VERSION,
+        isDocker: isDocker,
+        canAutoUpdate: isDocker
       });
     } catch (error) {
       log("error", `[version] 版本检查失败: ${error.message}`);
@@ -6693,7 +6857,64 @@ if (path === "/api/logout" && method === "POST") {
     }
   }
 
+  // POST /api/version/update - 执行 Docker 容器更新
+  if (path === "/api/version/update" && method === "POST") {
+    try {
+      // 验证是否在 Docker 环境中
+      const isDocker = process.env.DOCKER_ENV === 'true';
+      if (!isDocker) {
+        return jsonResponse({
+          success: false,
+          error: '当前环境不支持自动更新（仅支持 Docker 部署）'
+        }, 400);
+      }
 
+      log("info", "[update] 开始执行 Docker 容器更新...");
+
+      // 使用 Node.js 的 child_process 执行更新脚本
+      const { exec } = await import('child_process');
+      const { promisify } = await import('util');
+      const execAsync = promisify(exec);
+
+      // 执行更新命令（在后台执行，避免阻塞响应）
+      const updateScript = `
+        #!/bin/bash
+        echo "开始更新 Docker 容器..."
+        sleep 2
+        docker pull w254992/danmu-api:latest
+        docker restart danmu-api
+      `;
+
+      // 写入临时脚本文件
+      const fs = await import('fs');
+      const path = await import('path');
+      const scriptPath = path.join('/tmp', 'update-container.sh');
+      
+      fs.writeFileSync(scriptPath, updateScript, { mode: 0o755 });
+      
+      // 后台执行更新脚本
+      exec(`bash ${scriptPath} > /tmp/update.log 2>&1 &`, (error) => {
+        if (error) {
+          log("error", `[update] 更新脚本执行失败: ${error.message}`);
+        }
+      });
+
+      log("info", "[update] 更新命令已提交，容器将在几秒后自动重启");
+
+      return jsonResponse({
+        success: true,
+        message: '更新命令已提交，容器将在几秒后自动重启...',
+        note: '更新过程需要 30-60 秒，请稍后刷新页面'
+      });
+
+    } catch (error) {
+      log("error", `[update] 更新失败: ${error.message}`);
+      return jsonResponse({
+        success: false,
+        error: `更新失败: ${error.message}`
+      }, 500);
+    }
+  }
 
   return jsonResponse({ message: "Not found" }, 404);
 }
