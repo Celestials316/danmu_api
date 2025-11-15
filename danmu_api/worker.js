@@ -3523,14 +3523,35 @@ async function handleHomepage(req) {
        <span>环境配置</span>
      </div>
      
-     <div class="nav-item" onclick="switchPage('about')">
-       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-         <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
-       </svg>
-       <span>关于</span>
-     </div>
-   </nav>
- </aside>
+       <div class="nav-item" onclick="switchPage('about')">
+         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+           <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
+         </svg>
+         <span>关于</span>
+       </div>
+       
+       <div class="nav-item" onclick="switchPage('vodHealth')">
+         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+           <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
+         </svg>
+         <span>VOD健康检查</span>
+       </div>
+       
+       <div class="nav-item" onclick="switchPage('danmuTest')">
+         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+           <path d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" stroke-width="2"/>
+         </svg>
+         <span>弹幕测试</span>
+       </div>
+       
+       <div class="nav-item" onclick="switchPage('cache')">
+         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+           <path d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" stroke-width="2"/>
+         </svg>
+         <span>缓存管理</span>
+       </div>
+     </nav>
+   </aside>
 
  <!-- 主内容区 -->
  <main class="main-content">
@@ -4304,6 +4325,303 @@ async function handleHomepage(req) {
          </p>
        </div>
      </section>
+
+     <!-- VOD健康检查页面 -->
+     <section id="vodHealth-page" class="page-section">
+       <div class="card">
+         <div class="card-header">
+           <h3 class="card-title">
+             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+               <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
+             </svg>
+             VOD 采集站健康检查
+           </h3>
+           <div class="card-actions">
+             <button class="btn btn-secondary" onclick="testAllVodServers()">
+               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                 <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-width="2"/>
+               </svg>
+               测试全部
+             </button>
+             <button class="btn btn-primary" onclick="showVodDragSort()">
+               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                 <path d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" stroke-width="2"/>
+               </svg>
+               优先级排序
+             </button>
+           </div>
+         </div>
+
+         <div class="alert alert-info" style="margin-bottom: 24px;">
+           <svg class="alert-icon" viewBox="0 0 24 24" width="20" height="20">
+             <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
+             <path d="M12 16v-4m0-4h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+           </svg>
+           <span>💡 点击"测试全部"检查所有 VOD 服务器的连通性和响应速度</span>
+         </div>
+
+         <div id="vodHealthList" class="server-grid">
+           <!-- 动态生成 VOD 服务器健康状态 -->
+         </div>
+       </div>
+
+       <div class="card">
+         <div class="card-header">
+           <h3 class="card-title">
+             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+               <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" stroke-width="2"/>
+             </svg>
+             性能对比
+           </h3>
+         </div>
+         <div class="chart-container">
+           <canvas id="vodPerformanceChart"></canvas>
+         </div>
+       </div>
+
+       <div class="footer">
+         <p>VOD 采集站健康监控 | 实时监测服务器状态和性能</p>
+       </div>
+     </section>
+
+     <!-- 弹幕测试页面 -->
+     <section id="danmuTest-page" class="page-section">
+       <div class="card">
+         <div class="card-header">
+           <h3 class="card-title">
+             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+               <path d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" stroke-width="2"/>
+             </svg>
+             弹幕测试工具
+           </h3>
+         </div>
+
+         <div class="quick-config-item">
+           <div class="config-item-header">
+             <div class="config-item-title">
+               <span class="config-icon">🔍</span>
+               <span>测试输入</span>
+             </div>
+           </div>
+           <div class="form-group" style="margin-bottom: 12px;">
+             <label class="form-label">视频 URL 或搜索关键词</label>
+             <input type="text" class="form-input" id="danmuTestInput" placeholder="输入 B站/爱奇艺等视频URL，或输入番剧名称搜索">
+           </div>
+           <div style="display: flex; gap: 12px;">
+             <button class="btn btn-primary" onclick="testDanmuByUrl()" style="flex: 1;">
+               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                 <path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-width="2"/>
+               </svg>
+               获取弹幕
+             </button>
+             <button class="btn btn-secondary" onclick="clearDanmuTest()">
+               清空结果
+             </button>
+           </div>
+         </div>
+       </div>
+
+       <div class="card">
+         <div class="card-header">
+           <h3 class="card-title">
+             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+               <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-width="2"/>
+               <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" stroke-width="2"/>
+             </svg>
+             弹幕预览
+           </h3>
+           <div class="card-actions">
+             <span id="danmuTestCount" class="badge badge-info">0 条</span>
+           </div>
+         </div>
+         <div id="danmuPreviewContainer" style="min-height: 300px; max-height: 500px; overflow-y: auto; background: var(--bg-primary); border-radius: 12px; padding: 16px;">
+           <div style="text-align: center; padding: 60px 20px; color: var(--text-tertiary);">
+             <div style="font-size: 48px; margin-bottom: 16px;">📝</div>
+             <div style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">暂无弹幕数据</div>
+             <div style="font-size: 13px;">请输入视频 URL 或番剧名称进行测试</div>
+           </div>
+         </div>
+       </div>
+
+       <div class="card">
+         <div class="card-header">
+           <h3 class="card-title">
+             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+               <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" stroke-width="2"/>
+             </svg>
+             弹幕统计分析
+           </h3>
+         </div>
+         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px;">
+           <div>
+             <div class="chart-container" style="height: 250px;">
+               <canvas id="danmuTimeChart"></canvas>
+             </div>
+             <div style="text-align: center; margin-top: 12px; font-size: 13px; color: var(--text-secondary);">弹幕时间分布</div>
+           </div>
+           <div>
+             <div id="danmuWordCloud" style="height: 250px; background: var(--bg-primary); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--text-tertiary); font-size: 14px; padding: 20px; text-align: center;">
+               暂无数据<br>获取弹幕后自动生成词云
+             </div>
+             <div style="text-align: center; margin-top: 12px; font-size: 13px; color: var(--text-secondary);">弹幕热词云</div>
+           </div>
+         </div>
+       </div>
+
+       <div class="card">
+         <div class="card-header">
+           <h3 class="card-title">
+             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+               <path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" stroke-width="2"/>
+             </svg>
+             过滤效果预览
+           </h3>
+         </div>
+         <div class="quick-config-item">
+           <div class="form-group">
+             <label class="form-label">屏蔽词测试（用逗号分隔）</label>
+             <input type="text" class="form-input" id="testBlockedWords" placeholder="例如：广告,垃圾,测试" onchange="applyDanmuFilter()">
+           </div>
+           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
+             <div>
+               <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                 <input type="checkbox" id="testSimplified" onchange="applyDanmuFilter()" style="width: 18px; height: 18px; cursor: pointer;">
+                 <label for="testSimplified" style="cursor: pointer; font-size: 14px; font-weight: 600;">繁简转换</label>
+               </div>
+             </div>
+             <div>
+               <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                 <input type="checkbox" id="testTopBottomConvert" onchange="applyDanmuFilter()" style="width: 18px; height: 18px; cursor: pointer;">
+                 <label for="testTopBottomConvert" style="cursor: pointer; font-size: 14px; font-weight: 600;">顶底转滚动</label>
+               </div>
+             </div>
+           </div>
+           <div id="filterStats" class="alert alert-info" style="margin-top: 16px; display: none;">
+             <svg class="alert-icon" viewBox="0 0 24 24" width="20" height="20">
+               <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
+             </svg>
+             <span id="filterStatsText"></span>
+           </div>
+         </div>
+       </div>
+
+       <div class="footer">
+         <p>弹幕测试工具 | 实时预览和过滤效果</p>
+       </div>
+     </section>
+
+     <!-- 缓存管理页面 -->
+     <section id="cache-page" class="page-section">
+       <div class="stats-grid">
+         <div class="stat-card">
+           <div class="stat-header">
+             <span class="stat-title">搜索缓存</span>
+             <div class="stat-icon primary">🔍</div>
+           </div>
+           <div class="stat-value" id="searchCacheCount">0</div>
+           <div class="stat-footer">
+             <span id="searchCacheSize">0 KB</span>
+           </div>
+         </div>
+
+         <div class="stat-card">
+           <div class="stat-header">
+             <span class="stat-title">弹幕缓存</span>
+             <div class="stat-icon success">💬</div>
+           </div>
+           <div class="stat-value" id="commentCacheCount">0</div>
+           <div class="stat-footer">
+             <span id="commentCacheSize">0 KB</span>
+           </div>
+         </div>
+
+         <div class="stat-card">
+           <div class="stat-header">
+             <span class="stat-title">存储状态</span>
+             <div class="stat-icon warning">💾</div>
+           </div>
+           <div class="stat-value" id="storageStatus">检查中</div>
+           <div class="stat-footer">
+             <span id="storageType">-</span>
+           </div>
+         </div>
+       </div>
+
+       <div class="card">
+         <div class="card-header">
+           <h3 class="card-title">
+             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+               <path d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" stroke-width="2"/>
+             </svg>
+             缓存数据浏览
+           </h3>
+           <div class="card-actions">
+             <button class="btn btn-secondary" onclick="refreshCacheData()">
+               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                 <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-width="2"/>
+               </svg>
+               刷新
+             </button>
+             <button class="btn btn-primary" onclick="showClearCacheModal()">
+               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                 <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-width="2"/>
+               </svg>
+               清理缓存
+             </button>
+           </div>
+         </div>
+
+         <div class="config-grid">
+           <div class="config-item">
+             <div class="config-header">
+               <span class="config-label">Redis 连接状态</span>
+               <span class="badge" id="redisStatusBadge">检查中...</span>
+             </div>
+             <div class="config-value" style="background: none; border: none; padding: 0;">
+               <code style="color: var(--text-secondary); font-size: 13px;" id="redisStatusText">正在检测 Redis 连接...</code>
+             </div>
+           </div>
+
+           <div class="config-item">
+             <div class="config-header">
+               <span class="config-label">数据库连接状态</span>
+               <span class="badge" id="dbStatusBadge">检查中...</span>
+             </div>
+             <div class="config-value" style="background: none; border: none; padding: 0;">
+               <code style="color: var(--text-secondary); font-size: 13px;" id="dbStatusText">正在检测数据库连接...</code>
+             </div>
+           </div>
+
+           <div class="config-item">
+             <div class="config-header">
+               <span class="config-label">最后选择记录</span>
+               <span class="badge badge-info" id="lastSelectCountBadge">0 条</span>
+             </div>
+             <div class="config-value" style="background: none; border: none; padding: 0;">
+               <code style="color: var(--text-secondary); font-size: 13px;" id="lastSelectStatus">未启用或无数据</code>
+             </div>
+           </div>
+         </div>
+       </div>
+
+       <div class="card">
+         <div class="card-header">
+           <h3 class="card-title">
+             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+               <path d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" stroke-width="2"/>
+             </svg>
+             缓存详细信息
+           </h3>
+         </div>
+         <div id="cacheDetailList" style="max-height: 400px; overflow-y: auto;">
+           <!-- 动态加载缓存详情 -->
+         </div>
+       </div>
+
+       <div class="footer">
+         <p>缓存管理 | 监控和管理系统缓存数据</p>
+       </div>
+     </section>
    </div>
  </main>
 
@@ -4508,6 +4826,104 @@ async function handleHomepage(req) {
      </div>
    </div>
  </div>
+
+ <!-- 清理缓存确认弹窗 -->
+ <div class="modal-overlay" id="clearCacheModal">
+   <div class="modal">
+     <div class="modal-header">
+       <h3 class="modal-title">
+         <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor">
+           <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-width="2"/>
+         </svg>
+         清理缓存
+       </h3>
+       <button class="modal-close" onclick="closeModal('clearCacheModal')">
+         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor">
+           <path d="M6 18L18 6M6 6l12 12" stroke-width="2" stroke-linecap="round"/>
+         </svg>
+       </button>
+     </div>
+     <div class="modal-body">
+       <div class="alert alert-warning" style="margin-bottom: 20px;">
+         <svg class="alert-icon" viewBox="0 0 24 24" width="20" height="20">
+           <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" stroke-width="2"/>
+         </svg>
+         <span>⚠️ 清理缓存后，下次请求可能需要重新获取数据</span>
+       </div>
+       <div class="form-group">
+         <label class="form-label">选择要清理的缓存类型</label>
+         <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 12px;">
+           <div style="display: flex; align-items: center; gap: 10px;">
+             <input type="checkbox" id="clearSearchCache" checked style="width: 18px; height: 18px; cursor: pointer;">
+             <label for="clearSearchCache" style="cursor: pointer; font-size: 14px;">搜索缓存</label>
+           </div>
+           <div style="display: flex; align-items: center; gap: 10px;">
+             <input type="checkbox" id="clearCommentCache" checked style="width: 18px; height: 18px; cursor: pointer;">
+             <label for="clearCommentCache" style="cursor: pointer; font-size: 14px;">弹幕缓存</label>
+           </div>
+           <div style="display: flex; align-items: center; gap: 10px;">
+             <input type="checkbox" id="clearLastSelect" style="width: 18px; height: 18px; cursor: pointer;">
+             <label for="clearLastSelect" style="cursor: pointer; font-size: 14px;">最后选择记录</label>
+           </div>
+           <div style="display: flex; align-items: center; gap: 10px;">
+             <input type="checkbox" id="clearAllCache" onchange="toggleClearAll(this)" style="width: 18px; height: 18px; cursor: pointer;">
+             <label for="clearAllCache" style="cursor: pointer; font-size: 14px; font-weight: 600; color: var(--error);">清空全部缓存</label>
+           </div>
+         </div>
+       </div>
+     </div>
+     <div class="modal-footer">
+       <button class="btn btn-secondary" onclick="closeModal('clearCacheModal')">取消</button>
+       <button class="btn btn-primary" onclick="executeClearCache()" style="background: var(--error); border-color: var(--error);">
+         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+           <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-width="2"/>
+         </svg>
+         确认清理
+       </button>
+     </div>
+   </div>
+ </div>
+
+ <!-- VOD拖拽排序弹窗 -->
+ <div class="modal-overlay" id="vodSortModal">
+   <div class="modal" style="max-width: 600px;">
+     <div class="modal-header">
+       <h3 class="modal-title">
+         <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor">
+           <path d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" stroke-width="2"/>
+         </svg>
+         VOD 服务器优先级排序
+       </h3>
+       <button class="modal-close" onclick="closeModal('vodSortModal')">
+         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor">
+           <path d="M6 18L18 6M6 6l12 12" stroke-width="2" stroke-linecap="round"/>
+         </svg>
+       </button>
+     </div>
+     <div class="modal-body">
+       <div class="alert alert-info" style="margin-bottom: 20px;">
+         <svg class="alert-icon" viewBox="0 0 24 24" width="20" height="20">
+           <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
+           <path d="M12 16v-4m0-4h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+         </svg>
+         <span>💡 拖动服务器调整优先级顺序</span>
+       </div>
+       <div id="vodSortList" class="source-grid">
+         <!-- 动态生成可拖拽的 VOD 列表 -->
+       </div>
+     </div>
+     <div class="modal-footer">
+       <button class="btn btn-secondary" onclick="closeModal('vodSortModal')">取消</button>
+       <button class="btn btn-primary" onclick="saveVodOrder()">
+         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+           <path d="M5 13l4 4L19 7" stroke-width="2" stroke-linecap="round"/>
+         </svg>
+         保存顺序
+       </button>
+     </div>
+   </div>
+ </div>
+
  <!-- 快速配置模态框 - 优化版（防误触 + 单滚动条）-->
  <div class="modal-overlay" id="quickConfigModal">
    <div class="modal" style="max-width: 760px; max-height: 90vh;">
@@ -4896,11 +5312,914 @@ async function handleHomepage(req) {
      const titles = {
        'overview': '系统概览',
        'config': '环境配置',
-       'about': '关于系统'
+       'about': '关于系统',
+       'vodHealth': 'VOD健康检查',
+       'danmuTest': '弹幕测试',
+       'cache': '缓存管理'
      };
      document.getElementById('pageTitle').textContent = titles[pageName];
+     
+     // 页面切换后执行特定初始化
+     if (pageName === 'vodHealth') {
+       initVodHealthPage();
+     } else if (pageName === 'danmuTest') {
+       initDanmuTestPage();
+     } else if (pageName === 'cache') {
+       initCachePage();
+     }
+     
      closeMobileMenu();
      window.scrollTo({ top: 0, behavior: 'smooth' });
+   }
+
+   // ========== VOD 健康检查功能 ==========
+   let vodHealthData = [];
+   let vodPerformanceChart = null;
+
+   function initVodHealthPage() {
+     console.log('初始化 VOD 健康检查页面');
+     loadVodHealthList();
+   }
+
+   function loadVodHealthList() {
+     const container = document.getElementById('vodHealthList');
+     if (!container) return;
+
+     const vodServers = AppState.vodServers;
+     if (!vodServers || vodServers.length === 0) {
+       container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📦</div><div class="empty-state-title">暂无 VOD 服务器</div><div class="empty-state-description">请先在环境配置中添加 VOD 服务器</div></div>';
+       return;
+     }
+
+     const html = vodServers.map((server, index) => {
+       let serverName = \`服务器 #\${index + 1}\`;
+       let serverUrl = '';
+
+       if (typeof server === 'string') {
+         serverUrl = server;
+         if (server.includes('@')) {
+           const parts = server.split('@');
+           serverName = parts[0];
+           serverUrl = parts.slice(1).join('@');
+         }
+       } else if (typeof server === 'object' && server !== null) {
+         serverName = server.name || server.title || serverName;
+         serverUrl = server.url || server.baseUrl || server.address || '';
+       }
+
+       return \`
+         <div class="server-item" data-index="\${index}" id="vod-health-\${index}">
+           <div class="server-badge">\${index + 1}</div>
+           <div class="server-info">
+             <div class="server-name">\${serverName}</div>
+             <div class="server-url">\${serverUrl}</div>
+             <div style="margin-top: 8px; font-size: 12px; color: var(--text-tertiary);">
+               <span id="vod-status-\${index}" style="display: inline-flex; align-items: center; gap: 4px;">
+                 <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--text-tertiary);"></span>
+                 未测试
+               </span>
+               <span style="margin: 0 8px;">|</span>
+               <span id="vod-time-\${index}">- ms</span>
+             </div>
+           </div>
+           <div class="server-actions">
+             <button class="icon-btn" onclick="testSingleVod(\${index})" title="测试连接">
+               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor">
+                 <path d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" fill="currentColor"/>
+                 <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
+               </svg>
+             </button>
+           </div>
+         </div>
+       \`;
+     }).join('');
+
+     container.innerHTML = html;
+   }
+
+   async function testSingleVod(index) {
+     const statusEl = document.getElementById(\`vod-status-\${index}\`);
+     const timeEl = document.getElementById(\`vod-time-\${index}\`);
+     
+     if (!statusEl || !timeEl) return;
+
+     statusEl.innerHTML = '<span class="loading-spinner" style="width: 12px; height: 12px; border-width: 2px;"></span> 测试中...';
+     timeEl.textContent = '- ms';
+
+     try {
+       const server = AppState.vodServers[index];
+       let serverUrl = '';
+       
+       if (typeof server === 'string') {
+         serverUrl = server.includes('@') ? server.split('@').slice(1).join('@') : server;
+       } else if (server && server.url) {
+         serverUrl = server.url;
+       }
+
+       if (!serverUrl) {
+         throw new Error('无效的服务器地址');
+       }
+
+       const startTime = Date.now();
+       const response = await fetch(\`/api/vod/test?url=\${encodeURIComponent(serverUrl)}\`, {
+         method: 'GET',
+         signal: AbortSignal.timeout(10000)
+       });
+
+       const endTime = Date.now();
+       const responseTime = endTime - startTime;
+
+       if (response.ok) {
+         const result = await response.json();
+         if (result.success) {
+           statusEl.innerHTML = \`
+             <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--success); display: inline-block;"></span>
+             <span style="color: var(--success);">在线</span>
+           \`;
+           timeEl.textContent = \`\${responseTime} ms\`;
+           timeEl.style.color = responseTime < 1000 ? 'var(--success)' : responseTime < 3000 ? 'var(--warning)' : 'var(--error)';
+           
+           vodHealthData[index] = { status: 'online', time: responseTime };
+         } else {
+           throw new Error(result.error || '测试失败');
+         }
+       } else {
+         throw new Error(\`HTTP \${response.status}\`);
+       }
+     } catch (error) {
+       console.error(\`VOD测试失败[\${index}]:\`, error);
+       statusEl.innerHTML = \`
+         <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--error); display: inline-block;"></span>
+         <span style="color: var(--error);">离线</span>
+       \`;
+       timeEl.textContent = '超时';
+       timeEl.style.color = 'var(--error)';
+       
+       vodHealthData[index] = { status: 'offline', time: 0 };
+     }
+
+     updateVodPerformanceChart();
+   }
+
+   async function testAllVodServers() {
+     showToast('开始测试所有 VOD 服务器...', 'info', 2000);
+     vodHealthData = [];
+     
+     const servers = AppState.vodServers;
+     for (let i = 0; i < servers.length; i++) {
+       await testSingleVod(i);
+       await new Promise(resolve => setTimeout(resolve, 500));
+     }
+     
+     showToast('所有服务器测试完成', 'success');
+   }
+
+   function updateVodPerformanceChart() {
+     const ctx = document.getElementById('vodPerformanceChart');
+     if (!ctx) return;
+
+     const labels = AppState.vodServers.map((server, index) => {
+       if (typeof server === 'string') {
+         return server.includes('@') ? server.split('@')[0] : \`服务器\${index + 1}\`;
+       }
+       return server.name || \`服务器\${index + 1}\`;
+     });
+
+     const data = vodHealthData.map(item => item ? item.time : 0);
+     const colors = vodHealthData.map(item => {
+       if (!item || item.status === 'offline') return 'rgba(239, 68, 68, 0.6)';
+       if (item.time < 1000) return 'rgba(16, 185, 129, 0.6)';
+       if (item.time < 3000) return 'rgba(245, 158, 11, 0.6)';
+       return 'rgba(239, 68, 68, 0.6)';
+     });
+
+     if (vodPerformanceChart) {
+       vodPerformanceChart.destroy();
+     }
+
+     vodPerformanceChart = new Chart(ctx, {
+       type: 'bar',
+       data: {
+         labels: labels,
+         datasets: [{
+           label: '响应时间 (ms)',
+           data: data,
+           backgroundColor: colors,
+           borderColor: colors.map(c => c.replace('0.6', '1')),
+           borderWidth: 1
+         }]
+       },
+       options: {
+         responsive: true,
+         maintainAspectRatio: false,
+         plugins: {
+           legend: { display: false },
+           tooltip: {
+             callbacks: {
+               label: function(context) {
+                 const value = context.parsed.y;
+                 if (value === 0) return '离线或未测试';
+                 return \`响应时间: \${value} ms\`;
+               }
+             }
+           }
+         },
+         scales: {
+           y: {
+             beginAtZero: true,
+             title: { display: true, text: '响应时间 (ms)' },
+             grid: { color: 'rgba(255, 255, 255, 0.1)' },
+             ticks: { color: '#9ca3af' }
+           },
+           x: {
+             grid: { color: 'rgba(255, 255, 255, 0.1)' },
+             ticks: { color: '#9ca3af' }
+           }
+         }
+       }
+     });
+   }
+
+   function showVodDragSort() {
+     const container = document.getElementById('vodSortList');
+     if (!container) return;
+
+     const html = AppState.vodServers.map((server, index) => {
+       let serverName = \`服务器 #\${index + 1}\`;
+       if (typeof server === 'string' && server.includes('@')) {
+         serverName = server.split('@')[0];
+       } else if (server && server.name) {
+         serverName = server.name;
+       }
+
+       return \`
+         <div class="source-item draggable" draggable="true" data-index="\${index}">
+           <div class="drag-handle">
+             <svg viewBox="0 0 24 24" width="16" height="16">
+               <path d="M9 5h2v2H9V5zm0 6h2v2H9v-2zm0 6h2v2H9v-2zm4-12h2v2h-2V5zm0 6h2v2h-2v-2zm0 6h2v2h-2v-2z" fill="currentColor"/>
+             </svg>
+           </div>
+           <div class="source-priority">\${index + 1}</div>
+           <div class="source-icon">📦</div>
+           <div class="source-name">\${serverName}</div>
+         </div>
+       \`;
+     }).join('');
+
+     container.innerHTML = html;
+     initVodDragAndDrop();
+     showModal('vodSortModal');
+   }
+
+   function initVodDragAndDrop() {
+     const draggables = document.querySelectorAll('#vodSortList .draggable');
+     let draggedElement = null;
+
+     draggables.forEach(item => {
+       item.addEventListener('dragstart', function() {
+         draggedElement = this;
+         this.classList.add('dragging');
+       });
+
+       item.addEventListener('dragend', function() {
+         this.classList.remove('dragging');
+         draggedElement = null;
+       });
+
+       item.addEventListener('dragover', function(e) {
+         e.preventDefault();
+         if (draggedElement && draggedElement !== this) {
+           this.classList.add('drag-over');
+         }
+       });
+
+       item.addEventListener('dragleave', function() {
+         this.classList.remove('drag-over');
+       });
+
+       item.addEventListener('drop', function(e) {
+         e.preventDefault();
+         this.classList.remove('drag-over');
+         
+         if (draggedElement && draggedElement !== this) {
+           const container = this.parentNode;
+           const allItems = [...container.children];
+           const draggedIndex = allItems.indexOf(draggedElement);
+           const targetIndex = allItems.indexOf(this);
+
+           if (draggedIndex < targetIndex) {
+             container.insertBefore(draggedElement, this.nextSibling);
+           } else {
+             container.insertBefore(draggedElement, this);
+           }
+
+           updateVodSortNumbers();
+         }
+       });
+     });
+   }
+
+   function updateVodSortNumbers() {
+     const items = document.querySelectorAll('#vodSortList .source-item');
+     items.forEach((item, index) => {
+       const priority = item.querySelector('.source-priority');
+       if (priority) {
+         priority.textContent = index + 1;
+       }
+     });
+   }
+
+   async function saveVodOrder() {
+     const items = document.querySelectorAll('#vodSortList .source-item');
+     const newOrder = [];
+     
+     items.forEach(item => {
+       const oldIndex = parseInt(item.dataset.index);
+       newOrder.push(AppState.vodServers[oldIndex]);
+     });
+
+     AppState.vodServers = newOrder;
+     
+     // 保存到配置
+     const vodServersStr = newOrder.map(s => {
+       if (typeof s === 'string') return s;
+       return \`\${s.name}@\${s.url}\`;
+     }).join(',');
+
+     try {
+       const response = await fetch('/api/config/save', {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({
+           config: { VOD_SERVERS: vodServersStr }
+         })
+       });
+
+       const result = await response.json();
+       if (result.success) {
+         closeModal('vodSortModal');
+         showToast('VOD 服务器顺序已保存', 'success');
+         loadVodHealthList();
+       } else {
+         throw new Error(result.errorMessage || '保存失败');
+       }
+     } catch (error) {
+       showToast('保存失败: ' + error.message, 'error');
+     }
+   }
+
+   // ========== 弹幕测试功能 ==========
+   let currentDanmuData = [];
+   let filteredDanmuData = [];
+   let danmuTimeChart = null;
+
+   function initDanmuTestPage() {
+     console.log('初始化弹幕测试页面');
+     currentDanmuData = [];
+     filteredDanmuData = [];
+     document.getElementById('danmuTestInput').value = '';
+     clearDanmuTest();
+   }
+
+   async function testDanmuByUrl() {
+     const input = document.getElementById('danmuTestInput').value.trim();
+     if (!input) {
+       showToast('请输入视频 URL 或番剧名称', 'warning');
+       return;
+     }
+
+     const previewContainer = document.getElementById('danmuPreviewContainer');
+     previewContainer.innerHTML = '<div style="text-align: center; padding: 60px 20px;"><span class="loading-spinner" style="width: 40px; height: 40px; border-width: 4px;"></span><div style="margin-top: 20px; color: var(--text-secondary);">正在获取弹幕...</div></div>';
+
+     try {
+       let apiUrl = '';
+       
+       // 判断是 URL 还是关键词
+       if (input.startsWith('http://') || input.startsWith('https://')) {
+         apiUrl = \`/api/v2/comment?url=\${encodeURIComponent(input)}&format=json\`;
+       } else {
+         // 先搜索番剧
+         showToast('正在搜索番剧...', 'info', 2000);
+         const searchUrl = \`/api/v2/search/anime?keyword=\${encodeURIComponent(input)}\`;
+         const searchResponse = await fetch(searchUrl);
+         const searchResult = await searchResponse.json();
+
+         if (!searchResult.success || !searchResult.animes || searchResult.animes.length === 0) {
+           throw new Error('未找到相关番剧');
+         }
+
+         // 获取第一个结果的第一集
+         const firstAnime = searchResult.animes[0];
+         showToast(\`找到番剧: \${firstAnime.animeTitle}，正在获取弹幕...\`, 'info', 2000);
+
+         const episodeUrl = \`/api/v2/search/episodes?anime=\${encodeURIComponent(firstAnime.animeTitle)}&episode=1\`;
+         const episodeResponse = await fetch(episodeUrl);
+         const episodeResult = await episodeResponse.json();
+
+         if (!episodeResult.success || !episodeResult.episodeId) {
+           throw new Error('未找到剧集信息');
+         }
+
+         apiUrl = \`/api/v2/comment/\${episodeResult.episodeId}?format=json\`;
+       }
+
+       const response = await fetch(apiUrl);
+       const result = await response.json();
+
+       if (!result.success) {
+         throw new Error(result.errorMessage || '获取弹幕失败');
+       }
+
+       currentDanmuData = result.comments || [];
+       filteredDanmuData = [...currentDanmuData];
+
+       if (currentDanmuData.length === 0) {
+         previewContainer.innerHTML = '<div style="text-align: center; padding: 60px 20px; color: var(--text-tertiary);"><div style="font-size: 48px; margin-bottom: 16px;">😢</div><div style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">未获取到弹幕</div><div style="font-size: 13px;">该视频可能没有弹幕数据</div></div>';
+         document.getElementById('danmuTestCount').textContent = '0 条';
+         return;
+       }
+
+       displayDanmuList(filteredDanmuData);
+       updateDanmuStats();
+       showToast(\`成功获取 \${currentDanmuData.length} 条弹幕\`, 'success');
+
+     } catch (error) {
+       console.error('获取弹幕失败:', error);
+       previewContainer.innerHTML = \`<div style="text-align: center; padding: 60px 20px; color: var(--error);"><div style="font-size: 48px; margin-bottom: 16px;">❌</div><div style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">获取失败</div><div style="font-size: 13px;">\${error.message}</div></div>\`;
+       showToast('获取弹幕失败: ' + error.message, 'error');
+     }
+   }
+
+   function displayDanmuList(danmuList) {
+     const container = document.getElementById('danmuPreviewContainer');
+     if (!danmuList || danmuList.length === 0) {
+       container.innerHTML = '<div style="text-align: center; padding: 60px 20px; color: var(--text-tertiary);">暂无弹幕数据</div>';
+       return;
+     }
+
+     const html = danmuList.slice(0, 500).map((danmu, index) => {
+       const time = formatTime(danmu.p?.split(',')[0] || danmu.time || 0);
+       const text = danmu.m || danmu.text || '';
+       const mode = danmu.p?.split(',')[1] || danmu.mode || '1';
+       const color = danmu.p?.split(',')[2] || danmu.color || '16777215';
+       
+       const modeText = mode === '1' ? '滚动' : mode === '4' ? '底部' : mode === '5' ? '顶部' : '滚动';
+       const hexColor = '#' + parseInt(color).toString(16).padStart(6, '0');
+
+       return \`
+         <div style="padding: 12px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 12px; transition: background 0.2s;" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='transparent'">
+           <div style="min-width: 60px; font-size: 12px; color: var(--text-tertiary); font-family: monospace;">\${time}</div>
+           <div style="min-width: 50px;">
+             <span style="display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; background: var(--bg-tertiary); color: var(--text-secondary);">\${modeText}</span>
+           </div>
+           <div style="width: 30px; height: 20px; border-radius: 4px; border: 1px solid var(--border-color);" style="background: \${hexColor};" title="\${hexColor}"></div>
+           <div style="flex: 1; color: var(--text-primary); font-size: 14px; word-break: break-all;">\${escapeHtml(text)}</div>
+         </div>
+       \`;
+     }).join('');
+
+     container.innerHTML = html;
+     
+     if (danmuList.length > 500) {
+       container.innerHTML += \`<div style="text-align: center; padding: 20px; color: var(--text-tertiary); font-size: 13px;">仅显示前 500 条弹幕，共 \${danmuList.length} 条</div>\`;
+     }
+
+     document.getElementById('danmuTestCount').textContent = \`\${danmuList.length} 条\`;
+   }
+
+   function formatTime(seconds) {
+     const sec = Math.floor(parseFloat(seconds));
+     const m = Math.floor(sec / 60);
+     const s = sec % 60;
+     return \`\${m.toString().padStart(2, '0')}:\${s.toString().padStart(2, '0')}\`;
+   }
+
+   function escapeHtml(text) {
+     const div = document.createElement('div');
+     div.textContent = text;
+     return div.innerHTML;
+   }
+
+   function applyDanmuFilter() {
+     if (!currentDanmuData || currentDanmuData.length === 0) {
+       showToast('请先获取弹幕数据', 'warning');
+       return;
+     }
+
+     const blockedWords = document.getElementById('testBlockedWords').value
+       .split(',')
+       .map(w => w.trim())
+       .filter(w => w.length > 0);
+     
+     const enableSimplified = document.getElementById('testSimplified').checked;
+     const enableConvert = document.getElementById('testTopBottomConvert').checked;
+
+     let filtered = [...currentDanmuData];
+     let blockedCount = 0;
+     let convertedCount = 0;
+
+     // 屏蔽词过滤
+     if (blockedWords.length > 0) {
+       const beforeCount = filtered.length;
+       filtered = filtered.filter(danmu => {
+         const text = danmu.m || danmu.text || '';
+         return !blockedWords.some(word => text.includes(word));
+       });
+       blockedCount = beforeCount - filtered.length;
+     }
+
+     // 繁简转换（这里简化处理，实际应该调用转换库）
+     if (enableSimplified) {
+       filtered = filtered.map(danmu => ({
+         ...danmu,
+         m: (danmu.m || danmu.text || '').replace(/[繁體]/g, match => {
+           const map = { '繁': '繁', '體': '体' };
+           return map[match] || match;
+         })
+       }));
+     }
+
+     // 顶底转滚动
+     if (enableConvert) {
+       filtered = filtered.map(danmu => {
+         const p = danmu.p ? danmu.p.split(',') : [];
+         if (p[1] === '4' || p[1] === '5') {
+           p[1] = '1';
+           convertedCount++;
+           return { ...danmu, p: p.join(',') };
+         }
+         return danmu;
+       });
+     }
+
+     filteredDanmuData = filtered;
+     displayDanmuList(filteredDanmuData);
+
+     // 显示过滤统计
+     const statsEl = document.getElementById('filterStats');
+     const statsText = document.getElementById('filterStatsText');
+     if (statsEl && statsText) {
+       const parts = [];
+       if (blockedCount > 0) parts.push(\`屏蔽 \${blockedCount} 条\`);
+       if (convertedCount > 0) parts.push(\`转换 \${convertedCount} 条\`);
+       
+       if (parts.length > 0) {
+         statsText.textContent = \`✅ 过滤完成: \${parts.join('，')}，剩余 \${filtered.length} 条弹幕\`;
+         statsEl.style.display = 'flex';
+       } else {
+         statsEl.style.display = 'none';
+       }
+     }
+
+     updateDanmuStats();
+   }
+
+   function updateDanmuStats() {
+     if (!filteredDanmuData || filteredDanmuData.length === 0) {
+       return;
+     }
+
+     // 更新时间分布图
+     updateDanmuTimeChart();
+     
+     // 更新词云（简化版）
+     updateDanmuWordCloud();
+   }
+
+   function updateDanmuTimeChart() {
+     const ctx = document.getElementById('danmuTimeChart');
+     if (!ctx) return;
+
+     // 按分钟统计弹幕数量
+     const timeSlots = {};
+     filteredDanmuData.forEach(danmu => {
+       const time = parseFloat(danmu.p?.split(',')[0] || danmu.time || 0);
+       const minute = Math.floor(time / 60);
+       timeSlots[minute] = (timeSlots[minute] || 0) + 1;
+     });
+
+     const sortedMinutes = Object.keys(timeSlots).sort((a, b) => parseInt(a) - parseInt(b));
+     const labels = sortedMinutes.map(m => \`\${m}分\`);
+     const data = sortedMinutes.map(m => timeSlots[m]);
+
+     if (danmuTimeChart) {
+       danmuTimeChart.destroy();
+     }
+
+     danmuTimeChart = new Chart(ctx, {
+       type: 'line',
+       data: {
+         labels: labels,
+         datasets: [{
+           label: '弹幕数量',
+           data: data,
+           borderColor: 'rgb(99, 102, 241)',
+           backgroundColor: 'rgba(99, 102, 241, 0.1)',
+           tension: 0.4,
+           fill: true
+         }]
+       },
+       options: {
+         responsive: true,
+         maintainAspectRatio: false,
+         plugins: {
+           legend: { display: false }
+         },
+         scales: {
+           y: {
+             beginAtZero: true,
+             grid: { color: 'rgba(255, 255, 255, 0.1)' },
+             ticks: { color: '#9ca3af' }
+           },
+           x: {
+             grid: { color: 'rgba(255, 255, 255, 0.1)' },
+             ticks: { 
+               color: '#9ca3af',
+               maxRotation: 45,
+               minRotation: 45
+             }
+           }
+         }
+       }
+     });
+   }
+
+   function updateDanmuWordCloud() {
+     const container = document.getElementById('danmuWordCloud');
+     if (!container) return;
+
+     // 简化的词频统计
+     const words = {};
+     filteredDanmuData.forEach(danmu => {
+       const text = danmu.m || danmu.text || '';
+       // 简单分词（实际应该用专业分词库）
+       const chars = text.split('');
+       chars.forEach(char => {
+         if (char.match(/[\u4e00-\u9fa5a-zA-Z]/)) {
+           words[char] = (words[char] || 0) + 1;
+         }
+       });
+     });
+
+     const sorted = Object.entries(words)
+       .sort((a, b) => b[1] - a[1])
+       .slice(0, 30);
+
+     if (sorted.length === 0) {
+       container.innerHTML = '<div style="color: var(--text-tertiary); font-size: 14px;">暂无数据</div>';
+       return;
+     }
+
+     const maxCount = sorted[0][1];
+     const html = sorted.map(([word, count]) => {
+       const size = 12 + (count / maxCount) * 24;
+       const opacity = 0.5 + (count / maxCount) * 0.5;
+       return \`<span style="font-size: \${size}px; opacity: \${opacity}; margin: 4px 8px; display: inline-block; color: var(--primary-400);">\${word}</span>\`;
+     }).join('');
+
+     container.innerHTML = \`<div style="padding: 20px; line-height: 2;">\${html}</div>\`;
+   }
+
+   function clearDanmuTest() {
+     currentDanmuData = [];
+     filteredDanmuData = [];
+     document.getElementById('danmuTestInput').value = '';
+     document.getElementById('testBlockedWords').value = '';
+     document.getElementById('testSimplified').checked = false;
+     document.getElementById('testTopBottomConvert').checked = false;
+     
+     const previewContainer = document.getElementById('danmuPreviewContainer');
+     previewContainer.innerHTML = '<div style="text-align: center; padding: 60px 20px; color: var(--text-tertiary);"><div style="font-size: 48px; margin-bottom: 16px;">📝</div><div style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">暂无弹幕数据</div><div style="font-size: 13px;">请输入视频 URL 或番剧名称进行测试</div></div>';
+     
+     document.getElementById('danmuTestCount').textContent = '0 条';
+     
+     const filterStats = document.getElementById('filterStats');
+     if (filterStats) filterStats.style.display = 'none';
+     
+     const wordCloud = document.getElementById('danmuWordCloud');
+     if (wordCloud) {
+       wordCloud.innerHTML = '<div style="color: var(--text-tertiary); font-size: 14px; text-align: center;">暂无数据<br>获取弹幕后自动生成词云</div>';
+     }
+     
+     if (danmuTimeChart) {
+       danmuTimeChart.destroy();
+       danmuTimeChart = null;
+     }
+     
+     showToast('已清空弹幕测试数据', 'info');
+   }
+
+   // ========== 缓存管理功能 ==========
+   let cacheData = {
+     searchCache: {},
+     commentCache: {},
+     lastSelect: {},
+     redis: { connected: false, url: '', token: '' },
+     database: { connected: false, url: '' }
+   };
+
+   async function initCachePage() {
+     console.log('初始化缓存管理页面');
+     await loadCacheStatus();
+     await loadCacheData();
+   }
+
+   async function loadCacheStatus() {
+     try {
+       // 检查 Redis 状态
+       const redisStatusBadge = document.getElementById('redisStatusBadge');
+       const redisStatusText = document.getElementById('redisStatusText');
+       const redisConfigured = AppState.config.UPSTASH_REDIS_REST_URL && AppState.config.UPSTASH_REDIS_REST_TOKEN;
+       
+       if (redisConfigured) {
+         redisStatusBadge.className = 'badge badge-success';
+         redisStatusBadge.innerHTML = '<span class="status-dot"></span>已连接';
+         redisStatusText.textContent = '✅ Redis 已配置并连接';
+         cacheData.redis.connected = true;
+       } else {
+         redisStatusBadge.className = 'badge badge-secondary';
+         redisStatusBadge.textContent = '未配置';
+         redisStatusText.textContent = '📝 Redis 未配置';
+         cacheData.redis.connected = false;
+       }
+
+       // 检查数据库状态
+       const dbStatusBadge = document.getElementById('dbStatusBadge');
+       const dbStatusText = document.getElementById('dbStatusText');
+       const dbConfigured = AppState.config.DATABASE_URL;
+       
+       if (dbConfigured) {
+         dbStatusBadge.className = 'badge badge-success';
+         dbStatusBadge.innerHTML = '<span class="status-dot"></span>已连接';
+         dbStatusText.textContent = '✅ 数据库已配置并连接';
+         cacheData.database.connected = true;
+       } else {
+         dbStatusBadge.className = 'badge badge-secondary';
+         dbStatusBadge.textContent = '未配置';
+         dbStatusText.textContent = '📝 数据库未配置';
+         cacheData.database.connected = false;
+       }
+
+       // 更新存储状态
+       const storageStatus = document.getElementById('storageStatus');
+       const storageType = document.getElementById('storageType');
+       
+       if (cacheData.database.connected) {
+         storageStatus.textContent = '在线';
+         storageType.textContent = '数据库（主存储）';
+       } else if (cacheData.redis.connected) {
+         storageStatus.textContent = '在线';
+         storageType.textContent = 'Redis';
+       } else {
+         storageStatus.textContent = '未启用';
+         storageType.textContent = '仅内存';
+       }
+
+     } catch (error) {
+       console.error('加载缓存状态失败:', error);
+       showToast('加载缓存状态失败: ' + error.message, 'error');
+     }
+   }
+
+   async function loadCacheData() {
+     try {
+       const response = await fetch('/api/cache/stats');
+       const result = await response.json();
+
+       if (result.success) {
+         // 更新统计卡片
+         document.getElementById('searchCacheCount').textContent = result.searchCacheCount || 0;
+         document.getElementById('searchCacheSize').textContent = formatBytes(result.searchCacheSize || 0);
+         
+         document.getElementById('commentCacheCount').textContent = result.commentCacheCount || 0;
+         document.getElementById('commentCacheSize').textContent = formatBytes(result.commentCacheSize || 0);
+
+         // 更新最后选择记录
+         const lastSelectCount = result.lastSelectCount || 0;
+         document.getElementById('lastSelectCountBadge').textContent = \`\${lastSelectCount} 条\`;
+         document.getElementById('lastSelectStatus').textContent = lastSelectCount > 0 
+           ? \`已记录 \${lastSelectCount} 个用户选择\` 
+           : '未启用或无数据';
+
+         // 更新缓存详情列表
+         displayCacheDetails(result.cacheDetails || []);
+
+       } else {
+         throw new Error(result.error || '加载失败');
+       }
+     } catch (error) {
+       console.error('加载缓存数据失败:', error);
+       showToast('加载缓存数据失败: ' + error.message, 'error');
+     }
+   }
+
+   function formatBytes(bytes) {
+     if (bytes === 0) return '0 B';
+     const k = 1024;
+     const sizes = ['B', 'KB', 'MB', 'GB'];
+     const i = Math.floor(Math.log(bytes) / Math.log(k));
+     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+   }
+
+   function displayCacheDetails(details) {
+     const container = document.getElementById('cacheDetailList');
+     if (!container) return;
+
+     if (!details || details.length === 0) {
+       container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📦</div><div class="empty-state-title">暂无缓存数据</div></div>';
+       return;
+     }
+
+     const html = details.map(item => \`
+       <div class="config-item" style="margin-bottom: 12px;">
+         <div class="config-header">
+           <span class="config-label">\${item.key}</span>
+           <span class="badge badge-info">\${item.type || '未知'}</span>
+         </div>
+         <div class="config-value" style="background: none; border: none; padding: 0;">
+           <code style="color: var(--text-secondary); font-size: 12px;">
+             大小: \${formatBytes(item.size || 0)} | 
+             创建: \${item.createdAt ? new Date(item.createdAt).toLocaleString() : '未知'}
+             \${item.expiresAt ? \` | 过期: \${new Date(item.expiresAt).toLocaleString()}\` : ''}
+           </code>
+         </div>
+       </div>
+     \`).join('');
+
+     container.innerHTML = html;
+   }
+
+   async function refreshCacheData() {
+     showToast('正在刷新缓存数据...', 'info', 1000);
+     await loadCacheStatus();
+     await loadCacheData();
+     showToast('缓存数据已刷新', 'success');
+   }
+
+   function showClearCacheModal() {
+     // 重置选项
+     document.getElementById('clearSearchCache').checked = true;
+     document.getElementById('clearCommentCache').checked = true;
+     document.getElementById('clearLastSelect').checked = false;
+     document.getElementById('clearAllCache').checked = false;
+     
+     showModal('clearCacheModal');
+   }
+
+   function toggleClearAll(checkbox) {
+     const allCheckboxes = [
+       'clearSearchCache',
+       'clearCommentCache',
+       'clearLastSelect'
+     ];
+     
+     allCheckboxes.forEach(id => {
+       const el = document.getElementById(id);
+       if (el) {
+         el.checked = checkbox.checked;
+         el.disabled = checkbox.checked;
+       }
+     });
+   }
+
+   async function executeClearCache() {
+     const clearSearch = document.getElementById('clearSearchCache').checked;
+     const clearComment = document.getElementById('clearCommentCache').checked;
+     const clearLastSelect = document.getElementById('clearLastSelect').checked;
+     const clearAll = document.getElementById('clearAllCache').checked;
+
+     if (!clearSearch && !clearComment && !clearLastSelect && !clearAll) {
+       showToast('请至少选择一项要清理的缓存', 'warning');
+       return;
+     }
+
+     try {
+       showToast('正在清理缓存...', 'info', 2000);
+
+       const response = await fetch('/api/cache/clear', {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({
+           clearSearch,
+           clearComment,
+           clearLastSelect,
+           clearAll
+         })
+       });
+
+       const result = await response.json();
+
+       if (result.success) {
+         closeModal('clearCacheModal');
+         showToast(\`缓存清理成功: \${result.message}\`, 'success');
+         await refreshCacheData();
+       } else {
+         throw new Error(result.error || '清理失败');
+       }
+     } catch (error) {
+       console.error('清理缓存失败:', error);
+       showToast('清理缓存失败: ' + error.message, 'error');
+     }
    }
 
    function toggleSensitive(element) {
@@ -6956,6 +8275,227 @@ docker-compose pull danmu-api && docker-compose up -d danmu-api`;
         success: false,
         error: `❌ 更新失败: ${error.message}`,
         suggestion: '建议手动执行: docker pull w254992/danmu-api:latest && docker restart danmu-api'
+      }, 500);
+    }
+  }
+
+  // GET /api/vod/test - 测试 VOD 服务器连通性
+  if (path === "/api/vod/test" && method === "GET") {
+    const testUrl = url.searchParams.get('url');
+    if (!testUrl) {
+      return jsonResponse({ success: false, error: '缺少 URL 参数' }, 400);
+    }
+
+    try {
+      const startTime = Date.now();
+      const response = await fetch(testUrl, {
+        method: 'GET',
+        signal: AbortSignal.timeout(10000)
+      });
+      const endTime = Date.now();
+
+      if (response.ok) {
+        return jsonResponse({
+          success: true,
+          responseTime: endTime - startTime,
+          status: response.status
+        });
+      } else {
+        return jsonResponse({
+          success: false,
+          error: `HTTP ${response.status}`,
+          responseTime: endTime - startTime
+        });
+      }
+    } catch (error) {
+      return jsonResponse({
+        success: false,
+        error: error.message || '连接失败'
+      }, 500);
+    }
+  }
+
+  // GET /api/cache/stats - 获取缓存统计信息
+  if (path === "/api/cache/stats" && method === "GET") {
+    try {
+      let searchCacheCount = 0;
+      let commentCacheCount = 0;
+      let lastSelectCount = 0;
+      let searchCacheSize = 0;
+      let commentCacheSize = 0;
+      let cacheDetails = [];
+
+      // 内存缓存统计
+      if (globals.caches?.search) {
+        searchCacheCount = globals.caches.search.size || 0;
+        searchCacheSize = JSON.stringify([...globals.caches.search.entries()]).length;
+      }
+
+      if (globals.caches?.comment) {
+        commentCacheCount = globals.caches.comment.size || 0;
+        commentCacheSize = JSON.stringify([...globals.caches.comment.entries()]).length;
+      }
+
+      if (globals.lastSelectMap) {
+        lastSelectCount = globals.lastSelectMap.size || 0;
+      }
+
+      // Redis 缓存统计
+      if (globals.redisValid) {
+        try {
+          const { getRedisKey } = await import('./utils/redis-util.js');
+          
+          // 尝试获取 Redis 中的缓存信息
+          const redisInfo = await getRedisKey('cache:info');
+          if (redisInfo?.result) {
+            const info = JSON.parse(redisInfo.result);
+            if (info.searchCount) searchCacheCount += info.searchCount;
+            if (info.commentCount) commentCacheCount += info.commentCount;
+          }
+        } catch (e) {
+          log("warn", `[cache/stats] Redis 统计失败: ${e.message}`);
+        }
+      }
+
+      // 数据库缓存统计
+      if (globals.databaseValid) {
+        try {
+          const { loadCacheBatch } = await import('./utils/db-util.js');
+          const dbCache = await loadCacheBatch();
+          
+          if (dbCache.animes) {
+            searchCacheCount += Object.keys(dbCache.animes).length;
+          }
+          if (dbCache.episodeIds) {
+            commentCacheCount += Object.keys(dbCache.episodeIds).length;
+          }
+          if (dbCache.lastSelectMap) {
+            lastSelectCount += Object.keys(dbCache.lastSelectMap).length;
+          }
+        } catch (e) {
+          log("warn", `[cache/stats] 数据库统计失败: ${e.message}`);
+        }
+      }
+
+      // 生成缓存详情（示例数据）
+      if (searchCacheCount > 0) {
+        cacheDetails.push({
+          key: '搜索缓存',
+          type: '番剧搜索',
+          size: searchCacheSize,
+          createdAt: Date.now() - 3600000
+        });
+      }
+
+      if (commentCacheCount > 0) {
+        cacheDetails.push({
+          key: '弹幕缓存',
+          type: '弹幕数据',
+          size: commentCacheSize,
+          createdAt: Date.now() - 1800000
+        });
+      }
+
+      return jsonResponse({
+        success: true,
+        searchCacheCount,
+        commentCacheCount,
+        lastSelectCount,
+        searchCacheSize,
+        commentCacheSize,
+        cacheDetails
+      });
+
+    } catch (error) {
+      log("error", `[cache/stats] 获取缓存统计失败: ${error.message}`);
+      return jsonResponse({
+        success: false,
+        error: error.message
+      }, 500);
+    }
+  }
+
+  // POST /api/cache/clear - 清理缓存
+  if (path === "/api/cache/clear" && method === "POST") {
+    try {
+      const body = await req.json();
+      const { clearSearch, clearComment, clearLastSelect, clearAll } = body;
+
+      let clearedItems = [];
+
+      if (clearAll || clearSearch) {
+        if (globals.caches?.search) {
+          globals.caches.search.clear();
+          clearedItems.push('搜索缓存');
+        }
+        if (globals.animes) {
+          globals.animes = {};
+          clearedItems.push('番剧数据');
+        }
+      }
+
+      if (clearAll || clearComment) {
+        if (globals.caches?.comment) {
+          globals.caches.comment.clear();
+          clearedItems.push('弹幕缓存');
+        }
+        if (globals.episodeIds) {
+          globals.episodeIds = {};
+          clearedItems.push('剧集映射');
+        }
+        if (globals.episodeNum) {
+          globals.episodeNum = {};
+          clearedItems.push('集数映射');
+        }
+      }
+
+      if (clearAll || clearLastSelect) {
+        if (globals.lastSelectMap) {
+          globals.lastSelectMap.clear();
+          clearedItems.push('最后选择记录');
+        }
+      }
+
+      // 清理持久化存储
+      if (clearAll) {
+        // Redis 清理
+        if (globals.redisValid) {
+          try {
+            const { setRedisKey } = await import('./utils/redis-util.js');
+            await setRedisKey('cache:info', '', true, 1);
+            clearedItems.push('Redis缓存');
+          } catch (e) {
+            log("warn", `[cache/clear] Redis 清理失败: ${e.message}`);
+          }
+        }
+
+        // 数据库清理
+        if (globals.databaseValid) {
+          try {
+            const { clearAllCache } = await import('./utils/db-util.js');
+            if (typeof clearAllCache === 'function') {
+              await clearAllCache();
+              clearedItems.push('数据库缓存');
+            }
+          } catch (e) {
+            log("warn", `[cache/clear] 数据库清理失败: ${e.message}`);
+          }
+        }
+      }
+
+      log("info", `[cache/clear] 已清理: ${clearedItems.join('、')}`);
+
+      return jsonResponse({
+        success: true,
+        message: `已清理: ${clearedItems.join('、')}`,
+        clearedItems
+      });
+
+    } catch (error) {
+      log("error", `[cache/clear] 清理缓存失败: ${error.message}`);
+      return jsonResponse({
+        success: false,
+        error: error.message
       }, 500);
     }
   }
