@@ -27,7 +27,7 @@ function compareVersion(version1, version2) {
 }
 
 // 环境检测函数
-function detectEnvironment() {
+async function detectEnvironment() {
   const nodeVersion = process.versions.node;
   const isNodeCompatible = compareVersion(nodeVersion, '20.19.0') >= 0;
 
@@ -61,7 +61,7 @@ function detectEnvironment() {
 }
 
 // 检测环境
-const env = detectEnvironment();
+const env = await detectEnvironment();
 
 console.log(`[esm-shim] Environment: Node ${env.nodeVersion}, node-fetch ${env.nodeFetchVersion}`);
 console.log(`[esm-shim] Node.js compatible (>=20.19.0): ${env.isNodeCompatible}`);
