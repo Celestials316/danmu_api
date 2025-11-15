@@ -27,7 +27,7 @@ const Globals = {
   storageChecked: false, // 🔥 新增:标记是否已检查存储连接
 
   // 静态常量
-  VERSION: '1.7.5',
+  VERSION: '1.7.6',
   MAX_LOGS: 500,
   MAX_ANIMES: 100,
   MAX_LAST_SELECT_MAP: 1000,
@@ -80,7 +80,9 @@ const Globals = {
    */
   async loadConfigFromStorage() {
     try {
-      // 首先检查数据库连接
+      let configLoaded = false;
+
+      // 🔥 优先级 1: 尝试从数据库加载
       if (this.envs.databaseUrl) {
         try {
           const { checkDatabaseConnection, initDatabase, loadEnvConfigs } = await importDbUtil();
@@ -88,44 +90,55 @@ const Globals = {
           const isConnected = await checkDatabaseConnection();
           if (isConnected) {
             await initDatabase();
+            this.databaseValid = true;
 
             const dbConfig = await loadEnvConfigs();
             if (Object.keys(dbConfig).length > 0) {
-              console.log(`[Globals] ✅ 从数据库加载了 ${Object.keys(dbConfig).length} 个配置`);
-
-              // 应用数据库配置,覆盖默认值
+              console.log(`[Globals] ✅ 从数据库加载了 ${Object.keys(dbConfig).length} 个配置（优先级最高）`);
               this.applyConfig(dbConfig);
-              return;
+              configLoaded = true;
             }
+          } else {
+            this.databaseValid = false;
           }
         } catch (error) {
           console.error('[Globals] ❌ 数据库加载失败:', error.message);
+          this.databaseValid = false;
         }
       }
 
-      // 如果数据库不可用,尝试 Redis
-      if (this.envs.redisUrl && this.envs.redisToken) {
+      // 🔥 优先级 2: 如果数据库未加载成功，尝试 Redis
+      if (!configLoaded && this.envs.redisUrl && this.envs.redisToken) {
         try {
           const { pingRedis, getRedisKey } = await importRedisUtil();
 
           const pingResult = await pingRedis();
           if (pingResult && pingResult.result === "PONG") {
+            this.redisValid = true;
+            
             const result = await getRedisKey('env_configs');
             if (result && result.result) {
               try {
                 const redisConfig = JSON.parse(result.result);
-                console.log(`[Globals] ✅ 从 Redis 加载了 ${Object.keys(redisConfig).length} 个配置`);
-
-                // 应用 Redis 配置
+                console.log(`[Globals] ✅ 从 Redis 加载了 ${Object.keys(redisConfig).length} 个配置（优先级次之）`);
                 this.applyConfig(redisConfig);
+                configLoaded = true;
               } catch (e) {
                 console.error('[Globals] ❌ 解析 Redis 配置失败:', e.message);
               }
             }
+          } else {
+            this.redisValid = false;
           }
         } catch (error) {
           console.error('[Globals] ❌ Redis 加载失败:', error.message);
+          this.redisValid = false;
         }
+      }
+
+      // 🔥 优先级 3: 如果都没加载成功，使用内存中的环境变量
+      if (!configLoaded) {
+        console.log('[Globals] 📝 使用环境变量默认配置（未找到持久化存储）');
       }
     } catch (error) {
       console.error('[Globals] ❌ 加载存储配置失败:', error.message);
@@ -312,7 +325,7 @@ const Globals = {
     // ✅ EPISODE_TITLE_FILTER 处理 - 确保转换为正则对象
     if (changedKeys.includes('EPISODE_TITLE_FILTER')) {
       let filterValue = config.EPISODE_TITLE_FILTER;
-      
+
       // 如果是字符串，转换为正则表达式
       if (typeof filterValue === 'string' && filterValue.length > 0) {
         try {
@@ -328,7 +341,7 @@ const Globals = {
           filterValue = null;
         }
       }
-      
+
       this.envs.episodeTitleFilter = filterValue;
       this.envs.EPISODE_TITLE_FILTER = filterValue;
     }
