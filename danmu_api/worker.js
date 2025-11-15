@@ -3046,7 +3046,7 @@ async function handleHomepage(req) {
      font-family: 'Monaco', 'Menlo', monospace;
    }
 
-   /* 日志容器样式 */
+   /* 日志容器样式 - 增强版 */
    .log-container {
      background: var(--bg-primary);
      border: 1px solid var(--border-color);
@@ -3076,12 +3076,75 @@ async function handleHomepage(req) {
      z-index: 10;
      backdrop-filter: blur(10px);
    }
+
+   .log-header-title {
+     display: flex;
+     align-items: center;
+     gap: 10px;
+     font-weight: 600;
+     font-size: 13px;
+     color: var(--text-primary);
+   }
+
+   .log-status-badge {
+     display: inline-flex;
+     align-items: center;
+     gap: 5px;
+     padding: 4px 10px;
+     border-radius: 6px;
+     font-size: 11px;
+     font-weight: 700;
+     text-transform: uppercase;
+     letter-spacing: 0.5px;
+   }
+
+   .log-status-badge.paused {
+     background: rgba(245, 158, 11, 0.15);
+     color: var(--warning);
+     border: 1px solid var(--warning);
+   }
+
+   .log-status-badge.running {
+     background: rgba(16, 185, 129, 0.15);
+     color: var(--success);
+     border: 1px solid var(--success);
+     animation: statusPulse 2s ease-in-out infinite;
+   }
+
    .log-content-wrapper {
      flex: 1;
      overflow-y: auto;
      padding: 12px 16px;
      background: var(--bg-primary);
      border-radius: 0 0 12px 12px;
+     position: relative;
+   }
+
+   .log-content-wrapper.paused::after {
+     content: '⏸️ 已暂停 - 点击恢复继续滚动';
+     position: absolute;
+     top: 12px;
+     right: 16px;
+     background: rgba(245, 158, 11, 0.9);
+     color: white;
+     padding: 6px 12px;
+     border-radius: 6px;
+     font-size: 11px;
+     font-weight: 700;
+     box-shadow: 0 2px 8px rgba(245, 158, 11, 0.4);
+     animation: fadeInDown 0.3s ease-out;
+     pointer-events: none;
+   }
+
+   @keyframes fadeInDown {
+     from {
+       opacity: 0;
+       transform: translateY(-10px);
+     }
+     to {
+       opacity: 1;
+       transform: translateY(0);
+     }
    }
 
    .log-content-wrapper::-webkit-scrollbar {
@@ -3107,6 +3170,20 @@ async function handleHomepage(req) {
      display: flex;
      gap: 8px;
      flex-wrap: wrap;
+     align-items: center;
+   }
+
+   .log-control-group {
+     display: flex;
+     gap: 6px;
+     align-items: center;
+   }
+
+   .log-control-divider {
+     width: 1px;
+     height: 24px;
+     background: var(--border-color);
+     margin: 0 4px;
    }
 
    .log-filter {
@@ -3126,6 +3203,7 @@ async function handleHomepage(req) {
      border-color: var(--primary-500);
      background: var(--bg-hover);
      color: var(--text-primary);
+     transform: translateY(-1px);
    }
 
    .log-filter.active {
@@ -3133,6 +3211,41 @@ async function handleHomepage(req) {
      color: white;
      border-color: var(--primary-500);
      box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+   }
+
+   .log-action-btn {
+     padding: 6px 12px;
+     border-radius: 6px;
+     border: 1px solid var(--border-color);
+     background: var(--bg-tertiary);
+     color: var(--text-primary);
+     cursor: pointer;
+     font-size: 12px;
+     font-weight: 600;
+     transition: all 0.3s var(--ease-smooth);
+     display: inline-flex;
+     align-items: center;
+     gap: 5px;
+     white-space: nowrap;
+   }
+
+   .log-action-btn:hover {
+     border-color: var(--primary-500);
+     background: var(--bg-hover);
+     transform: translateY(-1px);
+   }
+
+   .log-action-btn.pause-btn.active {
+     background: linear-gradient(135deg, var(--warning), #f59e0b);
+     color: white;
+     border-color: var(--warning);
+     box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+   }
+
+   .log-action-btn.clear-btn:hover {
+     background: var(--error);
+     color: white;
+     border-color: var(--error);
    }
 
    .log-line {
@@ -3147,6 +3260,18 @@ async function handleHomepage(req) {
      margin-bottom: 2px;
      border-radius: 6px;
      border-left: 3px solid transparent;
+     animation: slideInFromLeft 0.3s ease-out;
+   }
+
+   @keyframes slideInFromLeft {
+     from {
+       opacity: 0;
+       transform: translateX(-10px);
+     }
+     to {
+       opacity: 1;
+       transform: translateX(0);
+     }
    }
 
    .log-line:hover {
@@ -3208,6 +3333,25 @@ async function handleHomepage(req) {
 
    .log-line.error .log-level {
      color: var(--error);
+   }
+
+   .log-stats {
+     display: flex;
+     align-items: center;
+     gap: 12px;
+     font-size: 11px;
+     color: var(--text-tertiary);
+     margin-left: auto;
+   }
+
+   .log-stat-item {
+     display: flex;
+     align-items: center;
+     gap: 4px;
+     padding: 4px 8px;
+     background: var(--bg-tertiary);
+     border-radius: 5px;
+     border: 1px solid var(--border-color);
    }
 
    /* 移动端适配 */
@@ -4296,16 +4440,48 @@ async function handleHomepage(req) {
      <div class="modal-body" style="max-height: 75vh; padding: 0;">
        <div class="log-container">
          <div class="log-header">
-           <span style="font-weight: 600; font-size: 13px; color: var(--text-primary);">📋 实时日志</span>
+           <div class="log-header-title">
+             <span>📋 实时日志</span>
+             <span class="log-status-badge running" id="logStatusBadge">
+               <span class="status-dot"></span>
+               <span id="logStatusText">运行中</span>
+             </span>
+           </div>
            <div class="log-controls">
-             <button class="log-filter active" data-level="all" onclick="filterLogs('all')">全部</button>
-             <button class="log-filter" data-level="info" onclick="filterLogs('info')">信息</button>
-             <button class="log-filter" data-level="warn" onclick="filterLogs('warn')">警告</button>
-             <button class="log-filter" data-level="error" onclick="filterLogs('error')">错误</button>
-             <button class="log-filter" onclick="clearLogs()" style="margin-left: 8px;">🗑️ 清空</button>
+             <div class="log-control-group">
+               <button class="log-filter active" data-level="all" onclick="filterLogs('all')">全部</button>
+               <button class="log-filter" data-level="info" onclick="filterLogs('info')">信息</button>
+               <button class="log-filter" data-level="warn" onclick="filterLogs('warn')">警告</button>
+               <button class="log-filter" data-level="error" onclick="filterLogs('error')">错误</button>
+             </div>
+             <div class="log-control-divider"></div>
+             <div class="log-control-group">
+               <button class="log-action-btn pause-btn" id="pauseLogsBtn" onclick="toggleLogPause()" title="暂停/恢复自动滚动 (空格键)">
+                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" id="pauseIcon">
+                   <path d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2" stroke-linecap="round"/>
+                 </svg>
+                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" id="playIcon" style="display: none;">
+                   <path d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" fill="currentColor"/>
+                   <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
+                 </svg>
+                 <span id="pauseBtnText">暂停</span>
+               </button>
+               <button class="log-action-btn clear-btn" onclick="clearLogs()" title="清空日志显示">
+                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor">
+                   <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-width="2" stroke-linecap="round"/>
+                 </svg>
+                 清空
+               </button>
+             </div>
+           </div>
+           <div class="log-stats">
+             <div class="log-stat-item">
+               <span>📊</span>
+               <span id="logCount">0 条</span>
+             </div>
            </div>
          </div>
-         <div class="log-content-wrapper">
+         <div class="log-content-wrapper" id="logContentWrapper">
            <div id="logContent"></div>
          </div>
        </div>
@@ -4316,7 +4492,7 @@ async function handleHomepage(req) {
          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
            <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-width="2" stroke-linecap="round"/>
          </svg>
-         刷新
+         手动刷新
        </button>
      </div>
    </div>
@@ -5449,17 +5625,51 @@ async function handleHomepage(req) {
    const LogManager = {
      logs: [],
      currentFilter: 'all',
-     refreshInterval: null
+     refreshInterval: null,
+     isPaused: false,
+     shouldAutoScroll: true
    };
 
    async function showLogsModal() {
      showModal('logsModal');
+     LogManager.isPaused = false;
+     updatePauseButtonState();
      await refreshLogs();
      
      // 每3秒自动刷新
      LogManager.refreshInterval = setInterval(() => {
-       refreshLogs(true);
+       if (!LogManager.isPaused) {
+         refreshLogs(true);
+       }
      }, 3000);
+     
+     // 监听用户手动滚动
+     setTimeout(() => {
+       const logWrapper = document.getElementById('logContentWrapper');
+       if (logWrapper) {
+         let userScrolling = false;
+         let scrollTimeout;
+         
+         logWrapper.addEventListener('scroll', function() {
+           const isAtBottom = logWrapper.scrollHeight - logWrapper.scrollTop <= logWrapper.clientHeight + 50;
+           
+           if (!isAtBottom) {
+             if (!LogManager.isPaused && !userScrolling) {
+               userScrolling = true;
+               LogManager.shouldAutoScroll = false;
+             }
+           } else {
+             LogManager.shouldAutoScroll = true;
+             userScrolling = false;
+           }
+           
+           clearTimeout(scrollTimeout);
+           scrollTimeout = setTimeout(() => {
+             userScrolling = false;
+           }, 1000);
+         });
+       }
+     }, 100);
    }
 
    async function refreshLogs(silent = false) {
@@ -5468,11 +5678,18 @@ async function handleHomepage(req) {
        const result = await response.json();
        
        if (result.success && result.logs) {
+         const oldCount = LogManager.logs.length;
          LogManager.logs = result.logs;
+         
+         updateLogCount();
          displayLogs();
          
          if (!silent) {
            showToast(\`已加载 \${result.logs.length} 条日志\`, 'success', 1500);
+         }
+         
+         if (!LogManager.isPaused && result.logs.length > oldCount && LogManager.shouldAutoScroll) {
+           scrollToBottom();
          }
        }
      } catch (error) {
@@ -5520,14 +5737,6 @@ async function handleHomepage(req) {
      }).join('');
      
      logContent.innerHTML = logsHtml;
-     
-     // 自动滚动到底部
-     const wrapper = logContent.parentElement;
-     if (wrapper) {
-       setTimeout(() => {
-         wrapper.scrollTop = wrapper.scrollHeight;
-       }, 100);
-     }
    }
 
    function filterLogs(level) {
@@ -5541,6 +5750,10 @@ async function handleHomepage(req) {
      });
      
      displayLogs();
+     
+     if (!LogManager.isPaused) {
+       setTimeout(scrollToBottom, 100);
+     }
    }
 
    function clearLogs() {
@@ -5548,7 +5761,72 @@ async function handleHomepage(req) {
      
      LogManager.logs = [];
      displayLogs();
+     updateLogCount();
      showToast('日志已清空', 'success');
+   }
+
+   function toggleLogPause() {
+     LogManager.isPaused = !LogManager.isPaused;
+     updatePauseButtonState();
+     
+     const wrapper = document.getElementById('logContentWrapper');
+     const statusBadge = document.getElementById('logStatusBadge');
+     const statusText = document.getElementById('logStatusText');
+     
+     if (LogManager.isPaused) {
+       wrapper.classList.add('paused');
+       statusBadge.classList.remove('running');
+       statusBadge.classList.add('paused');
+       statusText.textContent = '已暂停';
+       showToast('日志滚动已暂停', 'warning', 2000);
+     } else {
+       wrapper.classList.remove('paused');
+       statusBadge.classList.remove('paused');
+       statusBadge.classList.add('running');
+       statusText.textContent = '运行中';
+       showToast('日志滚动已恢复', 'success', 2000);
+       
+       setTimeout(scrollToBottom, 100);
+     }
+   }
+
+   function updatePauseButtonState() {
+     const pauseBtn = document.getElementById('pauseLogsBtn');
+     const pauseIcon = document.getElementById('pauseIcon');
+     const playIcon = document.getElementById('playIcon');
+     const btnText = document.getElementById('pauseBtnText');
+     
+     if (!pauseBtn) return;
+     
+     if (LogManager.isPaused) {
+       pauseBtn.classList.add('active');
+       pauseIcon.style.display = 'none';
+       playIcon.style.display = 'block';
+       btnText.textContent = '恢复';
+     } else {
+       pauseBtn.classList.remove('active');
+       pauseIcon.style.display = 'block';
+       playIcon.style.display = 'none';
+       btnText.textContent = '暂停';
+     }
+   }
+
+   function scrollToBottom() {
+     const wrapper = document.getElementById('logContentWrapper');
+     if (wrapper) {
+       wrapper.scrollTop = wrapper.scrollHeight;
+     }
+   }
+
+   function updateLogCount() {
+     const logCountElement = document.getElementById('logCount');
+     if (logCountElement) {
+       const filteredCount = LogManager.currentFilter === 'all'
+         ? LogManager.logs.length
+         : LogManager.logs.filter(log => log.level === LogManager.currentFilter).length;
+       
+       logCountElement.textContent = \`\${filteredCount} 条\`;
+     }
    }
 
    // 关闭日志窗口时停止自动刷新
@@ -5557,6 +5835,8 @@ async function handleHomepage(req) {
      if (modalId === 'logsModal' && LogManager.refreshInterval) {
        clearInterval(LogManager.refreshInterval);
        LogManager.refreshInterval = null;
+       LogManager.isPaused = false;
+       LogManager.shouldAutoScroll = true;
      }
      originalCloseModal(modalId);
    };
@@ -5569,6 +5849,15 @@ async function handleHomepage(req) {
        const logsModal = document.getElementById('logsModal');
        if (logsModal && !logsModal.classList.contains('show')) {
          showLogsModal();
+       }
+     }
+     
+     // 空格键暂停/恢复（仅当日志窗口打开时）
+     if (e.code === 'Space') {
+       const logsModal = document.getElementById('logsModal');
+       if (logsModal && logsModal.classList.contains('show')) {
+         e.preventDefault();
+         toggleLogPause();
        }
      }
    });
