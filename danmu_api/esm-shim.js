@@ -5,7 +5,6 @@
 import Module from 'module';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { readFileSync } from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -37,11 +36,9 @@ function detectEnvironment() {
   let needsShim = false;
 
   try {
-    // 🔥 修复：改用同步读取 package.json
+    // 尝试检测 node-fetch 版本
     const packagePath = Module.createRequire(import.meta.url).resolve('node-fetch/package.json');
-    const pkgContent = readFileSync(packagePath, 'utf8');
-    const pkg = JSON.parse(pkgContent);
-    
+    const pkg = JSON.parse(await import('fs').then(fs => fs.promises.readFile(packagePath, 'utf8')));
     nodeFetchVersion = pkg.version;
     isNodeFetchV3 = pkg.version.startsWith('3.');
 
@@ -95,9 +92,7 @@ if (!env.needsShim) {
   // 以下是 shim 逻辑，只在 Node.js < v20.19.0 + node-fetch v3 时执行
   let esbuild;
   try {
-    // 🔥 修复：动态导入必须在 async 上下文中
-    const esbuildModule = await import('esbuild');
-    esbuild = esbuildModule;
+    esbuild = await import('esbuild');
   } catch (err) {
     console.error('[esm-shim] missing dependency: run `npm install esbuild`');
     throw err;

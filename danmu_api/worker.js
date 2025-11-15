@@ -529,15 +529,42 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
   let path = url.pathname;
   const method = req.method;
 
-  await judgeRedisValid(path);
+  // 🔥 优先检查数据库连接
+  if (!globals.storageChecked && path !== "/favicon.ico" && path !== "/robots.txt") {
+    if (globals.databaseValid) {
+      try {
+        const { loadCacheBatch } = await import('./utils/db-util.js');
+        const cacheData = await loadCacheBatch();
+        
+        // 加载缓存数据到内存
+        if (cacheData.animes) globals.animes = cacheData.animes;
+        if (cacheData.episodeIds) globals.episodeIds = cacheData.episodeIds;
+        if (cacheData.episodeNum) globals.episodeNum = cacheData.episodeNum;
+        if (cacheData.lastSelectMap) {
+          globals.lastSelectMap = new Map(Object.entries(cacheData.lastSelectMap));
+        }
+        
+        log("info", "[storage] ✅ 从数据库加载缓存数据（优先级最高）");
+      } catch (error) {
+        log("error", `[storage] ❌ 数据库缓存加载失败: ${error.message}`);
+      }
+    }
+    
+    // 🔥 如果数据库不可用，检查 Redis
+    if (!globals.databaseValid) {
+      await judgeRedisValid(path);
+      if (globals.redisValid) {
+        await getRedisCaches();
+        log("info", "[storage] ✅ 从 Redis 加载缓存数据");
+      }
+    }
+    
+    globals.storageChecked = true;
+  }
 
   log("info", `request url: ${JSON.stringify(url)}`);
   log("info", `request path: ${path}`);
   log("info", `client ip: ${clientIp}`);
-
-  if (globals.redisValid && path !== "/favicon.ico" && path !== "/robots.txt") {
-    await getRedisCaches();
-  }
 
 async function handleHomepage(req) {
   log("info", "Accessed homepage");
@@ -832,7 +859,7 @@ async function handleHomepage(req) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>弹幕 API 管理后台 v${globals.VERSION}</title>
+  <title>弹幕 API 管理后台</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script>
     (function() {
@@ -5831,21 +5858,29 @@ async function handleHomepage(req) {
         }, 400);
       }
 
-      // 1) 数据库（如有）
+      // 🔥 优先级 1: 保存到数据库
       let dbSaved = false;
       if (globals.databaseValid) {
         try {
           const { saveEnvConfigs } = await import('./utils/db-util.js');
           dbSaved = await saveEnvConfigs(sanitizedConfig);
-          log("info", `[config] 数据库保存${dbSaved ? '成功' : '失败'}`);
+          log("info", `[config] 数据库保存${dbSaved ? '成功' : '失败'}（优先级最高）`);
         } catch (e) {
           log("warn", `[config] 保存到数据库失败: ${e.message}`);
         }
       }
 
-      // 2) Redis：合并而非覆盖
+      // 🔥 优先级 2: 同步到 Redis（如果数据库保存成功）
       let redisSaved = false;
-      if (globals.redisValid) {
+      if (dbSaved && globals.redisValid) {
+        try {
+          redisSaved = await mergeSaveToRedis('env_configs', sanitizedConfig);
+          log("info", `[config] Redis同步${redisSaved ? '成功' : '失败'}（作为备份）`);
+        } catch (e) {
+          log("warn", `[config] Redis同步失败: ${e.message}`);
+        }
+      } else if (!dbSaved && globals.redisValid) {
+        // 如果数据库保存失败，尝试直接保存到 Redis
         redisSaved = await mergeSaveToRedis('env_configs', sanitizedConfig);
         log("info", `[config] Redis保存${redisSaved ? '成功' : '失败'}`);
       }
@@ -5870,9 +5905,13 @@ async function handleHomepage(req) {
       }
 
       const savedTo = [];
-      if (dbSaved) savedTo.push('数据库');
-      if (redisSaved) savedTo.push('Redis');
-      savedTo.push('运行时内存'); // 总是会应用到内存
+      if (dbSaved) {
+        savedTo.push('数据库（主存储）');
+        if (redisSaved) savedTo.push('Redis（备份）');
+      } else if (redisSaved) {
+        savedTo.push('Redis');
+      }
+      savedTo.push('运行时内存');
 
       log("info", `[config] 配置保存完成: ${savedTo.join('、')}`);
       return jsonResponse({
@@ -5899,35 +5938,42 @@ async function handleHomepage(req) {
       let config = {};
       let loadedFrom = [];
 
-      // 尝试从数据库加载
+      // 🔥 优先级 1: 从数据库加载
       if (globals.databaseValid) {
-        const { loadEnvConfigs } = await import('./utils/db-util.js');
-        const dbConfig = await loadEnvConfigs();
-        if (Object.keys(dbConfig).length > 0) {
-          config = { ...config, ...dbConfig };
-          loadedFrom.push('数据库');
+        try {
+          const { loadEnvConfigs } = await import('./utils/db-util.js');
+          const dbConfig = await loadEnvConfigs();
+          if (Object.keys(dbConfig).length > 0) {
+            config = { ...config, ...dbConfig };
+            loadedFrom.push('数据库（主存储）');
+            log("info", "[config] ✅ 从数据库加载配置成功");
+          }
+        } catch (e) {
+          log("warn", `[config] 数据库加载失败: ${e.message}`);
         }
       }
 
-      // 尝试从 Redis 加载
-      if (globals.redisValid && Object.keys(config).length === 0) {
-        const { getRedisKey } = await import('./utils/redis-util.js');
-        const result = await getRedisKey('env_configs');
-        if (result && result.result) {
-          try {
+      // 🔥 优先级 2: 如果数据库未加载成功，从 Redis 加载
+      if (Object.keys(config).length === 0 && globals.redisValid) {
+        try {
+          const { getRedisKey } = await import('./utils/redis-util.js');
+          const result = await getRedisKey('env_configs');
+          if (result && result.result) {
             const redisConfig = JSON.parse(result.result);
             config = { ...config, ...redisConfig };
             loadedFrom.push('Redis');
-          } catch (e) {
-            log("warn", "[config] Redis 配置解析失败");
+            log("info", "[config] ✅ 从 Redis 加载配置成功");
           }
+        } catch (e) {
+          log("warn", `[config] Redis 配置解析失败: ${e.message}`);
         }
       }
 
-      // 如果都没有，返回当前内存中的配置
+      // 🔥 优先级 3: 如果都没有，返回内存中的配置
       if (Object.keys(config).length === 0) {
         config = globals.accessedEnvVars;
-        loadedFrom.push('内存');
+        loadedFrom.push('内存（无持久化存储）');
+        log("info", "[config] 📝 使用内存默认配置");
       }
 
       // 🔥 新增：将正则表达式转换为字符串，避免前端显示 [object Object]
