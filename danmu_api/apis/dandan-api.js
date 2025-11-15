@@ -157,7 +157,7 @@ export async function searchAnime(url) {
     // 🔥 如果数据库不可用，更新 Redis
     if (!globals.databaseValid && globals.redisValid && curAnimes.length !== 0) {
       await updateRedisCaches();
-      log("info", "[cache] ✅ Redis缓存已更新（数据库不可用）");
+      log("info", "[cache] ✅ Redis缓存已更新");
     }
 
     return jsonResponse({
@@ -820,7 +820,7 @@ export async function getComment(path, queryFormat) {
   // 🔥 如果数据库不可用，保存到 Redis
   if (!globals.databaseValid && globals.redisValid && animeId) {
     await setRedisKey('lastSelectMap', globals.lastSelectMap);
-    log("info", "[cache] ✅ lastSelectMap已保存到Redis（数据库不可用）");
+    log("info", "[cache] ✅ lastSelectMap已保存到Redis");
   }
 
   // 缓存弹幕结果
