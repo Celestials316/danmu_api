@@ -6871,50 +6871,139 @@ if (path === "/api/logout" && method === "POST") {
 
       log("info", "[update] 开始执行 Docker 容器更新...");
 
-      // 使用 Node.js 的 child_process 执行更新脚本
       const { exec } = await import('child_process');
       const { promisify } = await import('util');
       const execAsync = promisify(exec);
 
-      // 执行更新命令（在后台执行，避免阻塞响应）
-      const updateScript = `
-        #!/bin/bash
-        echo "开始更新 Docker 容器..."
-        sleep 2
-        docker pull w254992/danmu-api:latest
-        docker restart danmu-api
-      `;
+      // 🔍 检查是否有 watchtower 容器
+      let hasWatchtower = false;
+      let watchtowerMethod = 'none';
+      
+      try {
+        const { stdout, stderr } = await execAsync('docker ps --filter "name=watchtower" --format "{{.Names}}"');
+        const watchtowerName = stdout.trim();
+        hasWatchtower = watchtowerName.length > 0;
+        
+        if (hasWatchtower) {
+          log("info", `[update] ✅ 检测到 Watchtower 容器: ${watchtowerName}`);
+        } else {
+          log("info", "[update] ⚠️ 未检测到 Watchtower，将使用兜底方案");
+        }
+      } catch (e) {
+        log("warn", `[update] 检测 Watchtower 失败: ${e.message}`);
+      }
 
-      // 写入临时脚本文件
+      // 🎯 方案 1: 使用 Watchtower 更新（推荐）
+      if (hasWatchtower) {
+        try {
+          log("info", "[update] 尝试通过 Watchtower 触发更新...");
+          
+          // 方法 1: 直接触发 watchtower 执行
+          try {
+            await execAsync('docker exec watchtower watchtower --run-once danmu-api', { timeout: 5000 });
+            watchtowerMethod = 'exec';
+            log("info", "[update] ✅ 已通过 watchtower --run-once 触发更新");
+          } catch (execError) {
+            // 方法 2: 通过标签触发
+            log("warn", `[update] watchtower exec 失败: ${execError.message}，尝试标签触发`);
+            await execAsync('docker label add danmu-api com.centurylinklabs.watchtower.enable=true');
+            await execAsync('docker kill --signal=USR1 watchtower');
+            watchtowerMethod = 'signal';
+            log("info", "[update] ✅ 已通过信号触发 Watchtower");
+          }
+          
+          return jsonResponse({
+            success: true,
+            message: '✅ 更新已触发（Watchtower），容器将在几秒后自动更新并重启',
+            method: 'watchtower',
+            details: `使用方法: ${watchtowerMethod}`,
+            note: '⏳ 更新过程需要 30-60 秒，请稍后刷新页面查看新版本'
+          });
+          
+        } catch (watchtowerError) {
+          log("error", `[update] Watchtower 更新失败: ${watchtowerError.message}，切换到兜底方案`);
+          // 继续执行兜底方案
+        }
+      }
+
+      // 🔧 方案 2: 兜底方案 - 直接更新
+      log("info", "[update] 使用兜底方案：直接拉取镜像并重启容器");
+      
+      const updateScript = `#!/bin/bash
+echo "================================================"
+echo "🚀 开始更新 Danmu API Docker 容器"
+echo "================================================"
+
+# 拉取最新镜像
+echo "📦 拉取最新镜像..."
+docker pull w254992/danmu-api:latest
+
+if [ $? -eq 0 ]; then
+  echo "✅ 镜像拉取成功"
+  
+  # 等待2秒后重启容器
+  sleep 2
+  echo "🔄 重启容器..."
+  docker restart danmu-api
+  
+  if [ $? -eq 0 ]; then
+    echo "✅ 容器重启成功"
+  else
+    echo "❌ 容器重启失败"
+    exit 1
+  fi
+else
+  echo "❌ 镜像拉取失败"
+  exit 1
+fi
+
+echo "================================================"
+echo "✅ 更新完成"
+echo "================================================"
+`;
+
       const fs = await import('fs');
       const path = await import('path');
-      const scriptPath = path.join('/tmp', 'update-container.sh');
+      const scriptPath = path.join('/tmp', 'update-danmu-api.sh');
       
       fs.writeFileSync(scriptPath, updateScript, { mode: 0o755 });
+      log("info", `[update] 更新脚本已写入: ${scriptPath}`);
       
-      // 后台执行更新脚本
-      exec(`bash ${scriptPath} > /tmp/update.log 2>&1 &`, (error) => {
+      // 后台执行更新脚本（使用 nohup 确保进程不被杀死）
+      exec(`nohup bash ${scriptPath} > /tmp/danmu-update.log 2>&1 &`, (error, stdout, stderr) => {
         if (error) {
-          log("error", `[update] 更新脚本执行失败: ${error.message}`);
+          log("error", `[update] 脚本执行失败: ${error.message}`);
+          log("error", `[update] stderr: ${stderr}`);
+        } else {
+          log("info", `[update] 脚本已后台执行，输出: ${stdout}`);
         }
       });
-
-      log("info", "[update] 更新命令已提交，容器将在几秒后自动重启");
-
+      
+      // 等待100ms确保脚本开始执行
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      log("info", "[update] 兜底方案已启动，容器将在几秒后更新并重启");
+      
       return jsonResponse({
         success: true,
-        message: '更新命令已提交，容器将在几秒后自动重启...',
-        note: '更新过程需要 30-60 秒，请稍后刷新页面'
+        message: '✅ 更新命令已提交（兜底方案），容器将在几秒后自动更新并重启',
+        method: 'fallback',
+        note: '⏳ 更新过程需要 30-60 秒，请稍后刷新页面查看新版本',
+        logPath: '/tmp/danmu-update.log'
       });
 
     } catch (error) {
       log("error", `[update] 更新失败: ${error.message}`);
+      log("error", `[update] 错误堆栈: ${error.stack}`);
+      
       return jsonResponse({
         success: false,
-        error: `更新失败: ${error.message}`
+        error: `❌ 更新失败: ${error.message}`,
+        suggestion: '建议手动执行: docker pull w254992/danmu-api:latest && docker restart danmu-api'
       }, 500);
     }
   }
+
 
   return jsonResponse({ message: "Not found" }, 404);
 }
