@@ -176,6 +176,30 @@ export async function getRedisCaches() {
             log("info", `[cache] 从数据库恢复 lastSelectMap,共 ${globals.lastSelectMap.size} 条`);
           }
 
+          // 🔥 恢复 commentCache（过滤过期数据）
+          if (cacheMap.commentCache && typeof cacheMap.commentCache === 'object') {
+            const now = Date.now();
+            const validComments = Object.entries(cacheMap.commentCache).filter(([url, data]) => {
+              if (!data.timestamp) return false;
+              const cacheAgeMinutes = (now - data.timestamp) / (1000 * 60);
+              return cacheAgeMinutes <= globals.commentCacheMinutes;
+            });
+            globals.commentCache = new Map(validComments);
+            log("info", `[cache] 从数据库恢复 commentCache,共 ${globals.commentCache.size} 条（已过滤过期）`);
+          }
+
+          // 🔥 恢复 searchCache（过滤过期数据）
+          if (cacheMap.searchCache && typeof cacheMap.searchCache === 'object') {
+            const now = Date.now();
+            const validSearches = Object.entries(cacheMap.searchCache).filter(([keyword, data]) => {
+              if (!data.timestamp) return false;
+              const cacheAgeMinutes = (now - data.timestamp) / (1000 * 60);
+              return cacheAgeMinutes <= globals.searchCacheMinutes;
+            });
+            globals.searchCache = new Map(validSearches);
+            log("info", `[cache] 从数据库恢复 searchCache,共 ${globals.searchCache.size} 条（已过滤过期）`);
+          }
+
           // 更新哈希值
           globals.lastHashes.animes = simpleHash(JSON.stringify(globals.animes));
           globals.lastHashes.episodeIds = simpleHash(JSON.stringify(globals.episodeIds));
@@ -191,7 +215,7 @@ export async function getRedisCaches() {
       // 如果数据库不可用或无数据,尝试 Redis
       if (globals.redisValid) {
         log("info", '[cache] 尝试从 Redis 加载缓存...');
-        const keys = ['animes', 'episodeIds', 'episodeNum', 'lastSelectMap'];
+        const keys = ['animes', 'episodeIds', 'episodeNum', 'lastSelectMap', 'commentCache', 'searchCache'];
         const commands = keys.map(key => ['GET', key]);
         const results = await runPipeline(commands);
 
@@ -203,6 +227,32 @@ export async function getRedisCaches() {
         if (lastSelectMapData && typeof lastSelectMapData === 'object') {
           globals.lastSelectMap = new Map(Object.entries(lastSelectMapData));
           log("info", `[cache] 从 Redis 恢复 lastSelectMap,共 ${globals.lastSelectMap.size} 条`);
+        }
+
+        // 🔥 恢复 commentCache（过滤过期数据）
+        const commentCacheData = results[4].result ? JSON.parse(results[4].result) : null;
+        if (commentCacheData && typeof commentCacheData === 'object') {
+          const now = Date.now();
+          const validComments = Object.entries(commentCacheData).filter(([url, data]) => {
+            if (!data.timestamp) return false;
+            const cacheAgeMinutes = (now - data.timestamp) / (1000 * 60);
+            return cacheAgeMinutes <= globals.commentCacheMinutes;
+          });
+          globals.commentCache = new Map(validComments);
+          log("info", `[cache] 从 Redis 恢复 commentCache,共 ${globals.commentCache.size} 条（已过滤过期）`);
+        }
+
+        // 🔥 恢复 searchCache（过滤过期数据）
+        const searchCacheData = results[5].result ? JSON.parse(results[5].result) : null;
+        if (searchCacheData && typeof searchCacheData === 'object') {
+          const now = Date.now();
+          const validSearches = Object.entries(searchCacheData).filter(([keyword, data]) => {
+            if (!data.timestamp) return false;
+            const cacheAgeMinutes = (now - data.timestamp) / (1000 * 60);
+            return cacheAgeMinutes <= globals.searchCacheMinutes;
+          });
+          globals.searchCache = new Map(validSearches);
+          log("info", `[cache] 从 Redis 恢复 searchCache,共 ${globals.searchCache.size} 条（已过滤过期）`);
         }
 
         // 更新哈希值
@@ -231,21 +281,30 @@ export async function updateRedisCaches() {
       { key: 'animes', value: globals.animes },
       { key: 'episodeIds', value: globals.episodeIds },
       { key: 'episodeNum', value: globals.episodeNum },
-      { key: 'lastSelectMap', value: globals.lastSelectMap }
+      { key: 'lastSelectMap', value: globals.lastSelectMap },
+      { key: 'commentCache', value: globals.commentCache },
+      { key: 'searchCache', value: globals.searchCache }
     ];
 
     const updates = [];
     const cacheMap = {};
 
     for (const { key, value } of variables) {
-      const serializedValue = key === 'lastSelectMap' 
-        ? JSON.stringify(Object.fromEntries(value)) 
-        : JSON.stringify(value);
+      let serializedValue;
+      if (key === 'lastSelectMap' || key === 'commentCache' || key === 'searchCache') {
+        serializedValue = JSON.stringify(Object.fromEntries(value));
+      } else {
+        serializedValue = JSON.stringify(value);
+      }
       const currentHash = simpleHash(serializedValue);
 
       if (currentHash !== globals.lastHashes[key]) {
         updates.push({ key, hash: currentHash });
-        cacheMap[key] = key === 'lastSelectMap' ? Object.fromEntries(value) : value;
+        if (key === 'lastSelectMap' || key === 'commentCache' || key === 'searchCache') {
+          cacheMap[key] = Object.fromEntries(value);
+        } else {
+          cacheMap[key] = value;
+        }
       }
     }
 
@@ -279,9 +338,12 @@ async function updateRedis(variables, updates) {
   try {
     const commands = [];
     for (const { key, value } of variables) {
-      const serializedValue = key === 'lastSelectMap' 
-        ? JSON.stringify(Object.fromEntries(value)) 
-        : JSON.stringify(value);
+      let serializedValue;
+      if (key === 'lastSelectMap' || key === 'commentCache' || key === 'searchCache') {
+        serializedValue = JSON.stringify(Object.fromEntries(value));
+      } else {
+        serializedValue = JSON.stringify(value);
+      }
       const currentHash = simpleHash(serializedValue);
 
       if (updates.some(u => u.key === key)) {
