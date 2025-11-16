@@ -3532,14 +3532,7 @@ async function handleHomepage(req) {
        </svg>
        <span>环境配置</span>
      </div>
-     
-       <div class="nav-item" onclick="switchPage('about')">
-         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-           <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
-         </svg>
-         <span>关于</span>
-       </div>
-       
+            
        <div class="nav-item" onclick="switchPage('vodHealth')">
          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
            <path d="M5 3l14 9-14 9V3z" stroke-width="2"/>
@@ -3559,6 +3552,13 @@ async function handleHomepage(req) {
            <path d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" stroke-width="2"/>
          </svg>
          <span>缓存管理</span>
+       </div>
+       
+       <div class="nav-item" onclick="switchPage('about')">
+         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+           <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
+         </svg>
+         <span>关于</span>
        </div>
      </nav>
    </aside>
