@@ -8412,17 +8412,24 @@ docker-compose pull danmu-api && docker-compose up -d danmu-api`;
       let commentCacheSize = 0;
       let cacheDetails = [];
 
-      // 内存缓存统计
-      if (globals.caches?.search) {
-        searchCacheCount = globals.caches.search.size || 0;
-        searchCacheSize = JSON.stringify([...globals.caches.search.entries()]).length;
+            // 内存缓存统计
+      // 搜索缓存 - 存储在 globals.animes
+      if (globals.animes && typeof globals.animes === 'object') {
+        searchCacheCount = Object.keys(globals.animes).length;
+        searchCacheSize = JSON.stringify(globals.animes).length;
       }
 
-      if (globals.caches?.comment) {
-        commentCacheCount = globals.caches.comment.size || 0;
-        commentCacheSize = JSON.stringify([...globals.caches.comment.entries()]).length;
+      // 弹幕缓存 - 存储在 globals.episodeIds 和 globals.episodeNum
+      if (globals.episodeIds && typeof globals.episodeIds === 'object') {
+        commentCacheCount = Object.keys(globals.episodeIds).length;
+        commentCacheSize = JSON.stringify(globals.episodeIds).length;
+      }
+      if (globals.episodeNum && typeof globals.episodeNum === 'object') {
+        commentCacheCount += Object.keys(globals.episodeNum).length;
+        commentCacheSize += JSON.stringify(globals.episodeNum).length;
       }
 
+      // 最后选择记录
       if (globals.lastSelectMap) {
         lastSelectCount = globals.lastSelectMap.size || 0;
       }
