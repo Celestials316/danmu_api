@@ -36,13 +36,24 @@ export function getSearchCache(keyword) {
 }
 
 // 设置搜索缓存
-export function setSearchCache(keyword, results) {
+export async function setSearchCache(keyword, results) {
     globals.searchCache.set(keyword, {
         results: results,
         timestamp: Date.now()
     });
 
     log("info", `Cached search results for "${keyword}" (${results.length} animes)`);
+    
+    // 🔥 同步到数据库
+    if (globals.databaseValid) {
+        try {
+            const { saveCacheData } = await import('./db-util.js');
+            await saveCacheData('animes', globals.animes);
+            log("info", `[cache] ✅ 搜索缓存已同步到数据库`);
+        } catch (error) {
+            log("warn", `[cache] 数据库同步失败: ${error.message}`);
+        }
+    }
 }
 
 // 检查弹幕缓存是否有效（未过期）
@@ -75,13 +86,27 @@ export function getCommentCache(videoUrl) {
 }
 
 // 设置弹幕缓存
-export function setCommentCache(videoUrl, comments) {
+export async function setCommentCache(videoUrl, comments) {
     globals.commentCache.set(videoUrl, {
         comments: comments,
         timestamp: Date.now()
     });
 
     log("info", `Cached comments for "${videoUrl}" (${comments.length} comments)`);
+    
+    // 🔥 同步到数据库
+    if (globals.databaseValid) {
+        try {
+            const { saveCacheBatch } = await import('./db-util.js');
+            await saveCacheBatch({
+                episodeIds: globals.episodeIds,
+                episodeNum: globals.episodeNum
+            });
+            log("info", `[cache] ✅ 弹幕缓存已同步到数据库`);
+        } catch (error) {
+            log("warn", `[cache] 数据库同步失败: ${error.message}`);
+        }
+    }
 }
 
 // 添加元素到 episodeIds：检查 url 是否存在，若不存在则以自增 id 添加
@@ -140,7 +165,7 @@ export function findTitleById(id) {
 }
 
 // 添加 anime 对象到 animes，并将其 links 添加到 episodeIds
-export function addAnime(anime) {
+export async function addAnime(anime) {
     anime = Anime.fromJson(anime);
     try {
         // 确保 anime 有 links 属性且是数组
@@ -191,6 +216,21 @@ export function addAnime(anime) {
           (key, value) => key === 'links' ? value.length : value
         )}`);
 
+        // 🔥 同步到数据库
+        if (globals.databaseValid) {
+            try {
+                const { saveCacheBatch } = await import('./db-util.js');
+                await saveCacheBatch({
+                    animes: globals.animes,
+                    episodeIds: globals.episodeIds,
+                    episodeNum: globals.episodeNum
+                });
+                log("info", `[cache] ✅ anime数据已同步到数据库`);
+            } catch (error) {
+                log("warn", `[cache] 数据库同步失败: ${error.message}`);
+            }
+        }
+
         return true;
     } catch (error) {
         log("error", `addAnime failed: ${error.message}`);
@@ -222,7 +262,7 @@ export function removeEarliestAnime() {
 }
 
 // 将所有动漫的 animeId 存入 lastSelectMap 的 animeIds 数组中
-export function storeAnimeIdsToMap(curAnimes, key) {
+export async function storeAnimeIdsToMap(curAnimes, key) {
     const uniqueAnimeIds = new Set();
     for (const anime of curAnimes) {
         uniqueAnimeIds.add(anime.animeId);
@@ -248,6 +288,17 @@ export function storeAnimeIdsToMap(curAnimes, key) {
         const firstKey = globals.lastSelectMap.keys().next().value;
         globals.lastSelectMap.delete(firstKey);
         log("info", `Removed earliest entry from lastSelectMap: ${firstKey}`);
+    }
+
+    // 🔥 同步到数据库
+    if (globals.databaseValid) {
+        try {
+            const { saveCacheData } = await import('./db-util.js');
+            await saveCacheData('lastSelectMap', Object.fromEntries(globals.lastSelectMap));
+            log("info", `[cache] ✅ lastSelectMap已同步到数据库`);
+        } catch (error) {
+            log("warn", `[cache] 数据库同步失败: ${error.message}`);
+        }
     }
 }
 
