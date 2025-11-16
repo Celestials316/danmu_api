@@ -39,11 +39,13 @@ const Globals = {
   logBuffer: [],
   requestHistory: new Map(),
   lastSelectMap: new Map(),
-  lastHashes: {
+    lastHashes: {
     animes: null,
     episodeIds: null,
     episodeNum: null,
-    lastSelectMap: null
+    lastSelectMap: null,
+    commentCache: null,
+    searchCache: null
   },
   searchCache: new Map(),
   commentCache: new Map(),
@@ -115,7 +117,7 @@ const Globals = {
           const pingResult = await pingRedis();
           if (pingResult && pingResult.result === "PONG") {
             this.redisValid = true;
-            
+
             const result = await getRedisKey('env_configs');
             if (result && result.result) {
               try {
