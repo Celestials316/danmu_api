@@ -533,7 +533,7 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
   let path = url.pathname;
   const method = req.method;
 
-  // 🔥 优先检查数据库连接
+    // 🔥 优先检查数据库连接
   if (!globals.storageChecked && path !== "/favicon.ico" && path !== "/robots.txt") {
     if (globals.databaseValid) {
       try {
@@ -541,14 +541,24 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
         const cacheData = await loadCacheBatch();
         
         // 加载缓存数据到内存
-        if (cacheData.animes) globals.animes = cacheData.animes;
-        if (cacheData.episodeIds) globals.episodeIds = cacheData.episodeIds;
-        if (cacheData.episodeNum) globals.episodeNum = cacheData.episodeNum;
+        if (cacheData.animes && Object.keys(cacheData.animes).length > 0) {
+          globals.animes = cacheData.animes;
+          log("info", `[storage] 📦 从数据库加载搜索缓存: ${Object.keys(cacheData.animes).length} 条`);
+        }
+        if (cacheData.episodeIds && Object.keys(cacheData.episodeIds).length > 0) {
+          globals.episodeIds = cacheData.episodeIds;
+          log("info", `[storage] 📦 从数据库加载剧集映射: ${Object.keys(cacheData.episodeIds).length} 条`);
+        }
+        if (cacheData.episodeNum && Object.keys(cacheData.episodeNum).length > 0) {
+          globals.episodeNum = cacheData.episodeNum;
+          log("info", `[storage] 📦 从数据库加载集数映射: ${Object.keys(cacheData.episodeNum).length} 条`);
+        }
         if (cacheData.lastSelectMap) {
           globals.lastSelectMap = new Map(Object.entries(cacheData.lastSelectMap));
+          log("info", `[storage] 📦 从数据库加载用户选择: ${globals.lastSelectMap.size} 条`);
         }
         
-        log("info", "[storage] ✅ 从数据库加载缓存数据（优先级最高）");
+        log("info", "[storage] ✅ 从数据库加载缓存数据完成（优先级最高）");
       } catch (error) {
         log("error", `[storage] ❌ 数据库缓存加载失败: ${error.message}`);
       }
@@ -8412,7 +8422,32 @@ docker-compose pull danmu-api && docker-compose up -d danmu-api`;
       let commentCacheSize = 0;
       let cacheDetails = [];
 
-      // 🔥 统一从内存读取（数据库/Redis的数据在启动时已加载到内存）
+      // 🔥 优先从数据库加载最新缓存数据
+      if (globals.databaseValid) {
+        try {
+          const { loadCacheBatch } = await import('./utils/db-util.js');
+          const cacheData = await loadCacheBatch();
+          
+          // 更新内存缓存（确保数据一致性）
+          if (cacheData.animes && Object.keys(cacheData.animes).length > 0) {
+            globals.animes = cacheData.animes;
+          }
+          if (cacheData.episodeIds && Object.keys(cacheData.episodeIds).length > 0) {
+            globals.episodeIds = cacheData.episodeIds;
+          }
+          if (cacheData.episodeNum && Object.keys(cacheData.episodeNum).length > 0) {
+            globals.episodeNum = cacheData.episodeNum;
+          }
+          if (cacheData.lastSelectMap) {
+            globals.lastSelectMap = new Map(Object.entries(cacheData.lastSelectMap));
+          }
+          
+          log("info", "[cache/stats] ✅ 从数据库重新加载缓存数据");
+        } catch (error) {
+          log("warn", `[cache/stats] 数据库加载失败，使用内存数据: ${error.message}`);
+        }
+      }
+
       // 搜索缓存 - 从 globals.animes 统计
       if (globals.animes && typeof globals.animes === 'object') {
         searchCacheCount = Object.keys(globals.animes).length;
