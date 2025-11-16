@@ -762,21 +762,6 @@ export async function getComment(path, queryFormat) {
   }
   log("info", `Fetched comment ID: ${commentId}`);
 
-  // Extracted function for GET /api/v2/comment/:commentId
-export async function getComment(path, queryFormat) {
-  const commentId = parseInt(path.split("/").pop());
-  let url = findUrlById(commentId);
-  let title = findTitleById(commentId);
-  let plat = title ? (title.match(/【(.*?)】/) || [null])[0]?.replace(/[【】]/g, '') : null;
-  log("info", "comment url...", url);
-  log("info", "comment title...", title);
-  log("info", "comment platform...", plat);
-  if (!url) {
-    log("error", `Comment with ID ${commentId} not found`);
-    return jsonResponse({ count: 0, comments: [] }, 404);
-  }
-  log("info", `Fetched comment ID: ${commentId}`);
-
   // 检查弹幕缓存（异步，可能从持久化存储加载）
   const cachedComments = await getCommentCache(url);
   if (cachedComments !== null) {
