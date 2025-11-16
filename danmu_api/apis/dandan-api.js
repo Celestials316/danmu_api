@@ -85,9 +85,10 @@ export async function searchAnime(url) {
     });
   }
 
-  // 检查搜索缓存
-  const cachedResults = getSearchCache(queryTitle);
+  // 检查搜索缓存（异步，可能从持久化存储加载）
+  const cachedResults = await getSearchCache(queryTitle);
   if (cachedResults !== null) {
+    log("info", `[Cache] ✅ 使用搜索缓存: ${queryTitle}`);
     return jsonResponse({
       errorCode: 0,
       success: true,
@@ -761,9 +762,10 @@ export async function getComment(path, queryFormat) {
   }
   log("info", `Fetched comment ID: ${commentId}`);
 
-  // 检查弹幕缓存
-  const cachedComments = getCommentCache(url);
+  // 检查弹幕缓存（异步，可能从持久化存储加载）
+  const cachedComments = await getCommentCache(url);
   if (cachedComments !== null) {
+    log("info", `[Cache] ✅ 使用弹幕缓存: ${url}`);
     const responseData = { count: cachedComments.length, comments: cachedComments };
     return formatDanmuResponse(responseData, queryFormat);
   }
@@ -858,9 +860,10 @@ export async function getCommentByUrl(videoUrl, queryFormat) {
     log("info", `Processing comment request for URL: ${videoUrl}`);
 
     let url = videoUrl;
-    // 检查弹幕缓存
-    const cachedComments = getCommentCache(url);
+    // 检查弹幕缓存（异步，可能从持久化存储加载）
+    const cachedComments = await getCommentCache(url);
     if (cachedComments !== null) {
+      log("info", `[Cache] ✅ 使用弹幕缓存: ${url}`);
       const responseData = {
         errorCode: 0,
         success: true,
