@@ -43,13 +43,13 @@ export async function setSearchCache(keyword, results) {
     });
 
     log("info", `Cached search results for "${keyword}" (${results.length} animes)`);
-    
-    // 🔥 同步到数据库
+
+    // 🔥 同步 searchCache 到数据库
     if (globals.databaseValid) {
         try {
             const { saveCacheData } = await import('./db-util.js');
-            await saveCacheData('animes', globals.animes);
-            log("info", `[cache] ✅ 搜索缓存已同步到数据库`);
+            await saveCacheData('searchCache', Object.fromEntries(globals.searchCache));
+            log("info", `[cache] ✅ searchCache已同步到数据库`);
         } catch (error) {
             log("warn", `[cache] 数据库同步失败: ${error.message}`);
         }
@@ -93,16 +93,13 @@ export async function setCommentCache(videoUrl, comments) {
     });
 
     log("info", `Cached comments for "${videoUrl}" (${comments.length} comments)`);
-    
-    // 🔥 同步到数据库
+
+    // 🔥 同步 commentCache 到数据库
     if (globals.databaseValid) {
         try {
-            const { saveCacheBatch } = await import('./db-util.js');
-            await saveCacheBatch({
-                episodeIds: globals.episodeIds,
-                episodeNum: globals.episodeNum
-            });
-            log("info", `[cache] ✅ 弹幕缓存已同步到数据库`);
+            const { saveCacheData } = await import('./db-util.js');
+            await saveCacheData('commentCache', Object.fromEntries(globals.commentCache));
+            log("info", `[cache] ✅ commentCache已同步到数据库`);
         } catch (error) {
             log("warn", `[cache] 数据库同步失败: ${error.message}`);
         }
