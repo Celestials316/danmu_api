@@ -85,10 +85,9 @@ export async function searchAnime(url) {
     });
   }
 
-  // 检查搜索缓存（异步，可能从持久化存储加载）
-  const cachedResults = await getSearchCache(queryTitle);
+  // 检查搜索缓存
+  const cachedResults = getSearchCache(queryTitle);
   if (cachedResults !== null) {
-    log("info", `[Cache] ✅ 使用搜索缓存: ${queryTitle}`);
     return jsonResponse({
       errorCode: 0,
       success: true,
@@ -762,15 +761,14 @@ export async function getComment(path, queryFormat) {
   }
   log("info", `Fetched comment ID: ${commentId}`);
 
-  // 检查弹幕缓存（异步，可能从持久化存储加载）
-  const cachedComments = await getCommentCache(url);
+  // 检查弹幕缓存
+  const cachedComments = getCommentCache(url);
   if (cachedComments !== null) {
-    log("info", `[Cache] ✅ 使用弹幕缓存: ${url} (${cachedComments.length} 条弹幕)`);
     const responseData = { count: cachedComments.length, comments: cachedComments };
     return formatDanmuResponse(responseData, queryFormat);
   }
 
-  log("info", `[Cache] 缓存未命中，开始从本地请求弹幕: ${url}`);
+  log("info", "开始从本地请求弹幕...", url);
   let danmus = [];
   if (url.includes('.qq.com')) {
     danmus = await tencentSource.getComments(url, plat);
@@ -802,11 +800,8 @@ export async function getComment(path, queryFormat) {
 
   // 如果弹幕为空，则请求第三方弹幕服务器作为兜底
   if (danmus.length === 0 && urlPattern.test(url)) {
-    log("info", `[Cache] 本地平台无弹幕，尝试第三方服务器: ${url}`);
     danmus = await otherSource.getComments(url, "other_server");
   }
-
-  log("info", `[Cache] 获取到 ${danmus.length} 条弹幕`);
 
   const animeId = findAnimeIdByCommentId(commentId);
   setPreferByAnimeId(animeId);
@@ -828,13 +823,15 @@ export async function getComment(path, queryFormat) {
     log("info", "[cache] ✅ lastSelectMap已保存到Redis");
   }
 
-  // 缓存弹幕结果（即使是0条也缓存，避免重复请求）
-  setCommentCache(url, danmus);
-  log("info", `[Cache] 已缓存弹幕: ${url} (${danmus.length} 条)`);
+  // 缓存弹幕结果
+  if (danmus.length > 0) {
+    setCommentCache(url, danmus);
+  }
 
   const responseData = { count: danmus.length, comments: danmus };
   return formatDanmuResponse(responseData, queryFormat);
 }
+
 // Extracted function for GET /api/v2/comment?url=xxx
 export async function getCommentByUrl(videoUrl, queryFormat) {
   try {
@@ -861,10 +858,9 @@ export async function getCommentByUrl(videoUrl, queryFormat) {
     log("info", `Processing comment request for URL: ${videoUrl}`);
 
     let url = videoUrl;
-    // 检查弹幕缓存（异步，可能从持久化存储加载）
-    const cachedComments = await getCommentCache(url);
+    // 检查弹幕缓存
+    const cachedComments = getCommentCache(url);
     if (cachedComments !== null) {
-      log("info", `[Cache] ✅ 使用弹幕缓存: ${url}`);
       const responseData = {
         errorCode: 0,
         success: true,
