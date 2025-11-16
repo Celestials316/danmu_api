@@ -3532,9 +3532,9 @@ async function handleHomepage(req) {
        
        <div class="nav-item" onclick="switchPage('vodHealth')">
          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-           <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
+           <path d="M5 3l14 9-14 9V3z" stroke-width="2"/>
          </svg>
-         <span>VOD健康检查</span>
+         <span>采集站管理</span>
        </div>
        
        <div class="nav-item" onclick="switchPage('danmuTest')">
@@ -4326,28 +4326,28 @@ async function handleHomepage(req) {
        </div>
      </section>
 
-     <!-- VOD健康检查页面 -->
+          <!-- 采集站管理页面 -->
      <section id="vodHealth-page" class="page-section">
        <div class="card">
          <div class="card-header">
            <h3 class="card-title">
              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-               <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
+               <path d="M5 3l14 9-14 9V3z" stroke-width="2"/>
              </svg>
-             VOD 采集站健康检查
+             采集站管理
            </h3>
            <div class="card-actions">
              <button class="btn btn-secondary" onclick="testAllVodServers()">
                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                 <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-width="2"/>
+                 <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
                </svg>
                测试全部
              </button>
-             <button class="btn btn-primary" onclick="showVodDragSort()">
+             <button class="btn btn-primary" onclick="showAddVodModal()">
                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                 <path d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" stroke-width="2"/>
+                 <path d="M12 4v16m8-8H4" stroke-width="2" stroke-linecap="round"/>
                </svg>
-               优先级排序
+               添加采集站
              </button>
            </div>
          </div>
@@ -4357,11 +4357,11 @@ async function handleHomepage(req) {
              <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
              <path d="M12 16v-4m0-4h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
            </svg>
-           <span>💡 点击"测试全部"检查所有 VOD 服务器的连通性和响应速度</span>
+           <span>💡 360kan 为内置采集站不可删除，其他采集站可自由添加和删除</span>
          </div>
 
          <div id="vodHealthList" class="server-grid">
-           <!-- 动态生成 VOD 服务器健康状态 -->
+           <!-- 动态生成采集站列表 -->
          </div>
        </div>
 
@@ -4380,7 +4380,7 @@ async function handleHomepage(req) {
        </div>
 
        <div class="footer">
-         <p>VOD 采集站健康监控 | 实时监测服务器状态和性能</p>
+         <p>采集站管理 | 实时监测服务器状态和性能</p>
        </div>
      </section>
 
@@ -4884,46 +4884,6 @@ async function handleHomepage(req) {
    </div>
  </div>
 
- <!-- VOD拖拽排序弹窗 -->
- <div class="modal-overlay" id="vodSortModal">
-   <div class="modal" style="max-width: 600px;">
-     <div class="modal-header">
-       <h3 class="modal-title">
-         <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor">
-           <path d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" stroke-width="2"/>
-         </svg>
-         VOD 服务器优先级排序
-       </h3>
-       <button class="modal-close" onclick="closeModal('vodSortModal')">
-         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor">
-           <path d="M6 18L18 6M6 6l12 12" stroke-width="2" stroke-linecap="round"/>
-         </svg>
-       </button>
-     </div>
-     <div class="modal-body">
-       <div class="alert alert-info" style="margin-bottom: 20px;">
-         <svg class="alert-icon" viewBox="0 0 24 24" width="20" height="20">
-           <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
-           <path d="M12 16v-4m0-4h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-         </svg>
-         <span>💡 拖动服务器调整优先级顺序</span>
-       </div>
-       <div id="vodSortList" class="source-grid">
-         <!-- 动态生成可拖拽的 VOD 列表 -->
-       </div>
-     </div>
-     <div class="modal-footer">
-       <button class="btn btn-secondary" onclick="closeModal('vodSortModal')">取消</button>
-       <button class="btn btn-primary" onclick="saveVodOrder()">
-         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-           <path d="M5 13l4 4L19 7" stroke-width="2" stroke-linecap="round"/>
-         </svg>
-         保存顺序
-       </button>
-     </div>
-   </div>
- </div>
-
  <!-- 快速配置模态框 - 优化版（防误触 + 单滚动条）-->
  <div class="modal-overlay" id="quickConfigModal">
    <div class="modal" style="max-width: 760px; max-height: 90vh;">
@@ -5332,28 +5292,54 @@ async function handleHomepage(req) {
      window.scrollTo({ top: 0, behavior: 'smooth' });
    }
 
-   // ========== VOD 健康检查功能 ==========
+   // ========== 采集站管理功能 ==========
    let vodHealthData = [];
    let vodPerformanceChart = null;
+   
+   // 360kan 内置采集站配置
+   const BUILTIN_360KAN = {
+     name: '360kan',
+     url: 'https://www.360kan.com',
+     builtin: true
+   };
 
    function initVodHealthPage() {
-     console.log('初始化 VOD 健康检查页面');
+     console.log('初始化采集站管理页面');
+     ensureBuiltin360Kan();
      loadVodHealthList();
+   }
+
+   // 确保 360kan 始终存在
+   function ensureBuiltin360Kan() {
+     const has360Kan = AppState.vodServers.some(server => {
+       const name = typeof server === 'string' 
+         ? (server.includes('@') ? server.split('@')[0] : '') 
+         : (server.name || '');
+       return name.toLowerCase() === '360kan';
+     });
+
+     if (!has360Kan) {
+       AppState.vodServers.unshift('360kan@https://www.360kan.com');
+       saveVodServersConfig();
+     }
    }
 
    function loadVodHealthList() {
      const container = document.getElementById('vodHealthList');
      if (!container) return;
 
+     ensureBuiltin360Kan();
      const vodServers = AppState.vodServers;
+
      if (!vodServers || vodServers.length === 0) {
-       container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📦</div><div class="empty-state-title">暂无 VOD 服务器</div><div class="empty-state-description">请先在环境配置中添加 VOD 服务器</div></div>';
+       container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📦</div><div class="empty-state-title">暂无采集站</div></div>';
        return;
      }
 
      const html = vodServers.map((server, index) => {
        let serverName = \`服务器 #\${index + 1}\`;
        let serverUrl = '';
+       let isBuiltin = false;
 
        if (typeof server === 'string') {
          serverUrl = server;
@@ -5361,14 +5347,26 @@ async function handleHomepage(req) {
            const parts = server.split('@');
            serverName = parts[0];
            serverUrl = parts.slice(1).join('@');
+           isBuiltin = serverName.toLowerCase() === '360kan';
          }
        } else if (typeof server === 'object' && server !== null) {
          serverName = server.name || server.title || serverName;
          serverUrl = server.url || server.baseUrl || server.address || '';
+         isBuiltin = server.builtin || serverName.toLowerCase() === '360kan';
        }
 
+       const builtinBadge = isBuiltin ? '<div class="server-badge default-badge" style="position: absolute; top: 16px; right: 16px; font-size: 11px; padding: 2px 8px;">内置</div>' : '';
+       const deleteButton = !isBuiltin ? \`
+         <button class="icon-btn delete-btn" onclick="deleteVodServer(\${index})" title="删除">
+           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor">
+             <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke-width="2"/>
+           </svg>
+         </button>
+       \` : '';
+
        return \`
-         <div class="server-item" data-index="\${index}" id="vod-health-\${index}">
+         <div class="server-item" data-index="\${index}" id="vod-health-\${index}" style="position: relative;">
+           \${builtinBadge}
            <div class="server-badge">\${index + 1}</div>
            <div class="server-info">
              <div class="server-name">\${serverName}</div>
@@ -5389,6 +5387,13 @@ async function handleHomepage(req) {
                  <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
                </svg>
              </button>
+             <button class="icon-btn" onclick="editVodServer(\${index})" title="编辑">
+               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor">
+                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke-width="2"/>
+                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke-width="2"/>
+               </svg>
+             </button>
+             \${deleteButton}
            </div>
          </div>
        \`;
@@ -5397,6 +5402,149 @@ async function handleHomepage(req) {
      container.innerHTML = html;
    }
 
+   // 显示添加采集站弹窗
+   function showAddVodModal() {
+     AppState.currentEditingVodIndex = null;
+     document.getElementById('vodModalTitle').textContent = '添加采集站';
+     document.getElementById('vodServerName').value = '';
+     document.getElementById('vodServerUrl').value = '';
+     showModal('editVodModal');
+   }
+
+   // 编辑采集站
+   function editVodServer(index) {
+     const server = AppState.vodServers[index];
+     let serverName = '';
+     let serverUrl = '';
+
+     if (typeof server === 'string') {
+       if (server.includes('@')) {
+         const parts = server.split('@');
+         serverName = parts[0];
+         serverUrl = parts.slice(1).join('@');
+       } else {
+         serverUrl = server;
+       }
+     } else if (server && typeof server === 'object') {
+       serverName = server.name || '';
+       serverUrl = server.url || '';
+     }
+
+     // 检查是否为 360kan
+     if (serverName.toLowerCase() === '360kan') {
+       showToast('360kan 为内置采集站，不可编辑名称', 'warning');
+       document.getElementById('vodServerName').readOnly = true;
+     } else {
+       document.getElementById('vodServerName').readOnly = false;
+     }
+
+     AppState.currentEditingVodIndex = index;
+     document.getElementById('vodModalTitle').textContent = '编辑采集站';
+     document.getElementById('vodServerName').value = serverName;
+     document.getElementById('vodServerUrl').value = serverUrl;
+     showModal('editVodModal');
+   }
+
+   // 删除采集站（360kan 除外）
+   async function deleteVodServer(index) {
+     const server = AppState.vodServers[index];
+     let serverName = typeof server === 'string' 
+       ? (server.includes('@') ? server.split('@')[0] : '服务器')
+       : (server.name || '服务器');
+
+     // 检查是否为 360kan
+     if (serverName.toLowerCase() === '360kan') {
+       showToast('360kan 为内置采集站，不可删除', 'error');
+       return;
+     }
+
+     if (!confirm(\`确定要删除采集站 "\${serverName}" 吗？\`)) {
+       return;
+     }
+
+     AppState.vodServers.splice(index, 1);
+     await saveVodServersConfig();
+     loadVodHealthList();
+     showToast(\`采集站 "\${serverName}" 已删除\`, 'success');
+   }
+
+   // 保存采集站配置
+   async function saveVodServer() {
+     const name = document.getElementById('vodServerName').value.trim();
+     const url = document.getElementById('vodServerUrl').value.trim();
+
+     if (!name) {
+       showToast('请输入采集站名称', 'error');
+       return;
+     }
+
+     if (!url) {
+       showToast('请输入采集站地址', 'error');
+       return;
+     }
+
+     if (!url.startsWith('http://') && !url.startsWith('https://')) {
+       showToast('采集站地址必须以 http:// 或 https:// 开头', 'error');
+       return;
+     }
+
+     const serverStr = \`\${name}@\${url}\`;
+
+     if (AppState.currentEditingVodIndex !== null) {
+       // 编辑模式
+       AppState.vodServers[AppState.currentEditingVodIndex] = serverStr;
+     } else {
+       // 新增模式 - 检查是否已存在
+       const exists = AppState.vodServers.some(s => {
+         const existingName = typeof s === 'string' 
+           ? (s.includes('@') ? s.split('@')[0] : '')
+           : (s.name || '');
+         return existingName.toLowerCase() === name.toLowerCase();
+       });
+
+       if (exists) {
+         showToast(\`采集站 "\${name}" 已存在\`, 'error');
+         return;
+       }
+
+       AppState.vodServers.push(serverStr);
+     }
+
+     await saveVodServersConfig();
+     closeModal('editVodModal');
+     loadVodHealthList();
+     showToast(\`采集站 "\${name}" 已保存\`, 'success');
+   }
+
+   // 保存采集站配置到服务器
+   async function saveVodServersConfig() {
+     ensureBuiltin360Kan();
+     
+     const vodServersStr = AppState.vodServers.map(s => {
+       if (typeof s === 'string') return s;
+       return \`\${s.name}@\${s.url}\`;
+     }).join(',');
+
+     try {
+       const response = await fetch('/api/config/save', {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({
+           config: { VOD_SERVERS: vodServersStr }
+         })
+       });
+
+       const result = await response.json();
+       if (!result.success) {
+         throw new Error(result.errorMessage || '保存失败');
+       }
+     } catch (error) {
+       console.error('保存采集站配置失败:', error);
+       showToast('保存失败: ' + error.message, 'error');
+     }
+   }
+
+   // 测试单个采集站
    async function testSingleVod(index) {
      const statusEl = document.getElementById(\`vod-status-\${index}\`);
      const timeEl = document.getElementById(\`vod-time-\${index}\`);
@@ -5447,7 +5595,7 @@ async function handleHomepage(req) {
          throw new Error(\`HTTP \${response.status}\`);
        }
      } catch (error) {
-       console.error(\`VOD测试失败[\${index}]:\`, error);
+       console.error(\`采集站测试失败[\${index}]:\`, error);
        statusEl.innerHTML = \`
          <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--error); display: inline-block;"></span>
          <span style="color: var(--error);">离线</span>
@@ -5461,8 +5609,9 @@ async function handleHomepage(req) {
      updateVodPerformanceChart();
    }
 
+   // 测试所有采集站
    async function testAllVodServers() {
-     showToast('开始测试所有 VOD 服务器...', 'info', 2000);
+     showToast('开始测试所有采集站...', 'info', 2000);
      vodHealthData = [];
      
      const servers = AppState.vodServers;
@@ -5471,9 +5620,10 @@ async function handleHomepage(req) {
        await new Promise(resolve => setTimeout(resolve, 500));
      }
      
-     showToast('所有服务器测试完成', 'success');
+     showToast('所有采集站测试完成', 'success');
    }
 
+   // 更新性能对比图表
    function updateVodPerformanceChart() {
      const ctx = document.getElementById('vodPerformanceChart');
      if (!ctx) return;
@@ -5538,134 +5688,6 @@ async function handleHomepage(req) {
          }
        }
      });
-   }
-
-   function showVodDragSort() {
-     const container = document.getElementById('vodSortList');
-     if (!container) return;
-
-     const html = AppState.vodServers.map((server, index) => {
-       let serverName = \`服务器 #\${index + 1}\`;
-       if (typeof server === 'string' && server.includes('@')) {
-         serverName = server.split('@')[0];
-       } else if (server && server.name) {
-         serverName = server.name;
-       }
-
-       return \`
-         <div class="source-item draggable" draggable="true" data-index="\${index}">
-           <div class="drag-handle">
-             <svg viewBox="0 0 24 24" width="16" height="16">
-               <path d="M9 5h2v2H9V5zm0 6h2v2H9v-2zm0 6h2v2H9v-2zm4-12h2v2h-2V5zm0 6h2v2h-2v-2zm0 6h2v2h-2v-2z" fill="currentColor"/>
-             </svg>
-           </div>
-           <div class="source-priority">\${index + 1}</div>
-           <div class="source-icon">📦</div>
-           <div class="source-name">\${serverName}</div>
-         </div>
-       \`;
-     }).join('');
-
-     container.innerHTML = html;
-     initVodDragAndDrop();
-     showModal('vodSortModal');
-   }
-
-   function initVodDragAndDrop() {
-     const draggables = document.querySelectorAll('#vodSortList .draggable');
-     let draggedElement = null;
-
-     draggables.forEach(item => {
-       item.addEventListener('dragstart', function() {
-         draggedElement = this;
-         this.classList.add('dragging');
-       });
-
-       item.addEventListener('dragend', function() {
-         this.classList.remove('dragging');
-         draggedElement = null;
-       });
-
-       item.addEventListener('dragover', function(e) {
-         e.preventDefault();
-         if (draggedElement && draggedElement !== this) {
-           this.classList.add('drag-over');
-         }
-       });
-
-       item.addEventListener('dragleave', function() {
-         this.classList.remove('drag-over');
-       });
-
-       item.addEventListener('drop', function(e) {
-         e.preventDefault();
-         this.classList.remove('drag-over');
-         
-         if (draggedElement && draggedElement !== this) {
-           const container = this.parentNode;
-           const allItems = [...container.children];
-           const draggedIndex = allItems.indexOf(draggedElement);
-           const targetIndex = allItems.indexOf(this);
-
-           if (draggedIndex < targetIndex) {
-             container.insertBefore(draggedElement, this.nextSibling);
-           } else {
-             container.insertBefore(draggedElement, this);
-           }
-
-           updateVodSortNumbers();
-         }
-       });
-     });
-   }
-
-   function updateVodSortNumbers() {
-     const items = document.querySelectorAll('#vodSortList .source-item');
-     items.forEach((item, index) => {
-       const priority = item.querySelector('.source-priority');
-       if (priority) {
-         priority.textContent = index + 1;
-       }
-     });
-   }
-
-   async function saveVodOrder() {
-     const items = document.querySelectorAll('#vodSortList .source-item');
-     const newOrder = [];
-     
-     items.forEach(item => {
-       const oldIndex = parseInt(item.dataset.index);
-       newOrder.push(AppState.vodServers[oldIndex]);
-     });
-
-     AppState.vodServers = newOrder;
-     
-     // 保存到配置
-     const vodServersStr = newOrder.map(s => {
-       if (typeof s === 'string') return s;
-       return \`\${s.name}@\${s.url}\`;
-     }).join(',');
-
-     try {
-       const response = await fetch('/api/config/save', {
-         method: 'POST',
-         headers: { 'Content-Type': 'application/json' },
-         body: JSON.stringify({
-           config: { VOD_SERVERS: vodServersStr }
-         })
-       });
-
-       const result = await response.json();
-       if (result.success) {
-         closeModal('vodSortModal');
-         showToast('VOD 服务器顺序已保存', 'success');
-         loadVodHealthList();
-       } else {
-         throw new Error(result.errorMessage || '保存失败');
-       }
-     } catch (error) {
-       showToast('保存失败: ' + error.message, 'error');
-     }
    }
 
    // ========== 弹幕测试功能 ==========
