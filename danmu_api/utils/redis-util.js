@@ -155,6 +155,7 @@ export async function runPipeline(commands) {
 }
 
 // 优化后的 getRedisCaches,支持从数据库或 Redis 加载
+// 替换后:
 export async function getRedisCaches() {
   if (!globals.redisCacheInitialized) {
     try {
@@ -170,13 +171,35 @@ export async function getRedisCaches() {
           globals.episodeIds = cacheMap.episodeIds || globals.episodeIds;
           globals.episodeNum = cacheMap.episodeNum || globals.episodeNum;
 
+          // 🔥 数据一致性检查: 清理 episodeIds 中不属于任何 anime 的记录
+          if (globals.animes.length > 0 && globals.episodeIds.length > 0) {
+            const validUrls = new Set();
+            globals.animes.forEach(anime => {
+              if (anime.links && Array.isArray(anime.links)) {
+                anime.links.forEach(link => {
+                  if (link.url) {
+                    validUrls.add(link.url);
+                  }
+                });
+              }
+            });
+
+            const beforeCount = globals.episodeIds.length;
+            globals.episodeIds = globals.episodeIds.filter(episode => validUrls.has(episode.url));
+            const afterCount = globals.episodeIds.length;
+
+            if (beforeCount !== afterCount) {
+              log("info", `[cache] 数据一致性检查: 清理了 ${beforeCount - afterCount} 个无效的 episodeIds`);
+            }
+          }
+
           // 恢复 lastSelectMap
           if (cacheMap.lastSelectMap && typeof cacheMap.lastSelectMap === 'object') {
             globals.lastSelectMap = new Map(Object.entries(cacheMap.lastSelectMap));
             log("info", `[cache] 从数据库恢复 lastSelectMap,共 ${globals.lastSelectMap.size} 条`);
           }
 
-          // 🔥 恢复 commentCache（过滤过期数据）
+          // 🔥 恢复 commentCache(过滤过期数据)
           if (cacheMap.commentCache && typeof cacheMap.commentCache === 'object') {
             const now = Date.now();
             const validComments = Object.entries(cacheMap.commentCache).filter(([url, data]) => {
@@ -185,10 +208,10 @@ export async function getRedisCaches() {
               return cacheAgeMinutes <= globals.commentCacheMinutes;
             });
             globals.commentCache = new Map(validComments);
-            log("info", `[cache] 从数据库恢复 commentCache,共 ${globals.commentCache.size} 条（已过滤过期）`);
+            log("info", `[cache] 从数据库恢复 commentCache,共 ${globals.commentCache.size} 条(已过滤过期)`);
           }
 
-          // 🔥 恢复 searchCache（过滤过期数据）
+          // 🔥 恢复 searchCache(过滤过期数据)
           if (cacheMap.searchCache && typeof cacheMap.searchCache === 'object') {
             const now = Date.now();
             const validSearches = Object.entries(cacheMap.searchCache).filter(([keyword, data]) => {
@@ -197,7 +220,7 @@ export async function getRedisCaches() {
               return cacheAgeMinutes <= globals.searchCacheMinutes;
             });
             globals.searchCache = new Map(validSearches);
-            log("info", `[cache] 从数据库恢复 searchCache,共 ${globals.searchCache.size} 条（已过滤过期）`);
+            log("info", `[cache] 从数据库恢复 searchCache,共 ${globals.searchCache.size} 条(已过滤过期)`);
           }
 
           // 更新哈希值
@@ -223,13 +246,35 @@ export async function getRedisCaches() {
         globals.episodeIds = results[1].result ? JSON.parse(results[1].result) : globals.episodeIds;
         globals.episodeNum = results[2].result ? JSON.parse(results[2].result) : globals.episodeNum;
 
+        // 🔥 数据一致性检查 (Redis 加载后也需要)
+        if (globals.animes.length > 0 && globals.episodeIds.length > 0) {
+          const validUrls = new Set();
+          globals.animes.forEach(anime => {
+            if (anime.links && Array.isArray(anime.links)) {
+              anime.links.forEach(link => {
+                if (link.url) {
+                  validUrls.add(link.url);
+                }
+              });
+            }
+          });
+
+          const beforeCount = globals.episodeIds.length;
+          globals.episodeIds = globals.episodeIds.filter(episode => validUrls.has(episode.url));
+          const afterCount = globals.episodeIds.length;
+
+          if (beforeCount !== afterCount) {
+            log("info", `[cache] 数据一致性检查: 清理了 ${beforeCount - afterCount} 个无效的 episodeIds`);
+          }
+        }
+
         const lastSelectMapData = results[3].result ? JSON.parse(results[3].result) : null;
         if (lastSelectMapData && typeof lastSelectMapData === 'object') {
           globals.lastSelectMap = new Map(Object.entries(lastSelectMapData));
           log("info", `[cache] 从 Redis 恢复 lastSelectMap,共 ${globals.lastSelectMap.size} 条`);
         }
 
-        // 🔥 恢复 commentCache（过滤过期数据）
+        // 🔥 恢复 commentCache(过滤过期数据)
         const commentCacheData = results[4].result ? JSON.parse(results[4].result) : null;
         if (commentCacheData && typeof commentCacheData === 'object') {
           const now = Date.now();
@@ -239,10 +284,10 @@ export async function getRedisCaches() {
             return cacheAgeMinutes <= globals.commentCacheMinutes;
           });
           globals.commentCache = new Map(validComments);
-          log("info", `[cache] 从 Redis 恢复 commentCache,共 ${globals.commentCache.size} 条（已过滤过期）`);
+          log("info", `[cache] 从 Redis 恢复 commentCache,共 ${globals.commentCache.size} 条(已过滤过期)`);
         }
 
-        // 🔥 恢复 searchCache（过滤过期数据）
+        // 🔥 恢复 searchCache(过滤过期数据)
         const searchCacheData = results[5].result ? JSON.parse(results[5].result) : null;
         if (searchCacheData && typeof searchCacheData === 'object') {
           const now = Date.now();
@@ -252,7 +297,7 @@ export async function getRedisCaches() {
             return cacheAgeMinutes <= globals.searchCacheMinutes;
           });
           globals.searchCache = new Map(validSearches);
-          log("info", `[cache] 从 Redis 恢复 searchCache,共 ${globals.searchCache.size} 条（已过滤过期）`);
+          log("info", `[cache] 从 Redis 恢复 searchCache,共 ${globals.searchCache.size} 条(已过滤过期)`);
         }
 
         // 更新哈希值
