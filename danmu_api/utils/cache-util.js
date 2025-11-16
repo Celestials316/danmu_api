@@ -36,24 +36,13 @@ export function getSearchCache(keyword) {
 }
 
 // 设置搜索缓存
-export async function setSearchCache(keyword, results) {
+export function setSearchCache(keyword, results) {
     globals.searchCache.set(keyword, {
         results: results,
         timestamp: Date.now()
     });
 
     log("info", `Cached search results for "${keyword}" (${results.length} animes)`);
-
-    // 🔥 同步 searchCache 到数据库
-    if (globals.databaseValid) {
-        try {
-            const { saveCacheData } = await import('./db-util.js');
-            await saveCacheData('searchCache', Object.fromEntries(globals.searchCache));
-            log("info", `[cache] ✅ searchCache已同步到数据库`);
-        } catch (error) {
-            log("warn", `[cache] 数据库同步失败: ${error.message}`);
-        }
-    }
 }
 
 // 检查弹幕缓存是否有效（未过期）
@@ -86,33 +75,21 @@ export function getCommentCache(videoUrl) {
 }
 
 // 设置弹幕缓存
-export async function setCommentCache(videoUrl, comments) {
+export function setCommentCache(videoUrl, comments) {
     globals.commentCache.set(videoUrl, {
         comments: comments,
         timestamp: Date.now()
     });
 
     log("info", `Cached comments for "${videoUrl}" (${comments.length} comments)`);
-
-    // 🔥 同步 commentCache 到数据库
-    if (globals.databaseValid) {
-        try {
-            const { saveCacheData } = await import('./db-util.js');
-            await saveCacheData('commentCache', Object.fromEntries(globals.commentCache));
-            log("info", `[cache] ✅ commentCache已同步到数据库`);
-        } catch (error) {
-            log("warn", `[cache] 数据库同步失败: ${error.message}`);
-        }
-    }
 }
 
 // 添加元素到 episodeIds：检查 url 是否存在，若不存在则以自增 id 添加
-// 替换后:
 export function addEpisode(url, title) {
-    // 检查是否已存在相同的 url (只检查URL,不检查title)
-    const existingEpisode = globals.episodeIds.find(episode => episode.url === url);
+    // 检查是否已存在相同的 url 和 title
+    const existingEpisode = globals.episodeIds.find(episode => episode.url === url && episode.title === title);
     if (existingEpisode) {
-        log("info", `Episode with URL ${url} already exists in episodeIds (id: ${existingEpisode.id}), returning existing episode.`);
+        log("info", `Episode with URL ${url} and title ${title} already exists in episodeIds, returning existing episode.`);
         return existingEpisode; // 返回已存在的 episode
     }
 
@@ -163,8 +140,7 @@ export function findTitleById(id) {
 }
 
 // 添加 anime 对象到 animes，并将其 links 添加到 episodeIds
-// 替换后:
-export async function addAnime(anime) {
+export function addAnime(anime) {
     anime = Anime.fromJson(anime);
     try {
         // 确保 anime 有 links 属性且是数组
@@ -173,25 +149,13 @@ export async function addAnime(anime) {
             return false;
         }
 
-        // 🔥 检查是否已存在相同 animeId 的 anime
-        const existingAnimeIndex = globals.animes.findIndex(a => a.animeId === anime.animeId);
-        
-        // 🔥 如果 anime 已存在,只更新其位置,不重新添加 episodeIds
-        if (existingAnimeIndex !== -1) {
-            const existingAnime = globals.animes[existingAnimeIndex];
-            globals.animes.splice(existingAnimeIndex, 1);
-            globals.animes.push(existingAnime);
-            log("info", `Anime ${anime.animeId} already exists, moved to latest position (keeping existing episodeIds)`);
-            return true;
-        }
-
-        // 🔥 只有新 anime 才添加 episodeIds
+        // 遍历 links，调用 addEpisode，并收集返回的对象
         const newLinks = [];
         anime.links.forEach(link => {
             if (link.url) {
                 const episode = addEpisode(link.url, link.title);
                 if (episode) {
-                    newLinks.push(episode);
+                    newLinks.push(episode); // 仅添加成功添加的 episode
                 }
             } else {
                 log("error", `Invalid link in anime, missing url: ${JSON.stringify(link)}`);
@@ -201,11 +165,20 @@ export async function addAnime(anime) {
         // 创建新的 anime 副本
         const animeCopy = Anime.fromJson({ ...anime, links: newLinks });
 
-        // 将新的添加到数组末尾(最新位置)
+        // 检查是否已存在相同 animeId 的 anime
+        const existingAnimeIndex = globals.animes.findIndex(a => a.animeId === anime.animeId);
+
+        if (existingAnimeIndex !== -1) {
+            // 如果存在，先删除旧的
+            globals.animes.splice(existingAnimeIndex, 1);
+            log("info", `Removed old anime at index: ${existingAnimeIndex}`);
+        }
+
+        // 将新的添加到数组末尾（最新位置）
         globals.animes.push(animeCopy);
         log("info", `Added anime to latest position: ${anime.animeId}`);
 
-        // 检查是否超过 MAX_ANIMES,超过则删除最早的
+        // 检查是否超过 MAX_ANIMES，超过则删除最早的
         if (globals.animes.length > globals.MAX_ANIMES) {
             const removeSuccess = removeEarliestAnime();
             if (!removeSuccess) {
@@ -217,21 +190,6 @@ export async function addAnime(anime) {
           globals.animes,
           (key, value) => key === 'links' ? value.length : value
         )}`);
-
-        // 🔥 同步到数据库
-        if (globals.databaseValid) {
-            try {
-                const { saveCacheBatch } = await import('./db-util.js');
-                await saveCacheBatch({
-                    animes: globals.animes,
-                    episodeIds: globals.episodeIds,
-                    episodeNum: globals.episodeNum
-                });
-                log("info", `[cache] ✅ anime数据已同步到数据库`);
-            } catch (error) {
-                log("warn", `[cache] 数据库同步失败: ${error.message}`);
-            }
-        }
 
         return true;
     } catch (error) {
@@ -264,7 +222,7 @@ export function removeEarliestAnime() {
 }
 
 // 将所有动漫的 animeId 存入 lastSelectMap 的 animeIds 数组中
-export async function storeAnimeIdsToMap(curAnimes, key) {
+export function storeAnimeIdsToMap(curAnimes, key) {
     const uniqueAnimeIds = new Set();
     for (const anime of curAnimes) {
         uniqueAnimeIds.add(anime.animeId);
@@ -290,17 +248,6 @@ export async function storeAnimeIdsToMap(curAnimes, key) {
         const firstKey = globals.lastSelectMap.keys().next().value;
         globals.lastSelectMap.delete(firstKey);
         log("info", `Removed earliest entry from lastSelectMap: ${firstKey}`);
-    }
-
-    // 🔥 同步到数据库
-    if (globals.databaseValid) {
-        try {
-            const { saveCacheData } = await import('./db-util.js');
-            await saveCacheData('lastSelectMap', Object.fromEntries(globals.lastSelectMap));
-            log("info", `[cache] ✅ lastSelectMap已同步到数据库`);
-        } catch (error) {
-            log("warn", `[cache] 数据库同步失败: ${error.message}`);
-        }
     }
 }
 
