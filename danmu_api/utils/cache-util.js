@@ -107,11 +107,12 @@ export async function setCommentCache(videoUrl, comments) {
 }
 
 // 添加元素到 episodeIds：检查 url 是否存在，若不存在则以自增 id 添加
+// 替换后:
 export function addEpisode(url, title) {
-    // 检查是否已存在相同的 url 和 title
-    const existingEpisode = globals.episodeIds.find(episode => episode.url === url && episode.title === title);
+    // 检查是否已存在相同的 url (只检查URL,不检查title)
+    const existingEpisode = globals.episodeIds.find(episode => episode.url === url);
     if (existingEpisode) {
-        log("info", `Episode with URL ${url} and title ${title} already exists in episodeIds, returning existing episode.`);
+        log("info", `Episode with URL ${url} already exists in episodeIds (id: ${existingEpisode.id}), returning existing episode.`);
         return existingEpisode; // 返回已存在的 episode
     }
 
@@ -162,6 +163,7 @@ export function findTitleById(id) {
 }
 
 // 添加 anime 对象到 animes，并将其 links 添加到 episodeIds
+// 替换后:
 export async function addAnime(anime) {
     anime = Anime.fromJson(anime);
     try {
@@ -171,13 +173,25 @@ export async function addAnime(anime) {
             return false;
         }
 
-        // 遍历 links，调用 addEpisode，并收集返回的对象
+        // 🔥 检查是否已存在相同 animeId 的 anime
+        const existingAnimeIndex = globals.animes.findIndex(a => a.animeId === anime.animeId);
+        
+        // 🔥 如果 anime 已存在,只更新其位置,不重新添加 episodeIds
+        if (existingAnimeIndex !== -1) {
+            const existingAnime = globals.animes[existingAnimeIndex];
+            globals.animes.splice(existingAnimeIndex, 1);
+            globals.animes.push(existingAnime);
+            log("info", `Anime ${anime.animeId} already exists, moved to latest position (keeping existing episodeIds)`);
+            return true;
+        }
+
+        // 🔥 只有新 anime 才添加 episodeIds
         const newLinks = [];
         anime.links.forEach(link => {
             if (link.url) {
                 const episode = addEpisode(link.url, link.title);
                 if (episode) {
-                    newLinks.push(episode); // 仅添加成功添加的 episode
+                    newLinks.push(episode);
                 }
             } else {
                 log("error", `Invalid link in anime, missing url: ${JSON.stringify(link)}`);
@@ -187,20 +201,11 @@ export async function addAnime(anime) {
         // 创建新的 anime 副本
         const animeCopy = Anime.fromJson({ ...anime, links: newLinks });
 
-        // 检查是否已存在相同 animeId 的 anime
-        const existingAnimeIndex = globals.animes.findIndex(a => a.animeId === anime.animeId);
-
-        if (existingAnimeIndex !== -1) {
-            // 如果存在，先删除旧的
-            globals.animes.splice(existingAnimeIndex, 1);
-            log("info", `Removed old anime at index: ${existingAnimeIndex}`);
-        }
-
-        // 将新的添加到数组末尾（最新位置）
+        // 将新的添加到数组末尾(最新位置)
         globals.animes.push(animeCopy);
         log("info", `Added anime to latest position: ${anime.animeId}`);
 
-        // 检查是否超过 MAX_ANIMES，超过则删除最早的
+        // 检查是否超过 MAX_ANIMES,超过则删除最早的
         if (globals.animes.length > globals.MAX_ANIMES) {
             const removeSuccess = removeEarliestAnime();
             if (!removeSuccess) {
