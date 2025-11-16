@@ -5851,7 +5851,7 @@ async function handleHomepage(req) {
            <div style="min-width: 50px;">
              <span style="display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; background: var(--bg-tertiary); color: var(--text-secondary);">\${modeText}</span>
            </div>
-           <div style="width: 30px; height: 20px; border-radius: 4px; border: 1px solid var(--border-color);" style="background: \${hexColor};" title="\${hexColor}"></div>
+           <div style="width: 30px; height: 20px; border-radius: 4px; border: 1px solid var(--border-color); background: \${hexColor};" title="\${hexColor}"></div>
            <div style="flex: 1; color: var(--text-primary); font-size: 14px; word-break: break-all;">\${escapeHtml(text)}</div>
          </div>
        \`;
