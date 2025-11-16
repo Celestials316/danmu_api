@@ -3651,15 +3651,20 @@ async function handleHomepage(req) {
    <div class="container">
      <!-- 概览页面 -->
      <section id="overview-page" class="page-section active">
-       <div class="stats-grid">
+              <div class="stats-grid">
          <div class="stat-card">
            <div class="stat-header">
              <span class="stat-title">环境变量</span>
              <div class="stat-icon primary">⚙️</div>
            </div>
            <div class="stat-value">${configuredEnvCount}/${totalEnvCount}</div>
-           <div class="stat-footer">
-             ${sensitiveEnvCount > 0 ? `🔒 隐私变量: ${sensitiveEnvCount} 个` : '已配置 / 总数'}
+           <div class="stat-footer" style="display: flex; align-items: center; justify-content: space-between;">
+             <span>${sensitiveEnvCount > 0 ? `🔒 隐私变量: ${sensitiveEnvCount} 个` : '已配置 / 总数'}</span>
+             <button onclick="showAllEnvVars()" class="icon-btn" style="width: 32px; height: 32px; margin-left: auto;" title="查看完整配置 (JSON)">
+               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor">
+                 <path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" stroke-width="2" stroke-linecap="round"/>
+               </svg>
+             </button>
            </div>
          </div>
          
@@ -5157,6 +5162,69 @@ async function handleHomepage(req) {
      <path d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" stroke-width="2" stroke-linecap="round"/>
    </svg>
  </button>
+ <!-- 查看所有环境变量模态框 -->
+ <div class="modal-overlay" id="allEnvVarsModal">
+   <div class="modal" style="max-width: 900px; max-height: 90vh;">
+     <div class="modal-header">
+       <h3 class="modal-title">
+         <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor">
+           <path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" stroke-width="2"/>
+         </svg>
+         环境变量完整配置 (JSON)
+       </h3>
+       <button class="modal-close" onclick="closeModal('allEnvVarsModal')">
+         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor">
+           <path d="M6 18L18 6M6 6l12 12" stroke-width="2" stroke-linecap="round"/>
+         </svg>
+       </button>
+     </div>
+     <div class="modal-body" style="padding: 0;">
+       <div class="alert alert-info" style="margin: 20px 20px 0 20px; border-radius: 12px;">
+         <svg class="alert-icon" viewBox="0 0 24 24" width="20" height="20">
+           <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
+           <path d="M12 16v-4m0-4h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+         </svg>
+         <span>💡 以下为所有环境变量的真实值（未脱敏），请注意保护敏感信息</span>
+       </div>
+       
+       <div style="padding: 20px; max-height: 60vh; overflow-y: auto;">
+         <div style="position: relative;">
+           <button onclick="copyAllEnvJson()" class="btn btn-secondary" style="position: absolute; top: 12px; right: 12px; z-index: 10; padding: 8px 16px; font-size: 13px;">
+             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor">
+               <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke-width="2"/>
+               <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke-width="2"/>
+             </svg>
+             复制全部
+           </button>
+           <pre id="allEnvVarsJson" style="
+             background: var(--bg-primary);
+             border: 1px solid var(--border-color);
+             border-radius: 12px;
+             padding: 24px 20px 20px 20px;
+             margin: 0;
+             overflow-x: auto;
+             font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+             font-size: 13px;
+             line-height: 1.6;
+             color: var(--text-primary);
+             white-space: pre-wrap;
+             word-break: break-all;
+           "></pre>
+         </div>
+       </div>
+     </div>
+     <div class="modal-footer" style="padding: 20px; border-top: 2px solid var(--border-color);">
+       <button class="btn btn-secondary" onclick="downloadEnvJson()">
+         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+           <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" stroke-width="2" stroke-linecap="round"/>
+         </svg>
+         下载 JSON
+       </button>
+       <div style="flex: 1;"></div>
+       <button class="btn btn-secondary" onclick="closeModal('allEnvVarsModal')">关闭</button>
+     </div>
+   </div>
+ </div>
 
  <script>
    // ==================== 全局状态管理 ====================
@@ -6830,7 +6898,94 @@ async function handleHomepage(req) {
        showToast('退出失败', 'error');
      }
    }
+   // ========== 查看所有环境变量功能 ==========
+   // ========== 查看所有环境变量功能 ==========
+   async function showAllEnvVars() {
+     showModal('allEnvVarsModal');
+     
+     try {
+       // 📡 从服务器加载最新配置
+       const response = await fetch('/api/config/load');
+       const result = await response.json();
+       
+       let envData = {};
+       
+       if (result.success && result.config) {
+         envData = result.config;
+       } else {
+         // 降级到本地状态
+         envData = AppState.config;
+       }
+       
+       // 🔍 直接使用服务器返回的真实值（已经是未脱敏的）
+       const realEnvData = { ...envData };
+       
+       // 添加元数据
+       const fullData = {
+         _metadata: {
+           exportTime: new Date().toISOString(),
+           totalCount: Object.keys(realEnvData).length,
+           platform: '${globals.deployPlatform || 'unknown'}',
+           version: '${globals.VERSION || 'unknown'}'
+         },
+         ...realEnvData
+       };
+       
+       // 格式化 JSON（美化输出）
+       const jsonStr = JSON.stringify(fullData, null, 2);
+       
+       // 语法高亮（简化版）
+       const highlighted = jsonStr
+         .replace(/("(?:\\\\.|[^"\\\\])*")\\s*:/g, '<span style="color: #a78bfa;">$1</span>:') // 键名
+         .replace(/:\\s*"((?:\\\\.|[^"\\\\])*)"/g, ': <span style="color: #34d399;">"$1"</span>') // 字符串值
+         .replace(/:\\s*(true|false)/g, ': <span style="color: #f59e0b;">$1</span>') // 布尔值
+         .replace(/:\\s*(-?\\d+(?:\\.\\d+)?)/g, ': <span style="color: #60a5fa;">$1</span>'); // 数字
+       
+       document.getElementById('allEnvVarsJson').innerHTML = highlighted;
+       
+     } catch (error) {
+       console.error('加载环境变量失败:', error);
+       document.getElementById('allEnvVarsJson').textContent = JSON.stringify({
+         error: '加载失败',
+         message: error.message
+       }, null, 2);
+     }
+   }
 
+   
+   // 复制所有环境变量 JSON
+   function copyAllEnvJson() {
+     const preElement = document.getElementById('allEnvVarsJson');
+     if (!preElement) return;
+     
+     // 移除 HTML 标签，获取纯文本
+     const tempDiv = document.createElement('div');
+     tempDiv.innerHTML = preElement.innerHTML;
+     const plainText = tempDiv.textContent || tempDiv.innerText;
+     
+     copyToClipboard(plainText);
+     showToast('已复制完整配置到剪贴板', 'success');
+   }
+   
+   // 下载环境变量 JSON 文件
+   function downloadEnvJson() {
+     const preElement = document.getElementById('allEnvVarsJson');
+     if (!preElement) return;
+     
+     // 移除 HTML 标签
+     const tempDiv = document.createElement('div');
+     tempDiv.innerHTML = preElement.innerHTML;
+     const plainText = tempDiv.textContent || tempDiv.innerText;
+     
+     const blob = new Blob([plainText], { type: 'application/json' });
+     const url = URL.createObjectURL(blob);
+     const a = document.createElement('a');
+     a.href = url;
+     a.download = \`danmu-api-env-\${new Date().getTime()}.json\`;
+     a.click();
+     URL.revokeObjectURL(url);
+     showToast('环境变量配置已下载', 'success');
+   }
 
    // ========== 版本检测功能 ==========
    // 全局变量存储版本信息
