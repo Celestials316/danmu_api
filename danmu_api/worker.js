@@ -175,104 +175,130 @@ async function applyConfigPatch(patch) {
     globals.token = patch.TOKEN;
   }
 
-  // 🔥 自动处理所有环境变量更新（增强版：同步到 Envs 模块）
-  const ENV_VAR_HANDLERS = {
-    'BILIBILI_COOKIE': (value) => {
-      globals.bilibiliCookie = value || '';
-      globals.bilibliCookie = value || '';  // ← 兼容错误拼写
-      globals.BILIBILI_COOKIE = value || '';
-      globals.envs.bilibiliCookie = value || '';
-      globals.envs.bilibliCookie = value || '';  // ← 兼容错误拼写
-      globals.envs.BILIBILI_COOKIE = value || '';
-      Envs.env.bilibiliCookie = value || '';
-      Envs.env.bilibliCookie = value || '';  // ← 兼容错误拼写
-      Envs.env.BILIBILI_COOKIE = value || '';
-      return `${value ? '已设置' : '已清空'}`;
-    },
-    'TMDB_API_KEY': (value) => {
-      globals.tmdbApiKey = value || '';
-      globals.TMDB_API_KEY = value || '';
-      globals.envs.tmdbApiKey = value || '';
-      globals.envs.TMDB_API_KEY = value || '';
-      Envs.env.tmdbApiKey = value || '';
-      Envs.env.TMDB_API_KEY = value || '';
-      return `${value ? '已设置' : '已清空'}`;
-    },
-    'WHITE_RATIO': (value) => {
-      const ratio = parseFloat(value);
-      if (!isNaN(ratio)) {
-        globals.whiteRatio = ratio;
-        globals.WHITE_RATIO = ratio;
-        globals.envs.whiteRatio = ratio;
-        globals.envs.WHITE_RATIO = ratio;
-        Envs.env.whiteRatio = ratio;
-        Envs.env.WHITE_RATIO = ratio;
-        return `${ratio}`;
-      }
-      return null;
-    },
-    'BLOCKED_WORDS': (value) => {
-      globals.blockedWords = value || '';
-      globals.BLOCKED_WORDS = value || '';
-      globals.envs.blockedWords = value || '';
-      globals.envs.BLOCKED_WORDS = value || '';
-      globals.blockedWordsArr = value ? value.split(',').map(w => w.trim()).filter(w => w.length > 0) : [];
-      globals.envs.blockedWordsArr = globals.blockedWordsArr;
-      Envs.env.blockedWords = value || '';
-      Envs.env.BLOCKED_WORDS = value || '';
-      Envs.env.blockedWordsArr = globals.blockedWordsArr;
-      return `${globals.blockedWordsArr.length} 个屏蔽词`;
-    },
-    'GROUP_MINUTE': (value) => {
-      const minutes = parseInt(value) || 1;
-      globals.groupMinute = minutes;
-      globals.GROUP_MINUTE = minutes;
-      globals.envs.groupMinute = minutes;
-      globals.envs.GROUP_MINUTE = minutes;
-      Envs.env.groupMinute = minutes;
-      Envs.env.GROUP_MINUTE = minutes;
-      return `${minutes} 分钟`;
-    },
-    'CONVERT_TOP_BOTTOM_TO_SCROLL': (value) => {
-      const enabled = String(value).toLowerCase() === 'true';
-      globals.convertTopBottomToScroll = enabled;
-      globals.CONVERT_TOP_BOTTOM_TO_SCROLL = enabled;
-      globals.envs.convertTopBottomToScroll = enabled;
-      globals.envs.CONVERT_TOP_BOTTOM_TO_SCROLL = enabled;
-      Envs.env.convertTopBottomToScroll = enabled;
-      Envs.env.CONVERT_TOP_BOTTOM_TO_SCROLL = enabled;
-      return `${enabled}`;
-    },
-    'DANMU_SIMPLIFIED': (value) => {
-      const enabled = String(value).toLowerCase() === 'true';
-      globals.danmuSimplified = enabled;
-      globals.DANMU_SIMPLIFIED = enabled;
-      globals.envs.danmuSimplified = enabled;
-      globals.envs.DANMU_SIMPLIFIED = enabled;
-      Envs.env.danmuSimplified = enabled;
-      Envs.env.DANMU_SIMPLIFIED = enabled;
-      return `${enabled}`;
-    },
-    'DANMU_LIMIT': (value) => {
-      const limit = parseInt(value) || -1;
-      globals.danmuLimit = limit;
-      globals.DANMU_LIMIT = limit;
-      globals.envs.danmuLimit = limit;
-      globals.envs.DANMU_LIMIT = limit;
-      Envs.env.danmuLimit = limit;
-      Envs.env.DANMU_LIMIT = limit;
-      return `${limit}`;
-    },
-    'DANMU_OUTPUT_FORMAT': (value) => {
-      globals.danmuOutputFormat = value || 'json';
-      globals.DANMU_OUTPUT_FORMAT = value || 'json';
-      globals.envs.danmuOutputFormat = value || 'json';
-      globals.envs.DANMU_OUTPUT_FORMAT = value || 'json';
-      Envs.env.danmuOutputFormat = value || 'json';
-      Envs.env.DANMU_OUTPUT_FORMAT = value || 'json';
-      return `${value || 'json'}`;
-    }
-  };
+   // 🔥 自动处理所有环境变量更新（增强版：同步到 Envs 模块）
+   const ENV_VAR_HANDLERS = {
+     'BILIBILI_COOKIE': (value) => {
+       globals.bilibiliCookie = value || '';
+       globals.bilibliCookie = value || '';  // ← 兼容错误拼写
+       globals.BILIBILI_COOKIE = value || '';
+       globals.envs.bilibiliCookie = value || '';
+       globals.envs.bilibliCookie = value || '';  // ← 兼容错误拼写
+       globals.envs.BILIBILI_COOKIE = value || '';
+       Envs.env.bilibiliCookie = value || '';
+       Envs.env.bilibliCookie = value || '';  // ← 兼容错误拼写
+       Envs.env.BILIBILI_COOKIE = value || '';
+       return `${value ? '已设置' : '已清空'}`;
+     },
+     'TMDB_API_KEY': (value) => {
+       globals.tmdbApiKey = value || '';
+       globals.TMDB_API_KEY = value || '';
+       globals.envs.tmdbApiKey = value || '';
+       globals.envs.TMDB_API_KEY = value || '';
+       Envs.env.tmdbApiKey = value || '';
+       Envs.env.TMDB_API_KEY = value || '';
+       return `${value ? '已设置' : '已清空'}`;
+     },
+     'WHITE_RATIO': (value) => {
+       const ratio = parseFloat(value);
+       if (!isNaN(ratio)) {
+         globals.whiteRatio = ratio;
+         globals.WHITE_RATIO = ratio;
+         globals.envs.whiteRatio = ratio;
+         globals.envs.WHITE_RATIO = ratio;
+         Envs.env.whiteRatio = ratio;
+         Envs.env.WHITE_RATIO = ratio;
+         return `${ratio}`;
+       }
+       return null;
+     },
+     'BLOCKED_WORDS': (value) => {
+       globals.blockedWords = value || '';
+       globals.BLOCKED_WORDS = value || '';
+       globals.envs.blockedWords = value || '';
+       globals.envs.BLOCKED_WORDS = value || '';
+       globals.blockedWordsArr = value ? value.split(',').map(w => w.trim()).filter(w => w.length > 0) : [];
+       globals.envs.blockedWordsArr = globals.blockedWordsArr;
+       Envs.env.blockedWords = value || '';
+       Envs.env.BLOCKED_WORDS = value || '';
+       Envs.env.blockedWordsArr = globals.blockedWordsArr;
+       return `${globals.blockedWordsArr.length} 个屏蔽词`;
+     },
+     'GROUP_MINUTE': (value) => {
+       const minutes = parseInt(value) || 1;
+       globals.groupMinute = minutes;
+       globals.GROUP_MINUTE = minutes;
+       globals.envs.groupMinute = minutes;
+       globals.envs.GROUP_MINUTE = minutes;
+       Envs.env.groupMinute = minutes;
+       Envs.env.GROUP_MINUTE = minutes;
+       return `${minutes} 分钟`;
+     },
+     'CONVERT_TOP_BOTTOM_TO_SCROLL': (value) => {
+       const enabled = String(value).toLowerCase() === 'true';
+       globals.convertTopBottomToScroll = enabled;
+       globals.CONVERT_TOP_BOTTOM_TO_SCROLL = enabled;
+       globals.envs.convertTopBottomToScroll = enabled;
+       globals.envs.CONVERT_TOP_BOTTOM_TO_SCROLL = enabled;
+       Envs.env.convertTopBottomToScroll = enabled;
+       Envs.env.CONVERT_TOP_BOTTOM_TO_SCROLL = enabled;
+       return `${enabled}`;
+     },
+     'DANMU_SIMPLIFIED': (value) => {
+       const enabled = String(value).toLowerCase() === 'true';
+       globals.danmuSimplified = enabled;
+       globals.DANMU_SIMPLIFIED = enabled;
+       globals.envs.danmuSimplified = enabled;
+       globals.envs.DANMU_SIMPLIFIED = enabled;
+       Envs.env.danmuSimplified = enabled;
+       Envs.env.DANMU_SIMPLIFIED = enabled;
+       return `${enabled}`;
+     },
+     'DANMU_LIMIT': (value) => {
+       const limit = parseInt(value) || -1;
+       globals.danmuLimit = limit;
+       globals.DANMU_LIMIT = limit;
+       globals.envs.danmuLimit = limit;
+       globals.envs.DANMU_LIMIT = limit;
+       Envs.env.danmuLimit = limit;
+       Envs.env.DANMU_LIMIT = limit;
+       return `${limit}`;
+     },
+     'SEARCH_CACHE_MINUTES': (value) => {
+       const minutes = parseInt(value);
+       if (!isNaN(minutes) && minutes >= 0) {
+         globals.searchCacheMinutes = minutes;
+         globals.SEARCH_CACHE_MINUTES = minutes;
+         globals.envs.searchCacheMinutes = minutes;
+         globals.envs.SEARCH_CACHE_MINUTES = minutes;
+         Envs.env.searchCacheMinutes = minutes;
+         Envs.env.SEARCH_CACHE_MINUTES = minutes;
+         return `${minutes} 分钟`;
+       }
+       return null;
+     },
+     'COMMENT_CACHE_MINUTES': (value) => {
+       const minutes = parseInt(value);
+       if (!isNaN(minutes) && minutes >= 0) {
+         globals.commentCacheMinutes = minutes;
+         globals.COMMENT_CACHE_MINUTES = minutes;
+         globals.envs.commentCacheMinutes = minutes;
+         globals.envs.COMMENT_CACHE_MINUTES = minutes;
+         Envs.env.commentCacheMinutes = minutes;
+         Envs.env.COMMENT_CACHE_MINUTES = minutes;
+         return `${minutes} 分钟`;
+       }
+       return null;
+     },
+     'DANMU_OUTPUT_FORMAT': (value) => {
+       globals.danmuOutputFormat = value || 'json';
+       globals.DANMU_OUTPUT_FORMAT = value || 'json';
+       globals.envs.danmuOutputFormat = value || 'json';
+       globals.envs.DANMU_OUTPUT_FORMAT = value || 'json';
+       Envs.env.danmuOutputFormat = value || 'json';
+       Envs.env.DANMU_OUTPUT_FORMAT = value || 'json';
+       return `${value || 'json'}`;
+     }
+   };
 
   // 自动处理所有定义好的环境变量
   for (const [key, value] of Object.entries(patch)) {
