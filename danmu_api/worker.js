@@ -5698,76 +5698,86 @@ async function handleHomepage(req) {
        if (input.startsWith('http://') || input.startsWith('https://')) {
          apiUrl = \`/api/v2/comment?url=\${encodeURIComponent(input)}&format=json\`;
        } else {
-         // 解析输入：支持 "番剧名 第X集" 或 "番剧名 SxxExx" 格式
-         let animeName = input;
-         let episodeNumber = 1; // 默认第1集
+         // ✅ 使用 /api/v2/match 接口智能匹配
+         showToast(\`正在智能匹配: \${input}...\`, 'info', 2000);
          
-         // 匹配 "第X集" 格式
-         const episodeMatch1 = input.match(/(.+?)\s*第\s*(\d+)\s*集/);
-         if (episodeMatch1) {
-           animeName = episodeMatch1[1].trim();
-           episodeNumber = parseInt(episodeMatch1[2]);
-         } else {
-           // 匹配 "SxxExx" 格式
-           const episodeMatch2 = input.match(/(.+?)\s+S\d+E(\d+)/i);
-           if (episodeMatch2) {
-             animeName = episodeMatch2[1].trim();
-             episodeNumber = parseInt(episodeMatch2[2]);
-           } else {
-             // 匹配纯数字格式 "番剧名 10"
-             const episodeMatch3 = input.match(/(.+?)\s+(\d+)$/);
-             if (episodeMatch3) {
-               animeName = episodeMatch3[1].trim();
-               episodeNumber = parseInt(episodeMatch3[2]);
-             }
-           }
+         const matchResponse = await fetch('/api/v2/match', {
+           method: 'POST',
+           headers: {
+             'Content-Type': 'application/json'
+           },
+           body: JSON.stringify({
+             fileName: input
+           })
+         });
+         
+         const matchResult = await matchResponse.json();
+         
+         if (!matchResult.success) {
+           throw new Error(matchResult.errorMessage || '匹配失败');
          }
          
-         // 先搜索番剧
-         showToast(\`正在搜索番剧: \${animeName}...\`, 'info', 2000);
-         const searchUrl = \`/api/v2/search/anime?keyword=\${encodeURIComponent(animeName)}\`;
-         const searchResponse = await fetch(searchUrl);
-         const searchResult = await searchResponse.json();
-
-         if (!searchResult.success || !searchResult.animes || searchResult.animes.length === 0) {
-           throw new Error('未找到相关番剧');
+         if (!matchResult.isMatched || !matchResult.matches || matchResult.matches.length === 0) {
+           throw new Error(\`未找到匹配结果："\${input}"\`);
          }
-
-         // 获取第一个结果
-         const firstAnime = searchResult.animes[0];
-         showToast(\`找到番剧: \${firstAnime.animeTitle}，正在获取剧集信息...\`, 'info', 2000);
-
-         // 使用 bangumi 接口获取完整的剧集列表
-         const bangumiUrl = \`/api/v2/bangumi/\${firstAnime.animeId}\`;
-         const bangumiResponse = await fetch(bangumiUrl);
-         const bangumiResult = await bangumiResponse.json();
-
-         if (!bangumiResult.success || !bangumiResult.bangumi || !bangumiResult.bangumi.episodes || bangumiResult.bangumi.episodes.length === 0) {
-           throw new Error('未找到剧集信息');
-         }
-
-         // 查找指定集数
-         const targetEpisode = bangumiResult.bangumi.episodes.find(ep => 
-           parseInt(ep.episodeNumber) === episodeNumber
-         );
-
-         if (!targetEpisode) {
-           throw new Error(\`未找到第 \${episodeNumber} 集，该番剧共 \${bangumiResult.bangumi.episodes.length} 集\`);
-         }
-
-         showToast(\`正在获取 \${targetEpisode.episodeTitle || '第'+episodeNumber+'集'} 弹幕...\`, 'info', 2000);
-         apiUrl = \`/api/v2/comment/\${targetEpisode.episodeId}?format=json\`;
+         
+         const match = matchResult.matches[0];
+         showToast(\`✅ 匹配成功: \${match.animeTitle} - \${match.episodeTitle}\`, 'success', 2000);
+         showToast(\`正在获取弹幕...\`, 'info', 2000);
+         
+         // 使用匹配到的 episodeId 获取弹幕
+         apiUrl = \`/api/v2/comment/\${match.episodeId}?format=json\`;
        }
 
        const response = await fetch(apiUrl);
        const result = await response.json();
 
-       if (!result.success) {
-         throw new Error(result.errorMessage || '获取弹幕失败');
+       // 🔍 调试：打印后端返回的完整数据
+       console.log('[Debug] 后端返回数据:', result);
+       console.log('[Debug] response.status:', response.status);
+       console.log('[Debug] result.success:', result.success);
+       console.log('[Debug] result.comments:', result.comments?.length);
+       console.log('[Debug] result.count:', result.count);
+
+       // ✅ 修复：兼容多种响应格式
+       // 情况1: 标准格式 { success: true, comments: [...] }
+       // 情况2: 简化格式 { count: 100, comments: [...] }
+       // 情况3: 直接返回数组 [...]
+       let comments = [];
+       
+       if (Array.isArray(result)) {
+         // 直接返回数组
+         comments = result;
+       } else if (result.comments) {
+         // 有 comments 字段
+         comments = result.comments;
+       } else if (result.danmus) {
+         // 或者叫 danmus
+         comments = result.danmus;
        }
 
-       // 弹幕数据可能在 comments 或 danmus 字段中
-       currentDanmuData = result.comments || result.danmus || [];
+       // 检查是否明确失败
+       if (result.success === false) {
+         throw new Error(result.errorMessage || result.message || '获取弹幕失败');
+       }
+
+       // 检查 HTTP 状态码
+       if (!response.ok) {
+         throw new Error(\`HTTP \${response.status}: \${result.errorMessage || '请求失败'}\`);
+       }
+
+       currentDanmuData = comments;
+       filteredDanmuData = [...currentDanmuData];
+
+       if (currentDanmuData.length === 0) {
+         previewContainer.innerHTML = '<div style="text-align: center; padding: 60px 20px; color: var(--text-tertiary);"><div style="font-size: 48px; margin-bottom: 16px;">😢</div><div style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">未获取到弹幕</div><div style="font-size: 13px;">该视频可能没有弹幕数据</div></div>';
+         document.getElementById('danmuTestCount').textContent = '0 条';
+         return;
+       }
+
+       displayDanmuList(filteredDanmuData);
+       updateDanmuStats();
+       showToast(\`成功获取 \${currentDanmuData.length} 条弹幕\`, 'success');
        filteredDanmuData = [...currentDanmuData];
 
        if (currentDanmuData.length === 0) {
