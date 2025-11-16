@@ -6,100 +6,9 @@ import { Anime } from "../models/dandan-model.js";
 // cache数据结构处理函数
 // =====================
 
-// 后台异步加载搜索缓存
-async function loadSearchCacheInBackground(keyword) {
-    try {
-        // 优先从数据库加载
-        if (globals.databaseValid) {
-            const { loadCacheData } = await import('./db-util.js');
-            const cached = await loadCacheData(`search:${keyword}`);
-            if (cached && cached.results && cached.timestamp) {
-                const now = Date.now();
-                const cacheAgeMinutes = (now - cached.timestamp) / (1000 * 60);
-                
-                // 检查是否过期
-                if (cacheAgeMinutes <= globals.searchCacheMinutes) {
-                    globals.searchCache.set(keyword, cached);
-                    log("info", `[Cache] ✅ 从数据库恢复搜索缓存: ${keyword} (${cached.results.length} 条结果)`);
-                    return true;
-                }
-            }
-        }
-        
-        // 其次从 Redis 加载
-        if (globals.redisValid) {
-            const { getRedisKey } = await import('./redis-util.js');
-            const result = await getRedisKey(`search:${keyword}`);
-            if (result && result.result) {
-                const cached = JSON.parse(result.result);
-                if (cached && cached.results && cached.timestamp) {
-                    const now = Date.now();
-                    const cacheAgeMinutes = (now - cached.timestamp) / (1000 * 60);
-                    
-                    // 检查是否过期
-                    if (cacheAgeMinutes <= globals.searchCacheMinutes) {
-                        globals.searchCache.set(keyword, cached);
-                        log("info", `[Cache] ✅ 从 Redis 恢复搜索缓存: ${keyword} (${cached.results.length} 条结果)`);
-                        return true;
-                    }
-                }
-            }
-        }
-    } catch (error) {
-        log("error", `[Cache] 后台加载搜索缓存失败: ${error.message}`);
-    }
-    return false;
-}
-
-// 后台异步加载弹幕缓存
-async function loadCommentCacheInBackground(videoUrl) {
-    try {
-        // 优先从数据库加载
-        if (globals.databaseValid) {
-            const { loadCacheData } = await import('./db-util.js');
-            const cached = await loadCacheData(`comment:${videoUrl}`);
-            if (cached && cached.comments && cached.timestamp) {
-                const now = Date.now();
-                const cacheAgeMinutes = (now - cached.timestamp) / (1000 * 60);
-                
-                // 检查是否过期
-                if (cacheAgeMinutes <= globals.commentCacheMinutes) {
-                    globals.commentCache.set(videoUrl, cached);
-                    log("info", `[Cache] ✅ 从数据库恢复弹幕缓存: ${videoUrl} (${cached.comments.length} 条弹幕)`);
-                    return true;
-                }
-            }
-        }
-        
-        // 其次从 Redis 加载
-        if (globals.redisValid) {
-            const { getRedisKey } = await import('./redis-util.js');
-            const result = await getRedisKey(`comment:${videoUrl}`);
-            if (result && result.result) {
-                const cached = JSON.parse(result.result);
-                if (cached && cached.comments && cached.timestamp) {
-                    const now = Date.now();
-                    const cacheAgeMinutes = (now - cached.timestamp) / (1000 * 60);
-                    
-                    // 检查是否过期
-                    if (cacheAgeMinutes <= globals.commentCacheMinutes) {
-                        globals.commentCache.set(videoUrl, cached);
-                        log("info", `[Cache] ✅ 从 Redis 恢复弹幕缓存: ${videoUrl} (${cached.comments.length} 条弹幕)`);
-                        return true;
-                    }
-                }
-            }
-        }
-    } catch (error) {
-        log("error", `[Cache] 后台加载弹幕缓存失败: ${error.message}`);
-    }
-    return false;
-}
-
 // 检查搜索缓存是否有效（未过期）
 export function isSearchCacheValid(keyword) {
     if (!globals.searchCache.has(keyword)) {
-        log("info", `[Cache] ❌ 搜索缓存未命中（内存）: ${keyword}`);
         return false;
     }
 
@@ -110,67 +19,35 @@ export function isSearchCacheValid(keyword) {
     if (cacheAgeMinutes > globals.searchCacheMinutes) {
         // 缓存已过期，删除它
         globals.searchCache.delete(keyword);
-        log("info", `[Cache] ❌ 搜索缓存已过期: ${keyword} (${cacheAgeMinutes.toFixed(2)} 分钟)`);
+        log("info", `Search cache for "${keyword}" expired after ${cacheAgeMinutes.toFixed(2)} minutes`);
         return false;
     }
 
-    log("info", `[Cache] ✅ 搜索缓存命中: ${keyword} (剩余 ${(globals.searchCacheMinutes - cacheAgeMinutes).toFixed(2)} 分钟)`);
     return true;
 }
 
 // 获取搜索缓存
-export async function getSearchCache(keyword) {
+export function getSearchCache(keyword) {
     if (isSearchCacheValid(keyword)) {
+        log("info", `Using search cache for "${keyword}"`);
         return globals.searchCache.get(keyword).results;
     }
-    
-    // 尝试从持久化存储加载
-    const loaded = await loadSearchCacheInBackground(keyword);
-    if (loaded && isSearchCacheValid(keyword)) {
-        return globals.searchCache.get(keyword).results;
-    }
-    
     return null;
 }
 
 // 设置搜索缓存
 export function setSearchCache(keyword, results) {
-    const cacheData = {
+    globals.searchCache.set(keyword, {
         results: results,
         timestamp: Date.now()
-    };
-    
-    // 立即保存到内存
-    globals.searchCache.set(keyword, cacheData);
-    log("info", `[Cache] ✅ 已缓存搜索结果（内存）: ${keyword} (${results.length} 条结果)`);
+    });
 
-    // 后台异步保存到持久化存储（不阻塞响应）
-    (async () => {
-        try {
-            // 优先保存到数据库
-            if (globals.databaseValid) {
-                const { saveCacheData } = await import('./db-util.js');
-                await saveCacheData(`search:${keyword}`, cacheData);
-                log("info", `[Cache] ✅ 已保存搜索缓存到数据库: ${keyword}`);
-            }
-            
-            // 同时保存到 Redis（如果可用）
-            if (globals.redisValid) {
-                const { setRedisKeyWithExpiry } = await import('./redis-util.js');
-                const expirySeconds = globals.searchCacheMinutes * 60;
-                await setRedisKeyWithExpiry(`search:${keyword}`, JSON.stringify(cacheData), expirySeconds);
-                log("info", `[Cache] ✅ 已保存搜索缓存到 Redis: ${keyword}`);
-            }
-        } catch (error) {
-            log("error", `[Cache] ⚠️ 保存搜索缓存到持久化存储失败: ${error.message}`);
-        }
-    })();
+    log("info", `Cached search results for "${keyword}" (${results.length} animes)`);
 }
 
 // 检查弹幕缓存是否有效（未过期）
 export function isCommentCacheValid(videoUrl) {
     if (!globals.commentCache.has(videoUrl)) {
-        log("info", `[Cache] ❌ 弹幕缓存未命中（内存）: ${videoUrl}`);
         return false;
     }
 
@@ -181,61 +58,30 @@ export function isCommentCacheValid(videoUrl) {
     if (cacheAgeMinutes > globals.commentCacheMinutes) {
         // 缓存已过期，删除它
         globals.commentCache.delete(videoUrl);
-        log("info", `[Cache] ❌ 弹幕缓存已过期: ${videoUrl} (${cacheAgeMinutes.toFixed(2)} 分钟)`);
+        log("info", `Comment cache for "${videoUrl}" expired after ${cacheAgeMinutes.toFixed(2)} minutes`);
         return false;
     }
 
-    log("info", `[Cache] ✅ 弹幕缓存命中: ${videoUrl} (剩余 ${(globals.commentCacheMinutes - cacheAgeMinutes).toFixed(2)} 分钟)`);
     return true;
 }
 
 // 获取弹幕缓存
-export async function getCommentCache(videoUrl) {
+export function getCommentCache(videoUrl) {
     if (isCommentCacheValid(videoUrl)) {
+        log("info", `Using comment cache for "${videoUrl}"`);
         return globals.commentCache.get(videoUrl).comments;
     }
-    
-    // 尝试从持久化存储加载
-    const loaded = await loadCommentCacheInBackground(videoUrl);
-    if (loaded && isCommentCacheValid(videoUrl)) {
-        return globals.commentCache.get(videoUrl).comments;
-    }
-    
     return null;
 }
 
 // 设置弹幕缓存
 export function setCommentCache(videoUrl, comments) {
-    const cacheData = {
+    globals.commentCache.set(videoUrl, {
         comments: comments,
         timestamp: Date.now()
-    };
-    
-    // 立即保存到内存
-    globals.commentCache.set(videoUrl, cacheData);
-    log("info", `[Cache] ✅ 已缓存弹幕（内存）: ${videoUrl} (${comments.length} 条弹幕)`);
+    });
 
-    // 后台异步保存到持久化存储（不阻塞响应）
-    (async () => {
-        try {
-            // 优先保存到数据库
-            if (globals.databaseValid) {
-                const { saveCacheData } = await import('./db-util.js');
-                await saveCacheData(`comment:${videoUrl}`, cacheData);
-                log("info", `[Cache] ✅ 已保存弹幕缓存到数据库: ${videoUrl}`);
-            }
-            
-            // 同时保存到 Redis（如果可用）
-            if (globals.redisValid) {
-                const { setRedisKeyWithExpiry } = await import('./redis-util.js');
-                const expirySeconds = globals.commentCacheMinutes * 60;
-                await setRedisKeyWithExpiry(`comment:${videoUrl}`, JSON.stringify(cacheData), expirySeconds);
-                log("info", `[Cache] ✅ 已保存弹幕缓存到 Redis: ${videoUrl}`);
-            }
-        } catch (error) {
-            log("error", `[Cache] ⚠️ 保存弹幕缓存到持久化存储失败: ${error.message}`);
-        }
-    })();
+    log("info", `Cached comments for "${videoUrl}" (${comments.length} comments)`);
 }
 
 // 添加元素到 episodeIds：检查 url 是否存在，若不存在则以自增 id 添加
