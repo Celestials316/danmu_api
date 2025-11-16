@@ -8412,63 +8412,33 @@ docker-compose pull danmu-api && docker-compose up -d danmu-api`;
       let commentCacheSize = 0;
       let cacheDetails = [];
 
-            // 内存缓存统计
-      // 搜索缓存 - 存储在 globals.animes
+      // 🔥 统一从内存读取（数据库/Redis的数据在启动时已加载到内存）
+      // 搜索缓存 - 从 globals.animes 统计
       if (globals.animes && typeof globals.animes === 'object') {
         searchCacheCount = Object.keys(globals.animes).length;
         searchCacheSize = JSON.stringify(globals.animes).length;
+        log("info", `[cache/stats] 搜索缓存: ${searchCacheCount} 条`);
       }
 
-      // 弹幕缓存 - 存储在 globals.episodeIds 和 globals.episodeNum
+      // 弹幕缓存 - 从 globals.episodeIds 和 globals.episodeNum 统计
       if (globals.episodeIds && typeof globals.episodeIds === 'object') {
-        commentCacheCount = Object.keys(globals.episodeIds).length;
-        commentCacheSize = JSON.stringify(globals.episodeIds).length;
+        const episodeIdsCount = Object.keys(globals.episodeIds).length;
+        commentCacheCount += episodeIdsCount;
+        commentCacheSize += JSON.stringify(globals.episodeIds).length;
+        log("info", `[cache/stats] episodeIds: ${episodeIdsCount} 条`);
       }
+      
       if (globals.episodeNum && typeof globals.episodeNum === 'object') {
-        commentCacheCount += Object.keys(globals.episodeNum).length;
+        const episodeNumCount = Object.keys(globals.episodeNum).length;
+        commentCacheCount += episodeNumCount;
         commentCacheSize += JSON.stringify(globals.episodeNum).length;
+        log("info", `[cache/stats] episodeNum: ${episodeNumCount} 条`);
       }
 
       // 最后选择记录
-      if (globals.lastSelectMap) {
-        lastSelectCount = globals.lastSelectMap.size || 0;
-      }
-
-      // Redis 缓存统计
-      if (globals.redisValid) {
-        try {
-          const { getRedisKey } = await import('./utils/redis-util.js');
-          
-          // 尝试获取 Redis 中的缓存信息
-          const redisInfo = await getRedisKey('cache:info');
-          if (redisInfo?.result) {
-            const info = JSON.parse(redisInfo.result);
-            if (info.searchCount) searchCacheCount += info.searchCount;
-            if (info.commentCount) commentCacheCount += info.commentCount;
-          }
-        } catch (e) {
-          log("warn", `[cache/stats] Redis 统计失败: ${e.message}`);
-        }
-      }
-
-      // 数据库缓存统计
-      if (globals.databaseValid) {
-        try {
-          const { loadCacheBatch } = await import('./utils/db-util.js');
-          const dbCache = await loadCacheBatch();
-          
-          if (dbCache.animes) {
-            searchCacheCount += Object.keys(dbCache.animes).length;
-          }
-          if (dbCache.episodeIds) {
-            commentCacheCount += Object.keys(dbCache.episodeIds).length;
-          }
-          if (dbCache.lastSelectMap) {
-            lastSelectCount += Object.keys(dbCache.lastSelectMap).length;
-          }
-        } catch (e) {
-          log("warn", `[cache/stats] 数据库统计失败: ${e.message}`);
-        }
+      if (globals.lastSelectMap && globals.lastSelectMap instanceof Map) {
+        lastSelectCount = globals.lastSelectMap.size;
+        log("info", `[cache/stats] lastSelect: ${lastSelectCount} 条`);
       }
 
       // 生成缓存详情（示例数据）
