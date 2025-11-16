@@ -6915,21 +6915,33 @@ async function handleHomepage(req) {
          }
        });
 
-       const result = await response.json();
+// 🔥 修复：正确处理响应
+      let result;
+      try {
+        result = await response.json();
+      } catch (jsonError) {
+        // 如果 JSON 解析失败，检查 HTTP 状态码
+        if (response.ok) {
+          result = { success: true, message: '更新已触发' };
+        } else {
+          throw new Error('更新请求失败');
+        }
+      }
 
-       if (result.success) {
-         versionStatus.innerHTML = '🔄 容器正在重启...';
-         showToast(result.message || '更新命令已提交，容器即将重启', 'success', 3000);
+      // 检查 HTTP 状态码和 result.success
+      if (response.ok && result.success) {
+        versionStatus.innerHTML = '✅ 更新触发成功，容器即将重启...';
+        showToast(result.message || '更新命令已提交，容器即将重启', 'success', 3000);
 
-         // 30秒后开始检测服务是否恢复
-         setTimeout(() => {
-           versionStatus.innerHTML = '⏳ 等待服务恢复...';
-           checkServiceRecovery();
-         }, 30000);
+        // 30秒后开始检测服务是否恢复
+        setTimeout(() => {
+          versionStatus.innerHTML = '⏳ 等待服务恢复...';
+          checkServiceRecovery();
+        }, 30000);
 
-       } else {
-         throw new Error(result.error || '更新失败');
-       }
+      } else {
+        throw new Error(result.error || result.message || '更新失败');
+      }
 
      } catch (error) {
        console.error('更新失败:', error);
@@ -8292,11 +8304,17 @@ if (path === "/api/logout" && method === "POST") {
         
         if (response.ok) {
           log("info", "[update] ✅ Watchtower HTTP API 触发成功");
-          return jsonResponse({
+          
+          // 🔥 重要：必须先返回成功响应，再让容器重启
+          return new Response(JSON.stringify({
             success: true,
-            message: '✅ 更新已触发（Watchtower HTTP API），容器将在几秒后自动更新并重启',
+            message: '✅ 更新已触发，容器将在 30 秒后自动重启',
             method: 'watchtower-http-api',
-            note: '⏳ 更新过程需要 30-60 秒，请稍后刷新页面查看新版本'
+            updateTriggered: true,
+            estimatedTime: 30
+          }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
           });
         } else {
           const errorText = await response.text();
