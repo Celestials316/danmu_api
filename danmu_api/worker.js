@@ -767,7 +767,7 @@ async function handleHomepage(req) {
 
     // 生成VOD服务器HTML
     let vodServersHtml = '';
-    const defaultVodServersStr = '金蝉@https://zy.jinchancaiji.com,789@https://www.caiji.cyou,听风@https://gctf.tfdh.top';
+    const defaultVodServersStr = '789@https://www.caiji.cyou,听风@https://gctf.tfdh.top';
     const defaultVodServers = defaultVodServersStr
       .split(',')
       .map(s => s.trim())
@@ -4725,7 +4725,7 @@ async function handleHomepage(req) {
      <div class="modal-body">
        <div class="form-group">
          <label class="form-label">服务器名称</label>
-         <input type="text" class="form-input" id="vodServerName" placeholder="例如: 金蝉采集">
+         <input type="text" class="form-input" id="vodServerName" placeholder="例如: 听风采集">
        </div>
        <div class="form-group">
          <label class="form-label">服务器地址</label>
@@ -5403,7 +5403,7 @@ async function handleHomepage(req) {
    // 360kan 内置采集站配置
    const BUILTIN_360KAN = {
      name: '360kan',
-     url: 'https://www.360kan.com',
+     url: 'https://api.so.360kan.com',
      builtin: true
    };
 
@@ -5423,7 +5423,7 @@ async function handleHomepage(req) {
      });
 
      if (!has360Kan) {
-       AppState.vodServers.unshift('360kan@https://www.360kan.com');
+       AppState.vodServers.unshift('360kan@https://api.so.360kan.com');
        saveVodServersConfig();
      }
    }
