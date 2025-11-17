@@ -657,8 +657,13 @@ async function handleHomepage(req) {
       return true;
     }).length;
 
-    // 生成环境变量HTML
+// 生成环境变量HTML
     const envItemsHtml = Object.entries(globals.accessedEnvVars)
+      .filter(([key]) => {
+        // 🔥 过滤掉自动管理的内部变量
+        const autoManagedKeys = ['SOURCE_STATUS', 'PLATFORM_STATUS'];
+        return !autoManagedKeys.includes(key);
+      })
       .map(([key, value]) => {
         let valueClass = '';
         let displayValue = value;
@@ -767,7 +772,7 @@ async function handleHomepage(req) {
 
     // 生成VOD服务器HTML
     let vodServersHtml = '';
-    const defaultVodServersStr = '789@https://www.caiji.cyou,听风@https://gctf.tfdh.top';
+    const defaultVodServersStr = '金蝉@https://zy.jinchancaiji.com,789@https://www.caiji.cyou,听风@https://gctf.tfdh.top';
     const defaultVodServers = defaultVodServersStr
       .split(',')
       .map(s => s.trim())
@@ -3085,7 +3090,164 @@ async function handleHomepage(req) {
      color: var(--text-secondary);
      font-family: 'Monaco', 'Menlo', monospace;
    }
+/* 标签页内容 */
+   .source-tab-content {
+     display: none;
+     animation: fadeIn 0.3s var(--ease-smooth);
+   }
 
+   .source-tab-content.active {
+     display: block;
+   }
+
+   /* 现代化源列表网格 */
+   .source-modern-grid {
+     display: grid;
+     gap: 16px;
+     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+   }
+
+   @media (max-width: 768px) {
+     .source-modern-grid {
+       grid-template-columns: 1fr;
+     }
+   }
+
+   /* 现代化源卡片 */
+   .source-modern-item {
+     background: var(--bg-tertiary);
+     border: 1px solid var(--border-color);
+     border-radius: 12px;
+     padding: 18px;
+     transition: all 0.3s var(--ease-smooth);
+     cursor: grab;
+     position: relative;
+     display: flex;
+     align-items: center;
+     gap: 14px;
+   }
+
+   .source-modern-item:hover {
+     background: var(--bg-hover);
+     border-color: var(--primary-500);
+     transform: translateY(-2px);
+     box-shadow: var(--shadow-md);
+   }
+
+   .source-modern-item.dragging {
+     opacity: 0.5;
+     cursor: grabbing;
+   }
+
+   .source-modern-item.drag-over {
+     border-color: var(--primary-500);
+     background: var(--bg-hover);
+     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+   }
+
+   .source-modern-item.disabled {
+     opacity: 0.5;
+     background: var(--bg-secondary);
+   }
+
+   .source-modern-item.disabled .source-modern-name {
+     text-decoration: line-through;
+     color: var(--text-tertiary);
+   }
+
+   /* 拖拽手柄 */
+   .source-modern-handle {
+     color: var(--text-tertiary);
+     cursor: grab;
+     transition: all 0.3s var(--ease-smooth);
+     flex-shrink: 0;
+   }
+
+   .source-modern-handle:active {
+     cursor: grabbing;
+   }
+
+   .source-modern-item:hover .source-modern-handle {
+     color: var(--primary-500);
+   }
+
+   /* 源优先级徽章 */
+   .source-modern-priority {
+     width: 32px;
+     height: 32px;
+     border-radius: 8px;
+     background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+     color: white;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+     font-weight: 800;
+     font-size: 14px;
+     flex-shrink: 0;
+     box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+   }
+
+   /* 源图标 */
+   .source-modern-icon {
+     width: 40px;
+     height: 40px;
+     border-radius: 10px;
+     background: linear-gradient(135deg, var(--bg-hover), var(--bg-tertiary));
+     border: 2px solid var(--border-color);
+     display: flex;
+     align-items: center;
+     justify-content: center;
+     font-weight: 800;
+     font-size: 16px;
+     color: var(--primary-500);
+     flex-shrink: 0;
+     transition: all 0.3s var(--ease-smooth);
+   }
+
+   .source-modern-item:hover .source-modern-icon {
+     transform: rotate(5deg) scale(1.1);
+     border-color: var(--primary-500);
+   }
+
+   /* 源信息 */
+   .source-modern-info {
+     flex: 1;
+     min-width: 0;
+   }
+
+   .source-modern-name {
+     font-size: 15px;
+     font-weight: 700;
+     color: var(--text-primary);
+     margin-bottom: 4px;
+   }
+
+   .source-modern-desc {
+     font-size: 12px;
+     color: var(--text-tertiary);
+     line-height: 1.4;
+   }
+
+   /* 源状态开关 */
+   .source-modern-toggle {
+     flex-shrink: 0;
+   }
+
+   .source-modern-toggle .switch {
+     width: 44px;
+     height: 24px;
+   }
+
+   .source-modern-toggle .switch-slider:before {
+     width: 16px;
+     height: 16px;
+     left: 3px;
+     bottom: 3px;
+   }
+
+   .source-modern-toggle .switch input:checked + .switch-slider:before {
+     transform: translateX(20px);
+   }
    /* 日志容器样式 - 增强版 */
    .log-container {
      background: var(--bg-primary);
@@ -3559,11 +3721,11 @@ async function handleHomepage(req) {
        <span>环境配置</span>
      </div>
             
-       <div class="nav-item" onclick="switchPage('vodHealth')">
+       <div class="nav-item" onclick="switchPage('sources')">
          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-           <path d="M5 3l14 9-14 9V3z" stroke-width="2"/>
+           <path d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" stroke-width="2"/>
          </svg>
-         <span>采集站管理</span>
+         <span>搜索源管理</span>
        </div>
        
        <div class="nav-item" onclick="switchPage('danmuTest')">
@@ -4367,61 +4529,264 @@ async function handleHomepage(req) {
        </div>
      </section>
 
-          <!-- 采集站管理页面 -->
-     <section id="vodHealth-page" class="page-section">
-       <div class="card">
-         <div class="card-header">
-           <h3 class="card-title">
-             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-               <path d="M5 3l14 9-14 9V3z" stroke-width="2"/>
-             </svg>
-             采集站管理
-           </h3>
-           <div class="card-actions">
-             <button class="btn btn-secondary" onclick="testAllVodServers()">
-               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                 <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
-               </svg>
-               测试全部
-             </button>
-             <button class="btn btn-primary" onclick="showAddVodModal()">
-               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                 <path d="M12 4v16m8-8H4" stroke-width="2" stroke-linecap="round"/>
-               </svg>
-               添加采集站
-             </button>
-           </div>
-         </div>
-
-         <div class="alert alert-info" style="margin-bottom: 24px;">
-           <svg class="alert-icon" viewBox="0 0 24 24" width="20" height="20">
-             <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
-             <path d="M12 16v-4m0-4h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <!-- 搜索源管理页面 -->
+     <section id="sources-page" class="page-section">
+       <!-- 标签页导航 -->
+       <div class="tabs" style="margin-bottom: 24px;">
+         <button class="tab-item active" onclick="switchSourceTab('search')">
+           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" style="margin-right: 6px;">
+             <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-width="2"/>
            </svg>
-           <span>💡 360kan 为内置采集站不可删除，其他采集站可自由添加和删除</span>
-         </div>
+           搜索源
+         </button>
+         <button class="tab-item" onclick="switchSourceTab('platform')">
+           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" style="margin-right: 6px;">
+             <path d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" stroke-width="2"/>
+           </svg>
+           弹幕平台
+         </button>
+         <button class="tab-item" onclick="switchSourceTab('vod')">
+           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" style="margin-right: 6px;">
+             <path d="M5 3l14 9-14 9V3z" stroke-width="2"/>
+           </svg>
+           VOD
+         </button>
+         <button class="tab-item" onclick="switchSourceTab('settings')">
+           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" style="margin-right: 6px;">
+             <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke-width="2"/>
+             <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-width="2"/>
+           </svg>
+           源配置
+         </button>
+       </div>
 
-         <div id="vodHealthList" class="server-grid">
-           <!-- 动态生成采集站列表 -->
+       <!-- 搜索源管理标签页 -->
+       <div id="searchSourceTab" class="source-tab-content active">
+         <div class="card">
+           <div class="card-header">
+             <h3 class="card-title">
+               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                 <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-width="2"/>
+               </svg>
+               搜索源优先级配置
+             </h3>
+             <div class="card-actions">
+               <button class="btn btn-secondary" onclick="resetSourceOrder()">
+                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                   <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-width="2" stroke-linecap="round"/>
+                 </svg>
+                 恢复默认
+               </button>
+               <button class="btn btn-primary" onclick="saveSourceOrder()">
+                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                   <path d="M5 13l4 4L19 7" stroke-width="2" stroke-linecap="round"/>
+                 </svg>
+                 保存配置
+               </button>
+             </div>
+           </div>
+
+           <div class="alert alert-info" style="margin-bottom: 24px;">
+             <svg class="alert-icon" viewBox="0 0 24 24" width="20" height="20">
+               <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
+               <path d="M12 16v-4m0-4h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+             </svg>
+             <span>💡 拖拽调整搜索源顺序，关闭的源不会被使用。排序越靠前优先级越高</span>
+           </div>
+
+           <div id="sourceOrderList" class="source-modern-grid">
+             <!-- 动态生成源列表 -->
+           </div>
          </div>
        </div>
 
-       <div class="card">
-         <div class="card-header">
-           <h3 class="card-title">
-             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-               <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" stroke-width="2"/>
+       <!-- 弹幕平台管理标签页 -->
+       <div id="platformSourceTab" class="source-tab-content">
+         <div class="card">
+           <div class="card-header">
+             <h3 class="card-title">
+               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                 <path d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" stroke-width="2"/>
+               </svg>
+               弹幕平台优先级配置
+             </h3>
+             <div class="card-actions">
+               <button class="btn btn-secondary" onclick="resetPlatformOrder()">
+                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                   <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-width="2" stroke-linecap="round"/>
+                 </svg>
+                 清空配置
+               </button>
+               <button class="btn btn-primary" onclick="savePlatformOrder()">
+                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                   <path d="M5 13l4 4L19 7" stroke-width="2" stroke-linecap="round"/>
+                 </svg>
+                 保存顺序
+               </button>
+             </div>
+           </div>
+
+           <div class="alert alert-info" style="margin-bottom: 24px;">
+             <svg class="alert-icon" viewBox="0 0 24 24" width="20" height="20">
+               <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
+               <path d="M12 16v-4m0-4h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
              </svg>
-             性能对比
-           </h3>
+             <span>💡 拖拽调整弹幕平台顺序，关闭的平台不会返回弹幕。自动匹配时优先返回靠前平台的弹幕</span>
+           </div>
+
+           <div id="platformOrderList" class="source-modern-grid">
+             <!-- 动态生成平台列表 -->
+           </div>
          </div>
-         <div class="chart-container">
-           <canvas id="vodPerformanceChart"></canvas>
+       </div>
+
+       <!-- VOD 采集站标签页 -->
+       <div id="vodSourceTab" class="source-tab-content">
+         <div class="card">
+           <div class="card-header">
+             <h3 class="card-title">
+               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                 <path d="M5 3l14 9-14 9V3z" stroke-width="2"/>
+               </svg>
+               VOD 影视采集站管理
+             </h3>
+             <div class="card-actions">
+               <button class="btn btn-secondary" onclick="testAllVodServers()">
+                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                   <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
+                 </svg>
+                 测试全部
+               </button>
+               <button class="btn btn-primary" onclick="showAddVodModal()">
+                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                   <path d="M12 4v16m8-8H4" stroke-width="2" stroke-linecap="round"/>
+                 </svg>
+                 添加采集站
+               </button>
+             </div>
+           </div>
+
+           <div class="alert alert-info" style="margin-bottom: 24px;">
+             <svg class="alert-icon" viewBox="0 0 24 24" width="20" height="20">
+               <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
+               <path d="M12 16v-4m0-4h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+             </svg>
+             <span>💡 VOD 采集站用于搜索影视资源，可自由添加和删除。内置采集站不可删除</span>
+           </div>
+
+           <div id="vodHealthList" class="server-grid">
+             <!-- 动态生成采集站列表 -->
+           </div>
+
+           <!-- 性能对比图表 -->
+           <div class="card" style="margin-top: 24px;">
+             <div class="card-header">
+               <h3 class="card-title">
+                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                   <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" stroke-width="2"/>
+                 </svg>
+                 性能对比分析
+               </h3>
+             </div>
+             <div class="chart-container">
+               <canvas id="vodPerformanceChart"></canvas>
+             </div>
+           </div>
+         </div>
+       </div>
+
+       <!-- 源配置标签页 -->
+       <div id="settingsSourceTab" class="source-tab-content">
+         <div class="card">
+           <div class="card-header">
+             <h3 class="card-title">
+               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                 <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke-width="2"/>
+                 <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-width="2"/>
+               </svg>
+               高级配置
+             </h3>
+             <div class="card-actions">
+               <button class="btn btn-primary" onclick="saveSourceSettings()">
+                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                   <path d="M5 13l4 4L19 7" stroke-width="2" stroke-linecap="round"/>
+                 </svg>
+                 保存配置
+               </button>
+             </div>
+           </div>
+
+           <div class="config-grid">
+             <!-- VOD 返回模式 -->
+             <div class="config-item">
+               <div class="config-header">
+                 <span class="config-label">VOD 返回模式</span>
+                 <span class="badge badge-info" id="vodReturnModeBadge">fastest</span>
+               </div>
+               <select class="form-select" id="vodReturnModeSelect" onchange="updateVodReturnModeBadge()">
+                 <option value="fastest">fastest - 仅返回最快响应的站点</option>
+                 <option value="all">all - 返回所有站点结果</option>
+               </select>
+               <div class="form-hint">fastest 模式响应更快但结果较少，all 模式结果完整但可能有重复</div>
+             </div>
+
+             <!-- VOD 请求超时 -->
+             <div class="config-item">
+               <div class="config-header">
+                 <span class="config-label">VOD 请求超时</span>
+                 <span class="config-value-display" id="vodTimeoutValue">10000</span>
+               </div>
+               <div class="range-wrapper">
+                 <div class="range-progress" id="vodTimeoutProgress" style="width: 50%"></div>
+                 <input type="range" class="form-range" id="vodTimeoutRange" min="5000" max="30000" step="1000" value="10000"
+                        oninput="updateRangeProgress(this, 'vodTimeoutProgress', 'vodTimeoutValue', 5000, 30000, val => val + ' ms')">
+               </div>
+               <div class="range-labels">
+                 <span>5秒</span>
+                 <span>15秒</span>
+                 <span>30秒</span>
+               </div>
+               <div class="form-hint">单个 VOD 站点的请求超时时间，建议 10-15 秒</div>
+             </div>
+           </div>
+         </div>
+
+         <div class="card">
+           <div class="card-header">
+             <h3 class="card-title">
+               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                 <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
+               </svg>
+               配置说明
+             </h3>
+           </div>
+           <div class="config-grid">
+             <div class="config-item">
+               <div class="config-value" style="background: none; border: none; padding: 0;">
+                 <code style="color: var(--text-secondary); font-size: 13px; line-height: 1.8;">
+                   <strong>📚 搜索源说明</strong><br>
+                   • <strong>360</strong>: 360影视搜索源（独立源，非 VOD）<br>
+                   • <strong>VOD</strong>: VOD 影视采集站集合<br>
+                   • <strong>其他源</strong>: TMDB、豆瓣、腾讯、优酷、爱奇艺等<br><br>
+                   
+                   <strong>🎬 弹幕平台说明</strong><br>
+                   • 配置后自动匹配时会按顺序优先返回对应平台弹幕<br>
+                   • 如果不配置，则返回第一个满足条件的平台<br>
+                   • 关闭的平台不会返回弹幕数据<br><br>
+                   
+                   <strong>📡 VOD 采集站说明</strong><br>
+                   • 用于搜索影视资源和获取播放链接<br>
+                   • 支持添加自定义采集站<br>
+                   • fastest 模式适合快速响应，all 模式适合完整结果
+                 </code>
+               </div>
+             </div>
+           </div>
          </div>
        </div>
 
        <div class="footer">
-         <p>采集站管理 | 实时监测服务器状态和性能</p>
+         <p>搜索源管理 | 配置数据源优先级、弹幕平台和 VOD 采集站</p>
        </div>
      </section>
 
@@ -4725,7 +5090,7 @@ async function handleHomepage(req) {
      <div class="modal-body">
        <div class="form-group">
          <label class="form-label">服务器名称</label>
-         <input type="text" class="form-input" id="vodServerName" placeholder="例如: 听风采集">
+         <input type="text" class="form-input" id="vodServerName" placeholder="例如: 金蝉采集">
        </div>
        <div class="form-group">
          <label class="form-label">服务器地址</label>
@@ -5377,15 +5742,15 @@ async function handleHomepage(req) {
        'overview': '系统概览',
        'config': '环境配置',
        'about': '关于系统',
-       'vodHealth': 'VOD健康检查',
+       'sources': '搜索源管理',
        'danmuTest': '弹幕测试',
        'cache': '缓存管理'
      };
      document.getElementById('pageTitle').textContent = titles[pageName];
      
      // 页面切换后执行特定初始化
-     if (pageName === 'vodHealth') {
-       initVodHealthPage();
+     if (pageName === 'sources') {
+       initSourcesPage();
      } else if (pageName === 'danmuTest') {
        initDanmuTestPage();
      } else if (pageName === 'cache') {
@@ -5396,43 +5761,522 @@ async function handleHomepage(req) {
      window.scrollTo({ top: 0, behavior: 'smooth' });
    }
 
-   // ========== 采集站管理功能 ==========
+   // ========== 搜索源管理功能 ==========
    let vodHealthData = [];
    let vodPerformanceChart = null;
    
-   // 360kan 内置采集站配置
-   const BUILTIN_360KAN = {
-     name: '360kan',
-     url: 'https://api.so.360kan.com',
-     builtin: true
+   // 所有可用的搜索源列表（360独立于vod）
+   const ALL_SOURCES = ['360', 'vod', 'tmdb', 'douban', 'tencent', 'youku', 'iqiyi', 'imgo', 'bilibili', 'renren', 'hanjutv', 'bahamut'];
+   
+   // 所有可用的弹幕平台列表
+   const ALL_PLATFORMS = ['qiyi', 'bilibili1', 'imgo', 'youku', 'qq', 'renren', 'hanjutv', 'bahamut'];
+   
+   // 源名称映射
+   const SOURCE_NAMES = {
+     '360': '360影视',
+     'vod': 'VOD采集站',
+     'tmdb': 'TMDB',
+     'douban': '豆瓣',
+     'tencent': '腾讯视频',
+     'youku': '优酷',
+     'iqiyi': '爱奇艺',
+     'imgo': 'IMGO',
+     'bilibili': '哔哩哔哩',
+     'renren': '人人影视',
+     'hanjutv': '韩剧TV',
+     'bahamut': '巴哈姆特'
    };
+   
+   // 源描述映射
+   const SOURCE_DESCRIPTIONS = {
+     '360': '360影视搜索引擎（独立源）',
+     'vod': 'VOD影视采集站集合',
+     'tmdb': 'The Movie Database 国际影视数据库',
+     'douban': '豆瓣电影数据源',
+     'tencent': '腾讯视频官方源',
+     'youku': '优酷视频官方源',
+     'iqiyi': '爱奇艺视频官方源',
+     'imgo': 'IMGO 动漫数据库',
+     'bilibili': '哔哩哔哩视频源',
+     'renren': '人人影视字幕组',
+     'hanjutv': '韩剧TV数据源',
+     'bahamut': '巴哈姆特动画疯'
+   };
+   
+   // 平台名称映射
+   const PLATFORM_NAMES = {
+     'qiyi': '爱奇艺',
+     'bilibili1': '哔哩哔哩',
+     'imgo': 'IMGO',
+     'youku': '优酷',
+     'qq': '腾讯视频',
+     'renren': '人人影视',
+     'hanjutv': '韩剧TV',
+     'bahamut': '巴哈姆特'
+   };
+   
+   // 平台描述映射
+   const PLATFORM_DESCRIPTIONS = {
+     'qiyi': '爱奇艺弹幕平台',
+     'bilibili1': '哔哩哔哩弹幕平台',
+     'imgo': 'IMGO 弹幕平台',
+     'youku': '优酷弹幕平台',
+     'qq': '腾讯视频弹幕平台',
+     'renren': '人人影视弹幕平台',
+     'hanjutv': '韩剧TV弹幕平台',
+     'bahamut': '巴哈姆特弹幕平台'
+   };
+   
+   // 源状态管理（启用/禁用）
+   let sourceStatus = {};
+   let platformStatus = {};
 
-   function initVodHealthPage() {
-     console.log('初始化采集站管理页面');
-     ensureBuiltin360Kan();
+   function initSourcesPage() {
+     console.log('初始化搜索源管理页面');
+     
+     // 初始化源状态
+     ALL_SOURCES.forEach(source => {
+       sourceStatus[source] = true; // 默认全部启用
+     });
+     
+     ALL_PLATFORMS.forEach(platform => {
+       platformStatus[platform] = true; // 默认全部启用
+     });
+     
+     // 从配置中恢复状态
+     if (AppState.config.SOURCE_STATUS) {
+       try {
+         sourceStatus = JSON.parse(AppState.config.SOURCE_STATUS);
+       } catch (e) {
+         console.warn('解析 SOURCE_STATUS 失败');
+       }
+     }
+     
+     if (AppState.config.PLATFORM_STATUS) {
+       try {
+         platformStatus = JSON.parse(AppState.config.PLATFORM_STATUS);
+       } catch (e) {
+         console.warn('解析 PLATFORM_STATUS 失败');
+       }
+     }
+     
+     loadSourceOrderList();
+     loadPlatformOrderList();
      loadVodHealthList();
+     loadSourceSettings();
    }
+   
+   // 切换源标签页
+   function switchSourceTab(tabName) {
+     // 更新标签按钮状态
+     document.querySelectorAll('.tabs .tab-item').forEach(btn => {
+       btn.classList.remove('active');
+     });
+     event.target.closest('.tab-item').classList.add('active');
+     
+     // 更新标签页内容
+     document.querySelectorAll('.source-tab-content').forEach(content => {
+       content.classList.remove('active');
+     });
+     
+     const tabMap = {
+       'search': 'searchSourceTab',
+       'platform': 'platformSourceTab',
+       'vod': 'vodSourceTab',
+       'settings': 'settingsSourceTab'
+     };
+     
+     const targetTab = document.getElementById(tabMap[tabName]);
+     if (targetTab) {
+       targetTab.classList.add('active');
+     }
+   }
+// 加载搜索源顺序列表
+   function loadSourceOrderList() {
+     const container = document.getElementById('sourceOrderList');
+     if (!container) return;
 
-   // 确保 360kan 始终存在
-   function ensureBuiltin360Kan() {
-     const has360Kan = AppState.vodServers.some(server => {
-       const name = typeof server === 'string' 
-         ? (server.includes('@') ? server.split('@')[0] : '') 
-         : (server.name || '');
-       return name.toLowerCase() === '360kan';
+     // 从环境变量获取当前顺序
+     let currentOrder = [];
+     const sourceOrderEnv = AppState.config.SOURCE_ORDER;
+     
+     if (sourceOrderEnv) {
+       currentOrder = sourceOrderEnv.split(',').map(s => s.trim()).filter(s => s);
+     } else {
+       currentOrder = ['360', 'vod', 'renren', 'hanjutv'];
+     }
+     
+     // 确保所有源都在列表中（包括未配置的）
+     const allSourcesSet = new Set([...currentOrder, ...ALL_SOURCES]);
+     const finalOrder = [...currentOrder];
+     
+     // 添加未配置的源到末尾
+     ALL_SOURCES.forEach(source => {
+       if (!finalOrder.includes(source)) {
+         finalOrder.push(source);
+       }
      });
 
-     if (!has360Kan) {
-       AppState.vodServers.unshift('360kan@https://api.so.360kan.com');
-       saveVodServersConfig();
+     const html = finalOrder.map((source, index) => {
+       const sourceName = SOURCE_NAMES[source] || source;
+       const sourceDesc = SOURCE_DESCRIPTIONS[source] || '';
+       const icon = source === '360' ? '360' : source.substring(0, 2).toUpperCase();
+       const isEnabled = sourceStatus[source] !== false;
+       const disabledClass = isEnabled ? '' : 'disabled';
+       
+       return \`
+         <div class="source-modern-item draggable \${disabledClass}" draggable="true" data-index="\${index}" data-source="\${source}">
+           <div class="source-modern-handle">
+             <svg viewBox="0 0 24 24" width="16" height="16">
+               <path d="M9 5h2v2H9V5zm0 6h2v2H9v-2zm0 6h2v2H9v-2zm4-12h2v2h-2V5zm0 6h2v2h-2v-2zm0 6h2v2h-2v-2z" fill="currentColor"/>
+             </svg>
+           </div>
+           <div class="source-modern-priority">\${index + 1}</div>
+           <div class="source-modern-icon">\${icon}</div>
+           <div class="source-modern-info">
+             <div class="source-modern-name">\${sourceName}</div>
+             <div class="source-modern-desc">\${sourceDesc}</div>
+           </div>
+           <div class="source-modern-toggle">
+             <label class="switch">
+               <input type="checkbox" \${isEnabled ? 'checked' : ''} onchange="toggleSource('\${source}', this.checked)">
+               <span class="switch-slider"></span>
+             </label>
+           </div>
+         </div>
+       \`;
+     }).join('');
+
+     container.innerHTML = html;
+     initDragAndDrop('sourceOrderList');
+   }
+   
+   // 切换源启用状态
+   function toggleSource(source, enabled) {
+     sourceStatus[source] = enabled;
+     
+     const item = document.querySelector(\`.source-modern-item[data-source="\${source}"]\`);
+     if (item) {
+       if (enabled) {
+         item.classList.remove('disabled');
+       } else {
+         item.classList.add('disabled');
+       }
+     }
+     
+     showToast(\`\${SOURCE_NAMES[source] || source} 已\${enabled ? '启用' : '禁用'}\`, enabled ? 'success' : 'warning', 2000);
+   }
+
+   // 加载弹幕平台顺序列表
+   function loadPlatformOrderList() {
+     const container = document.getElementById('platformOrderList');
+     if (!container) return;
+
+     // 从环境变量获取当前顺序
+     let currentOrder = [];
+     const platformOrderEnv = AppState.config.PLATFORM_ORDER;
+     
+     if (platformOrderEnv) {
+       currentOrder = platformOrderEnv.split(',').map(s => s.trim()).filter(s => s);
+     }
+     
+     // 确保所有平台都在列表中
+     const finalOrder = [...currentOrder];
+     ALL_PLATFORMS.forEach(platform => {
+       if (!finalOrder.includes(platform)) {
+         finalOrder.push(platform);
+       }
+     });
+
+     const html = finalOrder.map((platform, index) => {
+       const platformName = PLATFORM_NAMES[platform] || platform;
+       const platformDesc = PLATFORM_DESCRIPTIONS[platform] || '';
+       const icon = platform.substring(0, 2).toUpperCase();
+       const isEnabled = platformStatus[platform] !== false;
+       const disabledClass = isEnabled ? '' : 'disabled';
+       
+       return \`
+         <div class="source-modern-item draggable \${disabledClass}" draggable="true" data-index="\${index}" data-platform="\${platform}">
+           <div class="source-modern-handle">
+             <svg viewBox="0 0 24 24" width="16" height="16">
+               <path d="M9 5h2v2H9V5zm0 6h2v2H9v-2zm0 6h2v2H9v-2zm4-12h2v2h-2V5zm0 6h2v2h-2v-2zm0 6h2v2h-2v-2z" fill="currentColor"/>
+             </svg>
+           </div>
+           <div class="source-modern-priority">\${index + 1}</div>
+           <div class="source-modern-icon">\${icon}</div>
+           <div class="source-modern-info">
+             <div class="source-modern-name">\${platformName}</div>
+             <div class="source-modern-desc">\${platformDesc}</div>
+           </div>
+           <div class="source-modern-toggle">
+             <label class="switch">
+               <input type="checkbox" \${isEnabled ? 'checked' : ''} onchange="togglePlatform('\${platform}', this.checked)">
+               <span class="switch-slider"></span>
+             </label>
+           </div>
+         </div>
+       \`;
+     }).join('');
+
+     container.innerHTML = html;
+     initDragAndDrop('platformOrderList');
+   }
+   
+   // 切换平台启用状态
+   function togglePlatform(platform, enabled) {
+     platformStatus[platform] = enabled;
+     
+     const item = document.querySelector(\`.source-modern-item[data-platform="\${platform}"]\`);
+     if (item) {
+       if (enabled) {
+         item.classList.remove('disabled');
+       } else {
+         item.classList.add('disabled');
+       }
+     }
+     
+     showToast(\`\${PLATFORM_NAMES[platform] || platform} 已\${enabled ? '启用' : '禁用'}\`, enabled ? 'success' : 'warning', 2000);
+   }
+
+   // 初始化拖拽功能
+   function initDragAndDrop(containerId) {
+     const container = document.getElementById(containerId);
+     if (!container) return;
+
+     let draggedItem = null;
+
+     container.addEventListener('dragstart', function(e) {
+       if (e.target.classList.contains('draggable')) {
+         draggedItem = e.target;
+         e.target.classList.add('dragging');
+       }
+     });
+
+     container.addEventListener('dragend', function(e) {
+       if (e.target.classList.contains('draggable')) {
+         e.target.classList.remove('dragging');
+       }
+     });
+
+     container.addEventListener('dragover', function(e) {
+       e.preventDefault();
+       const afterElement = getDragAfterElement(container, e.clientY);
+       const dragging = container.querySelector('.dragging');
+       
+       if (afterElement == null) {
+         container.appendChild(dragging);
+       } else {
+         container.insertBefore(dragging, afterElement);
+       }
+     });
+
+     function getDragAfterElement(container, y) {
+       const draggableElements = [...container.querySelectorAll('.draggable:not(.dragging)')];
+
+       return draggableElements.reduce((closest, child) => {
+         const box = child.getBoundingClientRect();
+         const offset = y - box.top - box.height / 2;
+
+         if (offset < 0 && offset > closest.offset) {
+           return { offset: offset, element: child };
+         } else {
+           return closest;
+         }
+       }, { offset: Number.NEGATIVE_INFINITY }).element;
      }
    }
 
+   // 保存搜索源顺序
+   async function saveSourceOrder() {
+     const container = document.getElementById('sourceOrderList');
+     if (!container) return;
+
+     const items = container.querySelectorAll('.source-modern-item');
+     const newOrder = Array.from(items).map(item => item.dataset.source);
+     
+     // 过滤掉禁用的源
+     const enabledOrder = newOrder.filter(source => sourceStatus[source] !== false);
+
+     try {
+       const response = await fetch('/api/config/save', {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({
+           config: { 
+             SOURCE_ORDER: enabledOrder.join(','),
+             SOURCE_STATUS: JSON.stringify(sourceStatus)
+           }
+         })
+       });
+
+       const result = await response.json();
+       
+       if (result.success) {
+         AppState.config.SOURCE_ORDER = enabledOrder.join(',');
+         AppState.config.SOURCE_STATUS = JSON.stringify(sourceStatus);
+         showToast(\`搜索源配置已保存（启用 \${enabledOrder.length}/\${newOrder.length} 个源）\`, 'success');
+         loadSourceOrderList(); // 重新加载以更新优先级数字
+       } else {
+         throw new Error(result.errorMessage || '保存失败');
+       }
+     } catch (error) {
+       showToast('保存失败: ' + error.message, 'error');
+     }
+   }
+
+   // 保存弹幕平台顺序
+   async function savePlatformOrder() {
+     const container = document.getElementById('platformOrderList');
+     if (!container) return;
+
+     const items = container.querySelectorAll('.source-modern-item');
+     const newOrder = Array.from(items).map(item => item.dataset.platform);
+     
+     // 过滤掉禁用的平台
+     const enabledOrder = newOrder.filter(platform => platformStatus[platform] !== false);
+
+     try {
+       const response = await fetch('/api/config/save', {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({
+           config: { 
+             PLATFORM_ORDER: enabledOrder.join(','),
+             PLATFORM_STATUS: JSON.stringify(platformStatus)
+           }
+         })
+       });
+
+       const result = await response.json();
+       
+       if (result.success) {
+         AppState.config.PLATFORM_ORDER = enabledOrder.join(',');
+         AppState.config.PLATFORM_STATUS = JSON.stringify(platformStatus);
+         showToast(\`弹幕平台配置已保存（启用 \${enabledOrder.length}/\${newOrder.length} 个平台）\`, 'success');
+         loadPlatformOrderList(); // 重新加载以更新优先级数字
+       } else {
+         throw new Error(result.errorMessage || '保存失败');
+       }
+     } catch (error) {
+       showToast('保存失败: ' + error.message, 'error');
+     }
+   }
+
+   // 恢复默认搜索源顺序
+   async function resetSourceOrder() {
+     if (!confirm('确定要恢复默认搜索源顺序吗？')) return;
+
+     try {
+       const response = await fetch('/api/config/save', {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({
+           config: { SOURCE_ORDER: '360,vod,renren,hanjutv' }
+         })
+       });
+
+       const result = await response.json();
+       
+       if (result.success) {
+         AppState.config.SOURCE_ORDER = '360,vod,renren,hanjutv';
+         loadSourceOrderList();
+         showToast('已恢复默认搜索源顺序', 'success');
+       } else {
+         throw new Error(result.errorMessage || '恢复失败');
+       }
+     } catch (error) {
+       showToast('恢复失败: ' + error.message, 'error');
+     }
+   }
+
+   // 恢复默认弹幕平台顺序
+   async function resetPlatformOrder() {
+     if (!confirm('确定要清空弹幕平台优先级配置吗？清空后将返回第一个满足条件的平台。')) return;
+
+     try {
+       const response = await fetch('/api/config/save', {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({
+           config: { PLATFORM_ORDER: '' }
+         })
+       });
+
+       const result = await response.json();
+       
+       if (result.success) {
+         AppState.config.PLATFORM_ORDER = '';
+         loadPlatformOrderList();
+         showToast('已清空弹幕平台优先级配置', 'success');
+       } else {
+         throw new Error(result.errorMessage || '恢复失败');
+       }
+     } catch (error) {
+       showToast('恢复失败: ' + error.message, 'error');
+     }
+   }
+   // 加载源配置设置
+   function loadSourceSettings() {
+     const vodReturnMode = AppState.config.VOD_RETURN_MODE || 'fastest';
+     const vodTimeout = parseInt(AppState.config.VOD_REQUEST_TIMEOUT) || 10000;
+     
+     const modeSelect = document.getElementById('vodReturnModeSelect');
+     const timeoutRange = document.getElementById('vodTimeoutRange');
+     
+     if (modeSelect) {
+       modeSelect.value = vodReturnMode;
+       updateVodReturnModeBadge();
+     }
+     
+     if (timeoutRange) {
+       timeoutRange.value = vodTimeout;
+       updateRangeProgress(timeoutRange, 'vodTimeoutProgress', 'vodTimeoutValue', 5000, 30000, val => val + ' ms');
+     }
+   }
+   
+   // 更新 VOD 返回模式徽章
+   function updateVodReturnModeBadge() {
+     const select = document.getElementById('vodReturnModeSelect');
+     const badge = document.getElementById('vodReturnModeBadge');
+     
+     if (!select || !badge) return;
+     
+     badge.textContent = select.value;
+   }
+   
+   // 保存源配置设置
+   async function saveSourceSettings() {
+     const vodReturnMode = document.getElementById('vodReturnModeSelect').value;
+     const vodTimeout = document.getElementById('vodTimeoutRange').value;
+     
+     try {
+       const response = await fetch('/api/config/save', {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({
+           config: {
+             VOD_RETURN_MODE: vodReturnMode,
+             VOD_REQUEST_TIMEOUT: vodTimeout
+           }
+         })
+       });
+
+       const result = await response.json();
+       
+       if (result.success) {
+         AppState.config.VOD_RETURN_MODE = vodReturnMode;
+         AppState.config.VOD_REQUEST_TIMEOUT = vodTimeout;
+         showToast('源配置已保存', 'success');
+       } else {
+         throw new Error(result.errorMessage || '保存失败');
+       }
+     } catch (error) {
+       showToast('保存失败: ' + error.message, 'error');
+     }
+   }
    function loadVodHealthList() {
      const container = document.getElementById('vodHealthList');
      if (!container) return;
-
-     ensureBuiltin360Kan();
      const vodServers = AppState.vodServers;
 
      if (!vodServers || vodServers.length === 0) {
@@ -5535,12 +6379,7 @@ async function handleHomepage(req) {
      }
 
      // 检查是否为 360kan
-     if (serverName.toLowerCase() === '360kan') {
-       showToast('360kan 为内置采集站，不可编辑名称', 'warning');
-       document.getElementById('vodServerName').readOnly = true;
-     } else {
-       document.getElementById('vodServerName').readOnly = false;
-     }
+     document.getElementById('vodServerName').readOnly = false;
 
      AppState.currentEditingVodIndex = index;
      document.getElementById('vodModalTitle').textContent = '编辑采集站';
@@ -5549,18 +6388,12 @@ async function handleHomepage(req) {
      showModal('editVodModal');
    }
 
-   // 删除采集站（360kan 除外）
+   // 删除采集站
    async function deleteVodServer(index) {
      const server = AppState.vodServers[index];
      let serverName = typeof server === 'string' 
        ? (server.includes('@') ? server.split('@')[0] : '服务器')
        : (server.name || '服务器');
-
-     // 检查是否为 360kan
-     if (serverName.toLowerCase() === '360kan') {
-       showToast('360kan 为内置采集站，不可删除', 'error');
-       return;
-     }
 
      if (!confirm(\`确定要删除采集站 "\${serverName}" 吗？\`)) {
        return;
