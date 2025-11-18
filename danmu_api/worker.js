@@ -7144,7 +7144,14 @@ async function testDanmuByUrl() {
          xmlLines.push('  <source>test</source>');
 
          filteredDanmuData.forEach(danmu => {
-           const p = danmu.p || (danmu.time || 0) + ',' + (danmu.mode || 1) + ',' + (danmu.color || 16777215) + ',' + Date.now() + ',0,0,0,0';
+           // 解析原有 p 或使用属性，强制设置字体为 25
+           const parts = danmu.p ? danmu.p.split(',') : [];
+           const time = parts[0] || danmu.time || 0;
+           const mode = parts[1] || danmu.mode || 1;
+           // 智能判断颜色位置：如果第3位是大整数(>100)说明是颜色(缺字号)，否则取第4位
+           const color = (parts.length > 2 && parseInt(parts[2]) > 100 ? parts[2] : parts[3]) || danmu.color || 16777215;
+           const p = time + ',' + mode + ',25,' + color + ',' + Date.now() + ',0,0,0,0';
+
            const text = (danmu.m || danmu.text || '')
              .replace(/&/g, '&amp;')
              .replace(/</g, '&lt;')

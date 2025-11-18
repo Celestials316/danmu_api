@@ -4,7 +4,8 @@ import { log } from '../utils/log-util.js'
 import { setRedisKey, updateRedisCaches } from "../utils/redis-util.js";
 import {
     setCommentCache, addAnime, findAnimeIdByCommentId, findTitleById, findUrlById, getCommentCache, getPreferAnimeId,
-    getSearchCache, removeEarliestAnime, setPreferByAnimeId, setSearchCache, storeAnimeIdsToMap
+    getSearchCache, removeEarliestAnime, setPreferByAnimeId, setSearchCache, storeAnimeIdsToMap, writeCacheToFile,
+    updateLocalCaches
 } from "../utils/cache-util.js";
 import { formatDanmuResponse } from "../utils/danmu-util.js";
 import { extractEpisodeTitle, convertChineseNumber, parseFileName, createDynamicPlatformOrder, normalizeSpaces } from "../utils/common-util.js";
@@ -71,7 +72,7 @@ function matchSeason(anime, queryTitle, season) {
 }
 
 // Extracted function for GET /api/v2/search/anime
-export async function searchAnime(url) {
+export async function searchAnime(url, preferAnimeId = null, preferSource = null) {
   const queryTitle = url.searchParams.get("keyword");
   log("info", `Search anime with keyword: ${queryTitle}`);
 
@@ -138,26 +139,13 @@ export async function searchAnime(url) {
     addAnime(Anime.fromJson({...tmpAnime, links: links}));
     if (globals.animes.length > globals.MAX_ANIMES) removeEarliestAnime();
 
-    // 🔥 优先更新数据库缓存
-    if (globals.databaseValid && curAnimes.length !== 0) {
-      try {
-        const { saveCacheBatch } = await import('../utils/db-util.js');
-        await saveCacheBatch({
-          animes: globals.animes,
-          episodeIds: globals.episodeIds,
-          episodeNum: globals.episodeNum,
-          lastSelectMap: Object.fromEntries(globals.lastSelectMap)
-        });
-        log("info", "[cache] ✅ 数据库缓存已更新");
-      } catch (error) {
-        log("error", `[cache] ❌ 数据库缓存更新失败: ${error.message}`);
-      }
+    // 如果有新的anime获取到，则更新本地缓存
+    if (globals.localCacheValid && curAnimes.length !== 0) {
+      await updateLocalCaches();
     }
-
-    // 🔥 如果数据库不可用，更新 Redis
-    if (!globals.databaseValid && globals.redisValid && curAnimes.length !== 0) {
+    // 如果有新的anime获取到，则更新redis
+    if (globals.redisValid && curAnimes.length !== 0) {
       await updateRedisCaches();
-      log("info", "[cache] ✅ Redis缓存已更新");
     }
 
     return jsonResponse({
@@ -173,7 +161,7 @@ export async function searchAnime(url) {
     log("info", `Search sourceOrderArr: ${globals.sourceOrderArr}`);
     const requestPromises = globals.sourceOrderArr.map(source => {
       if (source === "360") return kan360Source.search(queryTitle);
-      if (source === "vod") return vodSource.search(queryTitle);
+      if (source === "vod") return vodSource.search(queryTitle, preferAnimeId, preferSource);
       if (source === "tmdb") return tmdbSource.search(queryTitle);
       if (source === "douban") return doubanSource.search(queryTitle);
       if (source === "renren") return renrenSource.search(queryTitle);
@@ -293,9 +281,13 @@ export async function searchAnime(url) {
     curAnimes.push(...validAnimes);
   }
 
+  // 如果有新的anime获取到，则更新本地缓存
+  if (globals.localCacheValid && curAnimes.length !== 0) {
+    await updateLocalCaches();
+  }
   // 如果有新的anime获取到，则更新redis
   if (globals.redisValid && curAnimes.length !== 0) {
-      await updateRedisCaches();
+    await updateRedisCaches();
   }
 
   // 缓存搜索结果
@@ -472,6 +464,17 @@ export async function matchAnime(url, req) {
       title = match[1].trim();
       season = parseInt(match[2]);
       episode = parseInt(match[3]);
+
+      // 优先提取中文部分作为标题（最常用、最干净）
+      const chineseMatch = title.match(/^[\u4e00-\u9fa5]+/);  // 开头的连续中文
+      if (chineseMatch) {
+        title = chineseMatch[0];
+      } else {
+        // 如果没有中文，再清理年份
+        title = title
+          .replace(/\.\d{4}$/i, '')
+          .trim();
+      }
     } else {
       // 没有 S##E## 格式，尝试提取第一个片段作为标题
       // 匹配第一个中文/英文标题部分（在年份、分辨率等技术信息之前）
@@ -491,14 +494,14 @@ export async function matchAnime(url, req) {
 
     log("info", "Parsed title, season, episode", { title, season, episode });
 
+    // 获取prefer animeIdgetPreferAnimeId
+    const [preferAnimeId, preferSource] = getPreferAnimeId(title);
+    log("info", `prefer animeId: ${preferAnimeId} from ${preferSource}`);
+
     let originSearchUrl = new URL(req.url.replace("/match", `/search/anime?keyword=${title}`));
-    const searchRes = await searchAnime(originSearchUrl);
+    const searchRes = await searchAnime(originSearchUrl, preferAnimeId, preferSource);
     const searchData = await searchRes.json();
     log("info", `searchData: ${searchData.animes}`);
-
-    // 获取prefer animeId
-    const preferAnimeId = getPreferAnimeId(title);
-    log("info", `prefer animeId: ${preferAnimeId}`);
 
     let resAnime;
     let resEpisode;
@@ -803,24 +806,13 @@ export async function getComment(path, queryFormat) {
     danmus = await otherSource.getComments(url, "other_server");
   }
 
-  const animeId = findAnimeIdByCommentId(commentId);
-  setPreferByAnimeId(animeId);
-
-  // 🔥 优先保存到数据库
-  if (globals.databaseValid && animeId) {
-    try {
-      const { saveCacheData } = await import('../utils/db-util.js');
-      await saveCacheData('lastSelectMap', Object.fromEntries(globals.lastSelectMap));
-      log("info", "[cache] ✅ lastSelectMap已保存到数据库");
-    } catch (error) {
-      log("error", `[cache] ❌ 数据库保存失败: ${error.message}`);
-    }
+  const [animeId, source] = findAnimeIdByCommentId(commentId);
+  setPreferByAnimeId(animeId, source);
+  if (globals.localCacheValid && animeId) {
+    writeCacheToFile('lastSelectMap', JSON.stringify(Object.fromEntries(globals.lastSelectMap)));
   }
-
-  // 🔥 如果数据库不可用，保存到 Redis
-  if (!globals.databaseValid && globals.redisValid && animeId) {
+  if (globals.redisValid && animeId) {
     await setRedisKey('lastSelectMap', globals.lastSelectMap);
-    log("info", "[cache] ✅ lastSelectMap已保存到Redis");
   }
 
   // 缓存弹幕结果
