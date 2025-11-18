@@ -1,7 +1,8 @@
 import { globals } from '../configs/globals.js';
 import { log } from './log-util.js'
 import { Anime } from "../models/dandan-model.js";
-
+import { simpleHash } from "./codec-util.js";
+let fs, path;
 // =====================
 // cache数据结构处理函数
 // =====================
