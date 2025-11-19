@@ -3684,6 +3684,27 @@ async function handleHomepage(req) {
        transform: scale(1);
      }
    }
+   /* 匹配结果卡片动画 */
+     @keyframes slideInFromLeft {
+       from {
+         opacity: 0;
+         transform: translateX(-30px);
+       }
+       to {
+         opacity: 1;
+         transform: translateX(0);
+       }
+     }
+
+     /* 加载动画优化 */
+     .loading-spinner {
+       animation: spin 1s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite;
+     }
+
+     @keyframes spin {
+       0% { transform: rotate(0deg); }
+       100% { transform: rotate(360deg); }
+     }
  </style>
 </head>
 <body>
