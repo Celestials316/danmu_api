@@ -7153,36 +7153,45 @@ async function testDanmuByUrl() {
      container.innerHTML = \`<div style="padding: 20px; line-height: 2;">\${html}</div>\`;
    }
 
-   function clearDanmuTest() {
-     document.getElementById('danmuTestInput').value = '';
-     document.getElementById('danmuTestSeason').value = '';
-     document.getElementById('danmuTestEpisode').value = '';
-     document.getElementById('danmuTestPlatform').value = '';
-     currentDanmuData = [];
-     filteredDanmuData = [];
-     
-     // 隐藏匹配结果卡片
-     document.getElementById('matchResultCard').style.display = 'none';
-     
-     const previewContainer = document.getElementById('danmuPreviewContainer');
-     previewContainer.innerHTML = `
-       <div style="text-align: center; padding: 80px 20px; color: var(--text-tertiary);">
-         <div style="font-size: 56px; margin-bottom: 20px; opacity: 0.6;">💬</div>
-         <div style="font-size: 17px; font-weight: 600; margin-bottom: 10px; color: var(--text-secondary);">
-           暂无弹幕数据
-         </div>
-         <div style="font-size: 14px; opacity: 0.8;">
-           输入番剧名称或视频链接开始测试
-         </div>
-       </div>
-     `;
-     
-     document.getElementById('danmuTestCount').textContent = '0 条';
-     document.getElementById('exportJsonBtn').style.display = 'none';
-     document.getElementById('exportXmlBtn').style.display = 'none';
-     
-     showToast('✨ 已清空测试数据', 'info');
-   }
+function clearDanmuTest() {
+  currentDanmuData = [];
+  filteredDanmuData = [];
+  document.getElementById('danmuTestInput').value = '';
+  document.getElementById('danmuTestSeason').value = '';
+  document.getElementById('danmuTestEpisode').value = '';
+  document.getElementById('danmuTestPlatform').value = '';
+  document.getElementById('testBlockedWords').value = '';
+  document.getElementById('testSimplified').checked = false;
+  document.getElementById('testTopBottomConvert').checked = false;
+  
+  // ✅ 隐藏匹配结果卡片
+  const matchResultCard = document.getElementById('matchResultCard');
+  if (matchResultCard) {
+    matchResultCard.style.display = 'none';
+  }
+  
+  const previewContainer = document.getElementById('danmuPreviewContainer');
+  previewContainer.innerHTML = '<div style="text-align: center; padding: 60px 20px; color: var(--text-tertiary);"><div style="font-size: 48px; margin-bottom: 16px;">📝</div><div style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">暂无弹幕数据</div><div style="font-size: 13px;">请输入番剧名称或视频 URL 进行测试</div></div>';
+  
+  document.getElementById('danmuTestCount').textContent = '0 条';
+  document.getElementById('exportJsonBtn').style.display = 'none';
+  document.getElementById('exportXmlBtn').style.display = 'none';
+  
+  const filterStats = document.getElementById('filterStats');
+  if (filterStats) filterStats.style.display = 'none';
+  
+  const wordCloud = document.getElementById('danmuWordCloud');
+  if (wordCloud) {
+    wordCloud.innerHTML = '<div style="color: var(--text-tertiary); font-size: 14px; text-align: center;">暂无数据<br>获取弹幕后自动生成词云</div>';
+  }
+  
+  if (danmuTimeChart) {
+    danmuTimeChart.destroy();
+    danmuTimeChart = null;
+  }
+  
+  showToast('✨ 已清空弹幕测试数据', 'info');
+}
 
 // ========== 弹幕导出功能 ==========
    // ========== 弹幕导出功能 ==========
