@@ -872,41 +872,118 @@ async function handleHomepage(req) {
       'bahamut': 'BH'
     };
     
-    // 生成最近匹配列表HTML
-    let recentMatchesHtml = '';
-    try {
-      if (globals.lastSelectMap && globals.lastSelectMap.size > 0) {
-        // 获取最后5条，倒序
-        const recentEntries = Array.from(globals.lastSelectMap.entries()).slice(-5).reverse();
-        recentMatchesHtml = recentEntries.map(([key, value]) => {
-           // value 可能是 [animeId, source] 数组或者直接是 animeId
-           const animeId = Array.isArray(value) ? value[0] : value;
-           const source = Array.isArray(value) ? value[1] : '未知';
-           
-           return `
-            <div class="server-item" style="padding: 12px; margin-bottom: 8px;">
-              <div class="server-badge" style="width: 32px; height: 32px; font-size: 12px; background: var(--bg-tertiary); color: var(--text-secondary); box-shadow: none; border: 1px solid var(--border-color);">ID</div>
-              <div class="server-info">
-                <div class="server-name" style="font-size: 13px; font-family: monospace; margin-bottom: 2px;">${key}</div>
-                <div class="server-url" style="font-size: 12px; color: var(--text-secondary);">
-                  映射至: <span style="color: var(--primary-400); font-weight: 600;">${animeId}</span> 
-                  <span class="badge badge-secondary" style="padding: 1px 6px; font-size: 10px; margin-left: 4px; border-radius: 4px;">${source}</span>
-                </div>
-              </div>
-            </div>
-           `;
-        }).join('');
-      } else {
-        recentMatchesHtml = `
-          <div class="empty-state" style="padding: 20px;">
-            <div class="empty-state-icon" style="font-size: 32px; margin-bottom: 10px;">📭</div>
-            <div class="empty-state-description">暂无匹配记录</div>
+// 生成最近匹配列表HTML
+let recentMatchesHtml = '';
+try {
+  if (globals.lastSelectMap && globals.lastSelectMap.size > 0) {
+    // 获取最后5条，倒序
+    const recentEntries = Array.from(globals.lastSelectMap.entries()).slice(-5).reverse();
+    recentMatchesHtml = recentEntries.map(([key, value]) => {
+       let animeId = '未知';
+       let source = '未知';
+       let episodeTitle = '';
+
+       // --- 深度解析逻辑（增强版）---
+       if (Array.isArray(value)) {
+           // 情况1: [id, source] 或 [id, source, title]
+           animeId = value[0];
+           source = value[1] || '未知';
+           episodeTitle = value[2] || '';
+       } else if (typeof value === 'object' && value !== null) {
+           // 情况2: {val: id, source: src, ...}
+           animeId = value.val || value.id || value.animeId || value.episodeId || value.value || '未知';
+           source = value.source || value.src || value.type || value.platform || '未知';
+           episodeTitle = value.episodeTitle || value.title || '';
+       } else {
+           // 情况3: 纯字符串/数字
+           animeId = value;
+       }
+       
+       // 🔥 二次检查：如果提取出的 animeId 依然是个对象
+       if (typeof animeId === 'object' && animeId !== null) {
+           try {
+               animeId = animeId.id || animeId.val || animeId.episodeId || JSON.stringify(animeId);
+           } catch(e) {
+               animeId = String(animeId);
+           }
+       }
+       
+       // 截断过长的 ID
+       let displayId = String(animeId).trim();
+       if (displayId.length > 30) displayId = displayId.substring(0, 30) + '...';
+       if (displayId === '{}' || displayId === '[]' || displayId === 'undefined') displayId = '未知';
+
+       // 🎯 处理来源显示（标准化平台名称）
+       const platformMap = {
+         'qiyi': '爱奇艺',
+         'iqiyi': '爱奇艺',
+         'bilibili': '哔哩哔哩',
+         'bilibili1': '哔哩哔哩',
+         'youku': '优酷',
+         'qq': '腾讯视频',
+         'tencent': '腾讯视频',
+         'mgtv': '芒果TV',
+         'bahamut': '巴哈姆特',
+         'imgo': 'IMGO',
+         'renren': '人人影视',
+         'hanjutv': '韩剧TV'
+       };
+       
+       const sourceText = platformMap[source.toLowerCase()] || (source === '未知' ? 'Unknown' : source);
+       const iconText = sourceText.substring(0, 2).toUpperCase();
+       const badgeClass = source === 'unknown' || source === '未知' ? 'badge-secondary' : 'badge-info';
+
+       // 🎬 剧集标题显示（如果有）
+       const titleHtml = episodeTitle ? `
+         <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+           ${episodeTitle}
+         </div>
+       ` : '';
+
+       return `
+        <div class="server-item" style="padding: 12px 16px; margin-bottom: 8px; display: flex; align-items: center; gap: 14px; transition: all 0.2s;">
+          <div class="server-badge" style="width: 36px; height: 36px; font-size: 14px; font-weight: 700; background: var(--bg-tertiary); color: var(--primary-500); box-shadow: none; border: 1px solid var(--border-color); flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
+            ${iconText}
           </div>
-        `;
-      }
-    } catch (e) {
-      recentMatchesHtml = `<div class="alert alert-error">读取记录失败: ${e.message}</div>`;
-    }
+          
+          <div class="server-info" style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;">
+            <div class="server-name" style="font-size: 14px; font-weight: 700; color: var(--text-primary); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                ${key}
+            </div>
+            <div class="server-url" style="font-size: 12px; color: var(--text-secondary); font-family: monospace;">
+              ID: <span style="color: var(--primary-400);">${displayId}</span>
+            </div>
+            ${titleHtml}
+          </div>
+
+          <div style="flex-shrink: 0;">
+             <span class="badge ${badgeClass}" style="padding: 4px 8px; font-size: 11px; border-radius: 6px; font-weight: 600;">
+                ${sourceText}
+             </span>
+          </div>
+        </div>
+       `;
+    }).join('');
+  } else {
+    recentMatchesHtml = `
+      <div class="empty-state" style="padding: 24px; text-align: center;">
+        <div class="empty-state-icon" style="font-size: 32px; margin-bottom: 10px; opacity: 0.5;">📭</div>
+        <div class="empty-state-description" style="font-size: 13px; color: var(--text-tertiary);">暂无最近匹配记录</div>
+      </div>
+    `;
+  }
+} catch (e) {
+  log("error", `[homepage] 生成匹配列表失败: ${e.message}`);
+  recentMatchesHtml = `
+    <div class="alert alert-error" style="margin: 10px;">
+      <svg class="alert-icon" viewBox="0 0 24 24" width="20" height="20">
+        <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
+        <path d="M12 8v4m0 4h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <span>读取记录失败: ${e.message}</span>
+    </div>
+  `;
+}
 
     const sourcesHtml = globals.sourceOrderArr.length > 0 
       ? globals.sourceOrderArr.map((source, index) => {
