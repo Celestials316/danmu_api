@@ -8063,13 +8063,11 @@ function clearDanmuTest() {
           if (!container) return;
           
           if (this.matches.length === 0) {
-            container.innerHTML = `
-              <div class="empty-state">
-                <div class="empty-icon">📺</div>
-                <div class="empty-title">暂无匹配记录</div>
-                <div class="empty-desc">使用弹幕测试功能后会自动显示最新匹配</div>
-              </div>
-            `;
+            container.innerHTML = '<div class="empty-state">' +
+              '<div class="empty-icon">📺</div>' +
+              '<div class="empty-title">暂无匹配记录</div>' +
+              '<div class="empty-desc">使用弹幕测试功能后会自动显示最新匹配</div>' +
+              '</div>';
             return;
           }
           
@@ -8089,37 +8087,35 @@ function clearDanmuTest() {
             const timeAgo = this.getTimeAgo(match.timestamp);
             const episodeInfo = match.episodeTitle || 'S' + String(match.season).padStart(2, '0') + 'E' + String(match.episodeNumber).padStart(2, '0');
             
-            return `
-              <div class="match-item" style="animation-delay: ${index * 0.05}s">
-                <div class="match-content">
-                  <div class="match-icon">🎬</div>
-                  <div class="match-info">
-                    <div class="match-title">${match.animeTitle}</div>
-                    <div class="match-episode">${episodeInfo}</div>
-                    <div class="match-meta">
-                      <span class="meta-badge meta-danmu">
-                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor">
-                          <path d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" stroke-width="2"/>
-                        </svg>
-                        ${match.danmuCount} 条弹幕
-                      </span>
-                      <span class="meta-badge meta-platform">
-                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor">
-                          <path d="M5 3l14 9-14 9V3z" stroke-width="2"/>
-                        </svg>
-                        ${platformName}
-                      </span>
-                      <span class="meta-badge meta-time">
-                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor">
-                          <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
-                        </svg>
-                        ${timeAgo}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            `;
+            return '<div class="match-item" style="animation-delay: ' + (index * 0.05) + 's">' +
+              '<div class="match-content">' +
+                '<div class="match-icon">🎬</div>' +
+                '<div class="match-info">' +
+                  '<div class="match-title">' + match.animeTitle + '</div>' +
+                  '<div class="match-episode">' + episodeInfo + '</div>' +
+                  '<div class="match-meta">' +
+                    '<span class="meta-badge meta-danmu">' +
+                      '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor">' +
+                        '<path d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" stroke-width="2"/>' +
+                      '</svg>' +
+                      match.danmuCount + ' 条弹幕' +
+                    '</span>' +
+                    '<span class="meta-badge meta-platform">' +
+                      '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor">' +
+                        '<path d="M5 3l14 9-14 9V3z" stroke-width="2"/>' +
+                      '</svg>' +
+                      platformName +
+                    '</span>' +
+                    '<span class="meta-badge meta-time">' +
+                      '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor">' +
+                        '<path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>' +
+                      '</svg>' +
+                      timeAgo +
+                    '</span>' +
+                  '</div>' +
+                '</div>' +
+              '</div>' +
+            '</div>';
           }).join('');
           
           container.innerHTML = html;
@@ -8141,6 +8137,7 @@ function clearDanmuTest() {
         RecentMatches.render();
         showToast('已刷新最新匹配记录', 'success', 1500);
       }
+
 
 
    document.addEventListener('dblclick', function(e) {
