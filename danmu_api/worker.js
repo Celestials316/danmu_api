@@ -876,32 +876,57 @@ async function handleHomepage(req) {
     let recentMatchesHtml = '';
     try {
       if (globals.lastSelectMap && globals.lastSelectMap.size > 0) {
-        // 获取最后5条，倒序 (增加过滤逻辑：排除 ID 为 253047 的 天气之子 测试数据)
-        const recentEntries = Array.from(globals.lastSelectMap.entries())
-          .filter(([key, value]) => key != 253047 && key != '253047')
-          .slice(-5).reverse();
-          
+        const formatRelativeTime = (timestamp) => {
+          const diff = Date.now() - timestamp;
+          if (diff < 60000) return '刚刚';
+          if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`;
+          if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`;
+          return `${Math.floor(diff / 86400000)} 天前`;
+        };
+
+        const recentEntries = Array.from(globals.lastSelectMap.entries()).slice(-5).reverse();
         recentMatchesHtml = recentEntries.map(([key, value]) => {
-           // value 可能是 [animeId, source] 数组, 对象, 或者直接是 animeId
-           let animeId = value;
-           let source = '未知';
+          let animeId = value;
+          let source = '未知';
+          let meta = {};
 
-           if (Array.isArray(value)) {
-             animeId = value[0];
-             source = value[1] || '未知';
-           } else if (typeof value === 'object' && value !== null) {
-             // 优化：如果是对象，尝试提取 prefer/animeId/id/episodeId，避免显示 [object Object]
-             // 针对 {"animeIds":[...], "prefer": 123, "source": "..."} 这种情况，优先取 prefer
-             animeId = value.prefer || value.animeId || value.id || value.episodeId || (Array.isArray(value.animeIds) ? value.animeIds[0] : null) || JSON.stringify(value);
-             source = value.source || value.type || '未知';
-           }
+          if (Array.isArray(value)) {
+            animeId = value[0];
+            source = value[1] || '未知';
+          } else if (typeof value === 'object' && value !== null) {
+            meta = value;
+            animeId = value.prefer || value.animeId || value.id || value.episodeId ||
+                      (Array.isArray(value.animeIds) ? value.animeIds[0] : null) ||
+                      JSON.stringify(value);
+            source = value.source || value.type || '未知';
+          }
 
-           // 再次确保 animeId 不是对象，如果是则转字符串
-           if (typeof animeId === 'object') {
-             animeId = JSON.stringify(animeId);
-           }
-           
-           return `
+          if (typeof animeId === 'object') {
+            animeId = JSON.stringify(animeId);
+          }
+
+          const matchedAtRaw = meta.matchedAt || meta.timestamp || meta.time || meta.createdAt || meta.updatedAt || meta.ts || meta.date || meta.lastMatchedAt;
+          const matchedAt = matchedAtRaw ? new Date(matchedAtRaw).getTime() : NaN;
+          const matchedAtText = Number.isFinite(matchedAt)
+            ? `${new Date(matchedAt).toLocaleString('zh-CN', { hour12: false })} · ${formatRelativeTime(matchedAt)}`
+            : '时间未知';
+
+          const danmuCountCandidate =
+            meta.danmuCount ??
+            meta.commentCount ??
+            meta.totalDanmu ??
+            meta.totalCount ??
+            meta.stats?.danmuCount ??
+            meta.stats?.commentCount ??
+            (Array.isArray(meta.danmus) ? meta.danmus.length : undefined) ??
+            (Array.isArray(meta.comments) ? meta.comments.length : undefined) ??
+            meta.count;
+
+          const danmuCountText = typeof danmuCountCandidate === 'number' && danmuCountCandidate >= 0
+            ? `${danmuCountCandidate} 条弹幕`
+            : '数量未知';
+
+          return `
             <div class="server-item" style="padding: 12px; margin-bottom: 8px;">
               <div class="server-badge" style="width: 32px; height: 32px; font-size: 12px; background: var(--bg-tertiary); color: var(--text-secondary); box-shadow: none; border: 1px solid var(--border-color);">ID</div>
               <div class="server-info">
@@ -910,9 +935,13 @@ async function handleHomepage(req) {
                   映射至: <span style="color: var(--primary-400); font-weight: 600;">${animeId}</span> 
                   <span class="badge badge-secondary" style="padding: 1px 6px; font-size: 10px; margin-left: 4px; border-radius: 4px;">${source}</span>
                 </div>
+                <div class="recent-meta" style="font-size: 12px; color: var(--text-tertiary); margin-top: 6px; display: grid; gap: 4px;">
+                  <div>匹配时间：<span style="color: var(--text-secondary);">${matchedAtText}</span></div>
+                  <div>弹幕数量：<span style="color: var(--primary-400); font-weight: 600;">${danmuCountText}</span></div>
+                </div>
               </div>
             </div>
-           `;
+          `;
         }).join('');
       } else {
         recentMatchesHtml = `
