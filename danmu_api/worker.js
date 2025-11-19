@@ -8017,30 +8017,38 @@ function clearDanmuTest() {
       // ========== 最新匹配记录管理 ==========
       const RecentMatches = {
         matches: [],
-        maxRecords: 20,
+        maxRecords: 10,
         
-        // 网页端测试后，只需重新加载服务器数据即可
         add(matchData) {
-          setTimeout(() => this.load(), 500); 
+          const match = {
+            id: Date.now(),
+            animeTitle: matchData.animeTitle || '未知',
+            episodeTitle: matchData.episodeTitle || '',
+            episodeNumber: matchData.episodeNumber || matchData.episode || '?',
+            season: matchData.season || '1',
+            danmuCount: matchData.danmuCount || 0,
+            platform: matchData.type || matchData.platform || 'unknown',
+            timestamp: Date.now()
+          };
+          
+          this.matches.unshift(match);
+          if (this.matches.length > this.maxRecords) {
+            this.matches = this.matches.slice(0, this.maxRecords);
+          }
+          
+          localStorage.setItem('recentMatches', JSON.stringify(this.matches));
+          this.render();
         },
         
-        // 从服务器获取最新的全局记录
-        async load() {
+        load() {
           try {
-            const res = await fetch('/api/recent');
-            const data = await res.json();
-            if (data.success && Array.isArray(data.matches)) {
-              this.matches = data.matches;
-              this.render();
-            }
-          } catch (e) {
-            console.error('从服务器加载记录失败:', e);
-            // 降级：如果服务器挂了，显示本地暂存的（可选）
             const stored = localStorage.getItem('recentMatches');
             if (stored) {
               this.matches = JSON.parse(stored);
               this.render();
             }
+          } catch (e) {
+            console.error('加载匹配记录失败:', e);
           }
         },
         
@@ -9653,86 +9661,9 @@ if (path === "/api/logout" && method === "POST") {
     return searchEpisodes(url);
   }
 
-  // GET /api/recent - 获取全局最近匹配记录 (新增接口供网页调用)
-  if (path === "/api/recent" && method === "GET") {
-    // 惰性初始化或从持久化存储加载
-    if (!globals.recentMatches) {
-      try {
-        if (globals.redisValid) {
-          const { getRedisKey } = await import('./utils/redis-util.js');
-          const res = await getRedisKey('global_recent_matches');
-          if (res && res.result) globals.recentMatches = JSON.parse(res.result);
-        } else if (globals.databaseValid) {
-          const { loadCacheData } = await import('./utils/db-util.js');
-          const data = await loadCacheData('global_recent_matches');
-          if (data) globals.recentMatches = data;
-        }
-      } catch (e) { log("warn", "[Recent] 加载历史记录失败"); }
-      if (!globals.recentMatches) globals.recentMatches = [];
-    }
-    return jsonResponse({ success: true, matches: globals.recentMatches });
-  }
-
-  // GET /api/v2/match (修改此处：拦截App和网页的请求并记录)
+  // GET /api/v2/match
   if (path === "/api/v2/match" && method === "POST") {
-    // 1. 执行原始 API 逻辑
-    const response = await matchAnime(url, req);
-    
-    // 2. 偷偷记录日志 (利用 clone() 不影响原响应)
-    try {
-      const clone = response.clone();
-      clone.json().then(async (data) => {
-        // 只有匹配成功才记录
-        if (data.success && data.isMatched && data.matches && data.matches.length > 0) {
-          const match = data.matches[0];
-          
-          // 确保全局变量存在
-          if (!globals.recentMatches) globals.recentMatches = [];
-          
-          // 构建记录对象
-          const record = {
-            id: Date.now(),
-            animeTitle: match.animeTitle,
-            episodeTitle: match.episodeTitle,
-            episodeNumber: match.episode,
-            season: match.season,
-            danmuCount: 0, // match接口本身不返回弹幕数，暂记为0
-            platform: match.type,
-            timestamp: Date.now(),
-            source: 'API' 
-          };
-
-          // 简单防抖：避免同一内容短时间重复记录
-          const last = globals.recentMatches[0];
-          const isDuplicate = last && 
-            last.animeTitle === record.animeTitle && 
-            last.episodeNumber === record.episodeNumber && 
-            (record.timestamp - last.timestamp < 5000);
-
-          if (!isDuplicate) {
-            globals.recentMatches.unshift(record);
-            // 只保留最新的 20 条
-            if (globals.recentMatches.length > 20) {
-              globals.recentMatches = globals.recentMatches.slice(0, 20);
-            }
-
-            // 异步持久化保存 (Redis 或 数据库)
-            try {
-              if (globals.redisValid) {
-                const { setRedisKey } = await import('./utils/redis-util.js');
-                await setRedisKey('global_recent_matches', JSON.stringify(globals.recentMatches), true);
-              } else if (globals.databaseValid) {
-                const { saveCacheData } = await import('./utils/db-util.js');
-                await saveCacheData('global_recent_matches', globals.recentMatches);
-              }
-            } catch (err) { log("warn", `[Recent] 保存失败: ${err.message}`); }
-          }
-        }
-      }).catch(() => {}); // 忽略任何记录错误，不影响主流程
-    } catch (e) {}
-
-    // 3. 返回原始结果给 App
-    return response;
+    return matchAnime(url, req);
   }
 
   // GET /api/v2/bangumi/:animeId
@@ -9745,91 +9676,171 @@ if (path === "/api/logout" && method === "POST") {
     const queryFormat = url.searchParams.get('format');
     const videoUrl = url.searchParams.get('url');
 
+    // 🔥 内部函数：记录最近匹配 (反查番剧信息并保存)
+    const recordRecentMatch = async (id, vUrl, count) => {
+      try {
+        let foundAnime = null;
+        let foundEpisode = null;
+        
+        // 1. 尝试通过 ID 在搜索缓存中反查番剧信息
+        if (id && globals.animes) {
+          for (const [name, data] of Object.entries(globals.animes)) {
+            if (data.episodes) {
+              const ep = data.episodes.find(e => String(e.episodeId) === String(id));
+              if (ep) {
+                foundAnime = name;
+                foundEpisode = ep;
+                break;
+              }
+            }
+          }
+        }
+
+        // 2. 如果找到了信息，则记录
+        if (foundAnime && foundEpisode) {
+          if (!globals.recentMatches) globals.recentMatches = [];
+          
+          const record = {
+            id: Date.now(),
+            animeTitle: foundAnime,
+            episodeTitle: foundEpisode.episodeTitle || `第${foundEpisode.episodeNumber}集`,
+            episodeNumber: foundEpisode.episodeNumber,
+            season: 1,
+            danmuCount: count || 0,
+            platform: 'api', // 标记为API调用
+            timestamp: Date.now()
+          };
+
+          // 防抖：避免短时间重复记录同一集
+          const last = globals.recentMatches[0];
+          const isDuplicate = last && 
+            last.animeTitle === record.animeTitle && 
+            last.episodeNumber === record.episodeNumber && 
+            (Date.now() - last.timestamp < 5000); // 5秒防抖
+
+          if (!isDuplicate) {
+            globals.recentMatches.unshift(record);
+            // 限制最大记录数
+            if (globals.recentMatches.length > 20) {
+              globals.recentMatches = globals.recentMatches.slice(0, 20);
+            }
+
+            // 异步持久化 (Redis/DB)
+            if (globals.redisValid) {
+              const { setRedisKey } = await import('./utils/redis-util.js');
+              setRedisKey('global_recent_matches', JSON.stringify(globals.recentMatches), true);
+            } else if (globals.databaseValid) {
+              const { saveCacheData } = await import('./utils/db-util.js');
+              saveCacheData('global_recent_matches', globals.recentMatches);
+            }
+          }
+        }
+      } catch (e) { /* 忽略记录过程中的非关键错误 */ }
+    };
+
+    // 场景A: 通过 URL 获取弹幕
     if (videoUrl) {
       const cachedComments = getCommentCache(videoUrl);
+      // 1. 缓存命中
       if (cachedComments !== null) {
         log("info", `[Rate Limit] Cache hit for URL: ${videoUrl}, skipping rate limit check`);
         const responseData = { count: cachedComments.length, comments: cachedComments };
+        
+        // 记录 (尝试反查)
+        recordRecentMatch(null, videoUrl, cachedComments.length);
+        
         return formatDanmuResponse(responseData, queryFormat);
       }
 
+      // 限流检查
       if (globals.rateLimitMaxRequests > 0) {
         const currentTime = Date.now();
         const oneMinute = 60 * 1000;
-
         cleanupExpiredIPs(currentTime);
 
         if (!globals.requestHistory.has(clientIp)) {
           globals.requestHistory.set(clientIp, []);
         }
-
         const history = globals.requestHistory.get(clientIp);
         const recentRequests = history.filter(timestamp => currentTime - timestamp <= oneMinute);
 
         if (recentRequests.length >= globals.rateLimitMaxRequests) {
-          log("warn", `[Rate Limit] IP ${clientIp} exceeded rate limit (${recentRequests.length}/${globals.rateLimitMaxRequests} requests in 1 minute)`);
-          return jsonResponse(
-            { errorCode: 429, success: false, errorMessage: "Too many requests, please try again later" },
-            429
-          );
+          log("warn", `[Rate Limit] IP ${clientIp} exceeded rate limit`);
+          return jsonResponse({ errorCode: 429, success: false, errorMessage: "Too many requests" }, 429);
         }
-
         recentRequests.push(currentTime);
         globals.requestHistory.set(clientIp, recentRequests);
-        log("info", `[Rate Limit] IP ${clientIp} request count: ${recentRequests.length}/${globals.rateLimitMaxRequests}`);
       }
 
-      return getCommentByUrl(videoUrl, queryFormat);
+      // 2. 新鲜获取 (拦截响应)
+      const response = await getCommentByUrl(videoUrl, queryFormat);
+      try {
+        const clone = response.clone();
+        clone.json().then(data => {
+           const count = (data.comments || data.danmus || []).length;
+           recordRecentMatch(null, videoUrl, count);
+        }).catch(() => {});
+      } catch(e) {}
+      return response;
     }
 
+    // 场景B: 通过 ID 获取弹幕
     if (!path.startsWith("/api/v2/comment/")) {
       log("error", "Missing commentId or url parameter");
-      return jsonResponse(
-        { errorCode: 400, success: false, errorMessage: "Missing commentId or url parameter" },
-        400
-      );
+      return jsonResponse({ errorCode: 400, success: false, errorMessage: "Missing commentId" }, 400);
     }
 
     const commentId = parseInt(path.split("/").pop());
     let urlForComment = findUrlById(commentId);
 
+    // 1. 缓存命中
     if (urlForComment) {
       const cachedComments = getCommentCache(urlForComment);
       if (cachedComments !== null) {
-        log("info", `[Rate Limit] Cache hit for URL: ${urlForComment}, skipping rate limit check`);
+        log("info", `[Rate Limit] Cache hit for URL: ${urlForComment}`);
         const responseData = { count: cachedComments.length, comments: cachedComments };
+        
+        // 记录 (ID反查)
+        recordRecentMatch(commentId, urlForComment, cachedComments.length);
+
         return formatDanmuResponse(responseData, queryFormat);
       }
     }
 
+    // 限流检查
     if (globals.rateLimitMaxRequests > 0) {
       const currentTime = Date.now();
       const oneMinute = 60 * 1000;
-
       cleanupExpiredIPs(currentTime);
 
       if (!globals.requestHistory.has(clientIp)) {
         globals.requestHistory.set(clientIp, []);
       }
-
       const history = globals.requestHistory.get(clientIp);
       const recentRequests = history.filter(timestamp => currentTime - timestamp <= oneMinute);
 
       if (recentRequests.length >= globals.rateLimitMaxRequests) {
-        log("warn", `[Rate Limit] IP ${clientIp} exceeded rate limit (${recentRequests.length}/${globals.rateLimitMaxRequests} requests in 1 minute)`);
-        return jsonResponse(
-          { errorCode: 429, success: false, errorMessage: "Too many requests, please try again later" },
-          429
-        );
+        log("warn", `[Rate Limit] IP ${clientIp} exceeded rate limit`);
+        return jsonResponse({ errorCode: 429, success: false, errorMessage: "Too many requests" }, 429);
       }
-
       recentRequests.push(currentTime);
       globals.requestHistory.set(clientIp, recentRequests);
-      log("info", `[Rate Limit] IP ${clientIp} request count: ${recentRequests.length}/${globals.rateLimitMaxRequests}`);
     }
 
-    return getComment(path, queryFormat);
+    // 2. 新鲜获取 (拦截响应)
+    const response = await getComment(path, queryFormat);
+    try {
+      const clone = response.clone();
+      clone.json().then(data => {
+         const count = (data.comments || data.danmus || []).length;
+         // 核心：根据 ID 反查信息并记录
+         recordRecentMatch(commentId, null, count);
+      }).catch(() => {});
+    } catch(e) {}
+
+    return response;
   }
+
 
   // GET /api/logs
   if (path === "/api/logs" && method === "GET") {
