@@ -882,52 +882,75 @@ async function handleHomepage(req) {
            let animeId = '未知';
            let source = '未知';
 
-           // 智能解析 value 的多种可能格式
+           // --- 深度解析逻辑 ---
            if (Array.isArray(value)) {
+               // 情况1: [id, source]
                animeId = value[0];
                source = value[1] || '未知';
            } else if (typeof value === 'object' && value !== null) {
-               // 尝试匹配常见的 ID 字段名
+               // 情况2: {val: id, source: src}
                animeId = value.val || value.id || value.animeId || value.value || '未知';
-               // 尝试匹配常见的源字段名
                source = value.source || value.src || value.type || '未知';
-               
-               // 如果提取的 ID 仍然是对象，兜底转为字符串
-               if (typeof animeId === 'object') {
-                 animeId = JSON.stringify(animeId);
-               }
            } else {
+               // 情况3: 纯字符串/数字
                animeId = value;
            }
            
+           // 二次检查：如果提取出的 animeId 依然是个对象（造成 [object Object] 的原因）
+           if (typeof animeId === 'object' && animeId !== null) {
+               try {
+                   // 尝试提取嵌套对象的 id
+                   animeId = animeId.id || animeId.val || JSON.stringify(animeId);
+               } catch(e) {
+                   animeId = String(animeId);
+               }
+           }
+           
            // 截断过长的 ID
-           const displayId = String(animeId).length > 20 ? String(animeId).substring(0, 20) + '...' : String(animeId);
+           let displayId = String(animeId);
+           if (displayId.length > 30) displayId = displayId.substring(0, 30) + '...';
+           if (displayId === '{}' || displayId === '[]') displayId = '未知';
+
+           // 处理来源显示
+           const sourceText = source === '未知' ? 'Unknown' : source;
+           // 图标文字 (首字母大写)
+           const iconText = source === '未知' ? '?' : source.charAt(0).toUpperCase();
+           // 来源标签样式
+           const badgeClass = source === 'unknown' || source === '未知' ? 'badge-secondary' : 'badge-info';
 
            return `
-            <div class="server-item" style="padding: 12px; margin-bottom: 8px;">
-              <div class="server-badge" style="width: 32px; height: 32px; font-size: 14px; background: var(--bg-tertiary); color: var(--text-secondary); box-shadow: none; border: 1px solid var(--border-color);">
-                ${source === '未知' ? '?' : source.substring(0, 1).toUpperCase()}
+            <div class="server-item" style="padding: 12px 16px; margin-bottom: 8px; display: flex; align-items: center; gap: 14px;">
+              <div class="server-badge" style="width: 36px; height: 36px; font-size: 16px; background: var(--bg-tertiary); color: var(--primary-500); box-shadow: none; border: 1px solid var(--border-color); flex-shrink: 0;">
+                ${iconText}
               </div>
-              <div class="server-info">
-                <div class="server-name" style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">${key}</div>
-                <div class="server-url" style="font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px;">
-                  <span>映射ID: <span style="font-family: monospace; color: var(--primary-400);">${displayId}</span></span>
-                  ${source !== '未知' ? `<span class="badge badge-secondary" style="padding: 1px 6px; font-size: 10px; border-radius: 4px;">${source}</span>` : ''}
+              
+              <div class="server-info" style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;">
+                <div class="server-name" style="font-size: 14px; font-weight: 700; color: var(--text-primary); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                    ${key}
                 </div>
+                <div class="server-url" style="font-size: 12px; color: var(--text-secondary); font-family: monospace;">
+                  ID: <span style="color: var(--primary-400);">${displayId}</span>
+                </div>
+              </div>
+
+              <div style="flex-shrink: 0;">
+                 <span class="badge ${badgeClass}" style="padding: 4px 8px; font-size: 11px; border-radius: 6px;">
+                    ${sourceText}
+                 </span>
               </div>
             </div>
            `;
         }).join('');
       } else {
         recentMatchesHtml = `
-          <div class="empty-state" style="padding: 20px;">
-            <div class="empty-state-icon" style="font-size: 32px; margin-bottom: 10px;">📭</div>
-            <div class="empty-state-description">暂无匹配记录</div>
+          <div class="empty-state" style="padding: 24px; text-align: center;">
+            <div class="empty-state-icon" style="font-size: 32px; margin-bottom: 10px; opacity: 0.5;">📭</div>
+            <div class="empty-state-description" style="font-size: 13px;">暂无最近匹配记录</div>
           </div>
         `;
       }
     } catch (e) {
-      recentMatchesHtml = `<div class="alert alert-error">读取记录失败: ${e.message}</div>`;
+      recentMatchesHtml = `<div class="alert alert-error" style="margin: 10px;">读取记录失败: ${e.message}</div>`;
     }
 
     const sourcesHtml = globals.sourceOrderArr.length > 0 
@@ -4080,15 +4103,15 @@ async function handleHomepage(req) {
        </div>
 
        <div class="card">
-         <div class="card-header">
-           <div style="display: flex; align-items: center; gap: 10px;">
+         <div class="card-header" style="display: flex; align-items: center; justify-content: space-between;">
+           <div style="display: flex; align-items: center; gap: 12px;">
              <h3 class="card-title" style="margin-bottom: 0;">
                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
                  <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
                </svg>
                最近匹配信息
              </h3>
-             <span class="badge badge-secondary" style="font-weight: normal; font-size: 11px;">最新 5 条</span>
+             <span class="badge badge-secondary" style="font-weight: normal; font-size: 11px; align-self: center;">TOP 5</span>
            </div>
            <button class="icon-btn" onclick="window.location.reload()" title="刷新列表" style="width: 32px; height: 32px;">
              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor">
