@@ -876,8 +876,11 @@ async function handleHomepage(req) {
     let recentMatchesHtml = '';
     try {
       if (globals.lastSelectMap && globals.lastSelectMap.size > 0) {
-        // 获取最后5条，倒序
-        const recentEntries = Array.from(globals.lastSelectMap.entries()).slice(-5).reverse();
+        // 获取最后5条，倒序 (增加过滤逻辑：排除 ID 为 253047 的 天气之子 测试数据)
+        const recentEntries = Array.from(globals.lastSelectMap.entries())
+          .filter(([key, value]) => key != 253047 && key != '253047')
+          .slice(-5).reverse();
+          
         recentMatchesHtml = recentEntries.map(([key, value]) => {
            // value 可能是 [animeId, source] 数组, 对象, 或者直接是 animeId
            let animeId = value;
