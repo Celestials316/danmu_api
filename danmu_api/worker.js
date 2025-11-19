@@ -4850,8 +4850,8 @@ async function handleHomepage(req) {
               <div class="form-group" style="margin-bottom: 0;">
                 <label class="form-label" style="font-size: 13px;">🔌 接口类型</label>
                 <select class="form-select" id="danmuTestApiType" style="padding: 11px 12px;" onchange="toggleApiTypeFields()">
-                  <option value="match">Match 接口（智能匹配）</option>
-                  <option value="anime">Anime 接口（手动搜索）</option>
+                  <option value="match">Match 接口</option>
+                  <option value="anime">Anime 接口</option>
                 </select>
               </div>
               <div class="form-group" style="margin-bottom: 0;">
