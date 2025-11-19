@@ -871,6 +871,42 @@ async function handleHomepage(req) {
       'mgtv': 'M',
       'bahamut': 'BH'
     };
+    
+    // 生成最近匹配列表HTML
+    let recentMatchesHtml = '';
+    try {
+      if (globals.lastSelectMap && globals.lastSelectMap.size > 0) {
+        // 获取最后5条，倒序
+        const recentEntries = Array.from(globals.lastSelectMap.entries()).slice(-5).reverse();
+        recentMatchesHtml = recentEntries.map(([key, value]) => {
+           // value 可能是 [animeId, source] 数组或者直接是 animeId
+           const animeId = Array.isArray(value) ? value[0] : value;
+           const source = Array.isArray(value) ? value[1] : '未知';
+           
+           return `
+            <div class="server-item" style="padding: 12px; margin-bottom: 8px;">
+              <div class="server-badge" style="width: 32px; height: 32px; font-size: 12px; background: var(--bg-tertiary); color: var(--text-secondary); box-shadow: none; border: 1px solid var(--border-color);">ID</div>
+              <div class="server-info">
+                <div class="server-name" style="font-size: 13px; font-family: monospace; margin-bottom: 2px;">${key}</div>
+                <div class="server-url" style="font-size: 12px; color: var(--text-secondary);">
+                  映射至: <span style="color: var(--primary-400); font-weight: 600;">${animeId}</span> 
+                  <span class="badge badge-secondary" style="padding: 1px 6px; font-size: 10px; margin-left: 4px; border-radius: 4px;">${source}</span>
+                </div>
+              </div>
+            </div>
+           `;
+        }).join('');
+      } else {
+        recentMatchesHtml = `
+          <div class="empty-state" style="padding: 20px;">
+            <div class="empty-state-icon" style="font-size: 32px; margin-bottom: 10px;">📭</div>
+            <div class="empty-state-description">暂无匹配记录</div>
+          </div>
+        `;
+      }
+    } catch (e) {
+      recentMatchesHtml = `<div class="alert alert-error">读取记录失败: ${e.message}</div>`;
+    }
 
     const sourcesHtml = globals.sourceOrderArr.length > 0 
       ? globals.sourceOrderArr.map((source, index) => {
@@ -4025,13 +4061,14 @@ async function handleHomepage(req) {
          <div class="card-header">
            <h3 class="card-title">
              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-               <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" stroke-width="2"/>
+               <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
              </svg>
-             使用统计
+             最近匹配信息
            </h3>
+           <span class="badge badge-secondary" style="font-weight: normal;">最新 5 条</span>
          </div>
-         <div class="chart-container">
-           <canvas id="usageChart"></canvas>
+         <div class="server-grid" style="gap: 0;">
+           ${recentMatchesHtml}
          </div>
        </div>
 
@@ -5739,7 +5776,6 @@ async function handleHomepage(req) {
    // ==================== 初始化 ====================
    document.addEventListener('DOMContentLoaded', function() {
      initializeApp();
-     initializeChart();
      initializeDragAndDrop();
      loadLocalStorageData();
      setupGlobalSearch();
@@ -7784,7 +7820,6 @@ function clearDanmuTest() {
 
    document.addEventListener('DOMContentLoaded', function() {
      initializeApp();
-     initializeChart();
      loadLocalStorageData();
      setupGlobalSearch();
    });
@@ -7878,76 +7913,6 @@ function clearDanmuTest() {
          item.style.display = matches ? '' : 'none';
          if (matches) item.classList.add('highlight');
        });
-     });
-   }
-
-   function initializeChart() {
-     const ctx = document.getElementById('usageChart');
-     if (!ctx) return;
-
-     const chart = new Chart(ctx, {
-       type: 'line',
-       data: {
-         labels: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
-         datasets: [{
-           label: 'API 请求量',
-           data: [120, 190, 150, 220, 180, 250, 200],
-           borderColor: 'rgb(99, 102, 241)',
-           backgroundColor: 'rgba(99, 102, 241, 0.1)',
-           tension: 0.4,
-           fill: true
-         }]
-       },
-       options: {
-         responsive: true,
-         maintainAspectRatio: false,
-         plugins: {
-           legend: {
-             display: true,
-             position: 'top',
-             labels: {
-               color: getComputedStyle(document.body).getPropertyValue('--text-primary'),
-               font: {
-                 family: '-apple-system, BlinkMacSystemFont, "Segoe UI"',
-                 size: 12
-               }
-             }
-           }
-         },
-         scales: {
-           y: {
-             beginAtZero: true,
-             grid: {
-               color: getComputedStyle(document.body).getPropertyValue('--border-color')
-             },
-             ticks: {
-               color: getComputedStyle(document.body).getPropertyValue('--text-secondary')
-             }
-           },
-           x: {
-             grid: {
-               color: getComputedStyle(document.body).getPropertyValue('--border-color')
-             },
-             ticks: {
-               color: getComputedStyle(document.body).getPropertyValue('--text-secondary')
-             }
-           }
-         }
-       }
-     });
-
-     const observer = new MutationObserver(() => {
-       chart.options.plugins.legend.labels.color = getComputedStyle(document.documentElement).getPropertyValue('--text-primary');
-       chart.options.scales.y.grid.color = getComputedStyle(document.body).getPropertyValue('--border-color');
-       chart.options.scales.y.ticks.color = getComputedStyle(document.body).getPropertyValue('--text-secondary');
-       chart.options.scales.x.grid.color = getComputedStyle(document.body).getPropertyValue('--border-color');
-       chart.options.scales.x.ticks.color = getComputedStyle(document.body).getPropertyValue('--text-secondary');
-       chart.update();
-     });
-
-     observer.observe(document.documentElement, {
-       attributes: true,
-       attributeFilter: ['class']
      });
    }
 
