@@ -872,118 +872,55 @@ async function handleHomepage(req) {
       'bahamut': 'BH'
     };
     
-// 生成最近匹配列表HTML
-let recentMatchesHtml = '';
-try {
-  if (globals.lastSelectMap && globals.lastSelectMap.size > 0) {
-    // 获取最后5条，倒序
-    const recentEntries = Array.from(globals.lastSelectMap.entries()).slice(-5).reverse();
-    recentMatchesHtml = recentEntries.map(([key, value]) => {
-       let animeId = '未知';
-       let source = '未知';
-       let episodeTitle = '';
+        // 生成最近匹配列表HTML
+    let recentMatchesHtml = '';
+    try {
+      if (globals.lastSelectMap && globals.lastSelectMap.size > 0) {
+        // 获取最后5条，倒序
+        const recentEntries = Array.from(globals.lastSelectMap.entries()).slice(-5).reverse();
+        recentMatchesHtml = recentEntries.map(([key, value]) => {
+           // value 可能是 [animeId, source] 数组, 对象, 或者直接是 animeId
+           let animeId = value;
+           let source = '未知';
 
-       // --- 深度解析逻辑（增强版）---
-       if (Array.isArray(value)) {
-           // 情况1: [id, source] 或 [id, source, title]
-           animeId = value[0];
-           source = value[1] || '未知';
-           episodeTitle = value[2] || '';
-       } else if (typeof value === 'object' && value !== null) {
-           // 情况2: {val: id, source: src, ...}
-           animeId = value.val || value.id || value.animeId || value.episodeId || value.value || '未知';
-           source = value.source || value.src || value.type || value.platform || '未知';
-           episodeTitle = value.episodeTitle || value.title || '';
-       } else {
-           // 情况3: 纯字符串/数字
-           animeId = value;
-       }
-       
-       // 🔥 二次检查：如果提取出的 animeId 依然是个对象
-       if (typeof animeId === 'object' && animeId !== null) {
-           try {
-               animeId = animeId.id || animeId.val || animeId.episodeId || JSON.stringify(animeId);
-           } catch(e) {
-               animeId = String(animeId);
+           if (Array.isArray(value)) {
+             animeId = value[0];
+             source = value[1] || '未知';
+           } else if (typeof value === 'object' && value !== null) {
+             // 优化：如果是对象，尝试提取 animeId/id/episodeId，避免显示 [object Object]
+             animeId = value.animeId || value.id || value.episodeId || JSON.stringify(value);
+             source = value.source || value.type || '未知';
            }
-       }
-       
-       // 截断过长的 ID
-       let displayId = String(animeId).trim();
-       if (displayId.length > 30) displayId = displayId.substring(0, 30) + '...';
-       if (displayId === '{}' || displayId === '[]' || displayId === 'undefined') displayId = '未知';
 
-       // 🎯 处理来源显示（标准化平台名称）
-       const platformMap = {
-         'qiyi': '爱奇艺',
-         'iqiyi': '爱奇艺',
-         'bilibili': '哔哩哔哩',
-         'bilibili1': '哔哩哔哩',
-         'youku': '优酷',
-         'qq': '腾讯视频',
-         'tencent': '腾讯视频',
-         'mgtv': '芒果TV',
-         'bahamut': '巴哈姆特',
-         'imgo': 'IMGO',
-         'renren': '人人影视',
-         'hanjutv': '韩剧TV'
-       };
-       
-       const sourceText = platformMap[source.toLowerCase()] || (source === '未知' ? 'Unknown' : source);
-       const iconText = sourceText.substring(0, 2).toUpperCase();
-       const badgeClass = source === 'unknown' || source === '未知' ? 'badge-secondary' : 'badge-info';
-
-       // 🎬 剧集标题显示（如果有）
-       const titleHtml = episodeTitle ? `
-         <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-           ${episodeTitle}
-         </div>
-       ` : '';
-
-       return `
-        <div class="server-item" style="padding: 12px 16px; margin-bottom: 8px; display: flex; align-items: center; gap: 14px; transition: all 0.2s;">
-          <div class="server-badge" style="width: 36px; height: 36px; font-size: 14px; font-weight: 700; background: var(--bg-tertiary); color: var(--primary-500); box-shadow: none; border: 1px solid var(--border-color); flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
-            ${iconText}
-          </div>
-          
-          <div class="server-info" style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;">
-            <div class="server-name" style="font-size: 14px; font-weight: 700; color: var(--text-primary); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                ${key}
+           // 再次确保 animeId 不是对象，如果是则转字符串
+           if (typeof animeId === 'object') {
+             animeId = JSON.stringify(animeId);
+           }
+           
+           return `
+            <div class="server-item" style="padding: 12px; margin-bottom: 8px;">
+              <div class="server-badge" style="width: 32px; height: 32px; font-size: 12px; background: var(--bg-tertiary); color: var(--text-secondary); box-shadow: none; border: 1px solid var(--border-color);">ID</div>
+              <div class="server-info">
+                <div class="server-name" style="font-size: 13px; font-family: monospace; margin-bottom: 2px;">${key}</div>
+                <div class="server-url" style="font-size: 12px; color: var(--text-secondary);">
+                  映射至: <span style="color: var(--primary-400); font-weight: 600;">${animeId}</span> 
+                  <span class="badge badge-secondary" style="padding: 1px 6px; font-size: 10px; margin-left: 4px; border-radius: 4px;">${source}</span>
+                </div>
+              </div>
             </div>
-            <div class="server-url" style="font-size: 12px; color: var(--text-secondary); font-family: monospace;">
-              ID: <span style="color: var(--primary-400);">${displayId}</span>
-            </div>
-            ${titleHtml}
+           `;
+        }).join('');
+      } else {
+        recentMatchesHtml = `
+          <div class="empty-state" style="padding: 20px;">
+            <div class="empty-state-icon" style="font-size: 32px; margin-bottom: 10px;">📭</div>
+            <div class="empty-state-description">暂无匹配记录</div>
           </div>
-
-          <div style="flex-shrink: 0;">
-             <span class="badge ${badgeClass}" style="padding: 4px 8px; font-size: 11px; border-radius: 6px; font-weight: 600;">
-                ${sourceText}
-             </span>
-          </div>
-        </div>
-       `;
-    }).join('');
-  } else {
-    recentMatchesHtml = `
-      <div class="empty-state" style="padding: 24px; text-align: center;">
-        <div class="empty-state-icon" style="font-size: 32px; margin-bottom: 10px; opacity: 0.5;">📭</div>
-        <div class="empty-state-description" style="font-size: 13px; color: var(--text-tertiary);">暂无最近匹配记录</div>
-      </div>
-    `;
-  }
-} catch (e) {
-  log("error", `[homepage] 生成匹配列表失败: ${e.message}`);
-  recentMatchesHtml = `
-    <div class="alert alert-error" style="margin: 10px;">
-      <svg class="alert-icon" viewBox="0 0 24 24" width="20" height="20">
-        <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
-        <path d="M12 8v4m0 4h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-      </svg>
-      <span>读取记录失败: ${e.message}</span>
-    </div>
-  `;
-}
+        `;
+      }
+    } catch (e) {
+      recentMatchesHtml = `<div class="alert alert-error">读取记录失败: ${e.message}</div>`;
+    }
 
     const sourcesHtml = globals.sourceOrderArr.length > 0 
       ? globals.sourceOrderArr.map((source, index) => {
@@ -4134,27 +4071,27 @@ try {
          </div>
        </div>
 
-<div class="card">
-  <div class="card-header">
-    <div style="display: flex; align-items: center; gap: 10px;">
-      <h3 class="card-title" style="margin-bottom: 0;">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
-        </svg>
-        最近匹配信息
-      </h3>
-      <span class="badge badge-secondary" style="font-weight: normal; font-size: 11px;">最新 5 条</span>
-    </div>
-    <button class="icon-btn" onclick="refreshRecentMatches()" title="刷新列表 (F5)" style="width: 32px; height: 32px;">
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor">
-        <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    </button>
-  </div>
-  <div class="server-grid" id="recentMatchesContainer" style="gap: 0;">
-    ${recentMatchesHtml}
-  </div>
-</div>
+       <div class="card">
+         <div class="card-header">
+           <h3 class="card-title">
+             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+               <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
+             </svg>
+             最近匹配信息
+           </h3>
+           <div style="display: flex; align-items: center; gap: 8px;">
+             <span class="badge badge-secondary" style="font-weight: normal;">最新 5 条</span>
+             <button class="icon-btn" onclick="window.location.reload()" title="刷新列表" style="width: 28px; height: 28px;">
+               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor">
+                 <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-width="2" stroke-linecap="round"/>
+               </svg>
+             </button>
+           </div>
+         </div>
+         <div class="server-grid" style="gap: 0;">
+           ${recentMatchesHtml}
+         </div>
+       </div>
 
        <div class="card">
          <div class="card-header">
@@ -8144,156 +8081,7 @@ function clearDanmuTest() {
        return e.returnValue;
      }
    });
-// ========== 最近匹配信息刷新功能 ==========
-async function refreshRecentMatches() {
-  const container = document.getElementById('recentMatchesContainer');
-  if (!container) return;
-  
-  // 显示加载状态
-  container.innerHTML = `
-    <div style="text-align: center; padding: 40px 20px;">
-      <span class="loading-spinner" style="width: 32px; height: 32px; border-width: 3px;"></span>
-      <div style="margin-top: 16px; color: var(--text-secondary); font-size: 14px;">正在刷新...</div>
-    </div>
-  `;
-  
-  try {
-    // 重新加载配置
-    const response = await fetch('/api/config/load', {
-      cache: 'no-cache'
-    });
-    
-    if (!response.ok) {
-      throw new Error('刷新失败');
-    }
-    
-    const result = await response.json();
-    
-    if (!result.success || !result.config) {
-      throw new Error('无法加载配置');
-    }
-    
-    // 解析 lastSelectMap
-    let recentMatchesHtml = '';
-    
-    // 🔥 尝试多种可能的数据源
-    let lastSelectData = null;
-    
-    if (result.config.lastSelectMap) {
-      try {
-        lastSelectData = typeof result.config.lastSelectMap === 'string' 
-          ? JSON.parse(result.config.lastSelectMap) 
-          : result.config.lastSelectMap;
-      } catch (e) {
-        console.warn('解析 lastSelectMap 失败:', e);
-      }
-    }
-    
-    if (lastSelectData && Object.keys(lastSelectData).length > 0) {
-      // 转换为数组并取最新5条
-      const entries = Object.entries(lastSelectData).slice(-5).reverse();
-      
-      recentMatchesHtml = entries.map(([key, value]) => {
-        let animeId = '未知';
-        let source = '未知';
-        let episodeTitle = '';
 
-        // 深度解析
-        if (Array.isArray(value)) {
-          animeId = value[0];
-          source = value[1] || '未知';
-          episodeTitle = value[2] || '';
-        } else if (typeof value === 'object' && value !== null) {
-          animeId = value.val || value.id || value.animeId || value.episodeId || '未知';
-          source = value.source || value.src || value.type || value.platform || '未知';
-          episodeTitle = value.episodeTitle || value.title || '';
-        } else {
-          animeId = value;
-        }
-        
-        if (typeof animeId === 'object' && animeId !== null) {
-          animeId = animeId.id || animeId.val || JSON.stringify(animeId);
-        }
-        
-        let displayId = String(animeId).trim();
-        if (displayId.length > 30) displayId = displayId.substring(0, 30) + '...';
-        if (displayId === '{}' || displayId === '[]') displayId = '未知';
-
-        const platformMap = {
-          'qiyi': '爱奇艺', 'iqiyi': '爱奇艺', 'bilibili': '哔哩哔哩',
-          'bilibili1': '哔哩哔哩', 'youku': '优酷', 'qq': '腾讯视频',
-          'tencent': '腾讯视频', 'mgtv': '芒果TV', 'bahamut': '巴哈姆特',
-          'imgo': 'IMGO', 'renren': '人人影视', 'hanjutv': '韩剧TV'
-        };
-        
-        const sourceText = platformMap[source.toLowerCase()] || (source === '未知' ? 'Unknown' : source);
-        const iconText = sourceText.substring(0, 2).toUpperCase();
-        const badgeClass = source === 'unknown' || source === '未知' ? 'badge-secondary' : 'badge-info';
-
-        const titleHtml = episodeTitle ? `
-          <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-            ${episodeTitle}
-          </div>
-        ` : '';
-
-        return `
-          <div class="server-item" style="padding: 12px 16px; margin-bottom: 8px; display: flex; align-items: center; gap: 14px; animation: slideInFromLeft 0.3s ease-out;">
-            <div class="server-badge" style="width: 36px; height: 36px; font-size: 14px; font-weight: 700; background: var(--bg-tertiary); color: var(--primary-500); box-shadow: none; border: 1px solid var(--border-color); flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
-              ${iconText}
-            </div>
-            
-            <div class="server-info" style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;">
-              <div class="server-name" style="font-size: 14px; font-weight: 700; color: var(--text-primary); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                  ${key}
-              </div>
-              <div class="server-url" style="font-size: 12px; color: var(--text-secondary); font-family: monospace;">
-                ID: <span style="color: var(--primary-400);">${displayId}</span>
-              </div>
-              ${titleHtml}
-            </div>
-
-            <div style="flex-shrink: 0;">
-               <span class="badge ${badgeClass}" style="padding: 4px 8px; font-size: 11px; border-radius: 6px; font-weight: 600;">
-                  ${sourceText}
-               </span>
-            </div>
-          </div>
-        `;
-      }).join('');
-    } else {
-      recentMatchesHtml = `
-        <div class="empty-state" style="padding: 24px; text-align: center;">
-          <div class="empty-state-icon" style="font-size: 32px; margin-bottom: 10px; opacity: 0.5;">📭</div>
-          <div class="empty-state-description" style="font-size: 13px; color: var(--text-tertiary);">暂无最近匹配记录</div>
-        </div>
-      `;
-    }
-    
-    container.innerHTML = recentMatchesHtml;
-    showToast('✅ 列表已刷新', 'success', 2000);
-    
-  } catch (error) {
-    console.error('刷新失败:', error);
-    container.innerHTML = `
-      <div class="alert alert-error" style="margin: 10px;">
-        <svg class="alert-icon" viewBox="0 0 24 24" width="20" height="20">
-          <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
-          <path d="M12 8v4m0 4h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        </svg>
-        <span>刷新失败: ${error.message}</span>
-      </div>
-    `;
-    showToast('❌ 刷新失败', 'error');
-  }
-}
-
-// F5 快捷键刷新（仅在概览页面生效）
-document.addEventListener('keydown', function(e) {
-  if (e.key === 'F5' && document.querySelector('#overview-page.active')) {
-    e.preventDefault();
-    refreshRecentMatches();
-  }
-});
    // ========== 登录相关功能 ==========
    // 退出登录
    async function logout() {
