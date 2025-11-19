@@ -4792,151 +4792,153 @@ async function handleHomepage(req) {
 
      <!-- 弹幕测试页面 -->
      <section id="danmuTest-page" class="page-section">
+       <!-- 搜索输入卡片 -->
+       <div class="card" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.05), rgba(139, 92, 246, 0.05));">
+         <div class="card-header">
+           <h3 class="card-title">
+             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+               <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-width="2"/>
+             </svg>
+             弹幕搜索
+           </h3>
+         </div>
+
+         <div style="padding: 0 8px;">
+           <div class="form-group" style="margin-bottom: 16px;">
+             <label class="form-label" style="display: flex; align-items: center; gap: 8px;">
+               <span>🎬</span>
+               <span>番剧名称或视频 URL</span>
+             </label>
+             <input type="text" class="form-input" id="danmuTestInput" 
+                    placeholder="例如：藏海传、进击的巨人、https://youku.com/..." 
+                    style="font-size: 15px; padding: 14px 16px;">
+           </div>
+
+           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px;">
+             <div class="form-group" style="margin-bottom: 0;">
+               <label class="form-label" style="font-size: 13px;">📅 季数</label>
+               <input type="number" class="form-input" id="danmuTestSeason" 
+                      placeholder="1" min="1" style="padding: 11px 12px;">
+             </div>
+             <div class="form-group" style="margin-bottom: 0;">
+               <label class="form-label" style="font-size: 13px;">📺 集数</label>
+               <input type="number" class="form-input" id="danmuTestEpisode" 
+                      placeholder="5" min="1" style="padding: 11px 12px;">
+             </div>
+             <div class="form-group" style="margin-bottom: 0;">
+               <label class="form-label" style="font-size: 13px;">🎯 平台</label>
+               <select class="form-select" id="danmuTestPlatform" style="padding: 11px 12px;">
+                 <option value="">自动匹配</option>
+                 <option value="qiyi">🥝 爱奇艺</option>
+                 <option value="bilibili1">📺 哔哩哔哩</option>
+                 <option value="imgo">🎬 IMGO</option>
+                 <option value="youku">📹 优酷</option>
+                 <option value="qq">🐧 腾讯视频</option>
+                 <option value="renren">👥 人人影视</option>
+                 <option value="hanjutv">🇰🇷 韩剧TV</option>
+                 <option value="bahamut">🎮 巴哈姆特</option>
+               </select>
+             </div>
+           </div>
+
+           <div class="alert alert-info" style="margin-bottom: 16px; font-size: 13px;">
+             <svg class="alert-icon" viewBox="0 0 24 24" width="18" height="18">
+               <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
+               <path d="M12 16v-4m0-4h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+             </svg>
+             <span>💡 示例：输入<strong>"藏海传"</strong>，季数<strong>"1"</strong>，集数<strong>"5"</strong> → 自动匹配 S01E05</span>
+           </div>
+
+           <div style="display: flex; gap: 12px;">
+             <button class="btn btn-primary" onclick="testDanmuByUrl()" style="flex: 1; font-size: 15px; padding: 13px 20px;">
+               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width: 20px; height: 20px;">
+                 <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-width="2"/>
+               </svg>
+               <span>搜索弹幕</span>
+             </button>
+             <button class="btn btn-secondary" onclick="clearDanmuTest()" style="padding: 13px 20px;">
+               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width: 18px; height: 18px;">
+                 <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-width="2"/>
+               </svg>
+               <span>清空</span>
+             </button>
+           </div>
+         </div>
+       </div>
+
+       <!-- 匹配结果卡片（动态显示） -->
+       <div class="card" id="matchResultCard" style="display: none; border-left: 4px solid var(--success); animation: slideInFromLeft 0.4s ease-out;">
+         <div class="card-header" style="padding-bottom: 16px;">
+           <h3 class="card-title" style="color: var(--success);">
+             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+               <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
+             </svg>
+             匹配成功
+           </h3>
+         </div>
+         <div style="display: grid; gap: 12px; padding: 0 8px;">
+           <div style="display: flex; align-items: center; gap: 12px; padding: 14px; background: var(--bg-tertiary); border-radius: 10px;">
+             <div style="width: 48px; height: 48px; background: linear-gradient(135deg, var(--success), #059669); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0;">
+               🎬
+             </div>
+             <div style="flex: 1; min-width: 0;">
+               <div style="font-size: 16px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;" id="matchedAnimeTitle">-</div>
+               <div style="font-size: 13px; color: var(--text-secondary);" id="matchedEpisodeTitle">-</div>
+             </div>
+           </div>
+           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px;">
+             <div style="padding: 12px; background: var(--bg-primary); border-radius: 8px; text-align: center;">
+               <div style="font-size: 11px; color: var(--text-tertiary); margin-bottom: 4px;">平台</div>
+               <div style="font-size: 15px; font-weight: 700; color: var(--primary-400);" id="matchedPlatform">-</div>
+             </div>
+             <div style="padding: 12px; background: var(--bg-primary); border-radius: 8px; text-align: center;">
+               <div style="font-size: 11px; color: var(--text-tertiary); margin-bottom: 4px;">季数</div>
+               <div style="font-size: 15px; font-weight: 700; color: var(--primary-400);" id="matchedSeason">-</div>
+             </div>
+             <div style="padding: 12px; background: var(--bg-primary); border-radius: 8px; text-align: center;">
+               <div style="font-size: 11px; color: var(--text-tertiary); margin-bottom: 4px;">集数</div>
+               <div style="font-size: 15px; font-weight: 700; color: var(--primary-400);" id="matchedEpisode">-</div>
+             </div>
+             <div style="padding: 12px; background: var(--bg-primary); border-radius: 8px; text-align: center;">
+               <div style="font-size: 11px; color: var(--text-tertiary); margin-bottom: 4px;">弹幕ID</div>
+               <div style="font-size: 15px; font-weight: 700; color: var(--primary-400); font-family: monospace;" id="matchedEpisodeId">-</div>
+             </div>
+           </div>
+         </div>
+       </div>
+
+       <!-- 弹幕预览卡片 -->
        <div class="card">
          <div class="card-header">
            <h3 class="card-title">
              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
                <path d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" stroke-width="2"/>
              </svg>
-             弹幕测试工具
+             弹幕列表
            </h3>
-         </div>
-
-         <!-- 测试输入区域 -->
-         <div class="quick-config-item">
-           <div class="config-item-header">
-             <div class="config-item-title">
-               <span class="config-icon">🔍</span>
-               <span>测试输入</span>
-             </div>
-           </div>
-           <div class="form-group" style="margin-bottom: 16px;">
-             <label class="form-label">番剧名称或视频 URL</label>
-             <input type="text" class="form-input" id="danmuTestInput" placeholder="输入番剧名称（如：藏海传）或视频 URL" style="font-size: 15px;">
-           </div>
-           <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 16px;">
-             <div class="form-group" style="margin-bottom: 0;">
-               <label class="form-label">季数（可选）</label>
-               <input type="number" class="form-input" id="danmuTestSeason" placeholder="如：1" min="1" style="padding: 12px;">
-             </div>
-             <div class="form-group" style="margin-bottom: 0;">
-               <label class="form-label">集数（可选）</label>
-               <input type="number" class="form-input" id="danmuTestEpisode" placeholder="如：5" min="1" style="padding: 12px;">
-             </div>
-             <div class="form-group" style="margin-bottom: 0;">
-               <label class="form-label">平台（可选）</label>
-               <select class="form-select" id="danmuTestPlatform" style="padding: 12px;">
-                 <option value="">自动匹配</option>
-                 <option value="qiyi">爱奇艺</option>
-                 <option value="bilibili1">哔哩哔哩</option>
-                 <option value="imgo">IMGO</option>
-                 <option value="youku">优酷</option>
-                 <option value="qq">腾讯视频</option>
-                 <option value="renren">人人影视</option>
-                 <option value="hanjutv">韩剧TV</option>
-                 <option value="bahamut">巴哈姆特</option>
-               </select>
-             </div>
-           </div>
-           <div class="alert alert-info" style="margin-bottom: 16px; font-size: 13px;">
-             <svg class="alert-icon" viewBox="0 0 24 24" width="18" height="18">
-               <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
-               <path d="M12 16v-4m0-4h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-             </svg>
-             <span>💡 示例：输入"藏海传"，季数"1"，集数"5"，平台"youku" → 自动搜索并匹配剧集</span>
-           </div>
-           <div style="display: flex; gap: 12px;">
-             <button class="btn btn-primary" onclick="testDanmuByUrl()" style="flex: 1; padding: 12px 24px; font-size: 15px;">
-               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width: 20px; height: 20px;">
-                 <path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-width="2"/>
-               </svg>
-               获取弹幕
-             </button>
-             <button class="btn btn-secondary" onclick="clearDanmuTest()" style="padding: 12px 24px;">
-               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width: 18px; height: 18px;">
-                 <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-width="2"/>
-               </svg>
-               清空
-             </button>
-           </div>
-         </div>
-
-         <!-- 匹配结果信息卡片 -->
-         <div id="matchInfoCard" class="card" style="display: none; margin-top: 16px; animation: fadeIn 0.3s ease-out;">
-           <div class="card-header" style="padding: 16px 20px; border-bottom: 2px solid var(--border-color);">
-             <h3 class="card-title" style="font-size: 16px;">
-               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width: 20px; height: 20px;">
-                 <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
-               </svg>
-               匹配成功
-             </h3>
-             <span class="badge badge-success" id="matchPlatformBadge" style="font-size: 12px;">
-               <span class="status-dot"></span>
-               平台
-             </span>
-           </div>
-           <div style="padding: 20px;">
-             <div style="display: grid; gap: 16px;">
-               <div style="display: flex; align-items: start; gap: 12px;">
-                 <div style="min-width: 80px; color: var(--text-secondary); font-size: 14px; font-weight: 600;">番剧名称</div>
-                 <div id="matchAnimeTitle" style="flex: 1; color: var(--text-primary); font-size: 15px; font-weight: 600; word-break: break-all;"></div>
-               </div>
-               <div style="display: flex; align-items: start; gap: 12px;">
-                 <div style="min-width: 80px; color: var(--text-secondary); font-size: 14px; font-weight: 600;">剧集信息</div>
-                 <div id="matchEpisodeTitle" style="flex: 1; color: var(--text-primary); font-size: 14px; word-break: break-all;"></div>
-               </div>
-               <div style="display: flex; align-items: start; gap: 12px;">
-                 <div style="min-width: 80px; color: var(--text-secondary); font-size: 14px; font-weight: 600;">剧集 ID</div>
-                 <div style="flex: 1; display: flex; align-items: center; gap: 8px;">
-                   <code id="matchEpisodeId" style="font-family: 'Monaco', monospace; color: var(--primary-400); font-size: 13px; background: var(--bg-primary); padding: 4px 8px; border-radius: 4px;"></code>
-                   <button class="icon-btn" onclick="copyMatchId()" title="复制 ID" style="width: 28px; height: 28px;">
-                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor">
-                       <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke-width="2"/>
-                       <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke-width="2"/>
-                     </svg>
-                   </button>
-                 </div>
-               </div>
-             </div>
-           </div>
-         </div>
-       </div>
-
-       <div class="card">
-         <div class="card-header">
-           <h3 class="card-title">
-             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-               <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-width="2"/>
-               <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" stroke-width="2"/>
-             </svg>
-             弹幕预览
-           </h3>
-           <div class="card-actions" style="display: flex; align-items: center; gap: 12px;">
-             <span id="danmuTestCount" class="badge badge-info" style="font-size: 13px; padding: 6px 12px;">
-               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" style="margin-right: 4px;">
-                 <path d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" stroke-width="2"/>
-               </svg>
-               0 条
-             </span>
-             <button class="btn btn-secondary" onclick="exportDanmu('json')" id="exportJsonBtn" style="display: none; padding: 10px 16px; font-size: 13px;">
-               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width: 16px; height: 16px;">
+           <div class="card-actions" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+             <span id="danmuTestCount" class="badge badge-info" style="font-size: 13px; padding: 6px 12px;">0 条</span>
+             <button class="btn btn-secondary" onclick="exportDanmu('json')" id="exportJsonBtn" 
+                     style="display: none; padding: 7px 14px; font-size: 13px;">
+               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width: 15px; height: 15px;">
                  <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" stroke-width="2" stroke-linecap="round"/>
                </svg>
-               导出 JSON
+               <span>JSON</span>
              </button>
-             <button class="btn btn-secondary" onclick="exportDanmu('xml')" id="exportXmlBtn" style="display: none; padding: 10px 16px; font-size: 13px;">
-               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width: 16px; height: 16px;">
+             <button class="btn btn-secondary" onclick="exportDanmu('xml')" id="exportXmlBtn" 
+                     style="display: none; padding: 7px 14px; font-size: 13px;">
+               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width: 15px; height: 15px;">
                  <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" stroke-width="2" stroke-linecap="round"/>
                </svg>
-               导出 XML
+               <span>XML</span>
              </button>
            </div>
          </div>
-         <div id="danmuPreviewContainer" style="min-height: 350px; max-height: 550px; overflow-y: auto; background: var(--bg-primary); border-radius: 12px; padding: 0;">
+         <div id="danmuPreviewContainer" style="min-height: 320px; max-height: 520px; overflow-y: auto; background: var(--bg-primary); border-radius: 12px; padding: 16px;">
            <div style="text-align: center; padding: 80px 20px; color: var(--text-tertiary);">
-             <div style="font-size: 56px; margin-bottom: 20px; opacity: 0.6;">📝</div>
-             <div style="font-size: 17px; font-weight: 700; margin-bottom: 10px; color: var(--text-secondary);">暂无弹幕数据</div>
-             <div style="font-size: 14px; line-height: 1.6;">请输入视频 URL 或番剧名称进行测试</div>
+             <div style="font-size: 56px; margin-bottom: 20px; opacity: 0.6;">💬</div>
+             <div style="font-size: 17px; font-weight: 600; margin-bottom: 10px; color: var(--text-secondary);">暂无弹幕数据</div>
+             <div style="font-size: 14px; opacity: 0.8;">输入番剧名称或视频链接开始测试</div>
            </div>
          </div>
        </div>
@@ -6822,15 +6824,6 @@ async function testDanmuByUrl() {
          }
          
          const match = matchResult.matches[0];
-         
-         // 🎬 显示匹配信息卡片
-         showMatchInfo({
-           animeTitle: match.animeTitle || '未知番剧',
-           episodeTitle: match.episodeTitle || '未知剧集',
-           episodeId: match.episodeId,
-           platform: platform || '自动匹配'
-         });
-         
          showToast('✅ 匹配成功: ' + match.animeTitle + ' - ' + match.episodeTitle, 'success', 2000);
          showToast('正在获取弹幕...', 'info', 2000);
          
@@ -7163,65 +7156,8 @@ async function testDanmuByUrl() {
        danmuTimeChart.destroy();
        danmuTimeChart = null;
      }
-     // 隐藏匹配信息卡片
-     hideMatchInfo();
+     
      showToast('已清空弹幕测试数据', 'info');
-     
-   }
-   // 显示匹配信息
-   function showMatchInfo(info) {
-     const card = document.getElementById('matchInfoCard');
-     const platformBadge = document.getElementById('matchPlatformBadge');
-     const animeTitle = document.getElementById('matchAnimeTitle');
-     const episodeTitle = document.getElementById('matchEpisodeTitle');
-     const episodeId = document.getElementById('matchEpisodeId');
-     
-     if (!card) return;
-     
-     // 平台名称映射
-     const platformNames = {
-       'qiyi': '爱奇艺',
-       'bilibili1': '哔哩哔哩',
-       'imgo': 'IMGO',
-       'youku': '优酷',
-       'qq': '腾讯视频',
-       'renren': '人人影视',
-       'hanjutv': '韩剧TV',
-       'bahamut': '巴哈姆特'
-     };
-     
-     const platformName = platformNames[info.platform] || info.platform || '自动匹配';
-     
-     platformBadge.innerHTML = `<span class="status-dot"></span>${platformName}`;
-     animeTitle.textContent = info.animeTitle;
-     episodeTitle.textContent = info.episodeTitle;
-     episodeId.textContent = info.episodeId;
-     
-     card.style.display = 'block';
-     
-     // 添加淡入动画
-     card.style.animation = 'none';
-     setTimeout(() => {
-       card.style.animation = 'fadeIn 0.3s ease-out';
-     }, 10);
-   }
-   
-   // 隐藏匹配信息
-   function hideMatchInfo() {
-     const card = document.getElementById('matchInfoCard');
-     if (card) {
-       card.style.display = 'none';
-     }
-   }
-   
-   // 复制匹配到的 ID
-   function copyMatchId() {
-     const episodeId = document.getElementById('matchEpisodeId');
-     if (!episodeId) return;
-     
-     const text = episodeId.textContent;
-     copyToClipboard(text);
-     showToast('剧集 ID 已复制: ' + text, 'success', 2000);
    }
 // ========== 弹幕导出功能 ==========
    // ========== 弹幕导出功能 ==========
