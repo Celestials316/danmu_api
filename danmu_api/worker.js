@@ -3684,6 +3684,15 @@ async function handleHomepage(req) {
        transform: scale(1);
      }
    }
+      .card-header .btn-secondary {
+        padding: 8px 16px;
+        font-size: 13px;
+      }
+      
+      .card-header .btn-secondary svg {
+        width: 16px;
+        height: 16px;
+      }
    /* 匹配结果卡片动画 */
      @keyframes slideInFromLeft {
        from {
@@ -4029,8 +4038,8 @@ async function handleHomepage(req) {
                   </svg>
                   最新匹配
                 </h3>
-                <button class="btn btn-secondary" onclick="refreshRecentMatches()" style="padding: 8px 16px; font-size: 13px;">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width: 16px; height: 16px;">
+                <button class="btn btn-secondary" onclick="refreshRecentMatches()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="16" height="16">
                     <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-width="2" stroke-linecap="round"/>
                   </svg>
                   刷新
