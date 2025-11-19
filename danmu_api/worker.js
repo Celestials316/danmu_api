@@ -4245,9 +4245,17 @@ async function handleHomepage(req) {
                <strong>请求体：</strong><br>
                <code style="color: var(--primary-400);">{"fileName": "[Nekomoe kissaten][Attack on Titan][01][1080p].mp4"}</code><br><br>
                <strong>功能：</strong><br>
-               • 自动解析文件名<br>
+               • 自动解析文件名（支持网盘命名、特殊格式）<br>
                • 智能匹配番剧和集数<br>
-               • 返回最佳匹配结果
+               • 支持中/英文标题（需配置 TMDB_API_KEY）<br>
+               • 支持 @语法指定平台优先级（如：赴山海 S01E28 @qiyi）<br>
+               • 支持带年份格式（如：爱情公寓.ipartment.2009.S03E05）<br><br>
+               <strong>支持的命名格式：</strong><br>
+               • 标准格式：<code style="color: var(--primary-400);">进击的巨人 S01E01</code><br>
+               • 网盘格式：<code style="color: var(--primary-400);">无忧渡.S01E01.2160p.WEB-DL.H265.DDP.5.1</code><br>
+               • 英文格式：<code style="color: var(--primary-400);">Blood.River.S01E05</code><br>
+               • 带年份格式：<code style="color: var(--primary-400);">爱情公寓.ipartment.2009.S03E05.H.265.25fps.mkv</code><br>
+               • 平台优先：<code style="color: var(--primary-400);">赴山海 S01E28 @qiyi</code>
              </div>
            </div>
 
@@ -4831,13 +4839,21 @@ async function handleHomepage(req) {
                <span>番剧名称或视频 URL</span>
              </label>
              <input type="text" class="form-input" id="danmuTestInput" 
-                    placeholder="例如：藏海传、进击的巨人、https://youku.com/..." 
+                    placeholder="例如：藏海传、Blood.River、爱情公寓、https://youku.com/..." 
                     style="font-size: 15px; padding: 14px 16px;">
+             <div class="form-hint" style="margin-top: 8px; font-size: 12px; color: var(--text-tertiary);">
+               💡 支持中/英文标题、网盘资源命名、特殊格式（如：爱情公寓.ipartment.2009.S03E05）
+             </div>
            </div>
 
-           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px;">
+           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 16px;">
              <div class="form-group" style="margin-bottom: 0;">
-               <label class="form-label" style="font-size: 13px;">📅 季数</label>
+               <label class="form-label" style="font-size: 13px;">📅 年份</label>
+               <input type="number" class="form-input" id="danmuTestYear" 
+                      placeholder="2024" min="1900" max="2099" style="padding: 11px 12px;">
+             </div>
+             <div class="form-group" style="margin-bottom: 0;">
+               <label class="form-label" style="font-size: 13px;">🎞️ 季数</label>
                <input type="number" class="form-input" id="danmuTestSeason" 
                       placeholder="1" min="1" style="padding: 11px 12px;">
              </div>
@@ -4861,8 +4877,6 @@ async function handleHomepage(req) {
                </select>
              </div>
            </div>
-
-
 
            <div style="display: flex; gap: 12px;">
              <button class="btn btn-primary" onclick="testDanmuByUrl()" style="flex: 1; font-size: 15px; padding: 13px 20px;">
@@ -6779,6 +6793,7 @@ async function testDanmuByUrl() {
     return;
   }
 
+  const year = document.getElementById('danmuTestYear').value.trim();
   const season = document.getElementById('danmuTestSeason').value.trim();
   const episode = document.getElementById('danmuTestEpisode').value.trim();
   const platform = document.getElementById('danmuTestPlatform').value;
@@ -6791,8 +6806,8 @@ async function testDanmuByUrl() {
   // ✅ 使用单引号拼接
   previewContainer.innerHTML = '<div style="text-align: center; padding: 80px 20px;">' +
     '<span class="loading-spinner" style="width: 48px; height: 48px; border-width: 4px;"></span>' +
-    '<div style="margin-top: 24px; color: var(--text-primary); font-size: 16px; font-weight: 600;">正在搜索弹幕...</div>' +
-    '<div style="margin-top: 8px; color: var(--text-tertiary); font-size: 13px;">请稍候，这可能需要几秒钟</div>' +
+    '<div style="margin-top: 24px; color: var(--text-primary); font-size: 16px; font-weight: 600;">正在智能匹配...</div>' +
+    '<div style="margin-top: 8px; color: var(--text-tertiary); font-size: 13px;">支持中英文、网盘命名、特殊格式解析</div>' +
     '</div>';
 
   document.getElementById('exportJsonBtn').style.display = 'none';
@@ -6805,15 +6820,32 @@ async function testDanmuByUrl() {
     if (input.startsWith('http://') || input.startsWith('https://')) {
       apiUrl = '/api/v2/comment?url=' + encodeURIComponent(input) + '&format=json';
     } else {
+      // 🔥 智能构建搜索查询（支持多种格式）
       let searchQuery = input;
+      
+      // 清理可能的文件扩展名和多余符号
+      searchQuery = searchQuery
+        .replace(/\.(mkv|mp4|avi|flv|wmv|mov|rmvb|webm)$/i, '')
+        .replace(/[\[\](){}]/g, ' ')
+        .trim();
+      
+      // 🎯 检测是否已包含年份（如：爱情公寓.ipartment.2009.S03E05）
+      const hasYearInTitle = /\.(19|20)\d{2}\./.test(searchQuery);
+      
+      // 如果用户填写了年份且标题中没有年份，添加年份
+      if (year && !hasYearInTitle) {
+        searchQuery += '.' + year;
+      }
+      
+      // 添加季数和集数
       const finalSeason = season || '1';
-
       if (episode) {
         searchQuery += ' S' + finalSeason.padStart(2, '0') + 'E' + episode.padStart(2, '0');
       } else if (season) {
         searchQuery += ' S' + season.padStart(2, '0');
       }
       
+      // 添加平台优先级
       if (platform) {
         searchQuery += ' @' + platform;
       }
@@ -7172,6 +7204,7 @@ function clearDanmuTest() {
   currentDanmuData = [];
   filteredDanmuData = [];
   document.getElementById('danmuTestInput').value = '';
+  document.getElementById('danmuTestYear').value = '';
   document.getElementById('danmuTestSeason').value = '';
   document.getElementById('danmuTestEpisode').value = '';
   document.getElementById('danmuTestPlatform').value = '';
