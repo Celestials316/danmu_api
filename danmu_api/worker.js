@@ -3714,6 +3714,114 @@ async function handleHomepage(req) {
        0% { transform: rotate(0deg); }
        100% { transform: rotate(360deg); }
      }
+     /* 最新匹配记录样式 */
+      .empty-state {
+        text-align: center;
+        padding: 80px 20px;
+        color: var(--text-tertiary);
+      }
+      
+      .empty-icon {
+        font-size: 56px;
+        margin-bottom: 20px;
+        opacity: 0.6;
+      }
+      
+      .empty-title {
+        font-size: 17px;
+        font-weight: 600;
+        margin-bottom: 10px;
+        color: var(--text-secondary);
+      }
+      
+      .empty-desc {
+        font-size: 14px;
+        opacity: 0.8;
+      }
+      
+      .match-item {
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 18px;
+        margin-bottom: 12px;
+        transition: all 0.3s var(--ease-smooth);
+        animation: slideInFromLeft 0.4s ease-out forwards;
+        opacity: 0;
+      }
+      
+      .match-item:hover {
+        background: var(--bg-hover);
+        transform: translateX(4px);
+      }
+      
+      .match-content {
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+      }
+      
+      .match-icon {
+        width: 48px;
+        height: 48px;
+        background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        flex-shrink: 0;
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+      }
+      
+      .match-info {
+        flex: 1;
+        min-width: 0;
+      }
+      
+      .match-title {
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 6px;
+        line-height: 1.3;
+      }
+      
+      .match-episode {
+        font-size: 13px;
+        color: var(--text-secondary);
+        margin-bottom: 10px;
+      }
+      
+      .match-meta {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      
+      .meta-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        background: var(--bg-primary);
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      
+      .meta-danmu {
+        color: var(--primary-400);
+      }
+      
+      .meta-platform {
+        color: var(--success);
+      }
+      
+      .meta-time {
+        color: var(--text-tertiary);
+      }
  </style>
 </head>
 <body>
@@ -7956,10 +8064,10 @@ function clearDanmuTest() {
           
           if (this.matches.length === 0) {
             container.innerHTML = `
-              <div style="text-align: center; padding: 80px 20px; color: var(--text-tertiary);">
-                <div style="font-size: 56px; margin-bottom: 20px; opacity: 0.6;">📺</div>
-                <div style="font-size: 17px; font-weight: 600; margin-bottom: 10px; color: var(--text-secondary);">暂无匹配记录</div>
-                <div style="font-size: 14px; opacity: 0.8;">使用弹幕测试功能后会自动显示最新匹配</div>
+              <div class="empty-state">
+                <div class="empty-icon">📺</div>
+                <div class="empty-title">暂无匹配记录</div>
+                <div class="empty-desc">使用弹幕测试功能后会自动显示最新匹配</div>
               </div>
             `;
             return;
@@ -7979,86 +8087,29 @@ function clearDanmuTest() {
           const html = this.matches.map((match, index) => {
             const platformName = platformNames[match.platform] || match.platform;
             const timeAgo = this.getTimeAgo(match.timestamp);
+            const episodeInfo = match.episodeTitle || 'S' + String(match.season).padStart(2, '0') + 'E' + String(match.episodeNumber).padStart(2, '0');
             
             return `
-              <div style="
-                background: var(--bg-tertiary);
-                border: 1px solid var(--border-color);
-                border-radius: 12px;
-                padding: 18px;
-                margin-bottom: 12px;
-                transition: all 0.3s var(--ease-smooth);
-                animation: slideInFromLeft 0.4s ease-out;
-                animation-delay: ${index * 0.05}s;
-                opacity: 0;
-                animation-fill-mode: forwards;
-              " onmouseover="this.style.background='var(--bg-hover)'; this.style.transform='translateX(4px)'" onmouseout="this.style.background='var(--bg-tertiary)'; this.style.transform='translateX(0)'">
-                <div style="display: flex; align-items: flex-start; gap: 14px;">
-                  <div style="
-                    width: 48px;
-                    height: 48px;
-                    background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
-                    border-radius: 10px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-size: 24px;
-                    flex-shrink: 0;
-                    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
-                  ">
-                    🎬
-                  </div>
-                  <div style="flex: 1; min-width: 0;">
-                    <div style="font-size: 16px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px; line-height: 1.3;">
-                      ${match.animeTitle}
-                    </div>
-                    <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 10px;">
-                      ${match.episodeTitle || 'S' + String(match.season).padStart(2, '0') + 'E' + String(match.episodeNumber).padStart(2, '0')}
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-                      <span style="
-                        display: inline-flex;
-                        align-items: center;
-                        gap: 4px;
-                        padding: 4px 10px;
-                        background: var(--bg-primary);
-                        border-radius: 6px;
-                        font-size: 12px;
-                        color: var(--primary-400);
-                        font-weight: 600;
-                      ">
+              <div class="match-item" style="animation-delay: ${index * 0.05}s">
+                <div class="match-content">
+                  <div class="match-icon">🎬</div>
+                  <div class="match-info">
+                    <div class="match-title">${match.animeTitle}</div>
+                    <div class="match-episode">${episodeInfo}</div>
+                    <div class="match-meta">
+                      <span class="meta-badge meta-danmu">
                         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor">
                           <path d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" stroke-width="2"/>
                         </svg>
                         ${match.danmuCount} 条弹幕
                       </span>
-                      <span style="
-                        display: inline-flex;
-                        align-items: center;
-                        gap: 4px;
-                        padding: 4px 10px;
-                        background: var(--bg-primary);
-                        border-radius: 6px;
-                        font-size: 12px;
-                        color: var(--success);
-                        font-weight: 600;
-                      ">
+                      <span class="meta-badge meta-platform">
                         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor">
                           <path d="M5 3l14 9-14 9V3z" stroke-width="2"/>
                         </svg>
                         ${platformName}
                       </span>
-                      <span style="
-                        display: inline-flex;
-                        align-items: center;
-                        gap: 4px;
-                        padding: 4px 10px;
-                        background: var(--bg-primary);
-                        border-radius: 6px;
-                        font-size: 12px;
-                        color: var(--text-tertiary);
-                        font-weight: 600;
-                      ">
+                      <span class="meta-badge meta-time">
                         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor">
                           <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
                         </svg>
