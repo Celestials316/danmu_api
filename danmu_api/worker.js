@@ -879,18 +879,40 @@ async function handleHomepage(req) {
         // 获取最后5条，倒序
         const recentEntries = Array.from(globals.lastSelectMap.entries()).slice(-5).reverse();
         recentMatchesHtml = recentEntries.map(([key, value]) => {
-           // value 可能是 [animeId, source] 数组或者直接是 animeId
-           const animeId = Array.isArray(value) ? value[0] : value;
-           const source = Array.isArray(value) ? value[1] : '未知';
+           let animeId = '未知';
+           let source = '未知';
+
+           // 智能解析 value 的多种可能格式
+           if (Array.isArray(value)) {
+               animeId = value[0];
+               source = value[1] || '未知';
+           } else if (typeof value === 'object' && value !== null) {
+               // 尝试匹配常见的 ID 字段名
+               animeId = value.val || value.id || value.animeId || value.value || '未知';
+               // 尝试匹配常见的源字段名
+               source = value.source || value.src || value.type || '未知';
+               
+               // 如果提取的 ID 仍然是对象，兜底转为字符串
+               if (typeof animeId === 'object') {
+                 animeId = JSON.stringify(animeId);
+               }
+           } else {
+               animeId = value;
+           }
            
+           // 截断过长的 ID
+           const displayId = String(animeId).length > 20 ? String(animeId).substring(0, 20) + '...' : String(animeId);
+
            return `
             <div class="server-item" style="padding: 12px; margin-bottom: 8px;">
-              <div class="server-badge" style="width: 32px; height: 32px; font-size: 12px; background: var(--bg-tertiary); color: var(--text-secondary); box-shadow: none; border: 1px solid var(--border-color);">ID</div>
+              <div class="server-badge" style="width: 32px; height: 32px; font-size: 14px; background: var(--bg-tertiary); color: var(--text-secondary); box-shadow: none; border: 1px solid var(--border-color);">
+                ${source === '未知' ? '?' : source.substring(0, 1).toUpperCase()}
+              </div>
               <div class="server-info">
-                <div class="server-name" style="font-size: 13px; font-family: monospace; margin-bottom: 2px;">${key}</div>
-                <div class="server-url" style="font-size: 12px; color: var(--text-secondary);">
-                  映射至: <span style="color: var(--primary-400); font-weight: 600;">${animeId}</span> 
-                  <span class="badge badge-secondary" style="padding: 1px 6px; font-size: 10px; margin-left: 4px; border-radius: 4px;">${source}</span>
+                <div class="server-name" style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">${key}</div>
+                <div class="server-url" style="font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px;">
+                  <span>映射ID: <span style="font-family: monospace; color: var(--primary-400);">${displayId}</span></span>
+                  ${source !== '未知' ? `<span class="badge badge-secondary" style="padding: 1px 6px; font-size: 10px; border-radius: 4px;">${source}</span>` : ''}
                 </div>
               </div>
             </div>
@@ -4059,18 +4081,26 @@ async function handleHomepage(req) {
 
        <div class="card">
          <div class="card-header">
-           <h3 class="card-title">
-             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-               <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
+           <div style="display: flex; align-items: center; gap: 10px;">
+             <h3 class="card-title" style="margin-bottom: 0;">
+               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                 <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
+               </svg>
+               最近匹配信息
+             </h3>
+             <span class="badge badge-secondary" style="font-weight: normal; font-size: 11px;">最新 5 条</span>
+           </div>
+           <button class="icon-btn" onclick="window.location.reload()" title="刷新列表" style="width: 32px; height: 32px;">
+             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor">
+               <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
              </svg>
-             最近匹配信息
-           </h3>
-           <span class="badge badge-secondary" style="font-weight: normal;">最新 5 条</span>
+           </button>
          </div>
          <div class="server-grid" style="gap: 0;">
            ${recentMatchesHtml}
          </div>
        </div>
+
 
        <div class="card">
          <div class="card-header">
