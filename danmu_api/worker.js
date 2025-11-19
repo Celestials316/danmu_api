@@ -4846,37 +4846,45 @@ async function handleHomepage(req) {
              </div>
            </div>
 
-           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 16px;">
-             <div class="form-group" style="margin-bottom: 0;">
-               <label class="form-label" style="font-size: 13px;">📅 年份</label>
-               <input type="number" class="form-input" id="danmuTestYear" 
-                      placeholder="2024" min="1900" max="2099" style="padding: 11px 12px;">
-             </div>
-             <div class="form-group" style="margin-bottom: 0;">
-               <label class="form-label" style="font-size: 13px;">🎞️ 季数</label>
-               <input type="number" class="form-input" id="danmuTestSeason" 
-                      placeholder="1" min="1" style="padding: 11px 12px;">
-             </div>
-             <div class="form-group" style="margin-bottom: 0;">
-               <label class="form-label" style="font-size: 13px;">📺 集数</label>
-               <input type="number" class="form-input" id="danmuTestEpisode" 
-                      placeholder="5" min="1" style="padding: 11px 12px;">
-             </div>
-             <div class="form-group" style="margin-bottom: 0;">
-               <label class="form-label" style="font-size: 13px;">🎯 平台</label>
-               <select class="form-select" id="danmuTestPlatform" style="padding: 11px 12px;">
-                 <option value="">自动匹配</option>
-                 <option value="qiyi">🥝 爱奇艺</option>
-                 <option value="bilibili1">📺 哔哩哔哩</option>
-                 <option value="imgo">🎬 IMGO</option>
-                 <option value="youku">📹 优酷</option>
-                 <option value="qq">🐧 腾讯视频</option>
-                 <option value="renren">👥 人人影视</option>
-                 <option value="hanjutv">🇰🇷 韩剧TV</option>
-                 <option value="bahamut">🎮 巴哈姆特</option>
-               </select>
-             </div>
-           </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 16px;">
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label" style="font-size: 13px;">🔌 接口类型</label>
+                <select class="form-select" id="danmuTestApiType" style="padding: 11px 12px;" onchange="toggleApiTypeFields()">
+                  <option value="match">Match 接口（智能匹配）</option>
+                  <option value="anime">Anime 接口（手动搜索）</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label" style="font-size: 13px;">📅 年份</label>
+                <input type="number" class="form-input" id="danmuTestYear" 
+                       placeholder="2024" min="1900" max="2099" style="padding: 11px 12px;">
+              </div>
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label" style="font-size: 13px;">🎞️ 季数</label>
+                <input type="number" class="form-input" id="danmuTestSeason" 
+                       placeholder="1" min="1" style="padding: 11px 12px;">
+              </div>
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label" style="font-size: 13px;">📺 集数</label>
+                <input type="number" class="form-input" id="danmuTestEpisode" 
+                       placeholder="5" min="1" style="padding: 11px 12px;">
+              </div>
+              <div class="form-group" style="margin-bottom: 0;" id="platformSelectGroup">
+                <label class="form-label" style="font-size: 13px;">🎯 平台</label>
+                <select class="form-select" id="danmuTestPlatform" style="padding: 11px 12px;">
+                  <option value="">自动匹配</option>
+                  <option value="qiyi">🥝 爱奇艺</option>
+                  <option value="bilibili1">📺 哔哩哔哩</option>
+                  <option value="imgo">🎬 IMGO</option>
+                  <option value="youku">📹 优酷</option>
+                  <option value="qq">🐧 腾讯视频</option>
+                  <option value="renren">👥 人人影视</option>
+                  <option value="hanjutv">🇰🇷 韩剧TV</option>
+                  <option value="bahamut">🎮 巴哈姆特</option>
+                </select>
+              </div>
+            </div>
+
 
            <div style="display: flex; gap: 12px;">
              <button class="btn btn-primary" onclick="testDanmuByUrl()" style="flex: 1; font-size: 15px; padding: 13px 20px;">
@@ -6785,163 +6793,225 @@ async function handleHomepage(req) {
      document.getElementById('danmuTestInput').value = '';
      clearDanmuTest();
    }
-
-async function testDanmuByUrl() {
-  const input = document.getElementById('danmuTestInput').value.trim();
-  if (!input) {
-    showToast('请输入番剧名称或视频 URL', 'warning');
-    return;
-  }
-
-  const year = document.getElementById('danmuTestYear').value.trim();
-  const season = document.getElementById('danmuTestSeason').value.trim();
-  const episode = document.getElementById('danmuTestEpisode').value.trim();
-  const platform = document.getElementById('danmuTestPlatform').value;
-
-  const previewContainer = document.getElementById('danmuPreviewContainer');
-  const matchResultCard = document.getElementById('matchResultCard');
-  
-  matchResultCard.style.display = 'none';
-  
-  // ✅ 使用单引号拼接
-  previewContainer.innerHTML = '<div style="text-align: center; padding: 80px 20px;">' +
-    '<span class="loading-spinner" style="width: 48px; height: 48px; border-width: 4px;"></span>' +
-    '<div style="margin-top: 24px; color: var(--text-primary); font-size: 16px; font-weight: 600;">正在智能匹配...</div>' +
-    '<div style="margin-top: 8px; color: var(--text-tertiary); font-size: 13px;">支持中英文、网盘命名、特殊格式解析</div>' +
-    '</div>';
-
-  document.getElementById('exportJsonBtn').style.display = 'none';
-  document.getElementById('exportXmlBtn').style.display = 'none';
-
-  try {
-    let apiUrl = '';
-    let matchInfo = null;
-    
-    if (input.startsWith('http://') || input.startsWith('https://')) {
-      apiUrl = '/api/v2/comment?url=' + encodeURIComponent(input) + '&format=json';
-    } else {
-      // 🔥 智能构建搜索查询（支持多种格式）
-      let searchQuery = input;
+    // ========== 接口类型切换功能 ==========
+    function toggleApiTypeFields() {
+      const apiType = document.getElementById('danmuTestApiType').value;
+      const platformGroup = document.getElementById('platformSelectGroup');
       
-      // 清理可能的文件扩展名和多余符号
-      searchQuery = searchQuery
-        .replace(/\.(mkv|mp4|avi|flv|wmv|mov|rmvb|webm)$/i, '')
-        .replace(/[\[\](){}]/g, ' ')
-        .trim();
-      
-      // 🎯 检测是否已包含年份（如：爱情公寓.ipartment.2009.S03E05）
-      const hasYearInTitle = /\.(19|20)\d{2}\./.test(searchQuery);
-      
-      // 如果用户填写了年份且标题中没有年份，添加年份
-      if (year && !hasYearInTitle) {
-        searchQuery += '.' + year;
+      if (apiType === 'anime') {
+        platformGroup.style.display = 'none';
+      } else {
+        platformGroup.style.display = 'block';
       }
-      
-      // 添加季数和集数
-      const finalSeason = season || '1';
-      if (episode) {
-        searchQuery += ' S' + finalSeason.padStart(2, '0') + 'E' + episode.padStart(2, '0');
-      } else if (season) {
-        searchQuery += ' S' + season.padStart(2, '0');
-      }
-      
-      // 添加平台优先级
-      if (platform) {
-        searchQuery += ' @' + platform;
-      }
-      
-      showToast('🔍 正在智能匹配: ' + searchQuery, 'info', 2000);
-      
-      const matchResponse = await fetch('/api/v2/match', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          fileName: searchQuery
-        })
-      });
-      
-      const matchResult = await matchResponse.json();
-      
-      if (!matchResult.success) {
-        throw new Error(matchResult.errorMessage || '匹配失败');
-      }
-      
-      if (!matchResult.isMatched || !matchResult.matches || matchResult.matches.length === 0) {
-        throw new Error('未找到匹配结果："' + searchQuery + '"');
-      }
-      
-      const match = matchResult.matches[0];
-      matchInfo = match;
-      
-      showToast('✅ 匹配成功: ' + match.animeTitle, 'success', 2000);
-      showToast('正在获取弹幕...', 'info', 2000);
-      
-      apiUrl = '/api/v2/comment/' + match.episodeId + '?format=json';
     }
 
-    const response = await fetch(apiUrl);
-    const result = await response.json();
+    async function testDanmuByUrl() {
+      const input = document.getElementById('danmuTestInput').value.trim();
+      if (!input) {
+        showToast('请输入番剧名称或视频 URL', 'warning');
+        return;
+      }
 
-    console.log('[Debug] 后端返回数据:', result);
+      const apiType = document.getElementById('danmuTestApiType').value;
+      const year = document.getElementById('danmuTestYear').value.trim();
+      const season = document.getElementById('danmuTestSeason').value.trim();
+      const episode = document.getElementById('danmuTestEpisode').value.trim();
+      const platform = document.getElementById('danmuTestPlatform').value;
 
-    let comments = [];
-    
-    if (Array.isArray(result)) {
-      comments = result;
-    } else if (result.comments) {
-      comments = result.comments;
-    } else if (result.danmus) {
-      comments = result.danmus;
-    }
-
-    if (result.success === false) {
-      throw new Error(result.errorMessage || result.message || '获取弹幕失败');
-    }
-
-    if (!response.ok) {
-      throw new Error('HTTP ' + response.status + ': ' + (result.errorMessage || '请求失败'));
-    }
-
-    currentDanmuData = comments;
-    filteredDanmuData = [...currentDanmuData];
-
-    if (matchInfo) {
-      displayMatchResult(matchInfo);
-    }
-
-    if (currentDanmuData.length === 0) {
-      previewContainer.innerHTML = '<div style="text-align: center; padding: 80px 20px; color: var(--text-tertiary);">' +
-        '<div style="font-size: 56px; margin-bottom: 20px; opacity: 0.5;">😢</div>' +
-        '<div style="font-size: 17px; font-weight: 600; margin-bottom: 10px; color: var(--text-secondary);">未获取到弹幕</div>' +
-        '<div style="font-size: 14px; opacity: 0.8;">该视频可能没有弹幕数据</div>' +
+      const previewContainer = document.getElementById('danmuPreviewContainer');
+      const matchResultCard = document.getElementById('matchResultCard');
+      
+      matchResultCard.style.display = 'none';
+      
+      previewContainer.innerHTML = '<div style="text-align: center; padding: 80px 20px;">' +
+        '<span class="loading-spinner" style="width: 48px; height: 48px; border-width: 4px;"></span>' +
+        '<div style="margin-top: 24px; color: var(--text-primary); font-size: 16px; font-weight: 600;">正在获取弹幕...</div>' +
+        '<div style="margin-top: 8px; color: var(--text-tertiary); font-size: 13px;">使用 ' + (apiType === 'anime' ? 'Anime' : 'Match') + ' 接口</div>' +
         '</div>';
-      document.getElementById('danmuTestCount').textContent = '0 条';
+
       document.getElementById('exportJsonBtn').style.display = 'none';
       document.getElementById('exportXmlBtn').style.display = 'none';
-      return;
+
+      try {
+        let apiUrl = '';
+        let matchInfo = null;
+        
+        if (input.startsWith('http://') || input.startsWith('https://')) {
+          apiUrl = '/api/v2/comment?url=' + encodeURIComponent(input) + '&format=json';
+        } else if (apiType === 'anime') {
+          // ========== Anime 接口模式 ==========
+          if (!episode) {
+            throw new Error('使用 Anime 接口必须指定集数');
+          }
+
+          showToast('🔍 第1步：搜索番剧 "' + input + '"', 'info', 2000);
+          
+          const searchUrl = '/api/v2/search/anime?keyword=' + encodeURIComponent(input);
+          const searchResponse = await fetch(searchUrl);
+          const searchResult = await searchResponse.json();
+          
+          if (!searchResult.success || !searchResult.animes || searchResult.animes.length === 0) {
+            throw new Error('未找到番剧: ' + input);
+          }
+          
+          const anime = searchResult.animes[0];
+          const animeId = anime.animeId;
+          
+          showToast('✅ 找到番剧: ' + anime.animeTitle, 'success', 2000);
+          showToast('🔍 第2步：获取剧集列表...', 'info', 2000);
+          
+          const bangumiUrl = '/api/v2/bangumi/' + animeId;
+          const bangumiResponse = await fetch(bangumiUrl);
+          const bangumiResult = await bangumiResponse.json();
+          
+          if (!bangumiResult.success || !bangumiResult.bangumi || !bangumiResult.bangumi.episodes) {
+            throw new Error('获取剧集列表失败');
+          }
+          
+          const targetEpisode = bangumiResult.bangumi.episodes.find(ep => 
+            ep.episodeNumber === episode || parseInt(ep.episodeNumber) === parseInt(episode)
+          );
+          
+          if (!targetEpisode) {
+            throw new Error('未找到第 ' + episode + ' 集，共 ' + bangumiResult.bangumi.episodes.length + ' 集');
+          }
+          
+          const episodeId = targetEpisode.episodeId;
+          
+          showToast('✅ 找到第 ' + episode + ' 集: ' + targetEpisode.episodeTitle, 'success', 2000);
+          showToast('🔍 第3步：获取弹幕...', 'info', 2000);
+          
+          matchInfo = {
+            animeTitle: anime.animeTitle,
+            episodeTitle: targetEpisode.episodeTitle,
+            episodeNumber: episode,
+            season: season || '1',
+            episode: episode,
+            episodeId: episodeId,
+            type: anime.source || 'unknown'
+          };
+          
+          apiUrl = '/api/v2/comment/' + episodeId + '?format=json';
+          
+        } else {
+          // ========== Match 接口模式 ==========
+          let searchQuery = input;
+          
+          searchQuery = searchQuery
+            .replace(/\.(mkv|mp4|avi|flv|wmv|mov|rmvb|webm)$/i, '')
+            .replace(/[\[\](){}]/g, ' ')
+            .trim();
+          
+          const hasYearInTitle = /\.(19|20)\d{2}\./.test(searchQuery);
+          
+          if (year && !hasYearInTitle) {
+            searchQuery += '.' + year;
+          }
+          
+          const finalSeason = season || '1';
+          if (episode) {
+            searchQuery += ' S' + finalSeason.padStart(2, '0') + 'E' + episode.padStart(2, '0');
+          } else if (season) {
+            searchQuery += ' S' + season.padStart(2, '0');
+          }
+          
+          if (platform) {
+            searchQuery += ' @' + platform;
+          }
+          
+          showToast('🔍 正在智能匹配: ' + searchQuery, 'info', 2000);
+          
+          const matchResponse = await fetch('/api/v2/match', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              fileName: searchQuery
+            })
+          });
+          
+          const matchResult = await matchResponse.json();
+          
+          if (!matchResult.success) {
+            throw new Error(matchResult.errorMessage || '匹配失败');
+          }
+          
+          if (!matchResult.isMatched || !matchResult.matches || matchResult.matches.length === 0) {
+            throw new Error('未找到匹配结果："' + searchQuery + '"');
+          }
+          
+          const match = matchResult.matches[0];
+          matchInfo = match;
+          
+          showToast('✅ 匹配成功: ' + match.animeTitle, 'success', 2000);
+          showToast('正在获取弹幕...', 'info', 2000);
+          
+          apiUrl = '/api/v2/comment/' + match.episodeId + '?format=json';
+        }
+
+        const response = await fetch(apiUrl);
+        const result = await response.json();
+
+        console.log('[Debug] 后端返回数据:', result);
+
+        let comments = [];
+        
+        if (Array.isArray(result)) {
+          comments = result;
+        } else if (result.comments) {
+          comments = result.comments;
+        } else if (result.danmus) {
+          comments = result.danmus;
+        }
+
+        if (result.success === false) {
+          throw new Error(result.errorMessage || result.message || '获取弹幕失败');
+        }
+
+        if (!response.ok) {
+          throw new Error('HTTP ' + response.status + ': ' + (result.errorMessage || '请求失败'));
+        }
+
+        currentDanmuData = comments;
+        filteredDanmuData = [...currentDanmuData];
+
+        if (matchInfo) {
+          displayMatchResult(matchInfo);
+        }
+
+        if (currentDanmuData.length === 0) {
+          previewContainer.innerHTML = '<div style="text-align: center; padding: 80px 20px; color: var(--text-tertiary);">' +
+            '<div style="font-size: 56px; margin-bottom: 20px; opacity: 0.5;">😢</div>' +
+            '<div style="font-size: 17px; font-weight: 600; margin-bottom: 10px; color: var(--text-secondary);">未获取到弹幕</div>' +
+            '<div style="font-size: 14px; opacity: 0.8;">该视频可能没有弹幕数据</div>' +
+            '</div>';
+          document.getElementById('danmuTestCount').textContent = '0 条';
+          document.getElementById('exportJsonBtn').style.display = 'none';
+          document.getElementById('exportXmlBtn').style.display = 'none';
+          return;
+        }
+
+        displayDanmuList(filteredDanmuData);
+        updateDanmuStats();
+        showToast('🎉 成功获取 ' + currentDanmuData.length + ' 条弹幕', 'success');
+        
+        document.getElementById('exportJsonBtn').style.display = 'inline-flex';
+        document.getElementById('exportXmlBtn').style.display = 'inline-flex';
+
+      } catch (error) {
+        console.error('获取弹幕失败:', error);
+        previewContainer.innerHTML = '<div style="text-align: center; padding: 80px 20px; color: var(--error);">' +
+          '<div style="font-size: 56px; margin-bottom: 20px; opacity: 0.7;">❌</div>' +
+          '<div style="font-size: 17px; font-weight: 600; margin-bottom: 10px;">获取失败</div>' +
+          '<div style="font-size: 14px; color: var(--text-secondary); max-width: 400px; margin: 0 auto; line-height: 1.5;">' +
+          error.message + '</div></div>';
+        showToast('❌ 获取弹幕失败: ' + error.message, 'error');
+        document.getElementById('exportJsonBtn').style.display = 'none';
+        document.getElementById('exportXmlBtn').style.display = 'none';
+      }
     }
 
-    displayDanmuList(filteredDanmuData);
-    updateDanmuStats();
-    showToast('🎉 成功获取 ' + currentDanmuData.length + ' 条弹幕', 'success');
-    
-    document.getElementById('exportJsonBtn').style.display = 'inline-flex';
-    document.getElementById('exportXmlBtn').style.display = 'inline-flex';
-
-  } catch (error) {
-    console.error('获取弹幕失败:', error);
-    previewContainer.innerHTML = '<div style="text-align: center; padding: 80px 20px; color: var(--error);">' +
-      '<div style="font-size: 56px; margin-bottom: 20px; opacity: 0.7;">❌</div>' +
-      '<div style="font-size: 17px; font-weight: 600; margin-bottom: 10px;">获取失败</div>' +
-      '<div style="font-size: 14px; color: var(--text-secondary); max-width: 400px; margin: 0 auto; line-height: 1.5;">' +
-      error.message + '</div></div>';
-    showToast('❌ 获取弹幕失败: ' + error.message, 'error');
-    document.getElementById('exportJsonBtn').style.display = 'none';
-    document.getElementById('exportXmlBtn').style.display = 'none';
-  }
-}
 
    // ✅ 显示匹配结果信息
    function displayMatchResult(matchInfo) {
@@ -7204,10 +7274,12 @@ function clearDanmuTest() {
   currentDanmuData = [];
   filteredDanmuData = [];
   document.getElementById('danmuTestInput').value = '';
+  document.getElementById('danmuTestApiType').value = 'match';
   document.getElementById('danmuTestYear').value = '';
   document.getElementById('danmuTestSeason').value = '';
   document.getElementById('danmuTestEpisode').value = '';
   document.getElementById('danmuTestPlatform').value = '';
+  toggleApiTypeFields();
   document.getElementById('testBlockedWords').value = '';
   document.getElementById('testSimplified').checked = false;
   document.getElementById('testTopBottomConvert').checked = false;
