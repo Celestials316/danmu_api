@@ -876,23 +876,27 @@ async function handleHomepage(req) {
     let recentMatchesHtml = '';
     try {
       if (globals.lastSelectMap && globals.lastSelectMap.size > 0) {
+        // 优化标题提取逻辑：优先展示具体的单集标题，而非剧名
         const getTitleFromMeta = (meta, fallbackKey) => {
-          if (!meta || typeof meta !== 'object') return fallbackKey; // 兜底使用 key
+          if (!meta || typeof meta !== 'object') return fallbackKey;
+          
+          // 【关键修改】调整优先级：单集标题(episodeTitle/title) > 文件名 > 剧名(animeTitle)
           const candidates = [
-            meta.animeTitle,
-            meta.episodeTitle,
-            meta.title,
-            meta.fileName, // 增加文件名作为备选
+            meta.episodeTitle,      // 优先：日志中的 "【imgo】 第40集..."
+            meta.title,             // 其次：通用标题
+            meta.fileName,          // 再次：文件名
             meta.displayName,
             meta.name,
+            meta.animeTitle,        // 最后：才是剧名
             meta.label,
             meta.preferTitle,
-            meta.originalTitle,
             meta.info && meta.info.title
           ];
+          
           if (Array.isArray(meta.titles) && meta.titles.length > 0) {
             candidates.push(meta.titles[0]);
           }
+          
           return candidates.find((item) => typeof item === 'string' && item.trim()) || fallbackKey;
         };
 
@@ -921,21 +925,31 @@ async function handleHomepage(req) {
             animeId = JSON.stringify(animeId);
           }
 
-          // 传入 key 作为最终兜底标题
           const titleText = getTitleFromMeta(meta, key) || '未命名';
 
-          // 优化数量获取逻辑
-          const danmuCountCandidate =
-            meta.danmuCount ??
-            meta.commentCount ??
-            meta.totalDanmu ??
+          // 【关键修改】优化弹幕数量逻辑，优先获取原始总数(original/total)
+          // 日志中显示字段为: danmus_original
+          const totalCount = 
+            meta.danmus_original ?? 
+            meta.totalDanmu ?? 
+            meta.totalCount ?? 
+            meta.danmuCount ?? 
             meta.count ??
             (Array.isArray(meta.comments) ? meta.comments.length : undefined);
 
-          const danmuCountText =
-            typeof danmuCountCandidate === 'number' && danmuCountCandidate >= 0
-              ? `${danmuCountCandidate} 条弹幕`
-              : '未统计';
+          // 检查是否被限制 (日志中 limited: 9999)
+          const limitCount = meta.danmus_limited ?? meta.limit ?? -1;
+          const isLimited = limitCount > 0 && totalCount > limitCount;
+
+          let countDisplay = '未统计';
+          if (typeof totalCount === 'number' && totalCount >= 0) {
+             // 如果被限制，显示 "9999 / 14131" 的格式，否则直接显示总数
+             if (isLimited) {
+                 countDisplay = `${limitCount} / ${totalCount} 条`;
+             } else {
+                 countDisplay = `${totalCount} 条`;
+             }
+          }
 
           return `
             <div class="server-item" style="padding: 12px; margin-bottom: 8px;">
@@ -948,7 +962,7 @@ async function handleHomepage(req) {
                 </div>
                 <div class="recent-meta" style="font-size: 12px; color: var(--text-tertiary); margin-top: 6px; display: grid; gap: 4px;">
                   <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">标题：<span style="color: var(--text-secondary);" title="${titleText}">${titleText}</span></div>
-                  <div>弹幕：<span style="color: var(--primary-400); font-weight: 600;">${danmuCountText}</span></div>
+                  <div>弹幕：<span style="color: var(--primary-400); font-weight: 600;">${countDisplay}</span></div>
                 </div>
               </div>
             </div>
