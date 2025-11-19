@@ -7133,7 +7133,9 @@ async function handleHomepage(req) {
      // 优化标题获取逻辑，尝试多个字段
      const animeTitle = matchInfo.animeTitle || matchInfo.title || matchInfo.name || matchInfo.fileName || '未知番剧';
      const episode = matchInfo.episode || '?';
-     const episodeTitle = matchInfo.episodeTitle || matchInfo.title || `第 ${episode} 集`;
+     
+     // 【关键修改】这里改用了单引号 + 号拼接，防止与外层 Node.js 的 HTML 模板字符串冲突
+     const episodeTitle = matchInfo.episodeTitle || matchInfo.title || '第 ' + episode + ' 集';
      
      document.getElementById('matchedAnimeTitle').textContent = animeTitle;
      document.getElementById('matchedEpisodeTitle').textContent = episodeTitle;
