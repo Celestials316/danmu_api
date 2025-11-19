@@ -8017,24 +8017,25 @@ function clearDanmuTest() {
       // ========== 最新匹配记录管理 ==========
       const RecentMatches = {
         matches: [],
-        maxRecords: 10,
+        maxRecords: 20,
         
+        // 网页端测试后，只需重新加载服务器数据即可
         add(matchData) {
-          // 网页端测试时，API已经记录了，这里只需要延迟刷新获取最新列表
-          setTimeout(() => this.load(), 500);
+          setTimeout(() => this.load(), 500); 
         },
         
+        // 从服务器获取最新的全局记录
         async load() {
           try {
-            const res = await fetch('/api/recent/list');
+            const res = await fetch('/api/recent');
             const data = await res.json();
-            if (data.success) {
+            if (data.success && Array.isArray(data.matches)) {
               this.matches = data.matches;
               this.render();
             }
           } catch (e) {
-            console.error('加载匹配记录失败:', e);
-            // 降级：如果API失败尝试读取本地（可选）
+            console.error('从服务器加载记录失败:', e);
+            // 降级：如果服务器挂了，显示本地暂存的（可选）
             const stored = localStorage.getItem('recentMatches');
             if (stored) {
               this.matches = JSON.parse(stored);
@@ -9652,71 +9653,87 @@ if (path === "/api/logout" && method === "POST") {
     return searchEpisodes(url);
   }
 
-  // GET /api/recent/list - 获取服务器端最近匹配记录
-  if (path === "/api/recent/list" && method === "GET") {
+  // GET /api/recent - 获取全局最近匹配记录 (新增接口供网页调用)
+  if (path === "/api/recent" && method === "GET") {
+    // 惰性初始化或从持久化存储加载
     if (!globals.recentMatches) {
-      let loaded = [];
       try {
         if (globals.redisValid) {
           const { getRedisKey } = await import('./utils/redis-util.js');
-          const res = await getRedisKey('recent_matches');
-          if (res?.result) loaded = JSON.parse(res.result);
+          const res = await getRedisKey('global_recent_matches');
+          if (res && res.result) globals.recentMatches = JSON.parse(res.result);
         } else if (globals.databaseValid) {
           const { loadCacheData } = await import('./utils/db-util.js');
-          loaded = await loadCacheData('recent_matches') || [];
+          const data = await loadCacheData('global_recent_matches');
+          if (data) globals.recentMatches = data;
         }
-      } catch (e) {}
-      globals.recentMatches = loaded || [];
+      } catch (e) { log("warn", "[Recent] 加载历史记录失败"); }
+      if (!globals.recentMatches) globals.recentMatches = [];
     }
     return jsonResponse({ success: true, matches: globals.recentMatches });
   }
 
-  // GET /api/v2/match (拦截并记录历史)
+  // GET /api/v2/match (修改此处：拦截App和网页的请求并记录)
   if (path === "/api/v2/match" && method === "POST") {
+    // 1. 执行原始 API 逻辑
     const response = await matchAnime(url, req);
     
-    // 克隆响应以读取数据用于记录历史，不影响返回给App
+    // 2. 偷偷记录日志 (利用 clone() 不影响原响应)
     try {
       const clone = response.clone();
       clone.json().then(async (data) => {
+        // 只有匹配成功才记录
         if (data.success && data.isMatched && data.matches && data.matches.length > 0) {
           const match = data.matches[0];
+          
+          // 确保全局变量存在
+          if (!globals.recentMatches) globals.recentMatches = [];
+          
+          // 构建记录对象
           const record = {
             id: Date.now(),
             animeTitle: match.animeTitle,
             episodeTitle: match.episodeTitle,
             episodeNumber: match.episode,
             season: match.season,
-            danmuCount: 0, // 纯match接口无法获知弹幕数
+            danmuCount: 0, // match接口本身不返回弹幕数，暂记为0
             platform: match.type,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            source: 'API' 
           };
 
-          if (!globals.recentMatches) globals.recentMatches = [];
-          // 避免重复添加完全相同的记录(1秒内)
+          // 简单防抖：避免同一内容短时间重复记录
           const last = globals.recentMatches[0];
-          if (!last || last.animeTitle !== record.animeTitle || last.episodeNumber !== record.episodeNumber || (record.timestamp - last.timestamp > 1000)) {
-            globals.recentMatches.unshift(record);
-            if (globals.recentMatches.length > 10) globals.recentMatches = globals.recentMatches.slice(0, 10);
+          const isDuplicate = last && 
+            last.animeTitle === record.animeTitle && 
+            last.episodeNumber === record.episodeNumber && 
+            (record.timestamp - last.timestamp < 5000);
 
-            // 异步持久化
+          if (!isDuplicate) {
+            globals.recentMatches.unshift(record);
+            // 只保留最新的 20 条
+            if (globals.recentMatches.length > 20) {
+              globals.recentMatches = globals.recentMatches.slice(0, 20);
+            }
+
+            // 异步持久化保存 (Redis 或 数据库)
             try {
               if (globals.redisValid) {
                 const { setRedisKey } = await import('./utils/redis-util.js');
-                await setRedisKey('recent_matches', JSON.stringify(globals.recentMatches), true);
+                await setRedisKey('global_recent_matches', JSON.stringify(globals.recentMatches), true);
               } else if (globals.databaseValid) {
                 const { saveCacheData } = await import('./utils/db-util.js');
-                await saveCacheData('recent_matches', globals.recentMatches);
+                await saveCacheData('global_recent_matches', globals.recentMatches);
               }
-            } catch (e) { log("warn", "Save recent matches failed: " + e.message); }
+            } catch (err) { log("warn", `[Recent] 保存失败: ${err.message}`); }
           }
         }
-      }).catch(e => {});
+      }).catch(() => {}); // 忽略任何记录错误，不影响主流程
     } catch (e) {}
 
+    // 3. 返回原始结果给 App
     return response;
   }
-
 
   // GET /api/v2/bangumi/:animeId
   if (path.startsWith("/api/v2/bangumi/") && method === "GET") {
