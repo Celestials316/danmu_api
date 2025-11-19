@@ -4021,19 +4021,29 @@ async function handleHomepage(req) {
          </div>
        </div>
 
-       <div class="card">
-         <div class="card-header">
-           <h3 class="card-title">
-             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-               <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" stroke-width="2"/>
-             </svg>
-             使用统计
-           </h3>
-         </div>
-         <div class="chart-container">
-           <canvas id="usageChart"></canvas>
-         </div>
-       </div>
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" stroke-width="2"/>
+                  </svg>
+                  最新匹配
+                </h3>
+                <button class="btn btn-secondary" onclick="refreshRecentMatches()" style="padding: 8px 16px; font-size: 13px;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width: 16px; height: 16px;">
+                    <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                  刷新
+                </button>
+              </div>
+              <div id="recentMatchesContainer" style="min-height: 300px;">
+                <div style="text-align: center; padding: 80px 20px; color: var(--text-tertiary);">
+                  <div style="font-size: 56px; margin-bottom: 20px; opacity: 0.6;">📺</div>
+                  <div style="font-size: 17px; font-weight: 600; margin-bottom: 10px; color: var(--text-secondary);">暂无匹配记录</div>
+                  <div style="font-size: 14px; opacity: 0.8;">使用弹幕测试功能后会自动显示最新匹配</div>
+                </div>
+              </div>
+            </div>
 
        <div class="card">
          <div class="card-header">
@@ -5739,7 +5749,6 @@ async function handleHomepage(req) {
    // ==================== 初始化 ====================
    document.addEventListener('DOMContentLoaded', function() {
      initializeApp();
-     initializeChart();
      initializeDragAndDrop();
      loadLocalStorageData();
      setupGlobalSearch();
@@ -5754,6 +5763,7 @@ async function handleHomepage(req) {
          }
        }, 250);
      });
+     RecentMatches.load();
    });
 
    async function initializeApp() {
@@ -6975,6 +6985,13 @@ async function handleHomepage(req) {
 
         currentDanmuData = comments;
         filteredDanmuData = [...currentDanmuData];
+        // 添加到最新匹配记录
+        if (matchInfo && currentDanmuData.length > 0) {
+          RecentMatches.add({
+            ...matchInfo,
+            danmuCount: currentDanmuData.length
+          });
+        }
 
         if (matchInfo) {
           displayMatchResult(matchInfo);
@@ -7784,7 +7801,6 @@ function clearDanmuTest() {
 
    document.addEventListener('DOMContentLoaded', function() {
      initializeApp();
-     initializeChart();
      loadLocalStorageData();
      setupGlobalSearch();
    });
@@ -7881,75 +7897,191 @@ function clearDanmuTest() {
      });
    }
 
-   function initializeChart() {
-     const ctx = document.getElementById('usageChart');
-     if (!ctx) return;
+      // ========== 最新匹配记录管理 ==========
+      const RecentMatches = {
+        matches: [],
+        maxRecords: 10,
+        
+        add(matchData) {
+          const match = {
+            id: Date.now(),
+            animeTitle: matchData.animeTitle || '未知',
+            episodeTitle: matchData.episodeTitle || '',
+            episodeNumber: matchData.episodeNumber || matchData.episode || '?',
+            season: matchData.season || '1',
+            danmuCount: matchData.danmuCount || 0,
+            platform: matchData.type || matchData.platform || 'unknown',
+            timestamp: Date.now()
+          };
+          
+          this.matches.unshift(match);
+          if (this.matches.length > this.maxRecords) {
+            this.matches = this.matches.slice(0, this.maxRecords);
+          }
+          
+          localStorage.setItem('recentMatches', JSON.stringify(this.matches));
+          this.render();
+        },
+        
+        load() {
+          try {
+            const stored = localStorage.getItem('recentMatches');
+            if (stored) {
+              this.matches = JSON.parse(stored);
+              this.render();
+            }
+          } catch (e) {
+            console.error('加载匹配记录失败:', e);
+          }
+        },
+        
+        clear() {
+          this.matches = [];
+          localStorage.removeItem('recentMatches');
+          this.render();
+        },
+        
+        render() {
+          const container = document.getElementById('recentMatchesContainer');
+          if (!container) return;
+          
+          if (this.matches.length === 0) {
+            container.innerHTML = `
+              <div style="text-align: center; padding: 80px 20px; color: var(--text-tertiary);">
+                <div style="font-size: 56px; margin-bottom: 20px; opacity: 0.6;">📺</div>
+                <div style="font-size: 17px; font-weight: 600; margin-bottom: 10px; color: var(--text-secondary);">暂无匹配记录</div>
+                <div style="font-size: 14px; opacity: 0.8;">使用弹幕测试功能后会自动显示最新匹配</div>
+              </div>
+            `;
+            return;
+          }
+          
+          const platformNames = {
+            'qiyi': '爱奇艺',
+            'bilibili1': '哔哩哔哩',
+            'imgo': 'IMGO',
+            'youku': '优酷',
+            'qq': '腾讯视频',
+            'renren': '人人影视',
+            'hanjutv': '韩剧TV',
+            'bahamut': '巴哈姆特'
+          };
+          
+          const html = this.matches.map((match, index) => {
+            const platformName = platformNames[match.platform] || match.platform;
+            const timeAgo = this.getTimeAgo(match.timestamp);
+            
+            return `
+              <div style="
+                background: var(--bg-tertiary);
+                border: 1px solid var(--border-color);
+                border-radius: 12px;
+                padding: 18px;
+                margin-bottom: 12px;
+                transition: all 0.3s var(--ease-smooth);
+                animation: slideInFromLeft 0.4s ease-out;
+                animation-delay: ${index * 0.05}s;
+                opacity: 0;
+                animation-fill-mode: forwards;
+              " onmouseover="this.style.background='var(--bg-hover)'; this.style.transform='translateX(4px)'" onmouseout="this.style.background='var(--bg-tertiary)'; this.style.transform='translateX(0)'">
+                <div style="display: flex; align-items: flex-start; gap: 14px;">
+                  <div style="
+                    width: 48px;
+                    height: 48px;
+                    background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+                    border-radius: 10px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 24px;
+                    flex-shrink: 0;
+                    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+                  ">
+                    🎬
+                  </div>
+                  <div style="flex: 1; min-width: 0;">
+                    <div style="font-size: 16px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px; line-height: 1.3;">
+                      ${match.animeTitle}
+                    </div>
+                    <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 10px;">
+                      ${match.episodeTitle || 'S' + String(match.season).padStart(2, '0') + 'E' + String(match.episodeNumber).padStart(2, '0')}
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                      <span style="
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 4px;
+                        padding: 4px 10px;
+                        background: var(--bg-primary);
+                        border-radius: 6px;
+                        font-size: 12px;
+                        color: var(--primary-400);
+                        font-weight: 600;
+                      ">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor">
+                          <path d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" stroke-width="2"/>
+                        </svg>
+                        ${match.danmuCount} 条弹幕
+                      </span>
+                      <span style="
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 4px;
+                        padding: 4px 10px;
+                        background: var(--bg-primary);
+                        border-radius: 6px;
+                        font-size: 12px;
+                        color: var(--success);
+                        font-weight: 600;
+                      ">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor">
+                          <path d="M5 3l14 9-14 9V3z" stroke-width="2"/>
+                        </svg>
+                        ${platformName}
+                      </span>
+                      <span style="
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 4px;
+                        padding: 4px 10px;
+                        background: var(--bg-primary);
+                        border-radius: 6px;
+                        font-size: 12px;
+                        color: var(--text-tertiary);
+                        font-weight: 600;
+                      ">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor">
+                          <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
+                        </svg>
+                        ${timeAgo}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join('');
+          
+          container.innerHTML = html;
+        },
+        
+        getTimeAgo(timestamp) {
+          const now = Date.now();
+          const diff = now - timestamp;
+          
+          if (diff < 60000) return '刚刚';
+          if (diff < 3600000) return Math.floor(diff / 60000) + ' 分钟前';
+          if (diff < 86400000) return Math.floor(diff / 3600000) + ' 小时前';
+          if (diff < 604800000) return Math.floor(diff / 86400000) + ' 天前';
+          return new Date(timestamp).toLocaleDateString();
+        }
+      };
 
-     const chart = new Chart(ctx, {
-       type: 'line',
-       data: {
-         labels: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
-         datasets: [{
-           label: 'API 请求量',
-           data: [120, 190, 150, 220, 180, 250, 200],
-           borderColor: 'rgb(99, 102, 241)',
-           backgroundColor: 'rgba(99, 102, 241, 0.1)',
-           tension: 0.4,
-           fill: true
-         }]
-       },
-       options: {
-         responsive: true,
-         maintainAspectRatio: false,
-         plugins: {
-           legend: {
-             display: true,
-             position: 'top',
-             labels: {
-               color: getComputedStyle(document.body).getPropertyValue('--text-primary'),
-               font: {
-                 family: '-apple-system, BlinkMacSystemFont, "Segoe UI"',
-                 size: 12
-               }
-             }
-           }
-         },
-         scales: {
-           y: {
-             beginAtZero: true,
-             grid: {
-               color: getComputedStyle(document.body).getPropertyValue('--border-color')
-             },
-             ticks: {
-               color: getComputedStyle(document.body).getPropertyValue('--text-secondary')
-             }
-           },
-           x: {
-             grid: {
-               color: getComputedStyle(document.body).getPropertyValue('--border-color')
-             },
-             ticks: {
-               color: getComputedStyle(document.body).getPropertyValue('--text-secondary')
-             }
-           }
-         }
-       }
-     });
+      function refreshRecentMatches() {
+        RecentMatches.render();
+        showToast('已刷新最新匹配记录', 'success', 1500);
+      }
 
-     const observer = new MutationObserver(() => {
-       chart.options.plugins.legend.labels.color = getComputedStyle(document.documentElement).getPropertyValue('--text-primary');
-       chart.options.scales.y.grid.color = getComputedStyle(document.body).getPropertyValue('--border-color');
-       chart.options.scales.y.ticks.color = getComputedStyle(document.body).getPropertyValue('--text-secondary');
-       chart.options.scales.x.grid.color = getComputedStyle(document.body).getPropertyValue('--border-color');
-       chart.options.scales.x.ticks.color = getComputedStyle(document.body).getPropertyValue('--text-secondary');
-       chart.update();
-     });
-
-     observer.observe(document.documentElement, {
-       attributes: true,
-       attributeFilter: ['class']
-     });
-   }
 
    document.addEventListener('dblclick', function(e) {
      const configValue = e.target.closest('.config-value');
