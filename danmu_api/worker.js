@@ -8020,35 +8020,26 @@ function clearDanmuTest() {
         maxRecords: 10,
         
         add(matchData) {
-          const match = {
-            id: Date.now(),
-            animeTitle: matchData.animeTitle || '未知',
-            episodeTitle: matchData.episodeTitle || '',
-            episodeNumber: matchData.episodeNumber || matchData.episode || '?',
-            season: matchData.season || '1',
-            danmuCount: matchData.danmuCount || 0,
-            platform: matchData.type || matchData.platform || 'unknown',
-            timestamp: Date.now()
-          };
-          
-          this.matches.unshift(match);
-          if (this.matches.length > this.maxRecords) {
-            this.matches = this.matches.slice(0, this.maxRecords);
-          }
-          
-          localStorage.setItem('recentMatches', JSON.stringify(this.matches));
-          this.render();
+          // 网页端测试时，API已经记录了，这里只需要延迟刷新获取最新列表
+          setTimeout(() => this.load(), 500);
         },
         
-        load() {
+        async load() {
           try {
+            const res = await fetch('/api/recent/list');
+            const data = await res.json();
+            if (data.success) {
+              this.matches = data.matches;
+              this.render();
+            }
+          } catch (e) {
+            console.error('加载匹配记录失败:', e);
+            // 降级：如果API失败尝试读取本地（可选）
             const stored = localStorage.getItem('recentMatches');
             if (stored) {
               this.matches = JSON.parse(stored);
               this.render();
             }
-          } catch (e) {
-            console.error('加载匹配记录失败:', e);
           }
         },
         
@@ -9661,10 +9652,71 @@ if (path === "/api/logout" && method === "POST") {
     return searchEpisodes(url);
   }
 
-  // GET /api/v2/match
-  if (path === "/api/v2/match" && method === "POST") {
-    return matchAnime(url, req);
+  // GET /api/recent/list - 获取服务器端最近匹配记录
+  if (path === "/api/recent/list" && method === "GET") {
+    if (!globals.recentMatches) {
+      let loaded = [];
+      try {
+        if (globals.redisValid) {
+          const { getRedisKey } = await import('./utils/redis-util.js');
+          const res = await getRedisKey('recent_matches');
+          if (res?.result) loaded = JSON.parse(res.result);
+        } else if (globals.databaseValid) {
+          const { loadCacheData } = await import('./utils/db-util.js');
+          loaded = await loadCacheData('recent_matches') || [];
+        }
+      } catch (e) {}
+      globals.recentMatches = loaded || [];
+    }
+    return jsonResponse({ success: true, matches: globals.recentMatches });
   }
+
+  // GET /api/v2/match (拦截并记录历史)
+  if (path === "/api/v2/match" && method === "POST") {
+    const response = await matchAnime(url, req);
+    
+    // 克隆响应以读取数据用于记录历史，不影响返回给App
+    try {
+      const clone = response.clone();
+      clone.json().then(async (data) => {
+        if (data.success && data.isMatched && data.matches && data.matches.length > 0) {
+          const match = data.matches[0];
+          const record = {
+            id: Date.now(),
+            animeTitle: match.animeTitle,
+            episodeTitle: match.episodeTitle,
+            episodeNumber: match.episode,
+            season: match.season,
+            danmuCount: 0, // 纯match接口无法获知弹幕数
+            platform: match.type,
+            timestamp: Date.now()
+          };
+
+          if (!globals.recentMatches) globals.recentMatches = [];
+          // 避免重复添加完全相同的记录(1秒内)
+          const last = globals.recentMatches[0];
+          if (!last || last.animeTitle !== record.animeTitle || last.episodeNumber !== record.episodeNumber || (record.timestamp - last.timestamp > 1000)) {
+            globals.recentMatches.unshift(record);
+            if (globals.recentMatches.length > 10) globals.recentMatches = globals.recentMatches.slice(0, 10);
+
+            // 异步持久化
+            try {
+              if (globals.redisValid) {
+                const { setRedisKey } = await import('./utils/redis-util.js');
+                await setRedisKey('recent_matches', JSON.stringify(globals.recentMatches), true);
+              } else if (globals.databaseValid) {
+                const { saveCacheData } = await import('./utils/db-util.js');
+                await saveCacheData('recent_matches', globals.recentMatches);
+              }
+            } catch (e) { log("warn", "Save recent matches failed: " + e.message); }
+          }
+        }
+      }).catch(e => {});
+    } catch (e) {}
+
+    return response;
+  }
+
 
   // GET /api/v2/bangumi/:animeId
   if (path.startsWith("/api/v2/bangumi/") && method === "GET") {
