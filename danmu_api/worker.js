@@ -4862,13 +4862,7 @@ async function handleHomepage(req) {
              </div>
            </div>
 
-           <div class="alert alert-info" style="margin-bottom: 16px; font-size: 13px;">
-             <svg class="alert-icon" viewBox="0 0 24 24" width="18" height="18">
-               <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
-               <path d="M12 16v-4m0-4h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-             </svg>
-             <span>💡 示例：输入<strong>"藏海传"</strong>，季数<strong>"1"</strong>，集数<strong>"5"</strong> → 自动匹配 S01E05</span>
-           </div>
+
 
            <div style="display: flex; gap: 12px;">
              <button class="btn btn-primary" onclick="testDanmuByUrl()" style="flex: 1; font-size: 15px; padding: 13px 20px;">
