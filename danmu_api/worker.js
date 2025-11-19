@@ -879,78 +879,33 @@ async function handleHomepage(req) {
         // 获取最后5条，倒序
         const recentEntries = Array.from(globals.lastSelectMap.entries()).slice(-5).reverse();
         recentMatchesHtml = recentEntries.map(([key, value]) => {
-           let animeId = '未知';
-           let source = '未知';
-
-           // --- 深度解析逻辑 ---
-           if (Array.isArray(value)) {
-               // 情况1: [id, source]
-               animeId = value[0];
-               source = value[1] || '未知';
-           } else if (typeof value === 'object' && value !== null) {
-               // 情况2: {val: id, source: src}
-               animeId = value.val || value.id || value.animeId || value.value || '未知';
-               source = value.source || value.src || value.type || '未知';
-           } else {
-               // 情况3: 纯字符串/数字
-               animeId = value;
-           }
+           // value 可能是 [animeId, source] 数组或者直接是 animeId
+           const animeId = Array.isArray(value) ? value[0] : value;
+           const source = Array.isArray(value) ? value[1] : '未知';
            
-           // 二次检查：如果提取出的 animeId 依然是个对象（造成 [object Object] 的原因）
-           if (typeof animeId === 'object' && animeId !== null) {
-               try {
-                   // 尝试提取嵌套对象的 id
-                   animeId = animeId.id || animeId.val || JSON.stringify(animeId);
-               } catch(e) {
-                   animeId = String(animeId);
-               }
-           }
-           
-           // 截断过长的 ID
-           let displayId = String(animeId);
-           if (displayId.length > 30) displayId = displayId.substring(0, 30) + '...';
-           if (displayId === '{}' || displayId === '[]') displayId = '未知';
-
-           // 处理来源显示
-           const sourceText = source === '未知' ? 'Unknown' : source;
-           // 图标文字 (首字母大写)
-           const iconText = source === '未知' ? '?' : source.charAt(0).toUpperCase();
-           // 来源标签样式
-           const badgeClass = source === 'unknown' || source === '未知' ? 'badge-secondary' : 'badge-info';
-
            return `
-            <div class="server-item" style="padding: 12px 16px; margin-bottom: 8px; display: flex; align-items: center; gap: 14px;">
-              <div class="server-badge" style="width: 36px; height: 36px; font-size: 16px; background: var(--bg-tertiary); color: var(--primary-500); box-shadow: none; border: 1px solid var(--border-color); flex-shrink: 0;">
-                ${iconText}
-              </div>
-              
-              <div class="server-info" style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;">
-                <div class="server-name" style="font-size: 14px; font-weight: 700; color: var(--text-primary); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                    ${key}
+            <div class="server-item" style="padding: 12px; margin-bottom: 8px;">
+              <div class="server-badge" style="width: 32px; height: 32px; font-size: 12px; background: var(--bg-tertiary); color: var(--text-secondary); box-shadow: none; border: 1px solid var(--border-color);">ID</div>
+              <div class="server-info">
+                <div class="server-name" style="font-size: 13px; font-family: monospace; margin-bottom: 2px;">${key}</div>
+                <div class="server-url" style="font-size: 12px; color: var(--text-secondary);">
+                  映射至: <span style="color: var(--primary-400); font-weight: 600;">${animeId}</span> 
+                  <span class="badge badge-secondary" style="padding: 1px 6px; font-size: 10px; margin-left: 4px; border-radius: 4px;">${source}</span>
                 </div>
-                <div class="server-url" style="font-size: 12px; color: var(--text-secondary); font-family: monospace;">
-                  ID: <span style="color: var(--primary-400);">${displayId}</span>
-                </div>
-              </div>
-
-              <div style="flex-shrink: 0;">
-                 <span class="badge ${badgeClass}" style="padding: 4px 8px; font-size: 11px; border-radius: 6px;">
-                    ${sourceText}
-                 </span>
               </div>
             </div>
            `;
         }).join('');
       } else {
         recentMatchesHtml = `
-          <div class="empty-state" style="padding: 24px; text-align: center;">
-            <div class="empty-state-icon" style="font-size: 32px; margin-bottom: 10px; opacity: 0.5;">📭</div>
-            <div class="empty-state-description" style="font-size: 13px;">暂无最近匹配记录</div>
+          <div class="empty-state" style="padding: 20px;">
+            <div class="empty-state-icon" style="font-size: 32px; margin-bottom: 10px;">📭</div>
+            <div class="empty-state-description">暂无匹配记录</div>
           </div>
         `;
       }
     } catch (e) {
-      recentMatchesHtml = `<div class="alert alert-error" style="margin: 10px;">读取记录失败: ${e.message}</div>`;
+      recentMatchesHtml = `<div class="alert alert-error">读取记录失败: ${e.message}</div>`;
     }
 
     const sourcesHtml = globals.sourceOrderArr.length > 0 
@@ -4103,27 +4058,19 @@ async function handleHomepage(req) {
        </div>
 
        <div class="card">
-         <div class="card-header" style="display: flex; align-items: center; justify-content: space-between;">
-           <div style="display: flex; align-items: center; gap: 12px;">
-             <h3 class="card-title" style="margin-bottom: 0;">
-               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                 <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
-               </svg>
-               最近匹配信息
-             </h3>
-             <span class="badge badge-secondary" style="font-weight: normal; font-size: 11px; align-self: center;">TOP 5</span>
-           </div>
-           <button class="icon-btn" onclick="window.location.reload()" title="刷新列表" style="width: 32px; height: 32px;">
-             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor">
-               <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+         <div class="card-header">
+           <h3 class="card-title">
+             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+               <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
              </svg>
-           </button>
+             最近匹配信息
+           </h3>
+           <span class="badge badge-secondary" style="font-weight: normal;">最新 5 条</span>
          </div>
          <div class="server-grid" style="gap: 0;">
            ${recentMatchesHtml}
          </div>
        </div>
-
 
        <div class="card">
          <div class="card-header">
