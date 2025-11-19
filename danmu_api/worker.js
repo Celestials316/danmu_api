@@ -6771,21 +6771,14 @@ async function testDanmuByUrl() {
   const previewContainer = document.getElementById('danmuPreviewContainer');
   const matchResultCard = document.getElementById('matchResultCard');
   
-  // 隐藏匹配结果卡片
   matchResultCard.style.display = 'none';
   
-  // 显示加载状态（✅ 修复：确保字符串正确闭合）
-  previewContainer.innerHTML = `
-    <div style="text-align: center; padding: 80px 20px;">
-      <span class="loading-spinner" style="width: 48px; height: 48px; border-width: 4px;"></span>
-      <div style="margin-top: 24px; color: var(--text-primary); font-size: 16px; font-weight: 600;">
-        正在搜索弹幕...
-      </div>
-      <div style="margin-top: 8px; color: var(--text-tertiary); font-size: 13px;">
-        请稍候，这可能需要几秒钟
-      </div>
-    </div>
-  `;
+  // ✅ 使用单引号拼接
+  previewContainer.innerHTML = '<div style="text-align: center; padding: 80px 20px;">' +
+    '<span class="loading-spinner" style="width: 48px; height: 48px; border-width: 4px;"></span>' +
+    '<div style="margin-top: 24px; color: var(--text-primary); font-size: 16px; font-weight: 600;">正在搜索弹幕...</div>' +
+    '<div style="margin-top: 8px; color: var(--text-tertiary); font-size: 13px;">请稍候，这可能需要几秒钟</div>' +
+    '</div>';
 
   document.getElementById('exportJsonBtn').style.display = 'none';
   document.getElementById('exportXmlBtn').style.display = 'none';
@@ -6833,7 +6826,7 @@ async function testDanmuByUrl() {
       }
       
       const match = matchResult.matches[0];
-      matchInfo = match; // 保存匹配信息
+      matchInfo = match;
       
       showToast('✅ 匹配成功: ' + match.animeTitle, 'success', 2000);
       showToast('正在获取弹幕...', 'info', 2000);
@@ -6867,23 +6860,16 @@ async function testDanmuByUrl() {
     currentDanmuData = comments;
     filteredDanmuData = [...currentDanmuData];
 
-    // ✅ 显示匹配结果（如果有）
     if (matchInfo) {
       displayMatchResult(matchInfo);
     }
 
     if (currentDanmuData.length === 0) {
-      previewContainer.innerHTML = `
-        <div style="text-align: center; padding: 80px 20px; color: var(--text-tertiary);">
-          <div style="font-size: 56px; margin-bottom: 20px; opacity: 0.5;">😢</div>
-          <div style="font-size: 17px; font-weight: 600; margin-bottom: 10px; color: var(--text-secondary);">
-            未获取到弹幕
-          </div>
-          <div style="font-size: 14px; opacity: 0.8;">
-            该视频可能没有弹幕数据
-          </div>
-        </div>
-      `;
+      previewContainer.innerHTML = '<div style="text-align: center; padding: 80px 20px; color: var(--text-tertiary);">' +
+        '<div style="font-size: 56px; margin-bottom: 20px; opacity: 0.5;">😢</div>' +
+        '<div style="font-size: 17px; font-weight: 600; margin-bottom: 10px; color: var(--text-secondary);">未获取到弹幕</div>' +
+        '<div style="font-size: 14px; opacity: 0.8;">该视频可能没有弹幕数据</div>' +
+        '</div>';
       document.getElementById('danmuTestCount').textContent = '0 条';
       document.getElementById('exportJsonBtn').style.display = 'none';
       document.getElementById('exportXmlBtn').style.display = 'none';
@@ -6899,22 +6885,17 @@ async function testDanmuByUrl() {
 
   } catch (error) {
     console.error('获取弹幕失败:', error);
-    previewContainer.innerHTML = `
-      <div style="text-align: center; padding: 80px 20px; color: var(--error);">
-        <div style="font-size: 56px; margin-bottom: 20px; opacity: 0.7;">❌</div>
-        <div style="font-size: 17px; font-weight: 600; margin-bottom: 10px;">
-          获取失败
-        </div>
-        <div style="font-size: 14px; color: var(--text-secondary); max-width: 400px; margin: 0 auto; line-height: 1.5;">
-          ${error.message}
-        </div>
-      </div>
-    `;
+    previewContainer.innerHTML = '<div style="text-align: center; padding: 80px 20px; color: var(--error);">' +
+      '<div style="font-size: 56px; margin-bottom: 20px; opacity: 0.7;">❌</div>' +
+      '<div style="font-size: 17px; font-weight: 600; margin-bottom: 10px;">获取失败</div>' +
+      '<div style="font-size: 14px; color: var(--text-secondary); max-width: 400px; margin: 0 auto; line-height: 1.5;">' +
+      error.message + '</div></div>';
     showToast('❌ 获取弹幕失败: ' + error.message, 'error');
     document.getElementById('exportJsonBtn').style.display = 'none';
     document.getElementById('exportXmlBtn').style.display = 'none';
   }
 }
+
 
    function displayDanmuList(danmuList) {
      const container = document.getElementById('danmuPreviewContainer');
