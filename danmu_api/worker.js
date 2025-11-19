@@ -872,7 +872,7 @@ async function handleHomepage(req) {
       'bahamut': 'BH'
     };
     
-        // 生成最近匹配列表HTML
+            // 生成最近匹配列表HTML
     let recentMatchesHtml = '';
     try {
       if (globals.lastSelectMap && globals.lastSelectMap.size > 0) {
@@ -887,8 +887,9 @@ async function handleHomepage(req) {
              animeId = value[0];
              source = value[1] || '未知';
            } else if (typeof value === 'object' && value !== null) {
-             // 优化：如果是对象，尝试提取 animeId/id/episodeId，避免显示 [object Object]
-             animeId = value.animeId || value.id || value.episodeId || JSON.stringify(value);
+             // 优化：如果是对象，尝试提取 prefer/animeId/id/episodeId，避免显示 [object Object]
+             // 针对 {"animeIds":[...], "prefer": 123, "source": "..."} 这种情况，优先取 prefer
+             animeId = value.prefer || value.animeId || value.id || value.episodeId || (Array.isArray(value.animeIds) ? value.animeIds[0] : null) || JSON.stringify(value);
              source = value.source || value.type || '未知';
            }
 
