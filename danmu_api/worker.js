@@ -876,24 +876,24 @@ async function handleHomepage(req) {
     let recentMatchesHtml = '';
     try {
       if (globals.lastSelectMap && globals.lastSelectMap.size > 0) {
-        const getTitleFromMeta = (meta) => {
-          if (!meta || typeof meta !== 'object') return null;
+        const getTitleFromMeta = (meta, fallbackKey) => {
+          if (!meta || typeof meta !== 'object') return fallbackKey; // 兜底使用 key
           const candidates = [
-            meta.title,
             meta.animeTitle,
+            meta.episodeTitle,
+            meta.title,
+            meta.fileName, // 增加文件名作为备选
             meta.displayName,
             meta.name,
             meta.label,
-            meta.episodeTitle,
             meta.preferTitle,
             meta.originalTitle,
-            meta.originTitle,
             meta.info && meta.info.title
           ];
           if (Array.isArray(meta.titles) && meta.titles.length > 0) {
             candidates.push(meta.titles[0]);
           }
-          return candidates.find((item) => typeof item === 'string' && item.trim()) || null;
+          return candidates.find((item) => typeof item === 'string' && item.trim()) || fallbackKey;
         };
 
         const recentEntries = Array.from(globals.lastSelectMap.entries()).slice(-3).reverse();
@@ -921,45 +921,34 @@ async function handleHomepage(req) {
             animeId = JSON.stringify(animeId);
           }
 
-          const titleText = getTitleFromMeta(meta) || '标题未知';
+          // 传入 key 作为最终兜底标题
+          const titleText = getTitleFromMeta(meta, key) || '未命名';
 
-          const danmuLimit =
-            meta.limitDanmu ??
-            meta.danmuLimit ??
-            meta.limitCount ??
-            meta.limit ??
-            meta.maxDanmu ??
-            meta.maxCount ??
-            meta.cap;
+          // 优化数量获取逻辑
           const danmuCountCandidate =
             meta.danmuCount ??
             meta.commentCount ??
             meta.totalDanmu ??
-            meta.totalCount ??
-            (meta.stats ? meta.stats.danmuCount ?? meta.stats.commentCount : undefined) ??
-            (Array.isArray(meta.danmus) ? meta.danmus.length : undefined) ??
-            (Array.isArray(meta.comments) ? meta.comments.length : undefined) ??
-            meta.count;
+            meta.count ??
+            (Array.isArray(meta.comments) ? meta.comments.length : undefined);
 
-          const limitApplied = typeof danmuLimit === 'number' && danmuLimit >= 0;
-          const resolvedDanmuCount = limitApplied ? danmuLimit : danmuCountCandidate;
           const danmuCountText =
-            typeof resolvedDanmuCount === 'number' && resolvedDanmuCount >= 0
-              ? `${resolvedDanmuCount} 条弹幕${limitApplied ? '（已限制）' : ''}`
-              : '数量未知';
+            typeof danmuCountCandidate === 'number' && danmuCountCandidate >= 0
+              ? `${danmuCountCandidate} 条弹幕`
+              : '未统计';
 
           return `
             <div class="server-item" style="padding: 12px; margin-bottom: 8px;">
               <div class="server-badge" style="width: 32px; height: 32px; font-size: 12px; background: var(--bg-tertiary); color: var(--text-secondary); box-shadow: none; border: 1px solid var(--border-color);">ID</div>
               <div class="server-info">
-                <div class="server-name" style="font-size: 13px; font-family: monospace; margin-bottom: 2px;">${key}</div>
+                <div class="server-name" style="font-size: 13px; font-family: monospace; margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis;">${key}</div>
                 <div class="server-url" style="font-size: 12px; color: var(--text-secondary);">
-                  映射至: <span style="color: var(--primary-400); font-weight: 600;">${animeId}</span>
+                  ID: <span style="color: var(--primary-400); font-weight: 600;">${animeId}</span>
                   <span class="badge badge-secondary" style="padding: 1px 6px; font-size: 10px; margin-left: 4px; border-radius: 4px;">${source}</span>
                 </div>
                 <div class="recent-meta" style="font-size: 12px; color: var(--text-tertiary); margin-top: 6px; display: grid; gap: 4px;">
-                  <div>标题：<span style="color: var(--text-secondary);">${titleText}</span></div>
-                  <div>弹幕数量：<span style="color: var(--primary-400); font-weight: 600;">${danmuCountText}</span></div>
+                  <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">标题：<span style="color: var(--text-secondary);" title="${titleText}">${titleText}</span></div>
+                  <div>弹幕：<span style="color: var(--primary-400); font-weight: 600;">${danmuCountText}</span></div>
                 </div>
               </div>
             </div>
@@ -7141,12 +7130,17 @@ async function handleHomepage(req) {
        'bahamut': '巴哈姆特'
      };
      
-     document.getElementById('matchedAnimeTitle').textContent = matchInfo.animeTitle || '未知';
-     document.getElementById('matchedEpisodeTitle').textContent = matchInfo.episodeTitle || '未知集数';
-     document.getElementById('matchedPlatform').textContent = platformNames[matchInfo.type] || matchInfo.type || '未知';
-     document.getElementById('matchedSeason').textContent = 'S' + (matchInfo.season || '?').toString().padStart(2, '0');
-     document.getElementById('matchedEpisode').textContent = 'E' + (matchInfo.episode || '?').toString().padStart(2, '0');
-     document.getElementById('matchedEpisodeId').textContent = matchInfo.episodeId || '-';
+     // 优化标题获取逻辑，尝试多个字段
+     const animeTitle = matchInfo.animeTitle || matchInfo.title || matchInfo.name || matchInfo.fileName || '未知番剧';
+     const episode = matchInfo.episode || '?';
+     const episodeTitle = matchInfo.episodeTitle || matchInfo.title || `第 ${episode} 集`;
+     
+     document.getElementById('matchedAnimeTitle').textContent = animeTitle;
+     document.getElementById('matchedEpisodeTitle').textContent = episodeTitle;
+     document.getElementById('matchedPlatform').textContent = platformNames[matchInfo.type] || matchInfo.type || matchInfo.source || '自动';
+     document.getElementById('matchedSeason').textContent = 'S' + (matchInfo.season || '1').toString().padStart(2, '0');
+     document.getElementById('matchedEpisode').textContent = 'E' + episode.toString().padStart(2, '0');
+     document.getElementById('matchedEpisodeId').textContent = matchInfo.episodeId || matchInfo.id || '-';
      
      matchResultCard.style.display = 'block';
    }
