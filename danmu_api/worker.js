@@ -6896,6 +6896,32 @@ async function testDanmuByUrl() {
   }
 }
 
+   // ✅ 显示匹配结果信息
+   function displayMatchResult(matchInfo) {
+     const matchResultCard = document.getElementById('matchResultCard');
+     
+     // 平台名称映射
+     const platformNames = {
+       'qiyi': '爱奇艺',
+       'bilibili1': '哔哩哔哩',
+       'imgo': 'IMGO',
+       'youku': '优酷',
+       'qq': '腾讯视频',
+       'renren': '人人影视',
+       'hanjutv': '韩剧TV',
+       'bahamut': '巴哈姆特'
+     };
+     
+     document.getElementById('matchedAnimeTitle').textContent = matchInfo.animeTitle || '未知';
+     document.getElementById('matchedEpisodeTitle').textContent = matchInfo.episodeTitle || '未知集数';
+     document.getElementById('matchedPlatform').textContent = platformNames[matchInfo.type] || matchInfo.type || '未知';
+     document.getElementById('matchedSeason').textContent = 'S' + (matchInfo.season || '?').toString().padStart(2, '0');
+     document.getElementById('matchedEpisode').textContent = 'E' + (matchInfo.episode || '?').toString().padStart(2, '0');
+     document.getElementById('matchedEpisodeId').textContent = matchInfo.episodeId || '-';
+     
+     matchResultCard.style.display = 'block';
+   }
+
 
    function displayDanmuList(danmuList) {
      const container = document.getElementById('danmuPreviewContainer');
