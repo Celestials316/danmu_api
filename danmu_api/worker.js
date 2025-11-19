@@ -876,15 +876,27 @@ async function handleHomepage(req) {
     let recentMatchesHtml = '';
     try {
       if (globals.lastSelectMap && globals.lastSelectMap.size > 0) {
-        const formatRelativeTime = (timestamp) => {
-          const diff = Date.now() - timestamp;
-          if (diff < 60000) return '刚刚';
-          if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`;
-          if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`;
-          return `${Math.floor(diff / 86400000)} 天前`;
+        const getTitleFromMeta = (meta) => {
+          if (!meta || typeof meta !== 'object') return null;
+          const candidates = [
+            meta.title,
+            meta.animeTitle,
+            meta.displayName,
+            meta.name,
+            meta.label,
+            meta.episodeTitle,
+            meta.preferTitle,
+            meta.originalTitle,
+            meta.originTitle,
+            meta.info && meta.info.title
+          ];
+          if (Array.isArray(meta.titles) && meta.titles.length > 0) {
+            candidates.push(meta.titles[0]);
+          }
+          return candidates.find((item) => typeof item === 'string' && item.trim()) || null;
         };
 
-        const recentEntries = Array.from(globals.lastSelectMap.entries()).slice(-5).reverse();
+        const recentEntries = Array.from(globals.lastSelectMap.entries()).slice(-3).reverse();
         recentMatchesHtml = recentEntries.map(([key, value]) => {
           let animeId = value;
           let source = '未知';
@@ -895,9 +907,13 @@ async function handleHomepage(req) {
             source = value[1] || '未知';
           } else if (typeof value === 'object' && value !== null) {
             meta = value;
-            animeId = value.prefer || value.animeId || value.id || value.episodeId ||
-                      (Array.isArray(value.animeIds) ? value.animeIds[0] : null) ||
-                      JSON.stringify(value);
+            animeId =
+              value.prefer ||
+              value.animeId ||
+              value.id ||
+              value.episodeId ||
+              (Array.isArray(value.animeIds) ? value.animeIds[0] : null) ||
+              JSON.stringify(value);
             source = value.source || value.type || '未知';
           }
 
@@ -905,26 +921,32 @@ async function handleHomepage(req) {
             animeId = JSON.stringify(animeId);
           }
 
-          const matchedAtRaw = meta.matchedAt || meta.timestamp || meta.time || meta.createdAt || meta.updatedAt || meta.ts || meta.date || meta.lastMatchedAt;
-          const matchedAt = matchedAtRaw ? new Date(matchedAtRaw).getTime() : NaN;
-          const matchedAtText = Number.isFinite(matchedAt)
-            ? `${new Date(matchedAt).toLocaleString('zh-CN', { hour12: false })} · ${formatRelativeTime(matchedAt)}`
-            : '时间未知';
+          const titleText = getTitleFromMeta(meta) || '标题未知';
 
+          const danmuLimit =
+            meta.limitDanmu ??
+            meta.danmuLimit ??
+            meta.limitCount ??
+            meta.limit ??
+            meta.maxDanmu ??
+            meta.maxCount ??
+            meta.cap;
           const danmuCountCandidate =
             meta.danmuCount ??
             meta.commentCount ??
             meta.totalDanmu ??
             meta.totalCount ??
-            meta.stats?.danmuCount ??
-            meta.stats?.commentCount ??
+            (meta.stats ? meta.stats.danmuCount ?? meta.stats.commentCount : undefined) ??
             (Array.isArray(meta.danmus) ? meta.danmus.length : undefined) ??
             (Array.isArray(meta.comments) ? meta.comments.length : undefined) ??
             meta.count;
 
-          const danmuCountText = typeof danmuCountCandidate === 'number' && danmuCountCandidate >= 0
-            ? `${danmuCountCandidate} 条弹幕`
-            : '数量未知';
+          const limitApplied = typeof danmuLimit === 'number' && danmuLimit >= 0;
+          const resolvedDanmuCount = limitApplied ? danmuLimit : danmuCountCandidate;
+          const danmuCountText =
+            typeof resolvedDanmuCount === 'number' && resolvedDanmuCount >= 0
+              ? `${resolvedDanmuCount} 条弹幕${limitApplied ? '（已限制）' : ''}`
+              : '数量未知';
 
           return `
             <div class="server-item" style="padding: 12px; margin-bottom: 8px;">
@@ -932,11 +954,11 @@ async function handleHomepage(req) {
               <div class="server-info">
                 <div class="server-name" style="font-size: 13px; font-family: monospace; margin-bottom: 2px;">${key}</div>
                 <div class="server-url" style="font-size: 12px; color: var(--text-secondary);">
-                  映射至: <span style="color: var(--primary-400); font-weight: 600;">${animeId}</span> 
+                  映射至: <span style="color: var(--primary-400); font-weight: 600;">${animeId}</span>
                   <span class="badge badge-secondary" style="padding: 1px 6px; font-size: 10px; margin-left: 4px; border-radius: 4px;">${source}</span>
                 </div>
                 <div class="recent-meta" style="font-size: 12px; color: var(--text-tertiary); margin-top: 6px; display: grid; gap: 4px;">
-                  <div>匹配时间：<span style="color: var(--text-secondary);">${matchedAtText}</span></div>
+                  <div>标题：<span style="color: var(--text-secondary);">${titleText}</span></div>
                   <div>弹幕数量：<span style="color: var(--primary-400); font-weight: 600;">${danmuCountText}</span></div>
                 </div>
               </div>
