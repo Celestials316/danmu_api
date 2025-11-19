@@ -3684,15 +3684,6 @@ async function handleHomepage(req) {
        transform: scale(1);
      }
    }
-      .card-header .btn-secondary {
-        padding: 8px 16px;
-        font-size: 13px;
-      }
-      
-      .card-header .btn-secondary svg {
-        width: 16px;
-        height: 16px;
-      }
    /* 匹配结果卡片动画 */
      @keyframes slideInFromLeft {
        from {
@@ -3714,114 +3705,6 @@ async function handleHomepage(req) {
        0% { transform: rotate(0deg); }
        100% { transform: rotate(360deg); }
      }
-     /* 最新匹配记录样式 */
-      .empty-state {
-        text-align: center;
-        padding: 80px 20px;
-        color: var(--text-tertiary);
-      }
-      
-      .empty-icon {
-        font-size: 56px;
-        margin-bottom: 20px;
-        opacity: 0.6;
-      }
-      
-      .empty-title {
-        font-size: 17px;
-        font-weight: 600;
-        margin-bottom: 10px;
-        color: var(--text-secondary);
-      }
-      
-      .empty-desc {
-        font-size: 14px;
-        opacity: 0.8;
-      }
-      
-      .match-item {
-        background: var(--bg-tertiary);
-        border: 1px solid var(--border-color);
-        border-radius: 12px;
-        padding: 18px;
-        margin-bottom: 12px;
-        transition: all 0.3s var(--ease-smooth);
-        animation: slideInFromLeft 0.4s ease-out forwards;
-        opacity: 0;
-      }
-      
-      .match-item:hover {
-        background: var(--bg-hover);
-        transform: translateX(4px);
-      }
-      
-      .match-content {
-        display: flex;
-        align-items: flex-start;
-        gap: 14px;
-      }
-      
-      .match-icon {
-        width: 48px;
-        height: 48px;
-        background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
-        border-radius: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 24px;
-        flex-shrink: 0;
-        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
-      }
-      
-      .match-info {
-        flex: 1;
-        min-width: 0;
-      }
-      
-      .match-title {
-        font-size: 16px;
-        font-weight: 700;
-        color: var(--text-primary);
-        margin-bottom: 6px;
-        line-height: 1.3;
-      }
-      
-      .match-episode {
-        font-size: 13px;
-        color: var(--text-secondary);
-        margin-bottom: 10px;
-      }
-      
-      .match-meta {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        flex-wrap: wrap;
-      }
-      
-      .meta-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        padding: 4px 10px;
-        background: var(--bg-primary);
-        border-radius: 6px;
-        font-size: 12px;
-        font-weight: 600;
-      }
-      
-      .meta-danmu {
-        color: var(--primary-400);
-      }
-      
-      .meta-platform {
-        color: var(--success);
-      }
-      
-      .meta-time {
-        color: var(--text-tertiary);
-      }
  </style>
 </head>
 <body>
@@ -4138,29 +4021,19 @@ async function handleHomepage(req) {
          </div>
        </div>
 
-            <div class="card">
-              <div class="card-header">
-                <h3 class="card-title">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" stroke-width="2"/>
-                  </svg>
-                  最新匹配
-                </h3>
-                <button class="btn btn-secondary" onclick="refreshRecentMatches()">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="16" height="16">
-                    <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
-                  刷新
-                </button>
-              </div>
-              <div id="recentMatchesContainer" style="min-height: 300px;">
-                <div style="text-align: center; padding: 80px 20px; color: var(--text-tertiary);">
-                  <div style="font-size: 56px; margin-bottom: 20px; opacity: 0.6;">📺</div>
-                  <div style="font-size: 17px; font-weight: 600; margin-bottom: 10px; color: var(--text-secondary);">暂无匹配记录</div>
-                  <div style="font-size: 14px; opacity: 0.8;">使用弹幕测试功能后会自动显示最新匹配</div>
-                </div>
-              </div>
-            </div>
+       <div class="card">
+         <div class="card-header">
+           <h3 class="card-title">
+             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+               <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" stroke-width="2"/>
+             </svg>
+             使用统计
+           </h3>
+         </div>
+         <div class="chart-container">
+           <canvas id="usageChart"></canvas>
+         </div>
+       </div>
 
        <div class="card">
          <div class="card-header">
@@ -5866,6 +5739,7 @@ async function handleHomepage(req) {
    // ==================== 初始化 ====================
    document.addEventListener('DOMContentLoaded', function() {
      initializeApp();
+     initializeChart();
      initializeDragAndDrop();
      loadLocalStorageData();
      setupGlobalSearch();
@@ -5880,7 +5754,6 @@ async function handleHomepage(req) {
          }
        }, 250);
      });
-     RecentMatches.load();
    });
 
    async function initializeApp() {
@@ -7102,13 +6975,6 @@ async function handleHomepage(req) {
 
         currentDanmuData = comments;
         filteredDanmuData = [...currentDanmuData];
-        // 添加到最新匹配记录
-        if (matchInfo && currentDanmuData.length > 0) {
-          RecentMatches.add({
-            ...matchInfo,
-            danmuCount: currentDanmuData.length
-          });
-        }
 
         if (matchInfo) {
           displayMatchResult(matchInfo);
@@ -7918,6 +7784,7 @@ function clearDanmuTest() {
 
    document.addEventListener('DOMContentLoaded', function() {
      initializeApp();
+     initializeChart();
      loadLocalStorageData();
      setupGlobalSearch();
    });
@@ -8014,131 +7881,75 @@ function clearDanmuTest() {
      });
    }
 
-      // ========== 最新匹配记录管理 ==========
-      const RecentMatches = {
-        matches: [],
-        maxRecords: 10,
-        
-        add(matchData) {
-          const match = {
-            id: Date.now(),
-            animeTitle: matchData.animeTitle || '未知',
-            episodeTitle: matchData.episodeTitle || '',
-            episodeNumber: matchData.episodeNumber || matchData.episode || '?',
-            season: matchData.season || '1',
-            danmuCount: matchData.danmuCount || 0,
-            platform: matchData.type || matchData.platform || 'unknown',
-            timestamp: Date.now()
-          };
-          
-          this.matches.unshift(match);
-          if (this.matches.length > this.maxRecords) {
-            this.matches = this.matches.slice(0, this.maxRecords);
-          }
-          
-          localStorage.setItem('recentMatches', JSON.stringify(this.matches));
-          this.render();
-        },
-        
-        load() {
-          try {
-            const stored = localStorage.getItem('recentMatches');
-            if (stored) {
-              this.matches = JSON.parse(stored);
-              this.render();
-            }
-          } catch (e) {
-            console.error('加载匹配记录失败:', e);
-          }
-        },
-        
-        clear() {
-          this.matches = [];
-          localStorage.removeItem('recentMatches');
-          this.render();
-        },
-        
-        render() {
-          const container = document.getElementById('recentMatchesContainer');
-          if (!container) return;
-          
-          if (this.matches.length === 0) {
-            container.innerHTML = '<div class="empty-state">' +
-              '<div class="empty-icon">📺</div>' +
-              '<div class="empty-title">暂无匹配记录</div>' +
-              '<div class="empty-desc">使用弹幕测试功能后会自动显示最新匹配</div>' +
-              '</div>';
-            return;
-          }
-          
-          const platformNames = {
-            'qiyi': '爱奇艺',
-            'bilibili1': '哔哩哔哩',
-            'imgo': 'IMGO',
-            'youku': '优酷',
-            'qq': '腾讯视频',
-            'renren': '人人影视',
-            'hanjutv': '韩剧TV',
-            'bahamut': '巴哈姆特'
-          };
-          
-          const html = this.matches.map((match, index) => {
-            const platformName = platformNames[match.platform] || match.platform;
-            const timeAgo = this.getTimeAgo(match.timestamp);
-            const episodeInfo = match.episodeTitle || 'S' + String(match.season).padStart(2, '0') + 'E' + String(match.episodeNumber).padStart(2, '0');
-            
-            return '<div class="match-item" style="animation-delay: ' + (index * 0.05) + 's">' +
-              '<div class="match-content">' +
-                '<div class="match-icon">🎬</div>' +
-                '<div class="match-info">' +
-                  '<div class="match-title">' + match.animeTitle + '</div>' +
-                  '<div class="match-episode">' + episodeInfo + '</div>' +
-                  '<div class="match-meta">' +
-                    '<span class="meta-badge meta-danmu">' +
-                      '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor">' +
-                        '<path d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" stroke-width="2"/>' +
-                      '</svg>' +
-                      match.danmuCount + ' 条弹幕' +
-                    '</span>' +
-                    '<span class="meta-badge meta-platform">' +
-                      '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor">' +
-                        '<path d="M5 3l14 9-14 9V3z" stroke-width="2"/>' +
-                      '</svg>' +
-                      platformName +
-                    '</span>' +
-                    '<span class="meta-badge meta-time">' +
-                      '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor">' +
-                        '<path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>' +
-                      '</svg>' +
-                      timeAgo +
-                    '</span>' +
-                  '</div>' +
-                '</div>' +
-              '</div>' +
-            '</div>';
-          }).join('');
-          
-          container.innerHTML = html;
-        },
-        
-        getTimeAgo(timestamp) {
-          const now = Date.now();
-          const diff = now - timestamp;
-          
-          if (diff < 60000) return '刚刚';
-          if (diff < 3600000) return Math.floor(diff / 60000) + ' 分钟前';
-          if (diff < 86400000) return Math.floor(diff / 3600000) + ' 小时前';
-          if (diff < 604800000) return Math.floor(diff / 86400000) + ' 天前';
-          return new Date(timestamp).toLocaleDateString();
-        }
-      };
+   function initializeChart() {
+     const ctx = document.getElementById('usageChart');
+     if (!ctx) return;
 
-      function refreshRecentMatches() {
-        RecentMatches.render();
-        showToast('已刷新最新匹配记录', 'success', 1500);
-      }
+     const chart = new Chart(ctx, {
+       type: 'line',
+       data: {
+         labels: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
+         datasets: [{
+           label: 'API 请求量',
+           data: [120, 190, 150, 220, 180, 250, 200],
+           borderColor: 'rgb(99, 102, 241)',
+           backgroundColor: 'rgba(99, 102, 241, 0.1)',
+           tension: 0.4,
+           fill: true
+         }]
+       },
+       options: {
+         responsive: true,
+         maintainAspectRatio: false,
+         plugins: {
+           legend: {
+             display: true,
+             position: 'top',
+             labels: {
+               color: getComputedStyle(document.body).getPropertyValue('--text-primary'),
+               font: {
+                 family: '-apple-system, BlinkMacSystemFont, "Segoe UI"',
+                 size: 12
+               }
+             }
+           }
+         },
+         scales: {
+           y: {
+             beginAtZero: true,
+             grid: {
+               color: getComputedStyle(document.body).getPropertyValue('--border-color')
+             },
+             ticks: {
+               color: getComputedStyle(document.body).getPropertyValue('--text-secondary')
+             }
+           },
+           x: {
+             grid: {
+               color: getComputedStyle(document.body).getPropertyValue('--border-color')
+             },
+             ticks: {
+               color: getComputedStyle(document.body).getPropertyValue('--text-secondary')
+             }
+           }
+         }
+       }
+     });
 
+     const observer = new MutationObserver(() => {
+       chart.options.plugins.legend.labels.color = getComputedStyle(document.documentElement).getPropertyValue('--text-primary');
+       chart.options.scales.y.grid.color = getComputedStyle(document.body).getPropertyValue('--border-color');
+       chart.options.scales.y.ticks.color = getComputedStyle(document.body).getPropertyValue('--text-secondary');
+       chart.options.scales.x.grid.color = getComputedStyle(document.body).getPropertyValue('--border-color');
+       chart.options.scales.x.ticks.color = getComputedStyle(document.body).getPropertyValue('--text-secondary');
+       chart.update();
+     });
 
+     observer.observe(document.documentElement, {
+       attributes: true,
+       attributeFilter: ['class']
+     });
+   }
 
    document.addEventListener('dblclick', function(e) {
      const configValue = e.target.closest('.config-value');
@@ -9676,171 +9487,91 @@ if (path === "/api/logout" && method === "POST") {
     const queryFormat = url.searchParams.get('format');
     const videoUrl = url.searchParams.get('url');
 
-    // 🔥 内部函数：记录最近匹配 (反查番剧信息并保存)
-    const recordRecentMatch = async (id, vUrl, count) => {
-      try {
-        let foundAnime = null;
-        let foundEpisode = null;
-        
-        // 1. 尝试通过 ID 在搜索缓存中反查番剧信息
-        if (id && globals.animes) {
-          for (const [name, data] of Object.entries(globals.animes)) {
-            if (data.episodes) {
-              const ep = data.episodes.find(e => String(e.episodeId) === String(id));
-              if (ep) {
-                foundAnime = name;
-                foundEpisode = ep;
-                break;
-              }
-            }
-          }
-        }
-
-        // 2. 如果找到了信息，则记录
-        if (foundAnime && foundEpisode) {
-          if (!globals.recentMatches) globals.recentMatches = [];
-          
-          const record = {
-            id: Date.now(),
-            animeTitle: foundAnime,
-            episodeTitle: foundEpisode.episodeTitle || `第${foundEpisode.episodeNumber}集`,
-            episodeNumber: foundEpisode.episodeNumber,
-            season: 1,
-            danmuCount: count || 0,
-            platform: 'api', // 标记为API调用
-            timestamp: Date.now()
-          };
-
-          // 防抖：避免短时间重复记录同一集
-          const last = globals.recentMatches[0];
-          const isDuplicate = last && 
-            last.animeTitle === record.animeTitle && 
-            last.episodeNumber === record.episodeNumber && 
-            (Date.now() - last.timestamp < 5000); // 5秒防抖
-
-          if (!isDuplicate) {
-            globals.recentMatches.unshift(record);
-            // 限制最大记录数
-            if (globals.recentMatches.length > 20) {
-              globals.recentMatches = globals.recentMatches.slice(0, 20);
-            }
-
-            // 异步持久化 (Redis/DB)
-            if (globals.redisValid) {
-              const { setRedisKey } = await import('./utils/redis-util.js');
-              setRedisKey('global_recent_matches', JSON.stringify(globals.recentMatches), true);
-            } else if (globals.databaseValid) {
-              const { saveCacheData } = await import('./utils/db-util.js');
-              saveCacheData('global_recent_matches', globals.recentMatches);
-            }
-          }
-        }
-      } catch (e) { /* 忽略记录过程中的非关键错误 */ }
-    };
-
-    // 场景A: 通过 URL 获取弹幕
     if (videoUrl) {
       const cachedComments = getCommentCache(videoUrl);
-      // 1. 缓存命中
       if (cachedComments !== null) {
         log("info", `[Rate Limit] Cache hit for URL: ${videoUrl}, skipping rate limit check`);
         const responseData = { count: cachedComments.length, comments: cachedComments };
-        
-        // 记录 (尝试反查)
-        recordRecentMatch(null, videoUrl, cachedComments.length);
-        
         return formatDanmuResponse(responseData, queryFormat);
       }
 
-      // 限流检查
       if (globals.rateLimitMaxRequests > 0) {
         const currentTime = Date.now();
         const oneMinute = 60 * 1000;
+
         cleanupExpiredIPs(currentTime);
 
         if (!globals.requestHistory.has(clientIp)) {
           globals.requestHistory.set(clientIp, []);
         }
+
         const history = globals.requestHistory.get(clientIp);
         const recentRequests = history.filter(timestamp => currentTime - timestamp <= oneMinute);
 
         if (recentRequests.length >= globals.rateLimitMaxRequests) {
-          log("warn", `[Rate Limit] IP ${clientIp} exceeded rate limit`);
-          return jsonResponse({ errorCode: 429, success: false, errorMessage: "Too many requests" }, 429);
+          log("warn", `[Rate Limit] IP ${clientIp} exceeded rate limit (${recentRequests.length}/${globals.rateLimitMaxRequests} requests in 1 minute)`);
+          return jsonResponse(
+            { errorCode: 429, success: false, errorMessage: "Too many requests, please try again later" },
+            429
+          );
         }
+
         recentRequests.push(currentTime);
         globals.requestHistory.set(clientIp, recentRequests);
+        log("info", `[Rate Limit] IP ${clientIp} request count: ${recentRequests.length}/${globals.rateLimitMaxRequests}`);
       }
 
-      // 2. 新鲜获取 (拦截响应)
-      const response = await getCommentByUrl(videoUrl, queryFormat);
-      try {
-        const clone = response.clone();
-        clone.json().then(data => {
-           const count = (data.comments || data.danmus || []).length;
-           recordRecentMatch(null, videoUrl, count);
-        }).catch(() => {});
-      } catch(e) {}
-      return response;
+      return getCommentByUrl(videoUrl, queryFormat);
     }
 
-    // 场景B: 通过 ID 获取弹幕
     if (!path.startsWith("/api/v2/comment/")) {
       log("error", "Missing commentId or url parameter");
-      return jsonResponse({ errorCode: 400, success: false, errorMessage: "Missing commentId" }, 400);
+      return jsonResponse(
+        { errorCode: 400, success: false, errorMessage: "Missing commentId or url parameter" },
+        400
+      );
     }
 
     const commentId = parseInt(path.split("/").pop());
     let urlForComment = findUrlById(commentId);
 
-    // 1. 缓存命中
     if (urlForComment) {
       const cachedComments = getCommentCache(urlForComment);
       if (cachedComments !== null) {
-        log("info", `[Rate Limit] Cache hit for URL: ${urlForComment}`);
+        log("info", `[Rate Limit] Cache hit for URL: ${urlForComment}, skipping rate limit check`);
         const responseData = { count: cachedComments.length, comments: cachedComments };
-        
-        // 记录 (ID反查)
-        recordRecentMatch(commentId, urlForComment, cachedComments.length);
-
         return formatDanmuResponse(responseData, queryFormat);
       }
     }
 
-    // 限流检查
     if (globals.rateLimitMaxRequests > 0) {
       const currentTime = Date.now();
       const oneMinute = 60 * 1000;
+
       cleanupExpiredIPs(currentTime);
 
       if (!globals.requestHistory.has(clientIp)) {
         globals.requestHistory.set(clientIp, []);
       }
+
       const history = globals.requestHistory.get(clientIp);
       const recentRequests = history.filter(timestamp => currentTime - timestamp <= oneMinute);
 
       if (recentRequests.length >= globals.rateLimitMaxRequests) {
-        log("warn", `[Rate Limit] IP ${clientIp} exceeded rate limit`);
-        return jsonResponse({ errorCode: 429, success: false, errorMessage: "Too many requests" }, 429);
+        log("warn", `[Rate Limit] IP ${clientIp} exceeded rate limit (${recentRequests.length}/${globals.rateLimitMaxRequests} requests in 1 minute)`);
+        return jsonResponse(
+          { errorCode: 429, success: false, errorMessage: "Too many requests, please try again later" },
+          429
+        );
       }
+
       recentRequests.push(currentTime);
       globals.requestHistory.set(clientIp, recentRequests);
+      log("info", `[Rate Limit] IP ${clientIp} request count: ${recentRequests.length}/${globals.rateLimitMaxRequests}`);
     }
 
-    // 2. 新鲜获取 (拦截响应)
-    const response = await getComment(path, queryFormat);
-    try {
-      const clone = response.clone();
-      clone.json().then(data => {
-         const count = (data.comments || data.danmus || []).length;
-         // 核心：根据 ID 反查信息并记录
-         recordRecentMatch(commentId, null, count);
-      }).catch(() => {});
-    } catch(e) {}
-
-    return response;
+    return getComment(path, queryFormat);
   }
-
 
   // GET /api/logs
   if (path === "/api/logs" && method === "GET") {
