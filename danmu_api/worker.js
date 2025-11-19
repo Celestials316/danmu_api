@@ -6831,6 +6831,31 @@ async function testDanmuByUrl() {
       });
       
       const matchResult = await matchResponse.json();
+// 智能提取季数和集数
+        if (matchResult.success && matchResult.matches && matchResult.matches.length > 0) {
+            const match = matchResult.matches[0];
+            
+            // 尝试从剧集标题中提取季数
+            if (!match.season || match.season === 0) {
+                const seasonMatch = match.episodeTitle?.match(/第([一二三四五六七八九十\d]+)季/);
+                if (seasonMatch) {
+                    const chineseNum = { '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10 };
+                    match.season = chineseNum[seasonMatch[1]] || parseInt(seasonMatch[1]) || 1;
+                } else {
+                    match.season = 1;
+                }
+            }
+            
+            // 尝试从剧集标题中提取集数
+            if (!match.episode || match.episode === 0) {
+                const episodeMatch = match.episodeTitle?.match(/第(\d+)集/);
+                if (episodeMatch) {
+                    match.episode = parseInt(episodeMatch[1]);
+                }
+            }
+            
+            matchInfo = match;
+        }      
       
       if (!matchResult.success) {
         throw new Error(matchResult.errorMessage || '匹配失败');
@@ -6927,12 +6952,24 @@ async function testDanmuByUrl() {
        'bahamut': '巴哈姆特'
      };
      
-     document.getElementById('matchedAnimeTitle').textContent = matchInfo.animeTitle || '未知';
-     document.getElementById('matchedEpisodeTitle').textContent = matchInfo.episodeTitle || '未知集数';
-     document.getElementById('matchedPlatform').textContent = platformNames[matchInfo.type] || matchInfo.type || '未知';
-     document.getElementById('matchedSeason').textContent = 'S' + (matchInfo.season || '?').toString().padStart(2, '0');
-     document.getElementById('matchedEpisode').textContent = 'E' + (matchInfo.episode || '?').toString().padStart(2, '0');
-     document.getElementById('matchedEpisodeId').textContent = matchInfo.episodeId || '-';
+        document.getElementById('matchedAnimeTitle').textContent = matchInfo.animeTitle || '未知';
+        document.getElementById('matchedEpisodeTitle').textContent = matchInfo.episodeTitle || '未知集数';
+        document.getElementById('matchedPlatform').textContent = platformNames[matchInfo.type] || matchInfo.type || '未知';
+        
+        // 修复：正确处理季数和集数的显示
+        const seasonNumber = parseInt(matchInfo.season) || 0;
+        const episodeNumber = parseInt(matchInfo.episode) || 0;
+        
+        document.getElementById('matchedSeason').textContent = seasonNumber > 0 
+            ? 'S' + seasonNumber.toString().padStart(2, '0')
+            : 'S01';
+        
+        document.getElementById('matchedEpisode').textContent = episodeNumber > 0
+            ? 'E' + episodeNumber.toString().padStart(2, '0')
+            : 'E' + (matchInfo.episodeTitle?.match(/第(\d+)集/) ? matchInfo.episodeTitle.match(/第(\d+)集/)[1].padStart(2, '0') : '01');
+        
+        document.getElementById('matchedEpisodeId').textContent = matchInfo.episodeId || '-';
+
      
      matchResultCard.style.display = 'block';
    }
