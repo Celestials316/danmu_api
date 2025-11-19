@@ -872,107 +872,86 @@ async function handleHomepage(req) {
       'bahamut': 'BH'
     };
     
-// 生成最近匹配列表HTML
-let recentMatchesHtml = '';
-try {
-  if (globals.lastSelectMap && globals.lastSelectMap.size > 0) {
-    // 获取最后5条，倒序
-    const recentEntries = Array.from(globals.lastSelectMap.entries()).slice(-5).reverse();
-    recentMatchesHtml = recentEntries.map(([key, value]) => {
-       let animeId = '未知';
-       let source = '未知';
-       let animeTitle = key || '未知番剧';
+        // 生成最近匹配列表HTML
+    let recentMatchesHtml = '';
+    try {
+      if (globals.lastSelectMap && globals.lastSelectMap.size > 0) {
+        // 获取最后5条，倒序
+        const recentEntries = Array.from(globals.lastSelectMap.entries()).slice(-5).reverse();
+        recentMatchesHtml = recentEntries.map(([key, value]) => {
+           let animeId = '未知';
+           let source = '未知';
 
-       // --- 深度解析逻辑 ---
-       if (Array.isArray(value)) {
-           // 情况1: [id, source]
-           animeId = value[0];
-           source = value[1] || '未知';
-       } else if (typeof value === 'object' && value !== null) {
-           // 情况2: {val: id, source: src}
-           animeId = value.val || value.id || value.animeId || value.value || '未知';
-           source = value.source || value.src || value.type || '未知';
-       } else {
-           // 情况3: 纯字符串/数字
-           animeId = value;
-       }
-       
-       // 二次检查：如果提取出的 animeId 依然是个对象
-       if (typeof animeId === 'object' && animeId !== null) {
-           try {
-               animeId = animeId.id || animeId.val || JSON.stringify(animeId);
-           } catch(e) {
-               animeId = String(animeId);
+           // --- 深度解析逻辑，修复 [object Object] 问题 ---
+           if (Array.isArray(value)) {
+               // 情况1: [id, source]
+               animeId = value[0];
+               source = value[1] || '未知';
+           } else if (typeof value === 'object' && value !== null) {
+               // 情况2: {val: id, source: src}
+               animeId = value.val || value.id || value.animeId || value.value || '未知';
+               source = value.source || value.src || value.type || '未知';
+           } else {
+               // 情况3: 纯字符串/数字
+               animeId = value;
            }
-       }
            
-       // 截断过长的 ID
-       let displayId = String(animeId);
-       if (displayId.length > 30) displayId = displayId.substring(0, 30) + '...';
-       if (displayId === '{}' || displayId === '[]') displayId = '未知';
+           // 二次检查：如果提取出的 animeId 依然是个对象
+           if (typeof animeId === 'object' && animeId !== null) {
+               try {
+                   // 尝试提取嵌套对象的 id，或者转为字符串
+                   animeId = animeId.id || animeId.val || JSON.stringify(animeId);
+               } catch(e) {
+                   animeId = String(animeId);
+               }
+           }
+           
+           // 截断过长的 ID
+           let displayId = String(animeId);
+           if (displayId.length > 30) displayId = displayId.substring(0, 30) + '...';
+           if (displayId === '{}' || displayId === '[]') displayId = '未知';
 
-       // 处理来源显示 - 优化版本
-       const sourceMap = {
-         'qiyi': '爱奇艺',
-         'bilibili1': '哔哩哔哩',
-         'imgo': 'IMGO',
-         'youku': '优酷',
-         'qq': '腾讯视频',
-         'renren': '人人影视',
-         'hanjutv': '韩剧TV',
-         'bahamut': '巴哈姆特',
-         '未知': 'Unknown',
-         'unknown': 'Unknown'
-       };
-       
-       const sourceText = sourceMap[source] || source;
-       const iconText = source === '未知' || source === 'unknown' ? '?' : sourceText.charAt(0);
-       const badgeClass = source === 'unknown' || source === '未知' ? 'badge-secondary' : 'badge-info';
+           // 处理来源显示
+           const sourceText = source === '未知' ? 'Unknown' : source;
+           // 图标文字 (首字母大写)
+           const iconText = source === '未知' ? '?' : source.charAt(0).toUpperCase();
+           // 来源标签样式
+           const badgeClass = source === 'unknown' || source === '未知' ? 'badge-secondary' : 'badge-info';
 
-       return `
-        <div class="server-item" style="padding: 12px 16px; margin-bottom: 8px; display: flex; align-items: center; gap: 14px; transition: all 0.2s ease;">
-          <div class="server-badge" style="width: 36px; height: 36px; font-size: 16px; background: linear-gradient(135deg, var(--primary-500), var(--primary-600)); color: white; box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3); border: none; flex-shrink: 0; font-weight: 700;">
-            ${iconText}
-          </div>
-          
-          <div class="server-info" style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;">
-            <div class="server-name" style="font-size: 14px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${animeTitle}">
-                ${animeTitle}
+           return `
+            <div class="server-item" style="padding: 12px 16px; margin-bottom: 8px; display: flex; align-items: center; gap: 14px;">
+              <div class="server-badge" style="width: 36px; height: 36px; font-size: 16px; background: var(--bg-tertiary); color: var(--primary-500); box-shadow: none; border: 1px solid var(--border-color); flex-shrink: 0;">
+                ${iconText}
+              </div>
+              
+              <div class="server-info" style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;">
+                <div class="server-name" style="font-size: 14px; font-weight: 700; color: var(--text-primary); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                    ${key}
+                </div>
+                <div class="server-url" style="font-size: 12px; color: var(--text-secondary); font-family: monospace;">
+                  ID: <span style="color: var(--primary-400);">${displayId}</span>
+                </div>
+              </div>
+
+              <div style="flex-shrink: 0;">
+                 <span class="badge ${badgeClass}" style="padding: 4px 8px; font-size: 11px; border-radius: 6px;">
+                    ${sourceText}
+                 </span>
+              </div>
             </div>
-            <div class="server-url" style="font-size: 12px; color: var(--text-secondary); font-family: 'Monaco', 'Menlo', 'Consolas', monospace;">
-              <span style="opacity: 0.7;">ID:</span> <span style="color: var(--primary-400); font-weight: 600;">${displayId}</span>
-            </div>
+           `;
+        }).join('');
+      } else {
+        recentMatchesHtml = `
+          <div class="empty-state" style="padding: 24px; text-align: center;">
+            <div class="empty-state-icon" style="font-size: 32px; margin-bottom: 10px; opacity: 0.5;">📭</div>
+            <div class="empty-state-description" style="font-size: 13px;">暂无最近匹配记录</div>
           </div>
-
-          <div style="flex-shrink: 0;">
-             <span class="badge ${badgeClass}" style="padding: 5px 10px; font-size: 11px; font-weight: 600; border-radius: 6px; letter-spacing: 0.3px;">
-                ${sourceText}
-             </span>
-          </div>
-        </div>
-       `;
-    }).join('');
-  } else {
-
-    recentMatchesHtml = `
-      <div class="empty-state" style="padding: 32px; text-align: center;">
-        <div class="empty-state-icon" style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;">📭</div>
-        <div style="font-size: 15px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px;">暂无匹配记录</div>
-        <div class="empty-state-description" style="font-size: 13px; color: var(--text-tertiary);">使用 Match 接口后会显示最近的匹配结果</div>
-      </div>
-    `;
-  }
-} catch (e) {
-  recentMatchesHtml = `
-    <div class="alert alert-error" style="margin: 16px; padding: 14px; border-radius: 10px;">
-      <svg class="alert-icon" viewBox="0 0 24 24" width="18" height="18" style="vertical-align: middle; margin-right: 8px;">
-        <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
-        <path d="M12 8v4m0 4h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-      </svg>
-      <span style="vertical-align: middle;">读取记录失败: ${e.message}</span>
-    </div>
-  `;
-}
+        `;
+      }
+    } catch (e) {
+      recentMatchesHtml = `<div class="alert alert-error" style="margin: 10px;">读取记录失败: ${e.message}</div>`;
+    }
 
 
     const sourcesHtml = globals.sourceOrderArr.length > 0 
@@ -4133,15 +4112,15 @@ try {
                </svg>
                最近匹配信息
              </h3>
-             <span class="badge badge-secondary" style="font-weight: normal; font-size: 11px; padding: 4px 10px;">最新 5 条</span>
+             <span class="badge badge-secondary" style="font-weight: normal; font-size: 11px;">最新 5 条</span>
            </div>
-           <button class="icon-btn" onclick="refreshRecentMatches()" title="刷新列表 (F5)" style="width: 36px; height: 36px; transition: all 0.3s ease;">
-             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor">
+           <button class="icon-btn" onclick="window.location.reload()" title="刷新列表" style="width: 32px; height: 32px;">
+             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor">
                <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
              </svg>
            </button>
          </div>
-         <div id="recentMatchesList" class="server-grid" style="gap: 0;">
+         <div class="server-grid" style="gap: 0;">
            ${recentMatchesHtml}
          </div>
        </div>
@@ -5916,171 +5895,6 @@ try {
      } catch (error) {
        console.error('从服务器加载配置失败:', error);
        showToast('欢迎回来! 弹幕 API 管理后台已就绪', 'success');
-     }
-   }
-
-   // ========== 刷新最近匹配信息功能 ==========
-   async function refreshRecentMatches() {
-     const listContainer = document.getElementById('recentMatchesList');
-     if (!listContainer) return;
-
-     // 显示加载状态
-     listContainer.innerHTML = `
-       <div style="text-align: center; padding: 32px;">
-         <span class="loading-spinner" style="display: inline-block; width: 32px; height: 32px; border-width: 3px;"></span>
-         <div style="margin-top: 16px; color: var(--text-secondary); font-size: 14px;">正在加载最新数据...</div>
-       </div>
-     `;
-
-     try {
-       // 从服务器加载最新配置（包含 lastSelectMap）
-       const response = await fetch('/api/config/load', { cache: 'no-cache' });
-       const result = await response.json();
-
-       if (result.success && result.config) {
-         // 更新本地状态
-         AppState.config = { ...AppState.config, ...result.config };
-         
-         // 重新渲染匹配列表
-         await renderRecentMatches();
-         
-         showToast('✅ 最近匹配信息已刷新', 'success', 2000);
-       } else {
-         throw new Error('加载失败');
-       }
-     } catch (error) {
-       console.error('刷新失败:', error);
-       listContainer.innerHTML = `
-         <div class="alert alert-error" style="margin: 16px;">
-           <svg class="alert-icon" viewBox="0 0 24 24" width="18" height="18">
-             <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
-             <path d="M12 8v4m0 4h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-           </svg>
-           <span>刷新失败: ${error.message}</span>
-         </div>
-       `;
-       showToast('❌ 刷新失败', 'error');
-     }
-   }
-
-   // 渲染最近匹配列表
-   async function renderRecentMatches() {
-     const listContainer = document.getElementById('recentMatchesList');
-     if (!listContainer) return;
-
-     try {
-       // 🔥 从 Redis/数据库加载最新的 lastSelectMap
-       let lastSelectData = {};
-       
-       if (globals.redisValid) {
-         const { getRedisKey } = await import('./utils/redis-util.js');
-         const result = await getRedisKey('lastSelectMap');
-         if (result?.result) {
-           lastSelectData = JSON.parse(result.result);
-         }
-       } else if (globals.databaseValid) {
-         const { loadCacheData } = await import('./utils/db-util.js');
-         const cache = await loadCacheData('lastSelectMap');
-         if (cache) {
-           lastSelectData = cache;
-         }
-       }
-
-       if (Object.keys(lastSelectData).length === 0) {
-         listContainer.innerHTML = `
-           <div class="empty-state" style="padding: 32px; text-align: center;">
-             <div class="empty-state-icon" style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;">📭</div>
-             <div style="font-size: 15px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px;">暂无匹配记录</div>
-             <div class="empty-state-description" style="font-size: 13px; color: var(--text-tertiary);">使用 Match 接口后会显示最近的匹配结果</div>
-           </div>
-         `;
-         return;
-       }
-
-       // 获取最后5条记录
-       const recentEntries = Object.entries(lastSelectData).slice(-5).reverse();
-       
-       const html = recentEntries.map(([key, value]) => {
-         let animeId = '未知';
-         let source = '未知';
-         let animeTitle = key || '未知番剧';
-
-         if (Array.isArray(value)) {
-           animeId = value[0];
-           source = value[1] || '未知';
-         } else if (typeof value === 'object' && value !== null) {
-           animeId = value.val || value.id || value.animeId || value.value || '未知';
-           source = value.source || value.src || value.type || '未知';
-         } else {
-           animeId = value;
-         }
-
-         if (typeof animeId === 'object' && animeId !== null) {
-           try {
-             animeId = animeId.id || animeId.val || JSON.stringify(animeId);
-           } catch(e) {
-             animeId = String(animeId);
-           }
-         }
-
-         let displayId = String(animeId);
-         if (displayId.length > 30) displayId = displayId.substring(0, 30) + '...';
-         if (displayId === '{}' || displayId === '[]') displayId = '未知';
-
-         const sourceMap = {
-           'qiyi': '爱奇艺',
-           'bilibili1': '哔哩哔哩',
-           'imgo': 'IMGO',
-           'youku': '优酷',
-           'qq': '腾讯视频',
-           'renren': '人人影视',
-           'hanjutv': '韩剧TV',
-           'bahamut': '巴哈姆特',
-           '未知': 'Unknown',
-           'unknown': 'Unknown'
-         };
-         
-         const sourceText = sourceMap[source] || source;
-         const iconText = source === '未知' || source === 'unknown' ? '?' : sourceText.charAt(0);
-         const badgeClass = source === 'unknown' || source === '未知' ? 'badge-secondary' : 'badge-info';
-
-         return `
-          <div class="server-item" style="padding: 12px 16px; margin-bottom: 8px; display: flex; align-items: center; gap: 14px; transition: all 0.2s ease; animation: slideInFromLeft 0.3s ease-out;">
-            <div class="server-badge" style="width: 36px; height: 36px; font-size: 16px; background: linear-gradient(135deg, var(--primary-500), var(--primary-600)); color: white; box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3); border: none; flex-shrink: 0; font-weight: 700;">
-              ${iconText}
-            </div>
-            
-            <div class="server-info" style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;">
-              <div class="server-name" style="font-size: 14px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${animeTitle}">
-                  ${animeTitle}
-              </div>
-              <div class="server-url" style="font-size: 12px; color: var(--text-secondary); font-family: 'Monaco', 'Menlo', 'Consolas', monospace;">
-                <span style="opacity: 0.7;">ID:</span> <span style="color: var(--primary-400); font-weight: 600;">${displayId}</span>
-              </div>
-            </div>
-
-            <div style="flex-shrink: 0;">
-               <span class="badge ${badgeClass}" style="padding: 5px 10px; font-size: 11px; font-weight: 600; border-radius: 6px; letter-spacing: 0.3px;">
-                  ${sourceText}
-               </span>
-            </div>
-          </div>
-         `;
-       }).join('');
-
-       listContainer.innerHTML = html;
-
-     } catch (error) {
-       console.error('渲染列表失败:', error);
-       listContainer.innerHTML = `
-         <div class="alert alert-error" style="margin: 16px;">
-           <svg class="alert-icon" viewBox="0 0 24 24" width="18" height="18">
-             <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
-             <path d="M12 8v4m0 4h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-           </svg>
-           <span>加载失败: ${error.message}</span>
-         </div>
-       `;
      }
    }
 
