@@ -27,7 +27,7 @@ const Globals = {
   storageChecked: false, // 🔥 新增:标记是否已检查存储连接
 
   // 静态常量
-  VERSION: '1.7.8',
+  VERSION: '1.7.9',
   MAX_LOGS: 500,
   MAX_ANIMES: 100,
   MAX_LAST_SELECT_MAP: 1000,
