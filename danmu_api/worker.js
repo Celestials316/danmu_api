@@ -876,13 +876,13 @@ async function handleHomepage(req) {
     let recentMatchesHtml = '';
     try {
       if (globals.lastSelectMap && globals.lastSelectMap.size > 0) {
-        // 获取最后5条，倒序 (增加过滤逻辑：排除 ID 为 253047 的 天气之子 测试数据)
+        // 排除测试数据
         const recentEntries = Array.from(globals.lastSelectMap.entries())
           .filter(([key, value]) => key != 253047 && key != '253047')
           .slice(-5).reverse();
           
         recentMatchesHtml = recentEntries.map(([key, value]) => {
-           // value 可能是 [animeId, source] 数组, 对象, 或者直接是 animeId
+           // === 1. 数据提取逻辑 (保持不变) ===
            let animeId = value;
            let source = '未知';
 
@@ -890,10 +890,7 @@ async function handleHomepage(req) {
              animeId = value[0];
              source = value[1] || '未知';
            } else if (typeof value === 'object' && value !== null) {
-             // 优化：提取 Source
              source = value.source || value.type || value.site || '未知';
-             
-             // 优化：提取 ID
              if (value.prefer) animeId = value.prefer;
              else if (value.animeId) animeId = value.animeId;
              else if (value.id) animeId = value.id;
@@ -905,35 +902,33 @@ async function handleHomepage(req) {
                if (animeId.length > 20 && animeId.startsWith('{')) animeId = '复杂数据';
              }
            }
+           if (typeof animeId === 'object') animeId = JSON.stringify(animeId);
 
-           // 再次确保 animeId 不是对象，如果是则转字符串
-           if (typeof animeId === 'object') {
-             animeId = JSON.stringify(animeId);
-           }
-
-           // 🔥 修正点：使用 animeId (剧集ID) 而不是 key (文件名) 来查询
-           // 这里的 animeId 变量实际上存储的是 EpisodeId
-           const episodeTitle = findTitleById(animeId) || '未知剧集';
-           const url = findUrlById(animeId);
+           // === 2. 标题与弹幕获取逻辑 (修改这里) ===
            
+           // 尝试获取官方标题
+           const officialTitle = findTitleById(animeId);
+           
+           // 核心修改：如果官方标题存在且有效，用官方的；否则直接把 key (文件名/水龙吟) 提上来做标题
+           const displayTitle = (officialTitle && officialTitle !== '未知剧集') ? officialTitle : key;
+
+           const url = findUrlById(animeId);
            let danmuCount = 0;
            if (url) {
              const cache = getCommentCache(url);
              if (cache) danmuCount = cache.length;
            }
            
-           // 格式化显示：如果标题是"未知剧集"但ID存在，可能缓存未命中，此时至少显示ID
-           const displayTitle = episodeTitle === '未知剧集' ? `剧集 ID: ${animeId}` : episodeTitle;
-
            return `
             <div class="server-item" style="padding: 12px; margin-bottom: 8px;">
-              <div class="server-badge" style="width: 32px; height: 32px; font-size: 12px; background: var(--bg-tertiary); color: var(--text-secondary); box-shadow: none; border: 1px solid var(--border-color);">ID</div>
+              <div class="server-badge" style="width: 32px; height: 32px; font-size: 12px; background: var(--bg-tertiary); color: var(--text-secondary); box-shadow: none; border: 1px solid var(--border-color);">Play</div>
               <div class="server-info">
-                <div class="server-name" style="font-size: 14px; font-weight: 700; margin-bottom: 4px; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${displayTitle}">${displayTitle}</div>
+                <div class="server-name" style="font-size: 14px; font-weight: 700; margin-bottom: 4px; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${displayTitle}">
+                    ${displayTitle}
+                </div>
+                
                 <div class="server-url" style="font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                  <span style="font-family: monospace; opacity: 0.8; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${key}">${key}</span>
-                  <span>→</span>
-                  <span style="color: var(--primary-400); font-weight: 600;">${animeId}</span> 
+                  <span style="font-family: monospace; opacity: 0.8;">ID: ${animeId}</span>
                   <span class="badge badge-secondary" style="padding: 1px 6px; font-size: 10px; border-radius: 4px;">${source}</span>
                   <span class="badge badge-info" style="padding: 1px 6px; font-size: 10px; border-radius: 4px;">${danmuCount} 条弹幕</span>
                 </div>
