@@ -6907,12 +6907,16 @@ async function handleHomepage(req) {
         if (!token || token === '87654321') {
             return '/api/v2';
         } else {
-            return `/${token}/api/v2`;
+            // 修复：使用字符串拼接代替模板字符串，防止破坏外部 HTML 结构
+            return '/' + token + '/api/v2';
         }
     }
 
     // 2. 安全的 fetch 包装器 (处理非 JSON 错误响应)
-    async function safeFetch(url, options = {}) {
+    async function safeFetch(url, options) {
+        // 默认参数处理
+        options = options || {};
+        
         const response = await fetch(url, options);
         const text = await response.text();
         
@@ -6920,12 +6924,14 @@ async function handleHomepage(req) {
         try {
             data = JSON.parse(text);
         } catch (e) {
-            // 如果解析失败，说明返回的不是 JSON (可能是 404/500 HTML 页面)
-            throw new Error(response.ok ? '服务器返回了无效的 JSON 数据' : `请求失败 (${response.status}): ${text.substring(0, 100)}...`);
+            // 修复：使用字符串拼接
+            const errorMsg = response.ok ? '服务器返回了无效的 JSON 数据' : '请求失败 (' + response.status + '): ' + text.substring(0, 100) + '...';
+            throw new Error(errorMsg);
         }
         
         if (!response.ok) {
-            throw new Error(data.errorMessage || data.message || data.error || `HTTP ${response.status} 错误`);
+            const errorMsg = data.errorMessage || data.message || data.error || 'HTTP ' + response.status + ' 错误';
+            throw new Error(errorMsg);
         }
         
         return data;
@@ -6969,7 +6975,8 @@ async function handleHomepage(req) {
             
             if (input.startsWith('http://') || input.startsWith('https://')) {
                 // URL 模式
-                apiUrl = `${apiBase}/comment?url=${encodeURIComponent(input)}&format=json`;
+                // 修复：使用字符串拼接
+                apiUrl = apiBase + '/comment?url=' + encodeURIComponent(input) + '&format=json';
             } else if (apiType === 'anime') {
                 // Anime 接口模式
                 if (!episode) {
@@ -6978,7 +6985,8 @@ async function handleHomepage(req) {
 
                 showToast('🔍 第1步：搜索番剧 "' + input + '"', 'info', 2000);
                 
-                const searchUrl = `${apiBase}/search/anime?keyword=${encodeURIComponent(input)}`;
+                // 修复：使用字符串拼接
+                const searchUrl = apiBase + '/search/anime?keyword=' + encodeURIComponent(input);
                 const searchResult = await safeFetch(searchUrl);
                 
                 if (!searchResult.success || !searchResult.animes || searchResult.animes.length === 0) {
@@ -6991,16 +6999,18 @@ async function handleHomepage(req) {
                 showToast('✅ 找到番剧: ' + anime.animeTitle, 'success', 2000);
                 showToast('🔍 第2步：获取剧集列表...', 'info', 2000);
                 
-                const bangumiUrl = `${apiBase}/bangumi/${animeId}`;
+                // 修复：使用字符串拼接
+                const bangumiUrl = apiBase + '/bangumi/' + animeId;
                 const bangumiResult = await safeFetch(bangumiUrl);
                 
                 if (!bangumiResult.success || !bangumiResult.bangumi || !bangumiResult.bangumi.episodes) {
                     throw new Error('获取剧集列表失败');
                 }
                 
-                const targetEpisode = bangumiResult.bangumi.episodes.find(ep => 
-                    ep.episodeNumber == episode || parseInt(ep.episodeNumber) === parseInt(episode)
-                );
+                // 查找对应集数
+                const targetEpisode = bangumiResult.bangumi.episodes.find(function(ep) {
+                    return ep.episodeNumber == episode || parseInt(ep.episodeNumber) === parseInt(episode);
+                });
                 
                 if (!targetEpisode) {
                     throw new Error('未找到第 ' + episode + ' 集，共 ' + bangumiResult.bangumi.episodes.length + ' 集');
@@ -7021,7 +7031,7 @@ async function handleHomepage(req) {
                     type: anime.source || 'unknown'
                 };
                 
-                apiUrl = `${apiBase}/comment/${episodeId}?format=json`;
+                apiUrl = apiBase + '/comment/' + episodeId + '?format=json';
                 
             } else {
                 // Match 接口模式
@@ -7046,7 +7056,8 @@ async function handleHomepage(req) {
                 
                 showToast('🔍 正在智能匹配: ' + searchQuery, 'info', 2000);
                 
-                const matchResponse = await safeFetch(`${apiBase}/match`, {
+                // 修复：使用字符串拼接
+                const matchResponse = await safeFetch(apiBase + '/match', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ fileName: searchQuery })
@@ -7062,7 +7073,7 @@ async function handleHomepage(req) {
                 showToast('✅ 匹配成功: ' + match.animeTitle, 'success', 2000);
                 showToast('正在获取弹幕...', 'info', 2000);
                 
-                apiUrl = `${apiBase}/comment/${match.episodeId}?format=json`;
+                apiUrl = apiBase + '/comment/' + match.episodeId + '?format=json';
             }
 
             // 获取最终弹幕
