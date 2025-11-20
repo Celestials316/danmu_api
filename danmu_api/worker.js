@@ -6,7 +6,7 @@ import path from 'path';
 import { jsonResponse } from './utils/http-util.js';
 import { log, formatLogMessage } from './utils/log-util.js'
 import { getRedisCaches, judgeRedisValid } from "./utils/redis-util.js";
-import { cleanupExpiredIPs, findUrlById, getCommentCache } from "./utils/cache-util.js";
+import { cleanupExpiredIPs, findUrlById, getCommentCache, findTitleById } from "./utils/cache-util.js";
 import { formatDanmuResponse } from "./utils/danmu-util.js";
 import { getBangumi, getComment, getCommentByUrl, matchAnime, searchAnime, searchEpisodes } from "./apis/dandan-api.js";
 
@@ -872,17 +872,17 @@ async function handleHomepage(req) {
       'bahamut': 'BH'
     };
     
-            // 生成最近匹配列表HTML
+    // 生成最近匹配列表HTML
     let recentMatchesHtml = '';
     try {
       if (globals.lastSelectMap && globals.lastSelectMap.size > 0) {
-        // 获取最后5条，倒序 (增加过滤逻辑：排除 ID 为 253047 的 天气之子 测试数据)
+        // 排除测试数据
         const recentEntries = Array.from(globals.lastSelectMap.entries())
           .filter(([key, value]) => key != 253047 && key != '253047')
           .slice(-5).reverse();
           
         recentMatchesHtml = recentEntries.map(([key, value]) => {
-           // value 可能是 [animeId, source] 数组, 对象, 或者直接是 animeId
+           // === 1. 数据提取逻辑 (保持不变) ===
            let animeId = value;
            let source = '未知';
 
@@ -890,38 +890,47 @@ async function handleHomepage(req) {
              animeId = value[0];
              source = value[1] || '未知';
            } else if (typeof value === 'object' && value !== null) {
-             // 优化：提取 Source (增加 site 字段兼容)
              source = value.source || value.type || value.site || '未知';
-             
-             // 优化：提取 ID，逻辑更清晰，避免空数组显示为 JSON
              if (value.prefer) animeId = value.prefer;
              else if (value.animeId) animeId = value.animeId;
              else if (value.id) animeId = value.id;
              else if (value.episodeId) animeId = value.episodeId;
              else if (Array.isArray(value.animeIds)) {
-               // 如果是空数组，显示未匹配，而不是 JSON
                animeId = value.animeIds.length > 0 ? value.animeIds[0] : '暂无匹配';
              } else {
-               // 最后的兜底
                animeId = JSON.stringify(value);
-               // 如果 JSON 过长（例如完整对象），显示简略信息
                if (animeId.length > 20 && animeId.startsWith('{')) animeId = '复杂数据';
              }
            }
+           if (typeof animeId === 'object') animeId = JSON.stringify(animeId);
 
-           // 再次确保 animeId 不是对象，如果是则转字符串
-           if (typeof animeId === 'object') {
-             animeId = JSON.stringify(animeId);
+           // === 2. 标题与弹幕获取逻辑 (修改这里) ===
+           
+           // 尝试获取官方标题
+           const officialTitle = findTitleById(animeId);
+           
+           // 核心修改：如果官方标题存在且有效，用官方的；否则直接把 key (文件名/水龙吟) 提上来做标题
+           const displayTitle = (officialTitle && officialTitle !== '未知剧集') ? officialTitle : key;
+
+           const url = findUrlById(animeId);
+           let danmuCount = 0;
+           if (url) {
+             const cache = getCommentCache(url);
+             if (cache) danmuCount = cache.length;
            }
            
            return `
             <div class="server-item" style="padding: 12px; margin-bottom: 8px;">
-              <div class="server-badge" style="width: 32px; height: 32px; font-size: 12px; background: var(--bg-tertiary); color: var(--text-secondary); box-shadow: none; border: 1px solid var(--border-color);">ID</div>
+              <div class="server-badge" style="width: 32px; height: 32px; font-size: 12px; background: var(--bg-tertiary); color: var(--text-secondary); box-shadow: none; border: 1px solid var(--border-color);">Play</div>
               <div class="server-info">
-                <div class="server-name" style="font-size: 13px; font-family: monospace; margin-bottom: 2px;">${key}</div>
-                <div class="server-url" style="font-size: 12px; color: var(--text-secondary);">
-                  映射至: <span style="color: var(--primary-400); font-weight: 600;">${animeId}</span> 
-                  <span class="badge badge-secondary" style="padding: 1px 6px; font-size: 10px; margin-left: 4px; border-radius: 4px;">${source}</span>
+                <div class="server-name" style="font-size: 14px; font-weight: 700; margin-bottom: 4px; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${displayTitle}">
+                    ${displayTitle}
+                </div>
+                
+                <div class="server-url" style="font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                  <span style="font-family: monospace; opacity: 0.8;">ID: ${animeId}</span>
+                  <span class="badge badge-secondary" style="padding: 1px 6px; font-size: 10px; border-radius: 4px;">${source}</span>
+                  <span class="badge badge-info" style="padding: 1px 6px; font-size: 10px; border-radius: 4px;">${danmuCount} 条弹幕</span>
                 </div>
               </div>
             </div>
