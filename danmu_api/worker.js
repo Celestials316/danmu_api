@@ -890,21 +890,18 @@ async function handleHomepage(req) {
              animeId = value[0];
              source = value[1] || '未知';
            } else if (typeof value === 'object' && value !== null) {
-             // 优化：提取 Source (增加 site 字段兼容)
+             // 优化：提取 Source
              source = value.source || value.type || value.site || '未知';
              
-             // 优化：提取 ID，逻辑更清晰，避免空数组显示为 JSON
+             // 优化：提取 ID
              if (value.prefer) animeId = value.prefer;
              else if (value.animeId) animeId = value.animeId;
              else if (value.id) animeId = value.id;
              else if (value.episodeId) animeId = value.episodeId;
              else if (Array.isArray(value.animeIds)) {
-               // 如果是空数组，显示未匹配，而不是 JSON
                animeId = value.animeIds.length > 0 ? value.animeIds[0] : '暂无匹配';
              } else {
-               // 最后的兜底
                animeId = JSON.stringify(value);
-               // 如果 JSON 过长（例如完整对象），显示简略信息
                if (animeId.length > 20 && animeId.startsWith('{')) animeId = '复杂数据';
              }
            }
@@ -914,22 +911,27 @@ async function handleHomepage(req) {
              animeId = JSON.stringify(animeId);
            }
 
-           // 🔥 新增：获取剧名和弹幕数量
-           const episodeTitle = findTitleById(key) || '未知剧集';
-           const url = findUrlById(key);
+           // 🔥 修正点：使用 animeId (剧集ID) 而不是 key (文件名) 来查询
+           // 这里的 animeId 变量实际上存储的是 EpisodeId
+           const episodeTitle = findTitleById(animeId) || '未知剧集';
+           const url = findUrlById(animeId);
+           
            let danmuCount = 0;
            if (url) {
              const cache = getCommentCache(url);
              if (cache) danmuCount = cache.length;
            }
            
+           // 格式化显示：如果标题是"未知剧集"但ID存在，可能缓存未命中，此时至少显示ID
+           const displayTitle = episodeTitle === '未知剧集' ? `剧集 ID: ${animeId}` : episodeTitle;
+
            return `
             <div class="server-item" style="padding: 12px; margin-bottom: 8px;">
               <div class="server-badge" style="width: 32px; height: 32px; font-size: 12px; background: var(--bg-tertiary); color: var(--text-secondary); box-shadow: none; border: 1px solid var(--border-color);">ID</div>
               <div class="server-info">
-                <div class="server-name" style="font-size: 14px; font-weight: 700; margin-bottom: 4px; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${episodeTitle}</div>
+                <div class="server-name" style="font-size: 14px; font-weight: 700; margin-bottom: 4px; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${displayTitle}">${displayTitle}</div>
                 <div class="server-url" style="font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                  <span style="font-family: monospace; opacity: 0.8;">${key}</span>
+                  <span style="font-family: monospace; opacity: 0.8; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${key}">${key}</span>
                   <span>→</span>
                   <span style="color: var(--primary-400); font-weight: 600;">${animeId}</span> 
                   <span class="badge badge-secondary" style="padding: 1px 6px; font-size: 10px; border-radius: 4px;">${source}</span>
