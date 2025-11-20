@@ -890,10 +890,23 @@ async function handleHomepage(req) {
              animeId = value[0];
              source = value[1] || '未知';
            } else if (typeof value === 'object' && value !== null) {
-             // 优化：如果是对象，尝试提取 prefer/animeId/id/episodeId，避免显示 [object Object]
-             // 针对 {"animeIds":[...], "prefer": 123, "source": "..."} 这种情况，优先取 prefer
-             animeId = value.prefer || value.animeId || value.id || value.episodeId || (Array.isArray(value.animeIds) ? value.animeIds[0] : null) || JSON.stringify(value);
-             source = value.source || value.type || '未知';
+             // 优化：提取 Source (增加 site 字段兼容)
+             source = value.source || value.type || value.site || '未知';
+             
+             // 优化：提取 ID，逻辑更清晰，避免空数组显示为 JSON
+             if (value.prefer) animeId = value.prefer;
+             else if (value.animeId) animeId = value.animeId;
+             else if (value.id) animeId = value.id;
+             else if (value.episodeId) animeId = value.episodeId;
+             else if (Array.isArray(value.animeIds)) {
+               // 如果是空数组，显示未匹配，而不是 JSON
+               animeId = value.animeIds.length > 0 ? value.animeIds[0] : '暂无匹配';
+             } else {
+               // 最后的兜底
+               animeId = JSON.stringify(value);
+               // 如果 JSON 过长（例如完整对象），显示简略信息
+               if (animeId.length > 20 && animeId.startsWith('{')) animeId = '复杂数据';
+             }
            }
 
            // 再次确保 animeId 不是对象，如果是则转字符串
