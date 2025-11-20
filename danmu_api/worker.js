@@ -6518,7 +6518,7 @@ function loadVodHealthList() {
   }
 
   const html = vodServers.map((server, index) => {
-    let serverName = `服务器 #${index + 1}`;
+    let serverName = 'Server #' + (index + 1);
     let serverUrl = '';
     let isBuiltin = false;
 
@@ -6537,51 +6537,44 @@ function loadVodHealthList() {
     }
 
     const builtinBadge = isBuiltin ? '<div class="server-badge default-badge" style="position: absolute; top: 16px; right: 16px; font-size: 11px; padding: 2px 8px;">内置</div>' : '';
-    const deleteButton = !isBuiltin ? `
-      <button class="icon-btn delete-btn" onclick="deleteVodServer(${index})" title="删除">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor">
-          <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke-width="2"/>
-        </svg>
-      </button>
-    ` : '';
+    const deleteButton = !isBuiltin ? '<button class="icon-btn delete-btn" onclick="deleteVodServer(' + index + ')" title="删除"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke-width="2"/></svg></button>' : '';
 
-    return `
-      <div class="server-item" data-index="${index}" id="vod-health-${index}" style="position: relative;">
-        ${builtinBadge}
-        <div class="server-badge">${index + 1}</div>
-        <div class="server-info">
-          <div class="server-name">${serverName}</div>
-          <div class="server-url">${serverUrl}</div>
-          <div style="margin-top: 8px; font-size: 12px; color: var(--text-tertiary);">
-            <span id="vod-status-${index}" style="display: inline-flex; align-items: center; gap: 4px;">
-              <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--text-tertiary);"></span>
-              未测试
-            </span>
-            <span style="margin: 0 8px;">|</span>
-            <span id="vod-time-${index}">- ms</span>
-          </div>
-        </div>
-        <div class="server-actions">
-          <button class="icon-btn" onclick="testSingleVod(${index})" title="测试连接">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor">
-              <path d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" fill="currentColor"/>
-              <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
-            </svg>
-          </button>
-          <button class="icon-btn" onclick="editVodServer(${index})" title="编辑">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke-width="2"/>
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke-width="2"/>
-            </svg>
-          </button>
-          ${deleteButton}
-        </div>
-      </div>
-    `;
+    return '<div class="server-item" data-index="' + index + '" id="vod-health-' + index + '" style="position: relative;">' +
+      builtinBadge +
+      '<div class="server-badge">' + (index + 1) + '</div>' +
+      '<div class="server-info">' +
+        '<div class="server-name">' + serverName + '</div>' +
+        '<div class="server-url">' + serverUrl + '</div>' +
+        '<div style="margin-top: 8px; font-size: 12px; color: var(--text-tertiary);">' +
+          '<span id="vod-status-' + index + '" style="display: inline-flex; align-items: center; gap: 4px;">' +
+            '<span style="width: 8px; height: 8px; border-radius: 50%; background: var(--text-tertiary);"></span>' +
+            '未测试' +
+          '</span>' +
+          '<span style="margin: 0 8px;">|</span>' +
+          '<span id="vod-time-' + index + '">- ms</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="server-actions">' +
+        '<button class="icon-btn" onclick="testSingleVod(' + index + ')" title="测试连接">' +
+          '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor">' +
+            '<path d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" fill="currentColor"/>' +
+            '<path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>' +
+          '</svg>' +
+        '</button>' +
+        '<button class="icon-btn" onclick="editVodServer(' + index + ')" title="编辑">' +
+          '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor">' +
+            '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke-width="2"/>' +
+            '<path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke-width="2"/>' +
+          '</svg>' +
+        '</button>' +
+        deleteButton +
+      '</div>' +
+    '</div>';
   }).join('');
 
   container.innerHTML = html;
 }
+
 
 
    // 显示添加采集站弹窗
