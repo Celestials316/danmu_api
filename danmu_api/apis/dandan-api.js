@@ -831,16 +831,29 @@ export async function getComment(path, queryFormat) {
 
   // 🔥 修复：构建详细的匹配信息对象，包含数量
   if (title) {
+    // 尝试查找番剧名称
+    let animeTitle = '';
+    if (animeId) {
+      const animeObj = globals.animes.find(a => a.animeId == animeId);
+      if (animeObj) animeTitle = animeObj.animeTitle;
+    }
+
+    // 构建更友好的显示Key：【番剧名】集名
+    const displayKey = animeTitle ? `【${animeTitle}】${title}` : title;
+
     const matchInfo = {
       id: animeId || commentId,
       source: source || plat || 'auto',
       count: danmus.length,
       limit: globals.danmuLimit, // 记录当前的限制设置
-      timestamp: Date.now()      // 更新时间戳防止被视为旧数据
+      timestamp: Date.now(),
+      // 新增字段，用于前端分开显示
+      animeTitle: animeTitle,
+      episodeTitle: title
     };
     
     // 更新内存映射
-    globals.lastSelectMap.set(title, matchInfo);
+    globals.lastSelectMap.set(displayKey, matchInfo);
 
     // 触发持久化保存
     if (globals.localCacheValid) {
