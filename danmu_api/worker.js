@@ -886,68 +886,105 @@ async function handleHomepage(req) {
       }
 
       if (mapEntries.length > 0) {
-        // 2. 简单的切片取最后5条并倒序（后进先出），不进行过度过滤，防止误杀新数据
+        // 2. 简单的切片取最后5条并倒序（后进先出）
         const recentEntries = mapEntries.slice(-5).reverse();
+
+        // 定义来源名称映射，让显示更友好
+        const sourceNameMap = {
+            'dandan': '弹弹Play', 'bilibili': 'B站', 'bilibili1': 'B站',
+            'iqiyi': '爱奇艺', 'qiyi': '爱奇艺', 'youku': '优酷', 'tencent': '腾讯',
+            'qq': '腾讯', 'mgtv': '芒果', 'imgo': '芒果', 'bahamut': '巴哈姆特',
+            'renren': '人人影视', 'hanjutv': '韩剧TV', '360': '360影视', 'vod': 'VOD'
+        };
 
         recentMatchesHtml = recentEntries.map(([key, value]) => {
            let targetId = '未匹配';
            let targetSource = '未知';
+           let rawSource = 'unknown';
 
            // 3. 极其宽容的数据解析逻辑
-           let countBadge = ''; // 新增：弹幕数量徽章
+           let countBadge = ''; 
            
            if (value === null || value === undefined) {
               targetId = '无数据';
            } else if (typeof value !== 'object') {
-              // 如果是纯数字或字符串 (例如: 7470550)
+              // 纯数字或字符串
               targetId = value;
               targetSource = '自动';
            } else if (Array.isArray(value)) {
-              // 如果是数组 [id, source]
+              // 数组 [id, source]
               targetId = value[0];
-              targetSource = value[1] || '未知';
+              rawSource = value[1] || 'unknown';
+              targetSource = sourceNameMap[rawSource.toLowerCase()] || rawSource;
            } else {
-              // 如果是对象 {id: xxx, source: xxx}
+              // 对象 {id, source, count...}
               targetId = value.prefer || value.animeId || value.id || value.episodeId;
-              // 特殊处理 animeIds 为空数组的情况
               if (!targetId && Array.isArray(value.animeIds)) {
                  targetId = value.animeIds.length > 0 ? value.animeIds[0] : '未匹配';
               }
-              targetSource = value.source || value.type || '自动';
+              rawSource = value.source || value.type || 'auto';
+              targetSource = sourceNameMap[rawSource.toLowerCase()] || rawSource;
 
-              // 🔥 新增：处理数量显示
+              // 处理数量显示
               if (value.count !== undefined && value.count !== null) {
                 let countText = `${value.count}`;
                 let limitText = '';
-                // 如果有限制且限制不为-1
                 if (value.limit && value.limit !== -1 && value.limit !== '-1') {
                    limitText = `/${value.limit}`;
                 }
-                // 如果数量为0，显示灰色，否则显示绿色
-                const badgeClass = value.count > 0 ? 'badge-success' : 'badge-secondary';
-                // 只有当有具体的 count 数据时才显示
-                countBadge = `<span class="badge ${badgeClass}" style="padding: 1px 6px; font-size: 10px; border-radius: 4px; height: auto; font-weight: normal;" title="弹幕数量/限制">${countText}${limitText}条</span>`;
+                const badgeColor = value.count > 0 ? 'var(--success)' : 'var(--text-tertiary)';
+                const badgeBg = value.count > 0 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(107, 114, 128, 0.1)';
+                
+                countBadge = `
+                  <span style="display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px; border-radius: 6px; font-size: 11px; background: ${badgeBg}; color: ${badgeColor}; border: 1px solid ${badgeColor}40;">
+                    <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke-width="2"/></svg>
+                    ${countText}${limitText}
+                  </span>`;
               }
            }
 
-           // 4. 最终显示修正
+           // 4. 标题与图标清洗优化
            let displayId = String(targetId);
            if (displayId === '[object Object]' || displayId === 'null' || displayId === 'undefined' || displayId === '') {
              displayId = '未匹配';
            }
-           
-           // 获取标题首字作为图标
-           const iconChar = String(key).charAt(0).toUpperCase() || '?';
 
+           // 清洗标题：移除开头的 【xxx】 或 [xxx]
+           let cleanTitle = String(key);
+           let platformPrefix = '';
+           
+           // 提取括号内的平台名作为前缀标签（如果有）
+           const bracketMatch = cleanTitle.match(/^[【\[](.*?)[】\]]\s*/);
+           if (bracketMatch) {
+             platformPrefix = `<span style="font-size: 10px; padding: 1px 4px; border-radius: 4px; background: var(--bg-hover); color: var(--text-secondary); border: 1px solid var(--border-color); margin-right: 6px;">${bracketMatch[1]}</span>`;
+             cleanTitle = cleanTitle.replace(/^[【\[].*?[】\]]\s*/, '').trim();
+           }
+
+           // 获取清洗后标题的首字
+           const iconChar = cleanTitle.charAt(0).toUpperCase() || '?';
+
+           // 5. 渲染优化的 HTML 结构
            return `
-            <div class="server-item" style="padding: 12px; margin-bottom: 8px; align-items: center;">
-              <div class="server-badge" style="width: 36px; height: 36px; font-size: 16px; background: var(--bg-tertiary); color: var(--primary-500); box-shadow: none; border: 1px solid var(--border-color);">${iconChar}</div>
-              <div class="server-info">
-                <div class="server-name" style="font-size: 14px; font-weight: 600; margin-bottom: 4px; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${key}</div>
-                <div class="server-url" style="font-size: 12px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                  <span style="color: var(--text-tertiary);">映射:</span>
-                  <span style="font-family: monospace; color: var(--text-secondary); background: var(--bg-primary); padding: 1px 6px; border-radius: 4px; border: 1px solid var(--border-color);">${displayId}</span> 
-                  <span class="badge badge-secondary" style="padding: 1px 6px; font-size: 10px; border-radius: 4px; height: auto; font-weight: normal;">${targetSource}</span>
+            <div class="server-item" style="padding: 12px 16px; margin-bottom: 8px; align-items: flex-start; gap: 14px;">
+              <div class="server-badge" style="width: 40px; height: 40px; font-size: 18px; background: linear-gradient(135deg, var(--bg-hover), var(--bg-tertiary)); color: var(--primary-500); box-shadow: none; border: 1px solid var(--border-color); flex-shrink: 0; margin-top: 2px;">${iconChar}</div>
+              
+              <div class="server-info" style="min-width: 0;">
+                <div class="server-name" style="font-size: 14px; font-weight: 600; margin-bottom: 6px; line-height: 1.4; color: var(--text-primary); display: flex; align-items: center; flex-wrap: wrap;">
+                   ${cleanTitle}
+                </div>
+                
+                <div class="server-url" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                  ${platformPrefix}
+                  
+                  <span style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 6px; font-size: 11px; background: rgba(99, 102, 241, 0.1); color: var(--primary-500); border: 1px solid rgba(99, 102, 241, 0.2);">
+                    <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" stroke-width="2"/><line x1="4" y1="22" x2="4" y2="15" stroke-width="2"/></svg>
+                    ${targetSource}
+                  </span>
+
+                  <span title="ID: ${displayId}" style="font-family: monospace; font-size: 11px; color: var(--text-secondary); background: var(--bg-primary); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color); max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    ${displayId}
+                  </span>
+                  
                   ${countBadge}
                 </div>
               </div>
