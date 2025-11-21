@@ -905,25 +905,35 @@ async function handleHomepage(req) {
            // 3. 极其宽容的数据解析逻辑
            let countBadge = ''; 
            
+           // 提取具体的标题字段
+           let displayAnimeTitle = '';
+           let displayEpTitle = '';
+           
            if (value === null || value === undefined) {
               targetId = '无数据';
            } else if (typeof value !== 'object') {
               // 纯数字或字符串
               targetId = value;
               targetSource = '自动';
+              displayEpTitle = String(key);
            } else if (Array.isArray(value)) {
               // 数组 [id, source]
               targetId = value[0];
               rawSource = value[1] || 'unknown';
               targetSource = sourceNameMap[rawSource.toLowerCase()] || rawSource;
+              displayEpTitle = String(key);
            } else {
-              // 对象 {id, source, count...}
+              // 对象 {id, source, count, animeTitle...}
               targetId = value.prefer || value.animeId || value.id || value.episodeId;
               if (!targetId && Array.isArray(value.animeIds)) {
                  targetId = value.animeIds.length > 0 ? value.animeIds[0] : '未匹配';
               }
               rawSource = value.source || value.type || 'auto';
               targetSource = sourceNameMap[rawSource.toLowerCase()] || rawSource;
+              
+              // 优先使用保存的独立字段
+              displayAnimeTitle = value.animeTitle || '';
+              displayEpTitle = value.episodeTitle || '';
 
               // 处理数量显示
               if (value.count !== undefined && value.count !== null) {
@@ -944,38 +954,44 @@ async function handleHomepage(req) {
            }
 
            // 4. 标题与图标清洗优化
+           // 如果没有独立的 animeTitle，尝试从 key 中解析
+           let fullKey = String(key);
+           if (!displayAnimeTitle) {
+              const bracketMatch = fullKey.match(/^[【\[](.*?)[】\]](.*)/);
+              if (bracketMatch) {
+                  displayAnimeTitle = bracketMatch[1].trim();
+                  displayEpTitle = bracketMatch[2].trim();
+              } else {
+                  // 无法分离，全部作为集标题
+                  displayEpTitle = fullKey;
+              }
+           }
+
+           // 最终显示判定
+           const mainTitle = displayAnimeTitle || displayEpTitle; // 优先显示番剧名，没有则显示集名
+           const subTitle = displayAnimeTitle ? displayEpTitle : ''; // 如果有番剧名，则副标题是集名
+           
            let displayId = String(targetId);
            if (displayId === '[object Object]' || displayId === 'null' || displayId === 'undefined' || displayId === '') {
              displayId = '未匹配';
            }
 
-           // 清洗标题：移除开头的 【xxx】 或 [xxx]
-           let cleanTitle = String(key);
-           let platformPrefix = '';
-           
-           // 提取括号内的平台名作为前缀标签（如果有）
-           const bracketMatch = cleanTitle.match(/^[【\[](.*?)[】\]]\s*/);
-           if (bracketMatch) {
-             platformPrefix = `<span style="font-size: 10px; padding: 1px 4px; border-radius: 4px; background: var(--bg-hover); color: var(--text-secondary); border: 1px solid var(--border-color); margin-right: 6px;">${bracketMatch[1]}</span>`;
-             cleanTitle = cleanTitle.replace(/^[【\[].*?[】\]]\s*/, '').trim();
-           }
-
-           // 获取清洗后标题的首字
-           const iconChar = cleanTitle.charAt(0).toUpperCase() || '?';
+           // 获取图标首字
+           const iconChar = mainTitle.charAt(0).toUpperCase() || '?';
 
            // 5. 渲染优化的 HTML 结构
            return `
-            <div class="server-item" style="padding: 12px 16px; margin-bottom: 8px; align-items: flex-start; gap: 14px;">
-              <div class="server-badge" style="width: 40px; height: 40px; font-size: 18px; background: linear-gradient(135deg, var(--bg-hover), var(--bg-tertiary)); color: var(--primary-500); box-shadow: none; border: 1px solid var(--border-color); flex-shrink: 0; margin-top: 2px;">${iconChar}</div>
+            <div class="server-item" style="padding: 12px 16px; margin-bottom: 8px; align-items: center; gap: 14px;">
+              <div class="server-badge" style="width: 40px; height: 40px; font-size: 18px; background: linear-gradient(135deg, var(--bg-hover), var(--bg-tertiary)); color: var(--primary-500); box-shadow: none; border: 1px solid var(--border-color); flex-shrink: 0;">${iconChar}</div>
               
-              <div class="server-info" style="min-width: 0;">
-                <div class="server-name" style="font-size: 14px; font-weight: 600; margin-bottom: 6px; line-height: 1.4; color: var(--text-primary); display: flex; align-items: center; flex-wrap: wrap;">
-                   ${cleanTitle}
+              <div class="server-info" style="min-width: 0; flex: 1;">
+                <div class="server-name" style="font-size: 15px; font-weight: 700; margin-bottom: 2px; line-height: 1.3; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                   ${mainTitle}
                 </div>
                 
-                <div class="server-url" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                  ${platformPrefix}
-                  
+                ${subTitle ? `<div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${subTitle}</div>` : ''}
+                
+                <div class="server-url" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: ${subTitle ? '2px' : '6px'};">
                   <span style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 6px; font-size: 11px; background: rgba(99, 102, 241, 0.1); color: var(--primary-500); border: 1px solid rgba(99, 102, 241, 0.2);">
                     <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" stroke-width="2"/><line x1="4" y1="22" x2="4" y2="15" stroke-width="2"/></svg>
                     ${targetSource}
