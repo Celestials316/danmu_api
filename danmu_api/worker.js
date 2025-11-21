@@ -875,10 +875,18 @@ async function handleHomepage(req) {
     // 生成最近匹配列表HTML
     let recentMatchesHtml = '';
     try {
-      if (globals.lastSelectMap && globals.lastSelectMap.size > 0) {
+      if (globals.lastSelectMap && (globals.lastSelectMap.size > 0 || Object.keys(globals.lastSelectMap).length > 0)) {
+        // 兼容 Map 和普通对象 (DB加载后可能是普通对象)
+        let entries = [];
+        if (typeof globals.lastSelectMap.entries === 'function') {
+          entries = Array.from(globals.lastSelectMap.entries());
+        } else {
+          entries = Object.entries(globals.lastSelectMap);
+        }
+
         // 获取最后5条，倒序 (增加过滤逻辑：排除 ID 为 253047 的 天气之子 测试数据)
-        const recentEntries = Array.from(globals.lastSelectMap.entries())
-          .filter(([key, value]) => key != 253047 && key != '253047')
+        const recentEntries = entries
+          .filter(([key, value]) => key && String(key) !== '253047')
           .slice(-5).reverse();
           
         recentMatchesHtml = recentEntries.map(([key, value]) => {
@@ -935,6 +943,16 @@ async function handleHomepage(req) {
             </div>
            `;
         }).join('');
+        
+        // 如果处理后没有内容（全被过滤了），显示空状态
+        if (!recentMatchesHtml) {
+           recentMatchesHtml = `
+            <div class="empty-state" style="padding: 20px;">
+              <div class="empty-state-icon" style="font-size: 32px; margin-bottom: 10px;">📭</div>
+              <div class="empty-state-description">暂无匹配记录</div>
+            </div>
+          `;
+        }
       } else {
         recentMatchesHtml = `
           <div class="empty-state" style="padding: 20px;">
@@ -944,6 +962,7 @@ async function handleHomepage(req) {
         `;
       }
     } catch (e) {
+      console.error("生成最近匹配HTML失败", e);
       recentMatchesHtml = `<div class="alert alert-error">读取记录失败: ${e.message}</div>`;
     }
 
