@@ -894,6 +894,8 @@ async function handleHomepage(req) {
            let targetSource = '未知';
 
            // 3. 极其宽容的数据解析逻辑
+           let countBadge = ''; // 新增：弹幕数量徽章
+           
            if (value === null || value === undefined) {
               targetId = '无数据';
            } else if (typeof value !== 'object') {
@@ -912,6 +914,20 @@ async function handleHomepage(req) {
                  targetId = value.animeIds.length > 0 ? value.animeIds[0] : '未匹配';
               }
               targetSource = value.source || value.type || '自动';
+
+              // 🔥 新增：处理数量显示
+              if (value.count !== undefined && value.count !== null) {
+                let countText = `${value.count}`;
+                let limitText = '';
+                // 如果有限制且限制不为-1
+                if (value.limit && value.limit !== -1 && value.limit !== '-1') {
+                   limitText = `/${value.limit}`;
+                }
+                // 如果数量为0，显示灰色，否则显示绿色
+                const badgeClass = value.count > 0 ? 'badge-success' : 'badge-secondary';
+                // 只有当有具体的 count 数据时才显示
+                countBadge = `<span class="badge ${badgeClass}" style="padding: 1px 6px; font-size: 10px; border-radius: 4px; height: auto; font-weight: normal;" title="弹幕数量/限制">${countText}${limitText}条</span>`;
+              }
            }
 
            // 4. 最终显示修正
@@ -928,10 +944,11 @@ async function handleHomepage(req) {
               <div class="server-badge" style="width: 36px; height: 36px; font-size: 16px; background: var(--bg-tertiary); color: var(--primary-500); box-shadow: none; border: 1px solid var(--border-color);">${iconChar}</div>
               <div class="server-info">
                 <div class="server-name" style="font-size: 14px; font-weight: 600; margin-bottom: 4px; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${key}</div>
-                <div class="server-url" style="font-size: 12px; display: flex; align-items: center; gap: 6px;">
+                <div class="server-url" style="font-size: 12px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                   <span style="color: var(--text-tertiary);">映射:</span>
                   <span style="font-family: monospace; color: var(--text-secondary); background: var(--bg-primary); padding: 1px 6px; border-radius: 4px; border: 1px solid var(--border-color);">${displayId}</span> 
                   <span class="badge badge-secondary" style="padding: 1px 6px; font-size: 10px; border-radius: 4px; height: auto; font-weight: normal;">${targetSource}</span>
+                  ${countBadge}
                 </div>
               </div>
             </div>
