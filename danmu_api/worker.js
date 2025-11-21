@@ -872,7 +872,7 @@ async function handleHomepage(req) {
       'bahamut': 'BH'
     };
     
-            // 生成最近匹配列表HTML
+    // 生成最近匹配列表HTML
     let recentMatchesHtml = '';
     try {
       if (globals.lastSelectMap && globals.lastSelectMap.size > 0) {
@@ -882,33 +882,54 @@ async function handleHomepage(req) {
           .slice(-5).reverse();
           
         recentMatchesHtml = recentEntries.map(([key, value]) => {
-           // value 可能是 [animeId, source] 数组, 对象, 或者直接是 animeId
-           let animeId = value;
-           let source = '未知';
+           let targetId = '未匹配';
+           let targetSource = '未知';
 
+           // 智能提取 ID 和 Source
            if (Array.isArray(value)) {
-             animeId = value[0];
-             source = value[1] || '未知';
+             targetId = value[0];
+             targetSource = value[1] || '未知';
            } else if (typeof value === 'object' && value !== null) {
-             // 优化：如果是对象，尝试提取 prefer/animeId/id/episodeId，避免显示 [object Object]
-             // 针对 {"animeIds":[...], "prefer": 123, "source": "..."} 这种情况，优先取 prefer
-             animeId = value.prefer || value.animeId || value.id || value.episodeId || (Array.isArray(value.animeIds) ? value.animeIds[0] : null) || JSON.stringify(value);
-             source = value.source || value.type || '未知';
+             // 优先顺序: prefer > animeId > id > episodeId
+             targetId = value.prefer || value.animeId || value.id || value.episodeId;
+             
+             // 处理 {"animeIds": []} 这种空结果的情况
+             if (!targetId && Array.isArray(value.animeIds)) {
+                if (value.animeIds.length > 0) {
+                    targetId = value.animeIds[0];
+                } else {
+                    targetId = null; // 明确标记为空
+                }
+             }
+             targetSource = value.source || value.type || '未知';
+           } else {
+             targetId = value;
            }
 
-           // 再次确保 animeId 不是对象，如果是则转字符串
-           if (typeof animeId === 'object') {
-             animeId = JSON.stringify(animeId);
+           // 最终格式化 ID 显示
+           let displayId = targetId;
+           if (displayId === null || displayId === undefined || displayId === '' || (typeof displayId === 'object')) {
+               displayId = '未匹配';
+           } else {
+               displayId = String(displayId);
+               // 如果显示内容依然是 JSON 字符串且包含 animeIds，视为无效
+               if (displayId.includes('animeIds') && displayId.includes('[')) {
+                   displayId = '未匹配';
+               }
            }
+
+           // 获取标题首字作为图标
+           const iconChar = String(key).charAt(0).toUpperCase() || '?';
            
            return `
-            <div class="server-item" style="padding: 12px; margin-bottom: 8px;">
-              <div class="server-badge" style="width: 32px; height: 32px; font-size: 12px; background: var(--bg-tertiary); color: var(--text-secondary); box-shadow: none; border: 1px solid var(--border-color);">ID</div>
+            <div class="server-item" style="padding: 12px; margin-bottom: 8px; align-items: center;">
+              <div class="server-badge" style="width: 36px; height: 36px; font-size: 16px; background: var(--bg-tertiary); color: var(--primary-500); box-shadow: none; border: 1px solid var(--border-color);">${iconChar}</div>
               <div class="server-info">
-                <div class="server-name" style="font-size: 13px; font-family: monospace; margin-bottom: 2px;">${key}</div>
-                <div class="server-url" style="font-size: 12px; color: var(--text-secondary);">
-                  映射至: <span style="color: var(--primary-400); font-weight: 600;">${animeId}</span> 
-                  <span class="badge badge-secondary" style="padding: 1px 6px; font-size: 10px; margin-left: 4px; border-radius: 4px;">${source}</span>
+                <div class="server-name" style="font-size: 14px; font-weight: 600; margin-bottom: 4px; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${key}</div>
+                <div class="server-url" style="font-size: 12px; display: flex; align-items: center; gap: 6px;">
+                  <span style="color: var(--text-tertiary);">映射:</span>
+                  <span style="font-family: monospace; color: var(--text-secondary); background: var(--bg-primary); padding: 1px 6px; border-radius: 4px; border: 1px solid var(--border-color);">${displayId}</span> 
+                  <span class="badge badge-secondary" style="padding: 1px 6px; font-size: 10px; border-radius: 4px; height: auto; font-weight: normal;">${targetSource}</span>
                 </div>
               </div>
             </div>
