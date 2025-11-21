@@ -827,12 +827,28 @@ export async function getComment(path, queryFormat) {
   }
 
   const [animeId, source] = findAnimeIdByCommentId(commentId);
-  setPreferByAnimeId(animeId, source);
-  if (globals.localCacheValid && animeId) {
-    writeCacheToFile('lastSelectMap', JSON.stringify(Object.fromEntries(globals.lastSelectMap)));
-  }
-  if (globals.redisValid && animeId) {
-    await setRedisKey('lastSelectMap', globals.lastSelectMap);
+  // setPreferByAnimeId(animeId, source); // 注释掉旧的简单记录方法，使用下面更详细的记录
+
+  // 🔥 修复：构建详细的匹配信息对象，包含数量
+  if (title) {
+    const matchInfo = {
+      id: animeId || commentId,
+      source: source || plat || 'auto',
+      count: danmus.length,
+      limit: globals.danmuLimit, // 记录当前的限制设置
+      timestamp: Date.now()      // 更新时间戳防止被视为旧数据
+    };
+    
+    // 更新内存映射
+    globals.lastSelectMap.set(title, matchInfo);
+
+    // 触发持久化保存
+    if (globals.localCacheValid) {
+      writeCacheToFile('lastSelectMap', JSON.stringify(Object.fromEntries(globals.lastSelectMap)));
+    }
+    if (globals.redisValid) {
+      await setRedisKey('lastSelectMap', globals.lastSelectMap);
+    }
   }
 
   // 缓存弹幕结果
@@ -910,6 +926,30 @@ export async function getCommentByUrl(videoUrl, queryFormat) {
     }
 
     log("info", `Successfully fetched ${danmus.length} comments from URL`);
+
+    // 🔥 修复：尝试记录 URL 方式的请求信息
+    try {
+      // 尝试从文件名解析标题，如果解析不到则使用 URL
+      const { cleanFileName } = parseFileName(url.split('/').pop() || 'Unknown Video');
+      const displayKey = cleanFileName || url;
+      
+      const matchInfo = {
+        id: 'URL直连',
+        source: 'url',
+        count: danmus.length,
+        limit: globals.danmuLimit,
+        timestamp: Date.now()
+      };
+
+      globals.lastSelectMap.set(displayKey, matchInfo);
+      
+      // 触发持久化
+      if (globals.redisValid) {
+        await setRedisKey('lastSelectMap', globals.lastSelectMap);
+      }
+    } catch (e) {
+      log("warn", "记录URL匹配信息失败: " + e.message);
+    }
 
     // 缓存弹幕结果
     if (danmus.length > 0) {
