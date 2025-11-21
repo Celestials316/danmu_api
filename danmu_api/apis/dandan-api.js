@@ -837,7 +837,9 @@ export async function getComment(path, queryFormat) {
       if (animeObj) animeTitle = animeObj.animeTitle;
 
       // 构建唯一的显示Key：【番剧名】集名
-      const displayKey = animeTitle ? `【${animeTitle}】${title}` : title;
+      // 🔥 修复：清理标题中的 from 来源标识，防止Key过长
+      const cleanEpTitle = title ? title.replace(/\s+from\s+.*$/i, '').trim() : title;
+      const displayKey = animeTitle ? `【${animeTitle}】${cleanEpTitle}` : cleanEpTitle;
 
       // 检查是否已存在，避免重复记录
       const existing = globals.lastSelectMap.get(displayKey);
