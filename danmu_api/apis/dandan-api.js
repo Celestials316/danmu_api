@@ -838,7 +838,7 @@ export async function getComment(path, queryFormat) {
 
       // 构建唯一的显示Key：【番剧名】集名 (并去掉 from 后缀)
       const rawKey = animeTitle ? `【${animeTitle}】${title}` : title;
-      const displayKey = rawKey.replace(/\s+from\s+.*/i, '').trim();
+      const displayKey = rawKey.replace(/\s*from\s+.*$/i, '').trim();
 
       // 检查是否已存在，避免重复记录
       const existing = globals.lastSelectMap.get(displayKey);
@@ -966,7 +966,7 @@ export async function getCommentByUrl(videoUrl, queryFormat) {
       const { cleanFileName } = parseFileName(urlPath);
       // 生成 Key 并去掉 from 后缀
       const rawKey = `[URL] ${cleanFileName || urlPath.substring(0, 30)}`;
-      const displayKey = rawKey.replace(/\s+from\s+.*/i, '').trim();
+      const displayKey = rawKey.replace(/\s*from\s+.*$/i, '').trim();
 
       
       // 检查是否已存在
