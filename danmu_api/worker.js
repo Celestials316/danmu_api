@@ -897,7 +897,7 @@ async function handleHomepage(req) {
           // 构建唯一标识（番剧ID + 集标题）
           let uniqueKey = '';
           // 预处理：去掉 Key 中的 from 后缀，用于去重比较
-          const cleanKeyName = String(key).replace(/\s+from\s+.*/i, '').trim();
+          const cleanKeyName = String(key).replace(/\s*from\s+.*$/i, '').trim();
 
           if (value && typeof value === 'object') {
             const animeId = value.id || value.animeId || '';
@@ -986,10 +986,10 @@ async function handleHomepage(req) {
 
           // 最终显示判定 (在此处去掉 from 后缀)
           let mainTitle = displayAnimeTitle || displayEpTitle;
-          mainTitle = mainTitle.replace(/\s+from\s+.*/i, '').trim();
+            mainTitle = mainTitle.replace(/\s*from\s+.*$/i, '').trim();
 
           let subTitle = displayAnimeTitle ? displayEpTitle : '';
-          if (subTitle) subTitle = subTitle.replace(/\s+from\s+.*/i, '').trim();
+            if (subTitle) subTitle = subTitle.replace(/\s*from\s+.*$/i, '').trim();
 
           let displayId = String(targetId);
           if (displayId === '[object Object]' || displayId === 'null' || displayId === 'undefined' || displayId === '') {
