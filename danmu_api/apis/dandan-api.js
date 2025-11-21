@@ -836,8 +836,9 @@ export async function getComment(path, queryFormat) {
       const animeObj = globals.animes.find(a => a.animeId == animeId);
       if (animeObj) animeTitle = animeObj.animeTitle;
 
-      // 构建唯一的显示Key：【番剧名】集名
-      const displayKey = animeTitle ? `【${animeTitle}】${title}` : title;
+      // 构建唯一的显示Key：【番剧名】集名 (并去掉 from 后缀)
+      const rawKey = animeTitle ? `【${animeTitle}】${title}` : title;
+      const displayKey = rawKey.replace(/\s*from\s+.*$/i, '').trim();
 
       // 检查是否已存在，避免重复记录
       const existing = globals.lastSelectMap.get(displayKey);
@@ -963,7 +964,10 @@ export async function getCommentByUrl(videoUrl, queryFormat) {
     try {
       const urlPath = url.split('/').pop() || 'Unknown Video';
       const { cleanFileName } = parseFileName(urlPath);
-      const displayKey = `[URL] ${cleanFileName || urlPath.substring(0, 30)}`;
+      // 生成 Key 并去掉 from 后缀
+      const rawKey = `[URL] ${cleanFileName || urlPath.substring(0, 30)}`;
+      const displayKey = rawKey.replace(/\s*from\s+.*$/i, '').trim();
+
       
       // 检查是否已存在
       const existing = globals.lastSelectMap.get(displayKey);
