@@ -827,61 +827,12 @@ export async function getComment(path, queryFormat) {
   }
 
   const [animeId, source] = findAnimeIdByCommentId(commentId);
-
-  // 🔥 修复：只记录一次，避免重复显示
-  if (title && animeId) {
-    try {
-      // 查找番剧名称
-      let animeTitle = '';
-      const animeObj = globals.animes.find(a => a.animeId == animeId);
-      if (animeObj) animeTitle = animeObj.animeTitle;
-
-      // 构建唯一的显示Key：【番剧名】集名 (并去掉 from 后缀)
-      const rawKey = animeTitle ? `【${animeTitle}】${title}` : title;
-      const displayKey = rawKey.replace(/\s*from\s+.*$/i, '').trim();
-
-      // 检查是否已存在，避免重复记录
-      const existing = globals.lastSelectMap.get(displayKey);
-      if (!existing || existing.timestamp < Date.now() - 60000) { // 1分钟内不重复记录
-        const matchInfo = {
-          id: animeId,
-          source: source || plat || 'auto',
-          count: danmus.length,
-          limit: globals.danmuLimit,
-          timestamp: Date.now(),
-          animeTitle: animeTitle,
-          episodeTitle: title
-        };
-        
-        // 更新内存映射
-        globals.lastSelectMap.set(displayKey, matchInfo);
-        log("info", `[lastSelect] 记录匹配信息: ${displayKey.substring(0, 50)}...`);
-
-        // 🔥 持久化保存到 Redis/数据库
-        try {
-          if (globals.databaseValid) {
-            const { saveCacheData } = await import('../utils/db-util.js');
-            const mapObj = Object.fromEntries(globals.lastSelectMap);
-            await saveCacheData('lastSelectMap', mapObj);
-            log("info", `[lastSelect] 已保存到数据库`);
-          } else if (globals.redisValid) {
-            const { setRedisKey } = await import('../utils/redis-util.js');
-            const mapObj = Object.fromEntries(globals.lastSelectMap);
-            await setRedisKey('lastSelectMap', JSON.stringify(mapObj), true);
-            log("info", `[lastSelect] 已保存到 Redis`);
-          } else if (globals.localCacheValid) {
-            const { writeCacheToFile } = await import('../utils/cache-util.js');
-            const mapObj = Object.fromEntries(globals.lastSelectMap);
-            writeCacheToFile('lastSelectMap', JSON.stringify(mapObj));
-            log("info", `[lastSelect] 已保存到本地文件`);
-          }
-        } catch (saveError) {
-          log("warn", `[lastSelect] 持久化保存失败: ${saveError.message}`);
-        }
-      }
-    } catch (error) {
-      log("warn", `[lastSelect] 记录匹配信息失败: ${error.message}`);
-    }
+  setPreferByAnimeId(animeId, source);
+  if (globals.localCacheValid && animeId) {
+    writeCacheToFile('lastSelectMap', JSON.stringify(Object.fromEntries(globals.lastSelectMap)));
+  }
+  if (globals.redisValid && animeId) {
+    await setRedisKey('lastSelectMap', globals.lastSelectMap);
   }
 
   // 缓存弹幕结果
@@ -959,46 +910,6 @@ export async function getCommentByUrl(videoUrl, queryFormat) {
     }
 
     log("info", `Successfully fetched ${danmus.length} comments from URL`);
-
-    // 🔥 修复：记录 URL 方式的请求信息（简化版，避免重复）
-    try {
-      const urlPath = url.split('/').pop() || 'Unknown Video';
-      const { cleanFileName } = parseFileName(urlPath);
-      // 生成 Key 并去掉 from 后缀
-      const rawKey = `[URL] ${cleanFileName || urlPath.substring(0, 30)}`;
-      const displayKey = rawKey.replace(/\s*from\s+.*$/i, '').trim();
-
-      
-      // 检查是否已存在
-      const existing = globals.lastSelectMap.get(displayKey);
-      if (!existing || existing.timestamp < Date.now() - 60000) {
-        const matchInfo = {
-          id: 'URL直连',
-          source: 'url',
-          count: danmus.length,
-          limit: globals.danmuLimit,
-          timestamp: Date.now(),
-          animeTitle: '',
-          episodeTitle: cleanFileName || urlPath
-        };
-
-        globals.lastSelectMap.set(displayKey, matchInfo);
-        log("info", `[lastSelect] 记录URL请求: ${displayKey.substring(0, 50)}...`);
-        
-        // 持久化保存
-        if (globals.databaseValid) {
-          const { saveCacheData } = await import('../utils/db-util.js');
-          const mapObj = Object.fromEntries(globals.lastSelectMap);
-          await saveCacheData('lastSelectMap', mapObj);
-        } else if (globals.redisValid) {
-          const { setRedisKey } = await import('../utils/redis-util.js');
-          const mapObj = Object.fromEntries(globals.lastSelectMap);
-          await setRedisKey('lastSelectMap', JSON.stringify(mapObj), true);
-        }
-      }
-    } catch (e) {
-      log("warn", `[lastSelect] 记录URL匹配信息失败: ${e.message}`);
-    }
 
     // 缓存弹幕结果
     if (danmus.length > 0) {
