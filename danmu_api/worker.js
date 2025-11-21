@@ -875,60 +875,54 @@ async function handleHomepage(req) {
     // 生成最近匹配列表HTML
     let recentMatchesHtml = '';
     try {
-      if (globals.lastSelectMap && (globals.lastSelectMap.size > 0 || Object.keys(globals.lastSelectMap).length > 0)) {
-        // 兼容 Map 和普通对象 (DB加载后可能是普通对象)
-        let entries = [];
-        if (typeof globals.lastSelectMap.entries === 'function') {
-          entries = Array.from(globals.lastSelectMap.entries());
-        } else {
-          entries = Object.entries(globals.lastSelectMap);
+      // 1. 确保 globals.lastSelectMap 是一个 Map，如果不是（比如从JSON读取成了对象），尝试转换
+      let mapEntries = [];
+      if (globals.lastSelectMap) {
+        if (globals.lastSelectMap instanceof Map) {
+          mapEntries = Array.from(globals.lastSelectMap.entries());
+        } else if (typeof globals.lastSelectMap === 'object') {
+          mapEntries = Object.entries(globals.lastSelectMap);
         }
+      }
 
-        // 获取最后5条，倒序 (增加过滤逻辑：排除 ID 为 253047 的 天气之子 测试数据)
-        const recentEntries = entries
-          .filter(([key, value]) => key && String(key) !== '253047')
-          .slice(-5).reverse();
-          
+      if (mapEntries.length > 0) {
+        // 2. 简单的切片取最后5条并倒序（后进先出），不进行过度过滤，防止误杀新数据
+        const recentEntries = mapEntries.slice(-5).reverse();
+
         recentMatchesHtml = recentEntries.map(([key, value]) => {
            let targetId = '未匹配';
            let targetSource = '未知';
 
-           // 智能提取 ID 和 Source
-           if (Array.isArray(value)) {
-             targetId = value[0];
-             targetSource = value[1] || '未知';
-           } else if (typeof value === 'object' && value !== null) {
-             // 优先顺序: prefer > animeId > id > episodeId
-             targetId = value.prefer || value.animeId || value.id || value.episodeId;
-             
-             // 处理 {"animeIds": []} 这种空结果的情况
-             if (!targetId && Array.isArray(value.animeIds)) {
-                if (value.animeIds.length > 0) {
-                    targetId = value.animeIds[0];
-                } else {
-                    targetId = null; // 明确标记为空
-                }
-             }
-             targetSource = value.source || value.type || '未知';
+           // 3. 极其宽容的数据解析逻辑
+           if (value === null || value === undefined) {
+              targetId = '无数据';
+           } else if (typeof value !== 'object') {
+              // 如果是纯数字或字符串 (例如: 7470550)
+              targetId = value;
+              targetSource = '自动';
+           } else if (Array.isArray(value)) {
+              // 如果是数组 [id, source]
+              targetId = value[0];
+              targetSource = value[1] || '未知';
            } else {
-             targetId = value;
+              // 如果是对象 {id: xxx, source: xxx}
+              targetId = value.prefer || value.animeId || value.id || value.episodeId;
+              // 特殊处理 animeIds 为空数组的情况
+              if (!targetId && Array.isArray(value.animeIds)) {
+                 targetId = value.animeIds.length > 0 ? value.animeIds[0] : '未匹配';
+              }
+              targetSource = value.source || value.type || '自动';
            }
 
-           // 最终格式化 ID 显示
-           let displayId = targetId;
-           if (displayId === null || displayId === undefined || displayId === '' || (typeof displayId === 'object')) {
-               displayId = '未匹配';
-           } else {
-               displayId = String(displayId);
-               // 如果显示内容依然是 JSON 字符串且包含 animeIds，视为无效
-               if (displayId.includes('animeIds') && displayId.includes('[')) {
-                   displayId = '未匹配';
-               }
+           // 4. 最终显示修正
+           let displayId = String(targetId);
+           if (displayId === '[object Object]' || displayId === 'null' || displayId === 'undefined' || displayId === '') {
+             displayId = '未匹配';
            }
-
+           
            // 获取标题首字作为图标
            const iconChar = String(key).charAt(0).toUpperCase() || '?';
-           
+
            return `
             <div class="server-item" style="padding: 12px; margin-bottom: 8px; align-items: center;">
               <div class="server-badge" style="width: 36px; height: 36px; font-size: 16px; background: var(--bg-tertiary); color: var(--primary-500); box-shadow: none; border: 1px solid var(--border-color);">${iconChar}</div>
@@ -943,16 +937,6 @@ async function handleHomepage(req) {
             </div>
            `;
         }).join('');
-        
-        // 如果处理后没有内容（全被过滤了），显示空状态
-        if (!recentMatchesHtml) {
-           recentMatchesHtml = `
-            <div class="empty-state" style="padding: 20px;">
-              <div class="empty-state-icon" style="font-size: 32px; margin-bottom: 10px;">📭</div>
-              <div class="empty-state-description">暂无匹配记录</div>
-            </div>
-          `;
-        }
       } else {
         recentMatchesHtml = `
           <div class="empty-state" style="padding: 20px;">
@@ -962,7 +946,7 @@ async function handleHomepage(req) {
         `;
       }
     } catch (e) {
-      console.error("生成最近匹配HTML失败", e);
+      console.error("渲染最近匹配失败", e);
       recentMatchesHtml = `<div class="alert alert-error">读取记录失败: ${e.message}</div>`;
     }
 
