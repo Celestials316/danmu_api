@@ -886,7 +886,7 @@ async function handleHomepage(req) {
          }
 
          if (mapEntries.length > 0) {
-           // 🔥 去重：使用 Set 存储已显示的 animeId + episodeTitle，避免重复
+           // 去重：使用 Set 存储已显示的 animeId + episodeTitle，避免重复
            const displayedKeys = new Set();
            const uniqueEntries = [];
            
@@ -899,7 +899,7 @@ async function handleHomepage(req) {
              if (value && typeof value === 'object') {
                const animeId = value.id || value.animeId || '';
                const episodeTitle = value.episodeTitle || '';
-               uniqueKey = `${animeId}:${episodeTitle}`;
+               uniqueKey = animeId + ':' + episodeTitle;
              } else {
                uniqueKey = key; // 降级到 key
              }
@@ -952,26 +952,25 @@ async function handleHomepage(req) {
 
                  // 处理弹幕数量显示
                  if (value.count !== undefined && value.count !== null) {
-                   let countText = `${value.count}`;
+                   let countText = String(value.count);
                    let limitText = '';
                    if (value.limit && value.limit !== -1 && value.limit !== '-1') {
-                      limitText = `/${value.limit}`;
+                      limitText = '/' + value.limit;
                    }
                    const badgeColor = value.count > 0 ? 'var(--success)' : 'var(--text-tertiary)';
                    const badgeBg = value.count > 0 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(107, 114, 128, 0.1)';
                    
-                   countBadge = \`
-                     <span style="display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px; border-radius: 6px; font-size: 11px; background: \${badgeBg}; color: \${badgeColor}; border: 1px solid \${badgeColor}40;">
-                       <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke-width="2"/></svg>
-                       \${countText}\${limitText}
-                     </span>\`;
+                   countBadge = '<span style="display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px; border-radius: 6px; font-size: 11px; background: ' + badgeBg + '; color: ' + badgeColor + '; border: 1px solid ' + badgeColor + '40;">' +
+                     '<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke-width="2"/></svg>' +
+                     countText + limitText +
+                     '</span>';
                  }
               }
 
               // 如果没有独立的 animeTitle，尝试从 key 中解析
               let fullKey = String(key);
               if (!displayAnimeTitle) {
-                 const bracketMatch = fullKey.match(/^[【\\[](.*?)[】\\]](.*)/);
+                 const bracketMatch = fullKey.match(/^[【\[](.*?)[】\]](.*)/);
                  if (bracketMatch) {
                      displayAnimeTitle = bracketMatch[1].trim();
                      displayEpTitle = bracketMatch[2].trim();
@@ -993,44 +992,35 @@ async function handleHomepage(req) {
               const iconChar = mainTitle.charAt(0).toUpperCase() || '?';
 
               // 渲染 HTML
-              return \`
-               <div class="server-item" style="padding: 12px 16px; margin-bottom: 8px; align-items: center; gap: 14px;">
-                 <div class="server-badge" style="width: 40px; height: 40px; font-size: 18px; background: linear-gradient(135deg, var(--bg-hover), var(--bg-tertiary)); color: var(--primary-500); box-shadow: none; border: 1px solid var(--border-color); flex-shrink: 0;">\${iconChar}</div>
-                 
-                 <div class="server-info" style="min-width: 0; flex: 1;">
-                   <div class="server-name" style="font-size: 15px; font-weight: 700; margin-bottom: 2px; line-height: 1.3; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                      \${mainTitle}
-                   </div>
-                   
-                   \${subTitle ? \`<div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">\${subTitle}</div>\` : ''}
-                   
-                   <div class="server-url" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: \${subTitle ? '2px' : '6px'};">
-                     <span style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 6px; font-size: 11px; background: rgba(99, 102, 241, 0.1); color: var(--primary-500); border: 1px solid rgba(99, 102, 241, 0.2);">
-                       <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" stroke-width="2"/><line x1="4" y1="22" x2="4" y2="15" stroke-width="2"/></svg>
-                       \${targetSource}
-                     </span>
-
-                     <span title="ID: \${displayId}" style="font-family: monospace; font-size: 11px; color: var(--text-secondary); background: var(--bg-primary); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color); max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                       \${displayId}
-                     </span>
-                     
-                     \${countBadge}
-                   </div>
-                 </div>
-               </div>
-              \`;
+              return '<div class="server-item" style="padding: 12px 16px; margin-bottom: 8px; align-items: center; gap: 14px;">' +
+                '<div class="server-badge" style="width: 40px; height: 40px; font-size: 18px; background: linear-gradient(135deg, var(--bg-hover), var(--bg-tertiary)); color: var(--primary-500); box-shadow: none; border: 1px solid var(--border-color); flex-shrink: 0;">' + iconChar + '</div>' +
+                '<div class="server-info" style="min-width: 0; flex: 1;">' +
+                  '<div class="server-name" style="font-size: 15px; font-weight: 700; margin-bottom: 2px; line-height: 1.3; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' +
+                     mainTitle +
+                  '</div>' +
+                  (subTitle ? '<div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + subTitle + '</div>' : '') +
+                  '<div class="server-url" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: ' + (subTitle ? '2px' : '6px') + ';">' +
+                    '<span style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 6px; font-size: 11px; background: rgba(99, 102, 241, 0.1); color: var(--primary-500); border: 1px solid rgba(99, 102, 241, 0.2);">' +
+                      '<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" stroke-width="2"/><line x1="4" y1="22" x2="4" y2="15" stroke-width="2"/></svg>' +
+                      targetSource +
+                    '</span>' +
+                    '<span title="ID: ' + displayId + '" style="font-family: monospace; font-size: 11px; color: var(--text-secondary); background: var(--bg-primary); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color); max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' +
+                      displayId +
+                    '</span>' +
+                    countBadge +
+                  '</div>' +
+                '</div>' +
+              '</div>';
            }).join('');
          } else {
-           recentMatchesHtml = \`
-             <div class="empty-state" style="padding: 20px;">
-               <div class="empty-state-icon" style="font-size: 32px; margin-bottom: 10px;">📭</div>
-               <div class="empty-state-description">暂无匹配记录</div>
-             </div>
-           \`;
+           recentMatchesHtml = '<div class="empty-state" style="padding: 20px;">' +
+             '<div class="empty-state-icon" style="font-size: 32px; margin-bottom: 10px;">📭</div>' +
+             '<div class="empty-state-description">暂无匹配记录</div>' +
+             '</div>';
          }
        } catch (e) {
          console.error("渲染最近匹配失败", e);
-         recentMatchesHtml = \`<div class="alert alert-error">读取记录失败: \${e.message}</div>\`;
+         recentMatchesHtml = '<div class="alert alert-error">读取记录失败: ' + e.message + '</div>';
        }
 
     const sourcesHtml = globals.sourceOrderArr.length > 0 
