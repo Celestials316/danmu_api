@@ -827,40 +827,59 @@ export async function getComment(path, queryFormat) {
   }
 
   const [animeId, source] = findAnimeIdByCommentId(commentId);
-  // setPreferByAnimeId(animeId, source); // 注释掉旧的简单记录方法，使用下面更详细的记录
 
-  // 🔥 修复：构建详细的匹配信息对象，包含数量
-  if (title) {
-    // 尝试查找番剧名称
-    let animeTitle = '';
-    if (animeId) {
+  // 🔥 修复：只记录一次，避免重复显示
+  if (title && animeId) {
+    try {
+      // 查找番剧名称
+      let animeTitle = '';
       const animeObj = globals.animes.find(a => a.animeId == animeId);
       if (animeObj) animeTitle = animeObj.animeTitle;
-    }
 
-    // 构建更友好的显示Key：【番剧名】集名
-    const displayKey = animeTitle ? `【${animeTitle}】${title}` : title;
+      // 构建唯一的显示Key：【番剧名】集名
+      const displayKey = animeTitle ? `【${animeTitle}】${title}` : title;
 
-    const matchInfo = {
-      id: animeId || commentId,
-      source: source || plat || 'auto',
-      count: danmus.length,
-      limit: globals.danmuLimit, // 记录当前的限制设置
-      timestamp: Date.now(),
-      // 新增字段，用于前端分开显示
-      animeTitle: animeTitle,
-      episodeTitle: title
-    };
-    
-    // 更新内存映射
-    globals.lastSelectMap.set(displayKey, matchInfo);
+      // 检查是否已存在，避免重复记录
+      const existing = globals.lastSelectMap.get(displayKey);
+      if (!existing || existing.timestamp < Date.now() - 60000) { // 1分钟内不重复记录
+        const matchInfo = {
+          id: animeId,
+          source: source || plat || 'auto',
+          count: danmus.length,
+          limit: globals.danmuLimit,
+          timestamp: Date.now(),
+          animeTitle: animeTitle,
+          episodeTitle: title
+        };
+        
+        // 更新内存映射
+        globals.lastSelectMap.set(displayKey, matchInfo);
+        log("info", `[lastSelect] 记录匹配信息: ${displayKey.substring(0, 50)}...`);
 
-    // 触发持久化保存
-    if (globals.localCacheValid) {
-      writeCacheToFile('lastSelectMap', JSON.stringify(Object.fromEntries(globals.lastSelectMap)));
-    }
-    if (globals.redisValid) {
-      await setRedisKey('lastSelectMap', globals.lastSelectMap);
+        // 🔥 持久化保存到 Redis/数据库
+        try {
+          if (globals.databaseValid) {
+            const { saveCacheData } = await import('../utils/db-util.js');
+            const mapObj = Object.fromEntries(globals.lastSelectMap);
+            await saveCacheData('lastSelectMap', mapObj);
+            log("info", `[lastSelect] 已保存到数据库`);
+          } else if (globals.redisValid) {
+            const { setRedisKey } = await import('../utils/redis-util.js');
+            const mapObj = Object.fromEntries(globals.lastSelectMap);
+            await setRedisKey('lastSelectMap', JSON.stringify(mapObj), true);
+            log("info", `[lastSelect] 已保存到 Redis`);
+          } else if (globals.localCacheValid) {
+            const { writeCacheToFile } = await import('../utils/cache-util.js');
+            const mapObj = Object.fromEntries(globals.lastSelectMap);
+            writeCacheToFile('lastSelectMap', JSON.stringify(mapObj));
+            log("info", `[lastSelect] 已保存到本地文件`);
+          }
+        } catch (saveError) {
+          log("warn", `[lastSelect] 持久化保存失败: ${saveError.message}`);
+        }
+      }
+    } catch (error) {
+      log("warn", `[lastSelect] 记录匹配信息失败: ${error.message}`);
     }
   }
 
@@ -940,28 +959,41 @@ export async function getCommentByUrl(videoUrl, queryFormat) {
 
     log("info", `Successfully fetched ${danmus.length} comments from URL`);
 
-    // 🔥 修复：尝试记录 URL 方式的请求信息
+    // 🔥 修复：记录 URL 方式的请求信息（简化版，避免重复）
     try {
-      // 尝试从文件名解析标题，如果解析不到则使用 URL
-      const { cleanFileName } = parseFileName(url.split('/').pop() || 'Unknown Video');
-      const displayKey = cleanFileName || url;
+      const urlPath = url.split('/').pop() || 'Unknown Video';
+      const { cleanFileName } = parseFileName(urlPath);
+      const displayKey = `[URL] ${cleanFileName || urlPath.substring(0, 30)}`;
       
-      const matchInfo = {
-        id: 'URL直连',
-        source: 'url',
-        count: danmus.length,
-        limit: globals.danmuLimit,
-        timestamp: Date.now()
-      };
+      // 检查是否已存在
+      const existing = globals.lastSelectMap.get(displayKey);
+      if (!existing || existing.timestamp < Date.now() - 60000) {
+        const matchInfo = {
+          id: 'URL直连',
+          source: 'url',
+          count: danmus.length,
+          limit: globals.danmuLimit,
+          timestamp: Date.now(),
+          animeTitle: '',
+          episodeTitle: cleanFileName || urlPath
+        };
 
-      globals.lastSelectMap.set(displayKey, matchInfo);
-      
-      // 触发持久化
-      if (globals.redisValid) {
-        await setRedisKey('lastSelectMap', globals.lastSelectMap);
+        globals.lastSelectMap.set(displayKey, matchInfo);
+        log("info", `[lastSelect] 记录URL请求: ${displayKey.substring(0, 50)}...`);
+        
+        // 持久化保存
+        if (globals.databaseValid) {
+          const { saveCacheData } = await import('../utils/db-util.js');
+          const mapObj = Object.fromEntries(globals.lastSelectMap);
+          await saveCacheData('lastSelectMap', mapObj);
+        } else if (globals.redisValid) {
+          const { setRedisKey } = await import('../utils/redis-util.js');
+          const mapObj = Object.fromEntries(globals.lastSelectMap);
+          await setRedisKey('lastSelectMap', JSON.stringify(mapObj), true);
+        }
       }
     } catch (e) {
-      log("warn", "记录URL匹配信息失败: " + e.message);
+      log("warn", `[lastSelect] 记录URL匹配信息失败: ${e.message}`);
     }
 
     // 缓存弹幕结果
