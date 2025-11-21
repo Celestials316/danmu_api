@@ -984,16 +984,26 @@ async function handleHomepage(req) {
             }
           }
 
-          // 最终显示判定 (在此处去掉 from 后缀)
-          let mainTitle = displayAnimeTitle || displayEpTitle;
-            mainTitle = mainTitle.replace(/\s*from\s+.*$/i, '').trim();
-
-          let subTitle = displayAnimeTitle ? displayEpTitle : '';
-            if (subTitle) subTitle = subTitle.replace(/\s*from\s+.*$/i, '').trim();
-
           let displayId = String(targetId);
           if (displayId === '[object Object]' || displayId === 'null' || displayId === 'undefined' || displayId === '') {
             displayId = '未匹配';
+          }
+
+          // 🔥 修复：过滤掉未匹配成功的记录（只显示加载结果）
+          if (displayId === '未匹配') return '';
+
+          // 最终显示判定 (在此处去掉 from 后缀，并清理标题中的年份、类型和平台标签)
+          let mainTitle = displayAnimeTitle || displayEpTitle;
+          mainTitle = mainTitle.replace(/\s*from\s+.*$/i, '')
+            .replace(/\((?:\d{4}|N\/A)\)|（(?:\d{4}|N\/A)）/gi, '') // 去除 (2025) 或 (N/A)
+            .replace(/【(?:电视剧|电影|纪录片|综艺|动漫|动画)】/g, '') // 去除 【电视剧】 等类型
+            .trim();
+
+          let subTitle = displayAnimeTitle ? displayEpTitle : '';
+          if (subTitle) {
+            subTitle = subTitle.replace(/\s*from\s+.*$/i, '')
+              .replace(/^【.*?】\s*/, '') // 去除开头的平台标签 如 【qq】
+              .trim();
           }
 
           // 获取图标首字
