@@ -1034,74 +1034,62 @@ async function handleHomepage(req) {
           const gradientIndex = iconChar.charCodeAt(0) % gradientColors.length;
           const [gradStart, gradEnd] = gradientColors[gradientIndex];
 
-          // 渲染 HTML - 现代卡片风格
+          // 渲染 HTML - 紧凑卡片风格
           return '<div class="server-item" style="' +
             'position: relative; ' +
-            'padding: 14px 16px; ' +
-            'margin-bottom: 10px; ' +
-            'background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%); ' +
+            'padding: 10px 12px; ' +
+            'margin-bottom: 8px; ' +
+            'background: var(--bg-primary); ' +
             'border: 1px solid var(--border-color); ' +
-            'border-radius: 12px; ' +
-            'box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04); ' +
-            'transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); ' +
+            'border-radius: 10px; ' +
+            'box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); ' +
+            'transition: all 0.15s ease; ' +
             'cursor: pointer; ' +
             'display: flex; ' +
-            'align-items: flex-start; ' +
-            'gap: 12px; ' +
-            'overflow: hidden;' +
-            '" onmouseenter="this.style.transform=\'translateY(-2px)\'; this.style.boxShadow=\'0 4px 16px rgba(0, 0, 0, 0.08)\'; this.style.borderColor=\'' + sourceTheme.primary + '30\';" onmouseleave="this.style.transform=\'translateY(0)\'; this.style.boxShadow=\'0 2px 8px rgba(0, 0, 0, 0.04)\'; this.style.borderColor=\'var(--border-color)\';">' +
+            'align-items: center; ' +
+            'gap: 10px;' +
+            '" onmouseenter="this.style.transform=\'translateX(2px)\'; this.style.boxShadow=\'0 2px 8px rgba(0, 0, 0, 0.08)\'; this.style.borderColor=\'' + sourceTheme.primary + '\';" onmouseleave="this.style.transform=\'translateX(0)\'; this.style.boxShadow=\'0 1px 3px rgba(0, 0, 0, 0.05)\'; this.style.borderColor=\'var(--border-color)\';">' +
             
-            // 左侧渐变图标
+            // 左侧图标
             '<div class="server-badge" style="' +
               'position: relative; ' +
-              'width: 48px; ' +
-              'height: 48px; ' +
+              'width: 40px; ' +
+              'height: 40px; ' +
               'flex-shrink: 0; ' +
               'display: flex; ' +
               'align-items: center; ' +
               'justify-content: center; ' +
-              'font-size: 20px; ' +
+              'font-size: 18px; ' +
               'font-weight: 700; ' +
               'color: white; ' +
               'background: linear-gradient(135deg, ' + gradStart + ' 0%, ' + gradEnd + ' 100%); ' +
-              'border-radius: 10px; ' +
-              'box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); ' +
-              'text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);' +
+              'border-radius: 8px; ' +
+              'box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);' +
             '">' +
               iconChar +
-              // 微光效果
-              '<div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, transparent 50%); border-radius: 10px; pointer-events: none;"></div>' +
             '</div>' +
             
-            // 右侧内容区
-            '<div class="server-info" style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px;">' +
+            // 右侧内容区（flex布局，占满剩余空间）
+            '<div class="server-info" style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;">' +
               
-              // 标题行（主标题 + 状态指示点）
-              '<div style="display: flex; align-items: center; gap: 8px;">' +
-                '<h4 class="server-name" title="' + mainTitle + '" style="' +
-                  'flex: 1; ' +
-                  'margin: 0; ' +
-                  'font-size: 15px; ' +
-                  'font-weight: 600; ' +
-                  'line-height: 1.3; ' +
-                  'color: var(--text-primary); ' +
-                  'overflow: hidden; ' +
-                  'text-overflow: ellipsis; ' +
-                  'white-space: nowrap; ' +
-                  'letter-spacing: -0.01em;' +
-                '">' +
-                  mainTitle +
-                '</h4>' +
-                // 成功状态指示点
-                '<div style="width: 6px; height: 6px; border-radius: 50%; background: #10B981; box-shadow: 0 0 8px rgba(16, 185, 129, 0.5); flex-shrink: 0;"></div>' +
+              // 第一行：主标题
+              '<div class="server-name" title="' + mainTitle + '" style="' +
+                'font-size: 14px; ' +
+                'font-weight: 600; ' +
+                'line-height: 1.2; ' +
+                'color: var(--text-primary); ' +
+                'overflow: hidden; ' +
+                'text-overflow: ellipsis; ' +
+                'white-space: nowrap;' +
+              '">' +
+                mainTitle +
               '</div>' +
 
-              // 副标题（如果有）
+              // 第二行：副标题（如果有）
               (subTitle ? 
                 '<div style="' +
-                  'font-size: 13px; ' +
-                  'font-weight: 400; ' +
-                  'line-height: 1.4; ' +
+                  'font-size: 12px; ' +
+                  'line-height: 1.2; ' +
                   'color: var(--text-secondary); ' +
                   'overflow: hidden; ' +
                   'text-overflow: ellipsis; ' +
@@ -1111,58 +1099,45 @@ async function handleHomepage(req) {
                 '</div>' 
                 : '') +
             
-              // 元数据标签组
-              '<div class="server-meta" style="display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 2px;">' +
+              // 第三行：标签组（横向紧凑排列）
+              '<div style="display: flex; align-items: center; gap: 5px; line-height: 1;">' +
                 
-                // 来源标签（品牌色）
+                // 来源标签
                 '<span style="' +
-                  'display: inline-flex; ' +
-                  'align-items: center; ' +
-                  'gap: 4px; ' +
-                  'padding: 4px 8px; ' +
-                  'border-radius: 6px; ' +
-                  'font-size: 11px; ' +
+                  'padding: 2px 6px; ' +
+                  'border-radius: 4px; ' +
+                  'font-size: 10px; ' +
                   'font-weight: 600; ' +
                   'background: ' + sourceTheme.bg + '; ' +
                   'color: ' + sourceTheme.primary + '; ' +
-                  'border: 1px solid ' + sourceTheme.border + '; ' +
-                  'letter-spacing: 0.02em;' +
+                  'border: 1px solid ' + sourceTheme.border + ';' +
                 '">' +
-                  '<svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor"><path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0zM4.5 7.5a.5.5 0 0 0 0 1h5.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3a.5.5 0 0 0 0-.708l-3-3a.5.5 0 1 0-.708.708L10.293 7.5H4.5z"/></svg>' +
                   targetSource +
                 '</span>' +
                 
-                // ID 标签（等宽字体）
-                '<span title="资源ID: ' + displayId + '" style="' +
-                  'display: inline-flex; ' +
-                  'align-items: center; ' +
-                  'gap: 4px; ' +
-                  'padding: 4px 8px; ' +
-                  'border-radius: 6px; ' +
-                  'font-family: \'SF Mono\', Monaco, Consolas, monospace; ' +
-                  'font-size: 11px; ' +
-                  'font-weight: 500; ' +
-                  'background: var(--bg-tertiary); ' +
+                // ID 标签
+                '<span title="ID: ' + displayId + '" style="' +
+                  'padding: 2px 6px; ' +
+                  'border-radius: 4px; ' +
+                  'font-family: monospace; ' +
+                  'font-size: 10px; ' +
+                  'background: var(--bg-secondary); ' +
                   'color: var(--text-tertiary); ' +
                   'border: 1px solid var(--border-color); ' +
-                  'max-width: 100px; ' +
+                  'max-width: 80px; ' +
                   'overflow: hidden; ' +
                   'text-overflow: ellipsis; ' +
                   'white-space: nowrap;' +
                 '">' +
-                  '<svg viewBox="0 0 16 16" width="11" height="11" fill="currentColor"><path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/><path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"/></svg>' +
                   displayId +
                 '</span>' +
                 
-                // 弹幕数量标签
-                (countBadge || '') +
+                // 弹幕数标签
+                (countBadge ? countBadge.replace('padding: 3px 7px', 'padding: 2px 6px').replace('font-size: 11px', 'font-size: 10px').replace('gap: 4px', 'gap: 3px') : '') +
                 
               '</div>' +
               
             '</div>' +
-            
-            // 右上角装饰三角（可选）
-            '<div style="position: absolute; top: 0; right: 0; width: 0; height: 0; border-style: solid; border-width: 0 24px 24px 0; border-color: transparent ' + sourceTheme.primary + '15 transparent transparent; pointer-events: none;"></div>' +
             
           '</div>';
         }).join('');
