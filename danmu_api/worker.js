@@ -872,7 +872,7 @@ async function handleHomepage(req) {
       'bahamut': 'BH'
     };
     
-    // 生成最近匹配列表HTML (UI优化+时间显示+严格过滤)
+    // 生成最近匹配列表HTML (三行布局优化版)
     let recentMatchesHtml = '';
     try {
       // 1. 获取 Map 数据
@@ -973,7 +973,6 @@ async function handleHomepage(req) {
           if (ts) {
             const date = new Date(ts);
             if (!isNaN(date.getTime())) {
-               // 格式：11-21 20:30
                const month = (date.getMonth() + 1).toString().padStart(2, '0');
                const day = date.getDate().toString().padStart(2, '0');
                const hour = date.getHours().toString().padStart(2, '0');
@@ -1001,36 +1000,42 @@ async function handleHomepage(req) {
           ];
           const gradient = softGradients[iconChar.charCodeAt(0) % softGradients.length];
 
-          // HTML 渲染
+          // HTML 渲染 - 三行布局
           return '<div class="match-card" style="' +
-              'display: flex; align-items: center; gap: 12px; padding: 8px 12px; margin-bottom: 8px; ' +
+              'display: flex; align-items: center; gap: 12px; padding: 10px 12px; margin-bottom: 8px; ' +
               'background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 10px; ' +
-              'transition: all 0.2s ease; cursor: default; position: relative; overflow: hidden; height: 56px;' +
+              'transition: all 0.2s ease; cursor: default; position: relative; overflow: hidden;' +
               '" onmouseenter="this.style.background=\'var(--bg-hover)\'; this.style.borderColor=\'' + sourceTheme.color + '\'; this.style.transform=\'translateY(-1px)\'; this.style.boxShadow=\'0 4px 12px rgba(0,0,0,0.05)\'; " ' +
               'onmouseleave="this.style.background=\'var(--bg-tertiary)\'; this.style.borderColor=\'var(--border-color)\'; this.style.transform=\'translateY(0)\'; this.style.boxShadow=\'none\';">' +
               
               // 左侧装饰条
               '<div style="position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: ' + sourceTheme.color + '; opacity: 0.7;"></div>' +
 
-              // 图标
-              '<div style="width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; ' +
-              'font-size: 14px; font-weight: 700; color: white; flex-shrink: 0; ' +
-              'background: linear-gradient(135deg, ' + gradient[0] + ', ' + gradient[1] + '); box-shadow: 0 2px 6px rgba(0,0,0,0.1);">' +
+              // 图标 (稍大一点以适应三行)
+              '<div style="width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; ' +
+              'font-size: 16px; font-weight: 700; color: white; flex-shrink: 0; margin-left: 2px; ' +
+              'background: linear-gradient(135deg, ' + gradient[0] + ', ' + gradient[1] + '); box-shadow: 0 2px 6px rgba(0,0,0,0.15);">' +
                 iconChar +
               '</div>' +
 
-              // 中间信息 (Flex 1) - 包含时间
-              '<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;">' +
+              // 中间信息 (Flex 1 - 三行紧凑排列)
+              '<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 1px;">' +
+                // 第一行：主标题
                 '<div style="font-size: 13px; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.3;" title="' + mainTitle + '">' + mainTitle + '</div>' +
-                '<div style="font-size: 11px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.3; display: flex; align-items: center;">' +
-                  '<span title="' + subTitle + '" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px;">' + subTitle + '</span>' +
-                  (timeStr ? '<span style="margin: 0 6px; opacity: 0.3;">|</span><span style="font-family: monospace; opacity: 0.8;">' + timeStr + '</span>' : '') +
-                '</div>' +
+                // 第二行：副标题/ID
+                '<div style="font-size: 11px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.2; opacity: 0.9;" title="' + subTitle + '">' + subTitle + '</div>' +
+                // 第三行：时间 (带小图标)
+                (timeStr ? 
+                  '<div style="display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--text-tertiary); font-family: monospace; line-height: 1.2; margin-top: 1px;">' +
+                    '<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>' +
+                    '<span>' + timeStr + '</span>' +
+                  '</div>' 
+                : '') +
               '</div>' +
 
-              // 右侧信息
-              '<div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 2px; flex-shrink: 0;">' +
-                '<div style="padding: 1px 5px; border-radius: 3px; font-size: 10px; font-weight: 600; ' +
+              // 右侧信息 (垂直居中)
+              '<div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 4px; flex-shrink: 0;">' +
+                '<div style="padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; ' +
                 'background: ' + sourceTheme.bg + '; color: ' + sourceTheme.color + '; letter-spacing: 0.5px;">' +
                   targetSource +
                 '</div>' +
