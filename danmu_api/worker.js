@@ -872,7 +872,7 @@ async function handleHomepage(req) {
       'bahamut': 'BH'
     };
     
-// 生成最近匹配列表HTML - 全新卡片式设计
+// 生成最近匹配列表HTML - 紧凑卡片设计
 let recentMatchesHtml = '';
 try {
   // 1. 获取 Map 数据
@@ -890,20 +890,16 @@ try {
   if (mapEntries.length > 0) {
     const displayedKeys = new Set();
 
-    // 倒序遍历，直到找到 5 个有效条目或遍历完
     for (let i = mapEntries.length - 1; i >= 0; i--) {
       if (uniqueEntries.length >= 5) break;
 
       const [key, value] = mapEntries[i];
 
-      // 🔥 核心过滤：必须是对象，且不能是 null
       if (!value || typeof value !== 'object') continue; 
 
-      // 🔥 核心过滤：必须包含有效的 ID 字段
       const targetId = value.id || value.animeId || value.episodeId;
       if (!targetId || targetId === '未匹配' || targetId === '无数据' || targetId === 'null' || targetId === 'undefined') continue;
 
-      // 构建唯一标识用于去重
       const animeId = value.animeId || targetId;
       const episodeTitle = value.episodeTitle || '';
       const cleanKeyName = String(key).replace(/\s*from\s+.*$/i, '').trim();
@@ -918,7 +914,7 @@ try {
     }
   }
 
-  // 3. 渲染逻辑 - 全新卡片设计
+  // 3. 渲染逻辑 - 紧凑三行设计
   if (uniqueEntries.length > 0) {
     const sourceNameMap = {
       'dandan': '弹弹Play', 'bilibili': 'B站', 'bilibili1': 'B站',
@@ -928,18 +924,18 @@ try {
     };
 
     const sourceThemeMap = {
-      'dandan': { color: '#A78BFA', bg: 'rgba(139, 92, 246, 0.1)', icon: '🎯' },
-      'bilibili': { color: '#60A5FA', bg: 'rgba(59, 130, 246, 0.1)', icon: '📺' },
-      'bilibili1': { color: '#60A5FA', bg: 'rgba(59, 130, 246, 0.1)', icon: '📺' },
-      'iqiyi': { color: '#34D399', bg: 'rgba(16, 185, 129, 0.1)', icon: '🥝' },
-      'qiyi': { color: '#34D399', bg: 'rgba(16, 185, 129, 0.1)', icon: '🥝' },
-      'youku': { color: '#22D3EE', bg: 'rgba(6, 182, 212, 0.1)', icon: '📹' },
-      'tencent': { color: '#FBBF24', bg: 'rgba(245, 158, 11, 0.1)', icon: '🐧' },
-      'qq': { color: '#FBBF24', bg: 'rgba(245, 158, 11, 0.1)', icon: '🐧' },
-      'mgtv': { color: '#FB923C', bg: 'rgba(249, 115, 22, 0.1)', icon: '🥭' },
-      'imgo': { color: '#FB923C', bg: 'rgba(249, 115, 22, 0.1)', icon: '🥭' },
-      'bahamut': { color: '#F472B6', bg: 'rgba(236, 72, 153, 0.1)', icon: '🎮' },
-      'default': { color: '#818CF8', bg: 'rgba(99, 102, 241, 0.1)', icon: '🎬' }
+      'dandan': { color: '#A78BFA', bg: 'rgba(139, 92, 246, 0.08)' },
+      'bilibili': { color: '#60A5FA', bg: 'rgba(59, 130, 246, 0.08)' },
+      'bilibili1': { color: '#60A5FA', bg: 'rgba(59, 130, 246, 0.08)' },
+      'iqiyi': { color: '#34D399', bg: 'rgba(16, 185, 129, 0.08)' },
+      'qiyi': { color: '#34D399', bg: 'rgba(16, 185, 129, 0.08)' },
+      'youku': { color: '#22D3EE', bg: 'rgba(6, 182, 212, 0.08)' },
+      'tencent': { color: '#FBBF24', bg: 'rgba(245, 158, 11, 0.08)' },
+      'qq': { color: '#FBBF24', bg: 'rgba(245, 158, 11, 0.08)' },
+      'mgtv': { color: '#FB923C', bg: 'rgba(249, 115, 22, 0.08)' },
+      'imgo': { color: '#FB923C', bg: 'rgba(249, 115, 22, 0.08)' },
+      'bahamut': { color: '#F472B6', bg: 'rgba(236, 72, 153, 0.08)' },
+      'default': { color: '#818CF8', bg: 'rgba(99, 102, 241, 0.08)' }
     };
 
     recentMatchesHtml = uniqueEntries.map(([key, value]) => {
@@ -976,152 +972,110 @@ try {
       }
 
       // 弹幕数量
-      let countDisplay = '';
-      if (value.count !== undefined && value.count !== null) {
-        const count = value.count;
-        const countColor = count === 0 ? 'var(--text-tertiary)' : sourceTheme.color;
-        countDisplay = `
-          <div style="display: flex; align-items: center; gap: 4px; padding: 4px 10px; background: ${sourceTheme.bg}; border-radius: 6px;">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="${countColor}" stroke-width="2">
-              <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
-            </svg>
-            <span style="font-size: 12px; font-weight: 700; font-family: monospace; color: ${countColor};">${count}</span>
-          </div>
-        `;
-      }
+      const count = value.count !== undefined && value.count !== null ? value.count : null;
+      const countColor = count === 0 ? 'var(--text-tertiary)' : sourceTheme.color;
 
       return `
         <div style="
           background: var(--bg-tertiary);
           border: 1px solid var(--border-color);
-          border-radius: 12px;
-          padding: 16px;
-          margin-bottom: 12px;
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          border-radius: 10px;
+          padding: 10px 12px;
+          margin-bottom: 8px;
+          transition: all 0.2s ease;
           cursor: pointer;
           position: relative;
-          overflow: hidden;
         " onmouseenter="
           this.style.background = 'var(--bg-hover)';
           this.style.borderColor = '${sourceTheme.color}';
-          this.style.transform = 'translateY(-2px)';
-          this.style.boxShadow = '0 8px 16px rgba(0,0,0,0.12)';
+          this.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
         " onmouseleave="
           this.style.background = 'var(--bg-tertiary)';
           this.style.borderColor = 'var(--border-color)';
-          this.style.transform = 'translateY(0)';
           this.style.boxShadow = 'none';
         ">
-          <!-- 顶部装饰条 -->
-          <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, ${sourceTheme.color}, transparent);"></div>
-          
-          <!-- 内容区域 -->
-          <div style="display: flex; align-items: flex-start; gap: 14px;">
-            <!-- 左侧图标 -->
+          <!-- 第一行：主标题 + 来源标签 -->
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+            <div style="
+              flex: 1;
+              font-size: 14px;
+              font-weight: 600;
+              color: var(--text-primary);
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+              line-height: 1.3;
+            " title="${mainTitle}">
+              ${mainTitle}
+            </div>
             <div style="
               flex-shrink: 0;
-              width: 48px;
-              height: 48px;
-              background: linear-gradient(135deg, ${sourceTheme.bg}, ${sourceTheme.bg});
-              border: 2px solid ${sourceTheme.color}20;
-              border-radius: 12px;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              font-size: 24px;
-              box-shadow: 0 4px 12px ${sourceTheme.color}15;
+              padding: 2px 8px;
+              background: ${sourceTheme.bg};
+              border: 1px solid ${sourceTheme.color}25;
+              border-radius: 5px;
+              font-size: 10px;
+              font-weight: 700;
+              color: ${sourceTheme.color};
+              letter-spacing: 0.3px;
             ">
-              ${sourceTheme.icon}
+              ${targetSource}
             </div>
+          </div>
 
-            <!-- 中间信息 -->
-            <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px;">
-              <!-- 主标题 -->
-              <div style="
-                font-size: 15px;
-                font-weight: 700;
-                color: var(--text-primary);
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-                line-height: 1.3;
-              " title="${mainTitle}">
-                ${mainTitle}
+          <!-- 第二行：副标题 -->
+          <div style="
+            font-size: 12px;
+            color: var(--text-secondary);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            line-height: 1.3;
+            margin-bottom: 6px;
+          " title="${subTitle}">
+            ${subTitle}
+          </div>
+
+          <!-- 第三行：时间 + 弹幕数 -->
+          <div style="display: flex; align-items: center; gap: 10px; font-size: 11px;">
+            ${timeStr ? `
+              <div style="display: flex; align-items: center; gap: 4px; color: var(--text-tertiary); font-family: 'SF Mono', Consolas, monospace;">
+                <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.6;">
+                  <circle cx="12" cy="12" r="10"/>
+                  <path d="M12 6v6l3 3"/>
+                </svg>
+                ${timeStr}
               </div>
-
-              <!-- 副标题 -->
-              <div style="
-                font-size: 12px;
-                color: var(--text-secondary);
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-                line-height: 1.3;
-              " title="${subTitle}">
-                ${subTitle}
+            ` : ''}
+            ${count !== null ? `
+              <div style="display: flex; align-items: center; gap: 4px; margin-left: auto;">
+                <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="${countColor}" stroke-width="2.5" style="opacity: 0.7;">
+                  <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+                </svg>
+                <span style="font-weight: 700; font-family: 'SF Mono', Consolas, monospace; color: ${countColor};">${count}</span>
               </div>
-
-              <!-- 底部信息栏 -->
-              <div style="display: flex; align-items: center; gap: 12px; margin-top: 4px; flex-wrap: wrap;">
-                <!-- 来源标签 -->
-                <div style="
-                  display: inline-flex;
-                  align-items: center;
-                  gap: 4px;
-                  padding: 3px 10px;
-                  background: ${sourceTheme.bg};
-                  border: 1px solid ${sourceTheme.color}30;
-                  border-radius: 6px;
-                  font-size: 11px;
-                  font-weight: 700;
-                  color: ${sourceTheme.color};
-                  letter-spacing: 0.5px;
-                ">
-                  ${targetSource}
-                </div>
-
-                <!-- 时间 -->
-                ${timeStr ? `
-                  <div style="display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-tertiary); font-family: monospace;">
-                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
-                      <circle cx="12" cy="12" r="10"/>
-                      <path d="M12 6v6l4 2"/>
-                    </svg>
-                    ${timeStr}
-                  </div>
-                ` : ''}
-
-                <!-- 弹幕数量 -->
-                ${countDisplay}
-              </div>
-            </div>
+            ` : ''}
           </div>
         </div>
       `;
     }).join('');
 
   } else {
-    // 空状态 - 优化设计
+    // 空状态
     recentMatchesHtml = `
       <div style="
-        padding: 48px 24px;
+        padding: 32px 20px;
         text-align: center;
         background: var(--bg-tertiary);
-        border: 2px dashed var(--border-color);
-        border-radius: 12px;
-        animation: fadeIn 0.5s ease-out;
+        border: 1.5px dashed var(--border-color);
+        border-radius: 10px;
       ">
-        <div style="
-          font-size: 48px;
-          margin-bottom: 16px;
-          opacity: 0.4;
-          animation: float 3s ease-in-out infinite;
-        ">📭</div>
-        <div style="font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">
+        <div style="font-size: 36px; margin-bottom: 12px; opacity: 0.35;">📭</div>
+        <div style="font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">
           暂无匹配记录
         </div>
-        <div style="font-size: 13px; color: var(--text-tertiary); line-height: 1.5;">
-          开始使用弹幕测试功能<br>即可在此查看最近的匹配信息
+        <div style="font-size: 12px; color: var(--text-tertiary); line-height: 1.4;">
+          开始使用弹幕测试功能后<br>即可在此查看匹配历史
         </div>
       </div>
     `;
@@ -1130,19 +1084,19 @@ try {
   console.error("渲染匹配列表失败", e);
   recentMatchesHtml = `
     <div style="
-      padding: 20px;
-      font-size: 13px;
+      padding: 14px;
+      font-size: 12px;
       color: var(--error);
-      background: rgba(239,68,68,0.1);
+      background: rgba(239,68,68,0.08);
       border: 1px solid var(--error);
-      border-radius: 10px;
+      border-radius: 8px;
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
     ">
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
         <circle cx="12" cy="12" r="10"/>
-        <path d="M12 8v4m0 4h0"/>
+        <path d="M12 8v4m0 4h.01"/>
       </svg>
       <span>数据读取异常: ${e.message}</span>
     </div>
