@@ -890,8 +890,8 @@ async function handleHomepage(req) {
         const displayedKeys = new Set();
         const uniqueEntries = [];
 
-        // 倒序遍历（最新的在前），去重后取前10条（实际显示时会过滤掉搜索query）
-        for (let i = mapEntries.length - 1; i >= 0 && uniqueEntries.length < 10; i--) {
+        // 倒序遍历（最新的在前），去重后取前6条（实际显示时会过滤掉搜索query，确保显示5条）
+        for (let i = mapEntries.length - 1; i >= 0 && uniqueEntries.length < 6; i--) {
           const [key, value] = mapEntries[i];
 
           // 构建唯一标识（番剧ID + 集标题）
@@ -924,18 +924,18 @@ async function handleHomepage(req) {
           'renren': '人人影视', 'hanjutv': '韩剧TV', '360': '360影视', 'vod': 'VOD', 'url': 'URL直连', 'auto': '自动匹配'
         };
 
-        // 来源主题色映射
+        // 来源主题色映射 - 柔和配色方案
         const sourceThemeMap = {
-          'dandan': { primary: '#FF6B9D', bg: 'rgba(255, 107, 157, 0.08)', border: 'rgba(255, 107, 157, 0.2)' },
-          'bilibili': { primary: '#00A1D6', bg: 'rgba(0, 161, 214, 0.08)', border: 'rgba(0, 161, 214, 0.2)' },
-          'bilibili1': { primary: '#00A1D6', bg: 'rgba(0, 161, 214, 0.08)', border: 'rgba(0, 161, 214, 0.2)' },
-          'iqiyi': { primary: '#00BE06', bg: 'rgba(0, 190, 6, 0.08)', border: 'rgba(0, 190, 6, 0.2)' },
-          'qiyi': { primary: '#00BE06', bg: 'rgba(0, 190, 6, 0.08)', border: 'rgba(0, 190, 6, 0.2)' },
-          'youku': { primary: '#06A7E2', bg: 'rgba(6, 167, 226, 0.08)', border: 'rgba(6, 167, 226, 0.2)' },
-          'tencent': { primary: '#FF6C00', bg: 'rgba(255, 108, 0, 0.08)', border: 'rgba(255, 108, 0, 0.2)' },
-          'qq': { primary: '#FF6C00', bg: 'rgba(255, 108, 0, 0.08)', border: 'rgba(255, 108, 0, 0.2)' },
-          'mgtv': { primary: '#FF6F00', bg: 'rgba(255, 111, 0, 0.08)', border: 'rgba(255, 111, 0, 0.2)' },
-          'imgo': { primary: '#FF6F00', bg: 'rgba(255, 111, 0, 0.08)', border: 'rgba(255, 111, 0, 0.2)' },
+          'dandan': { primary: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.08)', border: 'rgba(139, 92, 246, 0.2)' },
+          'bilibili': { primary: '#3B82F6', bg: 'rgba(59, 130, 246, 0.08)', border: 'rgba(59, 130, 246, 0.2)' },
+          'bilibili1': { primary: '#3B82F6', bg: 'rgba(59, 130, 246, 0.08)', border: 'rgba(59, 130, 246, 0.2)' },
+          'iqiyi': { primary: '#10B981', bg: 'rgba(16, 185, 129, 0.08)', border: 'rgba(16, 185, 129, 0.2)' },
+          'qiyi': { primary: '#10B981', bg: 'rgba(16, 185, 129, 0.08)', border: 'rgba(16, 185, 129, 0.2)' },
+          'youku': { primary: '#06B6D4', bg: 'rgba(6, 182, 212, 0.08)', border: 'rgba(6, 182, 212, 0.2)' },
+          'tencent': { primary: '#F59E0B', bg: 'rgba(245, 158, 11, 0.08)', border: 'rgba(245, 158, 11, 0.2)' },
+          'qq': { primary: '#F59E0B', bg: 'rgba(245, 158, 11, 0.08)', border: 'rgba(245, 158, 11, 0.2)' },
+          'mgtv': { primary: '#F97316', bg: 'rgba(249, 115, 22, 0.08)', border: 'rgba(249, 115, 22, 0.2)' },
+          'imgo': { primary: '#F97316', bg: 'rgba(249, 115, 22, 0.08)', border: 'rgba(249, 115, 22, 0.2)' },
           'default': { primary: '#6366F1', bg: 'rgba(99, 102, 241, 0.08)', border: 'rgba(99, 102, 241, 0.2)' }
         };
 
@@ -982,8 +982,8 @@ async function handleHomepage(req) {
               const badgeBg = hasComments ? 'rgba(16, 185, 129, 0.1)' : 'rgba(156, 163, 175, 0.08)';
               const badgeBorder = hasComments ? 'rgba(16, 185, 129, 0.25)' : 'rgba(156, 163, 175, 0.15)';
 
-              countBadge = '<span style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 7px; border-radius: 6px; font-size: 11px; font-weight: 600; background: ' + badgeBg + '; color: ' + badgeColor + '; border: 1px solid ' + badgeBorder + ';">' +
-                '<svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor"><path d="M8 1a7 7 0 1 0 4.95 11.95l2.55 2.55a.5.5 0 0 0 .7-.7l-2.55-2.55A7 7 0 0 0 8 1zm3 9H5a.5.5 0 0 1 0-1h6a.5.5 0 0 1 0 1z"/></svg>' +
+              countBadge = '<span style="display: inline-flex; align-items: center; gap: 3px; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; background: ' + badgeBg + '; color: ' + badgeColor + '; border: 1px solid ' + badgeBorder + ';">' +
+                '<span style="font-size: 9px; font-weight: 700; letter-spacing: -0.5px;">弹幕</span>' +
                 '<span style="font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', system-ui, sans-serif;">' + countText + limitText + '</span>' +
                 '</span>';
             }
@@ -1025,14 +1025,14 @@ async function handleHomepage(req) {
           // 获取来源主题色
           const sourceTheme = sourceThemeMap[rawSource.toLowerCase()] || sourceThemeMap.default;
 
-          // 获取图标首字，并生成渐变背景
+          // 获取图标首字，并生成柔和渐变背景
           const iconChar = mainTitle.charAt(0).toUpperCase() || '?';
-          const gradientColors = [
-            ['#667eea', '#764ba2'], ['#f093fb', '#f5576c'], ['#4facfe', '#00f2fe'],
-            ['#43e97b', '#38f9d7'], ['#fa709a', '#fee140'], ['#30cfd0', '#330867']
+          const softGradients = [
+            ['#A78BFA', '#8B5CF6'], ['#F472B6', '#EC4899'], ['#60A5FA', '#3B82F6'],
+            ['#34D399', '#10B981'], ['#FBBF24', '#F59E0B'], ['#818CF8', '#6366F1']
           ];
-          const gradientIndex = iconChar.charCodeAt(0) % gradientColors.length;
-          const [gradStart, gradEnd] = gradientColors[gradientIndex];
+          const gradientIndex = iconChar.charCodeAt(0) % softGradients.length;
+          const [gradStart, gradEnd] = softGradients[gradientIndex];
 
           // 渲染 HTML - 紧凑卡片风格（强制左右布局）
           return '<div class="server-item" style="' +
@@ -1139,7 +1139,7 @@ async function handleHomepage(req) {
                   '</span>' +
                   
                   // 弹幕数标签
-                  (countBadge ? countBadge.replace('padding: 3px 7px', 'padding: 2px 6px').replace('font-size: 11px', 'font-size: 10px').replace('gap: 4px', 'gap: 3px') : '') +
+                  (countBadge || '') +
                   
                 '</div>' +
                 
