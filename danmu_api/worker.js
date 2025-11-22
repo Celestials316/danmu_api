@@ -872,7 +872,7 @@ async function handleHomepage(req) {
       'bahamut': 'BH'
     };
     
-    // 生成最近匹配列表HTML
+// 生成最近匹配列表HTML
     let recentMatchesHtml = '';
     try {
       // 确保 globals.lastSelectMap 是一个 Map
@@ -886,22 +886,29 @@ async function handleHomepage(req) {
       }
 
       if (mapEntries.length > 0) {
-        // 去重逻辑
+        // 去重：使用 Set 存储已显示的 animeId + episodeTitle，避免重复
         const displayedKeys = new Set();
         const uniqueEntries = [];
 
-        // 倒序遍历，取最新的前6条
+        // 倒序遍历（最新的在前），去重后取前6条（实际显示时会过滤掉搜索query，确保显示5条）
         for (let i = mapEntries.length - 1; i >= 0 && uniqueEntries.length < 6; i--) {
           const [key, value] = mapEntries[i];
+
+          // 构建唯一标识（番剧ID + 集标题）
+          let uniqueKey = '';
+          // 预处理：去掉 Key 中的 from 后缀，用于去重比较
           const cleanKeyName = String(key).replace(/\s*from\s+.*$/i, '').trim();
-          let uniqueKey = cleanKeyName;
-          
+
           if (value && typeof value === 'object') {
             const animeId = value.id || value.animeId || '';
             const episodeTitle = value.episodeTitle || '';
             uniqueKey = animeId + ':' + episodeTitle;
+          } else {
+            // 降级：如果 value 不是对象，直接使用清理后的 Key 作为唯一标识
+            uniqueKey = cleanKeyName;
           }
 
+          // 如果未显示过，则添加 (同时检查 uniqueKey 和 cleanKeyName 防止重复)
           if (!displayedKeys.has(uniqueKey) && !displayedKeys.has(cleanKeyName)) {
             displayedKeys.add(uniqueKey);
             displayedKeys.add(cleanKeyName);
@@ -909,52 +916,80 @@ async function handleHomepage(req) {
           }
         }
 
-        // 来源显示配置
-        const sourceConfig = {
-          'dandan': { name: '弹弹Play', color: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.15)' },
-          'bilibili': { name: '哔哩哔哩', color: '#FB7299', bg: 'rgba(251, 114, 153, 0.15)' },
-          'bilibili1': { name: '哔哩哔哩', color: '#FB7299', bg: 'rgba(251, 114, 153, 0.15)' },
-          'iqiyi': { name: '爱奇艺', color: '#00CC4C', bg: 'rgba(0, 204, 76, 0.15)' },
-          'qiyi': { name: '爱奇艺', color: '#00CC4C', bg: 'rgba(0, 204, 76, 0.15)' },
-          'youku': { name: '优酷', color: '#06B6D4', bg: 'rgba(6, 182, 212, 0.15)' },
-          'tencent': { name: '腾讯视频', color: '#FF7F00', bg: 'rgba(255, 127, 0, 0.15)' },
-          'qq': { name: '腾讯视频', color: '#FF7F00', bg: 'rgba(255, 127, 0, 0.15)' },
-          'mgtv': { name: '芒果TV', color: '#F97316', bg: 'rgba(249, 115, 22, 0.15)' },
-          'imgo': { name: '芒果TV', color: '#F97316', bg: 'rgba(249, 115, 22, 0.15)' },
-          'bahamut': { name: '巴哈姆特', color: '#00B4D8', bg: 'rgba(0, 180, 216, 0.15)' },
-          'renren': { name: '人人影视', color: '#3B82F6', bg: 'rgba(59, 130, 246, 0.15)' },
-          'auto': { name: '自动匹配', color: '#6366F1', bg: 'rgba(99, 102, 241, 0.15)' },
-          'default': { name: '未知来源', color: '#9CA3AF', bg: 'rgba(156, 163, 175, 0.15)' }
+        // 来源名称映射
+        const sourceNameMap = {
+          'dandan': '弹弹Play', 'bilibili': 'B站', 'bilibili1': 'B站',
+          'iqiyi': '爱奇艺', 'qiyi': '爱奇艺', 'youku': '优酷', 'tencent': '腾讯',
+          'qq': '腾讯', 'mgtv': '芒果', 'imgo': '芒果', 'bahamut': '巴哈姆特',
+          'renren': '人人影视', 'hanjutv': '韩剧TV', '360': '360影视', 'vod': 'VOD', 'url': 'URL直连', 'auto': '自动匹配'
         };
 
-        recentMatchesHtml = uniqueEntries.map(([key, value], index) => {
-          // 数据解析
+        // 来源主题色映射 - 柔和配色方案
+        const sourceThemeMap = {
+          'dandan': { primary: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.08)', border: 'rgba(139, 92, 246, 0.2)' },
+          'bilibili': { primary: '#3B82F6', bg: 'rgba(59, 130, 246, 0.08)', border: 'rgba(59, 130, 246, 0.2)' },
+          'bilibili1': { primary: '#3B82F6', bg: 'rgba(59, 130, 246, 0.08)', border: 'rgba(59, 130, 246, 0.2)' },
+          'iqiyi': { primary: '#10B981', bg: 'rgba(16, 185, 129, 0.08)', border: 'rgba(16, 185, 129, 0.2)' },
+          'qiyi': { primary: '#10B981', bg: 'rgba(16, 185, 129, 0.08)', border: 'rgba(16, 185, 129, 0.2)' },
+          'youku': { primary: '#06B6D4', bg: 'rgba(6, 182, 212, 0.08)', border: 'rgba(6, 182, 212, 0.2)' },
+          'tencent': { primary: '#F59E0B', bg: 'rgba(245, 158, 11, 0.08)', border: 'rgba(245, 158, 11, 0.2)' },
+          'qq': { primary: '#F59E0B', bg: 'rgba(245, 158, 11, 0.08)', border: 'rgba(245, 158, 11, 0.2)' },
+          'mgtv': { primary: '#F97316', bg: 'rgba(249, 115, 22, 0.08)', border: 'rgba(249, 115, 22, 0.2)' },
+          'imgo': { primary: '#F97316', bg: 'rgba(249, 115, 22, 0.08)', border: 'rgba(249, 115, 22, 0.2)' },
+          'default': { primary: '#6366F1', bg: 'rgba(99, 102, 241, 0.08)', border: 'rgba(99, 102, 241, 0.2)' }
+        };
+
+        recentMatchesHtml = uniqueEntries.map(([key, value]) => {
           let targetId = '未匹配';
-          let rawSource = 'auto';
+          let targetSource = '未知';
+          let rawSource = 'unknown';
+
+          // 宽容的数据解析逻辑
+          let countBadge = '';
           let displayAnimeTitle = '';
           let displayEpTitle = '';
-          let countBadge = '';
 
-          if (value && typeof value === 'object') {
+          if (value === null || value === undefined) {
+            targetId = '无数据';
+          } else if (typeof value !== 'object') {
+            targetId = value;
+            targetSource = '自动';
+            displayEpTitle = String(key);
+          } else if (Array.isArray(value)) {
+            targetId = value[0];
+            rawSource = value[1] || 'unknown';
+            targetSource = sourceNameMap[rawSource.toLowerCase()] || rawSource;
+            displayEpTitle = String(key);
+          } else {
+            // 对象类型
             targetId = value.id || value.animeId || value.episodeId || '未匹配';
             rawSource = value.source || value.type || 'auto';
+            targetSource = sourceNameMap[rawSource.toLowerCase()] || rawSource;
+
+            // 使用独立字段
             displayAnimeTitle = value.animeTitle || '';
             displayEpTitle = value.episodeTitle || '';
 
-            // 弹幕数量徽章
+            // 处理弹幕数量显示
             if (value.count !== undefined && value.count !== null) {
-               const countNum = parseInt(value.count);
-               if (countNum > 0) {
-                 countBadge = `<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 6px;border-radius:4px;background:var(--bg-primary);border:1px solid var(--border-color);font-size:10px;color:var(--text-secondary);">
-                   <span style="width:4px;height:4px;border-radius:50%;background:var(--success);"></span>${countNum}条
-                 </span>`;
-               }
+              let countText = String(value.count);
+              let limitText = '';
+              if (value.limit && value.limit !== -1 && value.limit !== '-1') {
+                limitText = '/' + value.limit;
+              }
+              const hasComments = value.count > 0;
+              const badgeColor = hasComments ? '#10B981' : '#9CA3AF';
+              const badgeBg = hasComments ? 'rgba(16, 185, 129, 0.1)' : 'rgba(156, 163, 175, 0.08)';
+              const badgeBorder = hasComments ? 'rgba(16, 185, 129, 0.25)' : 'rgba(156, 163, 175, 0.15)';
+
+              countBadge = '<span style="display: inline-flex; align-items: center; gap: 3px; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; background: ' + badgeBg + '; color: ' + badgeColor + '; border: 1px solid ' + badgeBorder + ';">' +
+                '<span style="font-size: 9px; font-weight: 700; letter-spacing: -0.5px;">弹幕</span>' +
+                '<span style="font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', system-ui, sans-serif;">' + countText + limitText + '</span>' +
+                '</span>';
             }
-          } else if (typeof value === 'string' || typeof value === 'number') {
-             targetId = value;
           }
 
-          // 标题兜底逻辑
+          // 如果没有独立的 animeTitle，尝试从 key 中解析
           let fullKey = String(key);
           if (!displayAnimeTitle) {
             const bracketMatch = fullKey.match(/^[【\[](.*?)[】\]](.*)/);
@@ -966,146 +1001,244 @@ async function handleHomepage(req) {
             }
           }
 
-          // 清理冗余信息
-          displayAnimeTitle = displayAnimeTitle.replace(/\s*from\s+.*$/i, '').replace(/【.*?】/g, '').trim();
-          displayEpTitle = displayEpTitle.replace(/\s*from\s+.*$/i, '').trim();
-          if (!displayAnimeTitle) {
-             displayAnimeTitle = displayEpTitle;
-             displayEpTitle = '';
+          let displayId = String(targetId);
+          if (displayId === '[object Object]' || displayId === 'null' || displayId === 'undefined' || displayId === '') {
+            displayId = '未匹配';
           }
 
-          // 获取样式配置
-          const styleConf = sourceConfig[rawSource.toLowerCase()] || sourceConfig['default'];
-          const sourceName = styleConf.name;
-          
-          // 生成头像渐变
-          const iconChar = (displayAnimeTitle[0] || '?').toUpperCase();
-          const gradients = [
-            'linear-gradient(135deg, #6366f1, #8b5cf6)',
-            'linear-gradient(135deg, #3b82f6, #2dd4bf)',
-            'linear-gradient(135deg, #f59e0b, #f97316)',
-            'linear-gradient(135deg, #ec4899, #f43f5e)',
-            'linear-gradient(135deg, #10b981, #059669)'
+          // 过滤掉未匹配成功的记录
+          if (displayId === '未匹配') return '';
+
+          // 最终显示判定 (清理标题)
+          let mainTitle = displayAnimeTitle || displayEpTitle;
+          mainTitle = mainTitle.replace(/\s*from\s+.*$/i, '')
+            .replace(/【(?:电视剧|电影|纪录片|综艺|动漫|动画)】/g, '')
+            .trim();
+
+          let subTitle = displayAnimeTitle ? displayEpTitle : '';
+          if (subTitle) {
+            subTitle = subTitle.replace(/\s*from\s+.*$/i, '')
+              .replace(/^【.*?】\s*/, '')
+              .trim();
+          }
+
+          // 获取来源主题色
+          const sourceTheme = sourceThemeMap[rawSource.toLowerCase()] || sourceThemeMap.default;
+
+          // 获取图标首字，并生成柔和渐变背景
+          const iconChar = mainTitle.charAt(0).toUpperCase() || '?';
+          const softGradients = [
+            ['#A78BFA', '#8B5CF6'], ['#F472B6', '#EC4899'], ['#60A5FA', '#3B82F6'],
+            ['#34D399', '#10B981'], ['#FBBF24', '#F59E0B'], ['#818CF8', '#6366F1']
           ];
-          const gradientBg = gradients[iconChar.charCodeAt(0) % gradients.length];
+          const gradientIndex = iconChar.charCodeAt(0) % softGradients.length;
+          const [gradStart, gradEnd] = softGradients[gradientIndex];
 
-          // 最新标签
-          const isLatest = index === 0 ? '<span style="position:absolute;top:0;right:0;background:var(--primary-500);color:white;font-size:9px;padding:1px 6px;border-radius:0 10px 0 6px;font-weight:700;z-index:2;">NEW</span>' : '';
-
-          return `
-            <div class="server-item" style="
-              display: flex; 
-              align-items: center; 
-              gap: 14px; 
-              padding: 14px; 
-              background: var(--bg-tertiary); 
-              border: 1px solid var(--border-color); 
-              border-radius: 12px; 
-              margin-bottom: 10px; 
-              transition: all 0.2s ease;
-              cursor: pointer;
-              position: relative;
-              overflow: hidden;
-            " 
-            onmouseenter="this.style.borderColor='${styleConf.color}';this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)';" 
-            onmouseleave="this.style.borderColor='var(--border-color)';this.style.transform='translateY(0)';this.style.boxShadow='none';">
-              ${isLatest}
+          // 渲染 HTML - 现代卡片风格（全面优化）
+          return '<div class="match-record-card" style="' +
+            'position: relative; ' +
+            'padding: 16px; ' +
+            'margin-bottom: 12px; ' +
+            'background: var(--bg-secondary); ' +
+            'border: 1px solid var(--border-color); ' +
+            'border-radius: 12px; ' +
+            'box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); ' +
+            'transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); ' +
+            'cursor: pointer; ' +
+            'overflow: hidden;' +
+            '" ' +
+            'onmouseenter="this.style.transform=\'translateY(-4px)\'; this.style.boxShadow=\'0 8px 24px rgba(99, 102, 241, 0.15)\'; this.style.borderColor=\'' + sourceTheme.primary + '\';" ' +
+            'onmouseleave="this.style.transform=\'translateY(0)\'; this.style.boxShadow=\'0 2px 8px rgba(0, 0, 0, 0.05)\'; this.style.borderColor=\'var(--border-color)\';">' +
+            
+            // 左侧彩色条
+            '<div style="position: absolute; left: 0; top: 0; width: 4px; height: 100%; background: linear-gradient(180deg, ' + sourceTheme.primary + ', ' + gradEnd + '); border-radius: 12px 0 0 12px;"></div>' +
+            
+            // 主内容区
+            '<div style="display: flex; align-items: flex-start; gap: 14px; padding-left: 8px;">' +
               
-              <div style="
-                width: 42px; 
-                height: 42px; 
-                border-radius: 10px; 
-                background: ${gradientBg}; 
-                color: white; 
-                display: flex; 
-                align-items: center; 
-                justify-content: center; 
-                font-size: 20px; 
-                font-weight: 700; 
-                flex-shrink: 0;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-                text-shadow: 0 1px 2px rgba(0,0,0,0.2);
-              ">${iconChar}</div>
-
-              <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;">
-                <div style="
-                  font-size: 14px; 
-                  font-weight: 700; 
-                  color: var(--text-primary); 
-                  margin-bottom: 3px;
-                  white-space: nowrap; 
-                  overflow: hidden; 
-                  text-overflow: ellipsis;
-                " title="${displayAnimeTitle}">${displayAnimeTitle}</div>
+              // 图标区
+              '<div style="flex-shrink: 0;">' +
+                '<div style="' +
+                  'width: 48px; ' +
+                  'height: 48px; ' +
+                  'display: flex; ' +
+                  'align-items: center; ' +
+                  'justify-content: center; ' +
+                  'font-size: 22px; ' +
+                  'font-weight: 800; ' +
+                  'color: white; ' +
+                  'background: linear-gradient(135deg, ' + gradStart + ' 0%, ' + gradEnd + ' 100%); ' +
+                  'border-radius: 12px; ' +
+                  'box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 0 0 3px rgba(99, 102, 241, 0.1); ' +
+                  'transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);' +
+                '" ' +
+                'onmouseenter="this.style.transform=\'scale(1.1) rotate(5deg)\';" ' +
+                'onmouseleave="this.style.transform=\'scale(1) rotate(0deg)\';">' +
+                  iconChar +
+                '</div>' +
+              '</div>' +
+              
+              // 信息区
+              '<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px;">' +
                 
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  ${displayEpTitle ? `<div style="
-                    font-size: 12px; 
-                    color: var(--text-secondary); 
-                    white-space: nowrap; 
-                    overflow: hidden; 
-                    text-overflow: ellipsis;
-                  " title="${displayEpTitle}">${displayEpTitle}</div>` : ''}
-                  ${countBadge}
-                </div>
-              </div>
+                // 标题行
+                '<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">' +
+                  '<div class="server-name" title="' + mainTitle + '" style="' +
+                    'font-size: 15px; ' +
+                    'font-weight: 700; ' +
+                    'line-height: 1.4; ' +
+                    'color: var(--text-primary); ' +
+                    'overflow: hidden; ' +
+                    'text-overflow: ellipsis; ' +
+                    'white-space: nowrap; ' +
+                    'flex: 1;' +
+                  '">' +
+                    mainTitle +
+                  '</div>' +
+                  
+                  // 右侧操作按钮
+                  '<div style="display: flex; gap: 6px; flex-shrink: 0;">' +
+                    '<button class="icon-btn" onclick="event.stopPropagation(); copyMatchInfo(\'' + mainTitle + '\', \'' + (subTitle || '') + '\', \'' + displayId + '\');" ' +
+                      'title="复制信息" style="width: 28px; height: 28px; padding: 0;">' +
+                      '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor">' +
+                        '<rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke-width="2"/>' +
+                        '<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke-width="2"/>' +
+                      '</svg>' +
+                    '</button>' +
+                  '</div>' +
+                '</div>' +
 
-              <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0;">
-                <div style="
-                  display: inline-flex; 
-                  align-items: center; 
-                  padding: 3px 8px; 
-                  border-radius: 6px; 
-                  font-size: 11px; 
-                  font-weight: 600; 
-                  color: ${styleConf.color}; 
-                  background: ${styleConf.bg};
-                  border: 1px solid ${styleConf.color}33;
-                ">
-                  ${sourceName}
-                </div>
-                <div style="
-                  font-family: 'Monaco', monospace; 
-                  font-size: 10px; 
-                  color: var(--text-tertiary); 
-                  background: var(--bg-primary); 
-                  padding: 1px 5px; 
-                  border-radius: 4px;
-                  border: 1px solid var(--border-color);
-                  opacity: 0.8;
-                " title="ID: ${targetId}">
-                  ${String(targetId).substring(0, 10)}${String(targetId).length > 10 ? '...' : ''}
-                </div>
-              </div>
-            </div>
-          `;
+                // 副标题（如果有）
+                (subTitle ? 
+                  '<div style="' +
+                    'font-size: 13px; ' +
+                    'line-height: 1.5; ' +
+                    'color: var(--text-secondary); ' +
+                    'overflow: hidden; ' +
+                    'text-overflow: ellipsis; ' +
+                    'white-space: nowrap;' +
+                  '" title="' + subTitle + '">' +
+                    '📺 ' + subTitle +
+                  '</div>' 
+                  : '') +
+              
+                // 标签组
+                '<div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">' +
+                  
+                  // 来源平台标签
+                  '<span style="' +
+                    'display: inline-flex; ' +
+                    'align-items: center; ' +
+                    'gap: 4px; ' +
+                    'padding: 4px 10px; ' +
+                    'border-radius: 6px; ' +
+                    'font-size: 11px; ' +
+                    'font-weight: 700; ' +
+                    'background: ' + sourceTheme.bg + '; ' +
+                    'color: ' + sourceTheme.primary + '; ' +
+                    'border: 1px solid ' + sourceTheme.border + '; ' +
+                    'transition: all 0.2s;' +
+                  '" ' +
+                  'onmouseenter="this.style.transform=\'scale(1.05)\'; this.style.boxShadow=\'0 2px 8px ' + sourceTheme.border + '\';" ' +
+                  'onmouseleave="this.style.transform=\'scale(1)\'; this.style.boxShadow=\'none\';">' +
+                    '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor">' +
+                      '<path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>' +
+                    '</svg>' +
+                    targetSource +
+                  '</span>' +
+                  
+                  // ID 标签
+                  '<span title="弹幕ID: ' + displayId + '" style="' +
+                    'display: inline-flex; ' +
+                    'align-items: center; ' +
+                    'gap: 4px; ' +
+                    'padding: 4px 10px; ' +
+                    'border-radius: 6px; ' +
+                    'font-family: \'Monaco\', \'Menlo\', monospace; ' +
+                    'font-size: 11px; ' +
+                    'font-weight: 600; ' +
+                    'background: var(--bg-tertiary); ' +
+                    'color: var(--text-secondary); ' +
+                    'border: 1px solid var(--border-light); ' +
+                    'max-width: 120px; ' +
+                    'overflow: hidden; ' +
+                    'text-overflow: ellipsis; ' +
+                    'white-space: nowrap;' +
+                  '">' +
+                    '<svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor">' +
+                      '<path d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>' +
+                    '</svg>' +
+                    displayId +
+                  '</span>' +
+                  
+                  // 弹幕数标签
+                  (countBadge || '') +
+                  
+                '</div>' +
+                
+              '</div>' +
+              
+            '</div>' +
+            
+            // 悬浮提示条（底部）
+            '<div style="' +
+              'position: absolute; ' +
+              'bottom: 0; ' +
+              'left: 0; ' +
+              'right: 0; ' +
+              'height: 2px; ' +
+              'background: linear-gradient(90deg, ' + sourceTheme.primary + ', transparent); ' +
+              'opacity: 0; ' +
+              'transition: opacity 0.3s;' +
+            '" class="hover-indicator"></div>' +
+            
+          '</div>';
         }).join('');
       } else {
-        // 空状态优化
-        recentMatchesHtml = `
-          <div class="empty-state" style="padding: 40px 20px;">
-            <div style="
-              width: 64px; height: 64px; 
-              background: var(--bg-tertiary); 
-              border-radius: 50%; 
-              display: flex; align-items: center; justify-content: center; 
-              margin-bottom: 16px; 
-              font-size: 32px;
-              border: 1px dashed var(--border-color);
-            ">📭</div>
-            <div style="font-size: 15px; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px;">暂无匹配记录</div>
-            <div style="font-size: 12px; color: var(--text-tertiary);">开始播放视频后，匹配结果将显示在这里</div>
-          </div>
-        `;
+        // 空状态优化 - 增强版
+        recentMatchesHtml = '<div class="empty-state" style="' +
+          'display: flex; ' +
+          'flex-direction: column; ' +
+          'align-items: center; ' +
+          'justify-content: center; ' +
+          'padding: 48px 20px; ' +
+          'text-align: center; ' +
+          'background: linear-gradient(135deg, rgba(99, 102, 241, 0.02), rgba(139, 92, 246, 0.02)); ' +
+          'border-radius: 12px; ' +
+          'border: 2px dashed rgba(99, 102, 241, 0.2);' +
+          '">' +
+          '<div style="width: 80px; height: 80px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1)); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; animation: pulse 2s ease-in-out infinite;">' +
+            '<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" style="color: var(--primary-400); opacity: 0.6;">' +
+              '<path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke-width="2"/>' +
+              '<path d="M12 12h.01M12 16h.01" stroke-width="2" stroke-linecap="round"/>' +
+            '</svg>' +
+          '</div>' +
+          '<div style="font-size: 16px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px;">暂无匹配记录</div>' +
+          '<div style="font-size: 13px; color: var(--text-secondary); line-height: 1.6; max-width: 300px;">播放视频并成功匹配弹幕后<br/>历史记录将显示在这里</div>' +
+          '<div style="margin-top: 20px; padding: 8px 16px; background: rgba(99, 102, 241, 0.1); border-radius: 8px; font-size: 12px; color: var(--primary-400); border: 1px solid rgba(99, 102, 241, 0.2);">' +
+            '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" style="display: inline-block; vertical-align: middle; margin-right: 4px;">' +
+              '<path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>' +
+            '</svg>' +
+            '支持记住最后选择功能' +
+          '</div>' +
+          '</div>';
       }
     } catch (e) {
       console.error("渲染最近匹配失败", e);
-      recentMatchesHtml = `
-        <div class="alert alert-error" style="margin: 10px;">
-          <svg class="alert-icon" viewBox="0 0 24 24" width="16" height="16"><path d="M12 8v4m0 4h0" stroke="currentColor" stroke-width="2"/></svg>
-          <span>无法加载记录: ${e.message}</span>
-        </div>
-      `;
+      recentMatchesHtml = '<div class="alert" style="' +
+        'padding: 16px; ' +
+        'background: rgba(239, 68, 68, 0.08); ' +
+        'border: 1px solid rgba(239, 68, 68, 0.2); ' +
+        'border-radius: 10px; ' +
+        'color: #EF4444; ' +
+        'font-size: 13px; ' +
+        'display: flex; ' +
+        'align-items: center; ' +
+        'gap: 10px;' +
+        '">' +
+        '<svg viewBox="0 0 16 16" width="18" height="18" fill="currentColor"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/><path d="M7.002 11a1 1 0 1 1 2 0 1 1 0 0 1-2 0zM7.1 4.995a.905.905 0 1 1 1.8 0l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 4.995z"/></svg>' +
+        '<div><strong>读取记录失败</strong><br/>' + e.message + '</div>' +
+        '</div>';
     }
 
     const sourcesHtml = globals.sourceOrderArr.length > 0 
@@ -1212,7 +1345,36 @@ async function handleHomepage(req) {
       --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
       --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
     }
+    /* 匹配记录卡片专用样式 */
+    .match-record-card:hover .hover-indicator {
+      opacity: 1 !important;
+    }
 
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+      50% {
+        opacity: 0.8;
+        transform: scale(1.05);
+      }
+    }
+
+    .recent-matches-grid {
+      animation: fadeIn 0.4s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
       background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
@@ -4257,24 +4419,30 @@ async function handleHomepage(req) {
          </div>
        </div>
 
-       <div class="card">
-         <div class="card-header">
+       <div class="card" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.03), rgba(139, 92, 246, 0.03)); border: 1px solid rgba(99, 102, 241, 0.15);">
+         <div class="card-header" style="border-bottom-color: rgba(99, 102, 241, 0.2);">
            <h3 class="card-title">
-             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-               <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
+             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="color: var(--primary-500);">
+               <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" stroke-width="2"/>
              </svg>
-             最近匹配信息
+             <span style="background: linear-gradient(135deg, var(--primary-400), var(--primary-600)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">最近匹配记录</span>
            </h3>
-           <div style="display: flex; align-items: center; gap: 8px;">
-             <span class="badge badge-secondary" style="font-weight: normal;">最新 5 条</span>
-             <button class="icon-btn" onclick="window.location.reload()" title="刷新列表" style="width: 28px; height: 28px;">
-               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor">
+           <div style="display: flex; align-items: center; gap: 12px;">
+             <div style="display: flex; align-items: center; gap: 6px; padding: 4px 12px; background: rgba(99, 102, 241, 0.1); border-radius: 8px; border: 1px solid rgba(99, 102, 241, 0.2);">
+               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" style="color: var(--primary-400);">
+                 <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
+               </svg>
+               <span style="font-size: 12px; font-weight: 600; color: var(--primary-400);">最近 5 次</span>
+             </div>
+             <button class="icon-btn" onclick="window.location.reload()" title="刷新列表 (F5)" 
+                     style="width: 32px; height: 32px; background: rgba(99, 102, 241, 0.1); border-color: rgba(99, 102, 241, 0.3);">
+               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" style="color: var(--primary-500);">
                  <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-width="2" stroke-linecap="round"/>
                </svg>
              </button>
            </div>
          </div>
-         <div class="server-grid" style="gap: 0;">
+         <div class="recent-matches-grid" style="display: grid; gap: 12px; padding: 4px;">
            ${recentMatchesHtml}
          </div>
        </div>
@@ -6134,7 +6302,12 @@ async function handleHomepage(req) {
      closeMobileMenu();
      window.scrollTo({ top: 0, behavior: 'smooth' });
    }
-
+   // 复制匹配信息功能
+   function copyMatchInfo(title, subtitle, id) {
+     const info = `标题: ${title}${subtitle ? '\n集数: ' + subtitle : ''}\n弹幕ID: ${id}`;
+     copyToClipboard(info);
+     showToast('已复制匹配信息', 'success', 2000);
+   }
    // ========== 搜索源管理功能 ==========
    let vodHealthData = [];
    let vodPerformanceChart = null;
