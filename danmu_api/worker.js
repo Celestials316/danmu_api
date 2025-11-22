@@ -1034,140 +1034,107 @@ async function handleHomepage(req) {
           const gradientIndex = iconChar.charCodeAt(0) % softGradients.length;
           const [gradStart, gradEnd] = softGradients[gradientIndex];
 
-          // 渲染 HTML - 现代卡片风格（全面优化）
-          return '<div class="match-record-card" style="' +
+          // 渲染 HTML - 紧凑卡片风格（强制左右布局）
+          return '<div class="server-item" style="' +
             'position: relative; ' +
-            'padding: 16px; ' +
-            'margin-bottom: 12px; ' +
-            'background: var(--bg-secondary); ' +
+            'padding: 10px 12px; ' +
+            'margin-bottom: 8px; ' +
+            'background: var(--bg-primary); ' +
             'border: 1px solid var(--border-color); ' +
-            'border-radius: 12px; ' +
-            'box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); ' +
-            'transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); ' +
-            'cursor: pointer; ' +
-            'overflow: hidden;' +
-            '" ' +
-            'onmouseenter="this.style.transform=\'translateY(-4px)\'; this.style.boxShadow=\'0 8px 24px rgba(99, 102, 241, 0.15)\'; this.style.borderColor=\'' + sourceTheme.primary + '\';" ' +
-            'onmouseleave="this.style.transform=\'translateY(0)\'; this.style.boxShadow=\'0 2px 8px rgba(0, 0, 0, 0.05)\'; this.style.borderColor=\'var(--border-color)\';">' +
+            'border-radius: 10px; ' +
+            'box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); ' +
+            'transition: all 0.15s ease; ' +
+            'cursor: pointer;' +
+            '" onmouseenter="this.style.transform=\'translateX(2px)\'; this.style.boxShadow=\'0 2px 8px rgba(0, 0, 0, 0.08)\'; this.style.borderColor=\'' + sourceTheme.primary + '\';" onmouseleave="this.style.transform=\'translateX(0)\'; this.style.boxShadow=\'0 1px 3px rgba(0, 0, 0, 0.05)\'; this.style.borderColor=\'var(--border-color)\';">' +
             
-            // 左侧彩色条
-            '<div style="position: absolute; left: 0; top: 0; width: 4px; height: 100%; background: linear-gradient(180deg, ' + sourceTheme.primary + ', ' + gradEnd + '); border-radius: 12px 0 0 12px;"></div>' +
+            // 使用 table 布局确保左右结构
+            '<table style="width: 100%; border-collapse: collapse; table-layout: fixed;"><tr>' +
             
-            // 主内容区
-            '<div style="display: flex; align-items: flex-start; gap: 14px; padding-left: 8px;">' +
-              
-              // 图标区
-              '<div style="flex-shrink: 0;">' +
-                '<div style="' +
-                  'width: 48px; ' +
-                  'height: 48px; ' +
-                  'display: flex; ' +
-                  'align-items: center; ' +
-                  'justify-content: center; ' +
-                  'font-size: 22px; ' +
-                  'font-weight: 800; ' +
-                  'color: white; ' +
-                  'background: linear-gradient(135deg, ' + gradStart + ' 0%, ' + gradEnd + ' 100%); ' +
-                  'border-radius: 12px; ' +
-                  'box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 0 0 3px rgba(99, 102, 241, 0.1); ' +
-                  'transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);' +
-                '" ' +
-                'onmouseenter="this.style.transform=\'scale(1.1) rotate(5deg)\';" ' +
-                'onmouseleave="this.style.transform=\'scale(1) rotate(0deg)\';">' +
-                  iconChar +
-                '</div>' +
+            // 左侧图标单元格
+            '<td style="width: 40px; vertical-align: middle; padding: 0;">' +
+              '<div class="server-badge" style="' +
+                'width: 40px; ' +
+                'height: 40px; ' +
+                'display: flex; ' +
+                'align-items: center; ' +
+                'justify-content: center; ' +
+                'font-size: 18px; ' +
+                'font-weight: 700; ' +
+                'color: white; ' +
+                'background: linear-gradient(135deg, ' + gradStart + ' 0%, ' + gradEnd + ' 100%); ' +
+                'border-radius: 8px; ' +
+                'box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);' +
+              '">' +
+                iconChar +
               '</div>' +
-              
-              // 信息区
-              '<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px;">' +
+            '</td>' +
+            
+            // 中间间距
+            '<td style="width: 10px; padding: 0;"></td>' +
+            
+            // 右侧内容单元格
+            '<td style="vertical-align: middle; padding: 0;">' +
+              '<div style="display: flex; flex-direction: column;">' +
                 
-                // 标题行
-                '<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">' +
-                  '<div class="server-name" title="' + mainTitle + '" style="' +
-                    'font-size: 15px; ' +
-                    'font-weight: 700; ' +
-                    'line-height: 1.4; ' +
-                    'color: var(--text-primary); ' +
-                    'overflow: hidden; ' +
-                    'text-overflow: ellipsis; ' +
-                    'white-space: nowrap; ' +
-                    'flex: 1;' +
-                  '">' +
-                    mainTitle +
-                  '</div>' +
-                  
-                  // 右侧操作按钮
-                  '<div style="display: flex; gap: 6px; flex-shrink: 0;">' +
-                    '<button class="icon-btn" onclick="event.stopPropagation(); copyMatchInfo(\'' + mainTitle + '\', \'' + (subTitle || '') + '\', \'' + displayId + '\');" ' +
-                      'title="复制信息" style="width: 28px; height: 28px; padding: 0;">' +
-                      '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor">' +
-                        '<rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke-width="2"/>' +
-                        '<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke-width="2"/>' +
-                      '</svg>' +
-                    '</button>' +
-                  '</div>' +
+                // 第一行：主标题
+                '<div class="server-name" title="' + mainTitle + '" style="' +
+                  'font-size: 14px; ' +
+                  'font-weight: 600; ' +
+                  'line-height: 1.4; ' +
+                  'color: var(--text-primary); ' +
+                  'overflow: hidden; ' +
+                  'text-overflow: ellipsis; ' +
+                  'white-space: nowrap; ' +
+                  'margin-bottom: 1px;' +
+                '">' +
+                  mainTitle +
                 '</div>' +
 
-                // 副标题（如果有）
+                // 第二行：副标题（如果有）
                 (subTitle ? 
                   '<div style="' +
-                    'font-size: 13px; ' +
-                    'line-height: 1.5; ' +
+                    'font-size: 12px; ' +
+                    'line-height: 1.4; ' +
                     'color: var(--text-secondary); ' +
                     'overflow: hidden; ' +
                     'text-overflow: ellipsis; ' +
-                    'white-space: nowrap;' +
+                    'white-space: nowrap; ' +
+                    'margin-bottom: 3px;' +
                   '" title="' + subTitle + '">' +
-                    '📺 ' + subTitle +
+                    subTitle +
                   '</div>' 
-                  : '') +
+                  : '<div style="margin-bottom: 3px;"></div>') +
               
-                // 标签组
-                '<div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">' +
+                // 第三行：标签组
+                '<div style="display: flex; align-items: center; gap: 5px; line-height: 1;">' +
                   
-                  // 来源平台标签
+                  // 来源标签
                   '<span style="' +
-                    'display: inline-flex; ' +
-                    'align-items: center; ' +
-                    'gap: 4px; ' +
-                    'padding: 4px 10px; ' +
-                    'border-radius: 6px; ' +
-                    'font-size: 11px; ' +
-                    'font-weight: 700; ' +
+                    'padding: 2px 6px; ' +
+                    'border-radius: 4px; ' +
+                    'font-size: 10px; ' +
+                    'font-weight: 600; ' +
                     'background: ' + sourceTheme.bg + '; ' +
                     'color: ' + sourceTheme.primary + '; ' +
-                    'border: 1px solid ' + sourceTheme.border + '; ' +
-                    'transition: all 0.2s;' +
-                  '" ' +
-                  'onmouseenter="this.style.transform=\'scale(1.05)\'; this.style.boxShadow=\'0 2px 8px ' + sourceTheme.border + '\';" ' +
-                  'onmouseleave="this.style.transform=\'scale(1)\'; this.style.boxShadow=\'none\';">' +
-                    '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor">' +
-                      '<path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>' +
-                    '</svg>' +
+                    'border: 1px solid ' + sourceTheme.border + ';' +
+                  '">' +
                     targetSource +
                   '</span>' +
                   
                   // ID 标签
-                  '<span title="弹幕ID: ' + displayId + '" style="' +
-                    'display: inline-flex; ' +
-                    'align-items: center; ' +
-                    'gap: 4px; ' +
-                    'padding: 4px 10px; ' +
-                    'border-radius: 6px; ' +
-                    'font-family: \'Monaco\', \'Menlo\', monospace; ' +
-                    'font-size: 11px; ' +
-                    'font-weight: 600; ' +
-                    'background: var(--bg-tertiary); ' +
-                    'color: var(--text-secondary); ' +
-                    'border: 1px solid var(--border-light); ' +
-                    'max-width: 120px; ' +
+                  '<span title="ID: ' + displayId + '" style="' +
+                    'padding: 2px 6px; ' +
+                    'border-radius: 4px; ' +
+                    'font-family: monospace; ' +
+                    'font-size: 10px; ' +
+                    'background: var(--bg-secondary); ' +
+                    'color: var(--text-tertiary); ' +
+                    'border: 1px solid var(--border-color); ' +
+                    'max-width: 80px; ' +
                     'overflow: hidden; ' +
                     'text-overflow: ellipsis; ' +
                     'white-space: nowrap;' +
                   '">' +
-                    '<svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor">' +
-                      '<path d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>' +
-                    '</svg>' +
                     displayId +
                   '</span>' +
                   
@@ -1177,50 +1144,25 @@ async function handleHomepage(req) {
                 '</div>' +
                 
               '</div>' +
-              
-            '</div>' +
+            '</td>' +
             
-            // 悬浮提示条（底部）
-            '<div style="' +
-              'position: absolute; ' +
-              'bottom: 0; ' +
-              'left: 0; ' +
-              'right: 0; ' +
-              'height: 2px; ' +
-              'background: linear-gradient(90deg, ' + sourceTheme.primary + ', transparent); ' +
-              'opacity: 0; ' +
-              'transition: opacity 0.3s;' +
-            '" class="hover-indicator"></div>' +
+            '</tr></table>' +
             
           '</div>';
         }).join('');
       } else {
-        // 空状态优化 - 增强版
+        // 空状态优化
         recentMatchesHtml = '<div class="empty-state" style="' +
           'display: flex; ' +
           'flex-direction: column; ' +
           'align-items: center; ' +
           'justify-content: center; ' +
-          'padding: 48px 20px; ' +
-          'text-align: center; ' +
-          'background: linear-gradient(135deg, rgba(99, 102, 241, 0.02), rgba(139, 92, 246, 0.02)); ' +
-          'border-radius: 12px; ' +
-          'border: 2px dashed rgba(99, 102, 241, 0.2);' +
+          'padding: 32px 20px; ' +
+          'text-align: center;' +
           '">' +
-          '<div style="width: 80px; height: 80px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1)); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; animation: pulse 2s ease-in-out infinite;">' +
-            '<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" style="color: var(--primary-400); opacity: 0.6;">' +
-              '<path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke-width="2"/>' +
-              '<path d="M12 12h.01M12 16h.01" stroke-width="2" stroke-linecap="round"/>' +
-            '</svg>' +
-          '</div>' +
-          '<div style="font-size: 16px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px;">暂无匹配记录</div>' +
-          '<div style="font-size: 13px; color: var(--text-secondary); line-height: 1.6; max-width: 300px;">播放视频并成功匹配弹幕后<br/>历史记录将显示在这里</div>' +
-          '<div style="margin-top: 20px; padding: 8px 16px; background: rgba(99, 102, 241, 0.1); border-radius: 8px; font-size: 12px; color: var(--primary-400); border: 1px solid rgba(99, 102, 241, 0.2);">' +
-            '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" style="display: inline-block; vertical-align: middle; margin-right: 4px;">' +
-              '<path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>' +
-            '</svg>' +
-            '支持记住最后选择功能' +
-          '</div>' +
+          '<div style="font-size: 48px; margin-bottom: 12px; opacity: 0.5;">📭</div>' +
+          '<div style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">暂无匹配记录</div>' +
+          '<div style="font-size: 12px; color: var(--text-secondary);">播放视频后会显示匹配历史</div>' +
           '</div>';
       }
     } catch (e) {
@@ -1345,36 +1287,7 @@ async function handleHomepage(req) {
       --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
       --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
     }
-    /* 匹配记录卡片专用样式 */
-    .match-record-card:hover .hover-indicator {
-      opacity: 1 !important;
-    }
 
-    @keyframes pulse {
-      0%, 100% {
-        opacity: 1;
-        transform: scale(1);
-      }
-      50% {
-        opacity: 0.8;
-        transform: scale(1.05);
-      }
-    }
-
-    .recent-matches-grid {
-      animation: fadeIn 0.4s ease-out;
-    }
-
-    @keyframes fadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(10px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
       background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
@@ -4419,30 +4332,24 @@ async function handleHomepage(req) {
          </div>
        </div>
 
-       <div class="card" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.03), rgba(139, 92, 246, 0.03)); border: 1px solid rgba(99, 102, 241, 0.15);">
-         <div class="card-header" style="border-bottom-color: rgba(99, 102, 241, 0.2);">
+       <div class="card">
+         <div class="card-header">
            <h3 class="card-title">
-             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="color: var(--primary-500);">
-               <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" stroke-width="2"/>
+             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+               <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
              </svg>
-             <span style="background: linear-gradient(135deg, var(--primary-400), var(--primary-600)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">最近匹配记录</span>
+             最近匹配信息
            </h3>
-           <div style="display: flex; align-items: center; gap: 12px;">
-             <div style="display: flex; align-items: center; gap: 6px; padding: 4px 12px; background: rgba(99, 102, 241, 0.1); border-radius: 8px; border: 1px solid rgba(99, 102, 241, 0.2);">
-               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" style="color: var(--primary-400);">
-                 <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
-               </svg>
-               <span style="font-size: 12px; font-weight: 600; color: var(--primary-400);">最近 5 次</span>
-             </div>
-             <button class="icon-btn" onclick="window.location.reload()" title="刷新列表 (F5)" 
-                     style="width: 32px; height: 32px; background: rgba(99, 102, 241, 0.1); border-color: rgba(99, 102, 241, 0.3);">
-               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" style="color: var(--primary-500);">
+           <div style="display: flex; align-items: center; gap: 8px;">
+             <span class="badge badge-secondary" style="font-weight: normal;">最新 5 条</span>
+             <button class="icon-btn" onclick="window.location.reload()" title="刷新列表" style="width: 28px; height: 28px;">
+               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor">
                  <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-width="2" stroke-linecap="round"/>
                </svg>
              </button>
            </div>
          </div>
-         <div class="recent-matches-grid" style="display: grid; gap: 12px; padding: 4px;">
+         <div class="server-grid" style="gap: 0;">
            ${recentMatchesHtml}
          </div>
        </div>
@@ -6301,16 +6208,6 @@ async function handleHomepage(req) {
      
      closeMobileMenu();
      window.scrollTo({ top: 0, behavior: 'smooth' });
-   }
-   // 复制匹配信息功能
-   function copyMatchInfo(title, subtitle, id) {
-     var info = '标题: ' + title;
-     if (subtitle) {
-       info += '\\n集数: ' + subtitle;
-     }
-     info += '\\n弹幕ID: ' + id;
-     copyToClipboard(info);
-     showToast('已复制匹配信息', 'success', 2000);
    }
 
    // ========== 搜索源管理功能 ==========
@@ -8329,23 +8226,10 @@ function clearDanmuTest() {
      showToast('已复制到剪贴板', 'success');
    });
 
-   // 复制匹配信息功能 (已修复引号冲突问题)
-   function copyMatchInfo(title, subtitle, id) {
-     var info = '标题: ' + title;
-     if (subtitle) {
-       info += '\n集数: ' + subtitle;
-     }
-     info += '\n弹幕ID: ' + id;
-     
-     copyToClipboard(info);
-     showToast('已复制匹配信息', 'success', 2000);
-   }
-
    function copyToClipboard(text) {
      if (navigator.clipboard) {
        navigator.clipboard.writeText(text);
      } else {
-
        const textarea = document.createElement('textarea');
        textarea.value = text;
        textarea.style.position = 'fixed';
