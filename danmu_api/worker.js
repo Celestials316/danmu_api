@@ -872,189 +872,258 @@ async function handleHomepage(req) {
       'bahamut': 'BH'
     };
     
-    // 生成最近匹配列表HTML (三行布局优化版)
-    let recentMatchesHtml = '';
-    try {
-      // 1. 获取 Map 数据
-      let mapEntries = [];
-      if (globals.lastSelectMap) {
-        if (globals.lastSelectMap instanceof Map) {
-          mapEntries = Array.from(globals.lastSelectMap.entries());
-        } else if (typeof globals.lastSelectMap === 'object') {
-          mapEntries = Object.entries(globals.lastSelectMap);
-        }
-      }
-
-      // 2. 严格过滤与去重逻辑
-      const uniqueEntries = [];
-      if (mapEntries.length > 0) {
-        const displayedKeys = new Set();
-
-        // 倒序遍历，直到找到 5 个有效条目或遍历完
-        for (let i = mapEntries.length - 1; i >= 0; i--) {
-          if (uniqueEntries.length >= 5) break; // 凑齐5个有效数据就停止
-
-          const [key, value] = mapEntries[i];
-
-          // 🔥 核心过滤：必须是对象，且不能是 null
-          if (!value || typeof value !== 'object') continue; 
-
-          // 🔥 核心过滤：必须包含有效的 ID 字段
-          const targetId = value.id || value.animeId || value.episodeId;
-          // 过滤掉 'undefined', 'null', '未匹配' 等无效ID
-          if (!targetId || targetId === '未匹配' || targetId === '无数据' || targetId === 'null' || targetId === 'undefined') continue;
-
-          // 构建唯一标识 (番剧ID + 集标题) 用于去重
-          const animeId = value.animeId || targetId;
-          const episodeTitle = value.episodeTitle || '';
-          const cleanKeyName = String(key).replace(/\s*from\s+.*$/i, '').trim();
-          
-          // 优先使用 ID 组合作为唯一键，如果没有则使用清理后的 Key
-          const uniqueKey = (animeId && episodeTitle) ? (animeId + ':' + episodeTitle) : cleanKeyName;
-
-          if (!displayedKeys.has(uniqueKey) && !displayedKeys.has(cleanKeyName)) {
-            displayedKeys.add(uniqueKey);
-            displayedKeys.add(cleanKeyName);
-            uniqueEntries.push([key, value]);
-          }
-        }
-      }
-
-      // 3. 渲染逻辑
-      if (uniqueEntries.length > 0) {
-        // 来源名称映射
-        const sourceNameMap = {
-          'dandan': '弹弹Play', 'bilibili': 'B站', 'bilibili1': 'B站',
-          'iqiyi': '爱奇艺', 'qiyi': '爱奇艺', 'youku': '优酷', 'tencent': '腾讯',
-          'qq': '腾讯', 'mgtv': '芒果', 'imgo': '芒果', 'bahamut': '巴哈',
-          'renren': '人人', 'hanjutv': '韩剧TV', '360': '360', 'vod': 'VOD', 'url': 'URL', 'auto': '自动'
-        };
-
-        // 来源配色方案 (Glass Design)
-        const sourceThemeMap = {
-          'dandan': { color: '#A78BFA', bg: 'rgba(139, 92, 246, 0.12)' },
-          'bilibili': { color: '#60A5FA', bg: 'rgba(59, 130, 246, 0.12)' },
-          'bilibili1': { color: '#60A5FA', bg: 'rgba(59, 130, 246, 0.12)' },
-          'iqiyi': { color: '#34D399', bg: 'rgba(16, 185, 129, 0.12)' },
-          'qiyi': { color: '#34D399', bg: 'rgba(16, 185, 129, 0.12)' },
-          'youku': { color: '#22D3EE', bg: 'rgba(6, 182, 212, 0.12)' },
-          'tencent': { color: '#FBBF24', bg: 'rgba(245, 158, 11, 0.12)' },
-          'qq': { color: '#FBBF24', bg: 'rgba(245, 158, 11, 0.12)' },
-          'mgtv': { color: '#FB923C', bg: 'rgba(249, 115, 22, 0.12)' },
-          'imgo': { color: '#FB923C', bg: 'rgba(249, 115, 22, 0.12)' },
-          'bahamut': { color: '#F472B6', bg: 'rgba(236, 72, 153, 0.12)' },
-          'default': { color: '#818CF8', bg: 'rgba(99, 102, 241, 0.12)' }
-        };
-
-        recentMatchesHtml = uniqueEntries.map(([key, value]) => {
-          // 数据提取
-          const targetId = value.id || value.animeId || value.episodeId || '未知ID';
-          const rawSource = value.source || value.type || 'auto';
-          const displayAnimeTitle = value.animeTitle || '';
-          const displayEpTitle = value.episodeTitle || String(key).replace(/\s*from\s+.*$/i, ''); // 降级使用key
-
-          const targetSource = sourceNameMap[rawSource.toLowerCase()] || rawSource;
-          const sourceTheme = sourceThemeMap[rawSource.toLowerCase()] || sourceThemeMap.default;
-
-          // 标题清洗
-          let mainTitle = displayAnimeTitle || displayEpTitle;
-          mainTitle = mainTitle.replace(/\s*from\s+.*$/i, '')
-            .replace(/【(?:电视剧|电影|纪录片|综艺|动漫|动画)】/g, '')
-            .trim();
-          
-          // 副标题逻辑
-          let subTitle = displayAnimeTitle ? displayEpTitle : '';
-          subTitle = subTitle.replace(/\s*from\s+.*$/i, '').replace(/^【.*?】\s*/, '').trim();
-          if (!subTitle || subTitle === mainTitle) subTitle = `ID: ${targetId}`;
-
-          // 时间处理 (支持 timestamp/time/date/createdAt 字段)
-          let timeStr = '';
-          const ts = value.timestamp || value.time || value.date || value.createdAt;
-          if (ts) {
-            const date = new Date(ts);
-            if (!isNaN(date.getTime())) {
-               const month = (date.getMonth() + 1).toString().padStart(2, '0');
-               const day = date.getDate().toString().padStart(2, '0');
-               const hour = date.getHours().toString().padStart(2, '0');
-               const minute = date.getMinutes().toString().padStart(2, '0');
-               timeStr = `${month}-${day} ${hour}:${minute}`;
-            }
-          }
-
-          // 弹幕数量徽章 (带图标)
-          let countBadge = '';
-          if (value.count !== undefined && value.count !== null) {
-             const count = value.count;
-             const isZero = count === 0;
-             countBadge = '<div style="display: flex; align-items: center; gap: 3px; font-size: 11px; font-family: monospace; font-weight: 600; color: ' + (isZero ? 'var(--text-tertiary)' : sourceTheme.color) + ';">' +
-                  '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" style="opacity:0.8;"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"></path></svg>' +
-                  '<span>' + count + '</span>' +
-                '</div>';
-          }
-
-          // 图标背景色
-          const iconChar = mainTitle.charAt(0).toUpperCase() || '?';
-          const softGradients = [
-             ['#6366F1', '#818CF8'], ['#EC4899', '#F472B6'], ['#3B82F6', '#60A5FA'],
-             ['#10B981', '#34D399'], ['#F59E0B', '#FBBF24'], ['#8B5CF6', '#A78BFA']
-          ];
-          const gradient = softGradients[iconChar.charCodeAt(0) % softGradients.length];
-
-          // HTML 渲染 - 三行布局
-          return '<div class="match-card" style="' +
-              'display: flex; align-items: center; gap: 12px; padding: 10px 12px; margin-bottom: 8px; ' +
-              'background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 10px; ' +
-              'transition: all 0.2s ease; cursor: default; position: relative; overflow: hidden;' +
-              '" onmouseenter="this.style.background=\'var(--bg-hover)\'; this.style.borderColor=\'' + sourceTheme.color + '\'; this.style.transform=\'translateY(-1px)\'; this.style.boxShadow=\'0 4px 12px rgba(0,0,0,0.05)\'; " ' +
-              'onmouseleave="this.style.background=\'var(--bg-tertiary)\'; this.style.borderColor=\'var(--border-color)\'; this.style.transform=\'translateY(0)\'; this.style.boxShadow=\'none\';">' +
-              
-              // 左侧装饰条
-              '<div style="position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: ' + sourceTheme.color + '; opacity: 0.7;"></div>' +
-
-              // 图标 (稍大一点以适应三行)
-              '<div style="width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; ' +
-              'font-size: 16px; font-weight: 700; color: white; flex-shrink: 0; margin-left: 2px; ' +
-              'background: linear-gradient(135deg, ' + gradient[0] + ', ' + gradient[1] + '); box-shadow: 0 2px 6px rgba(0,0,0,0.15);">' +
-                iconChar +
-              '</div>' +
-
-              // 中间信息 (Flex 1 - 三行紧凑排列)
-              '<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 1px;">' +
-                // 第一行：主标题
-                '<div style="font-size: 13px; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.3;" title="' + mainTitle + '">' + mainTitle + '</div>' +
-                // 第二行：副标题/ID
-                '<div style="font-size: 11px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.2; opacity: 0.9;" title="' + subTitle + '">' + subTitle + '</div>' +
-                // 第三行：时间 (带小图标)
-                (timeStr ? 
-                  '<div style="display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--text-tertiary); font-family: monospace; line-height: 1.2; margin-top: 1px;">' +
-                    '<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>' +
-                    '<span>' + timeStr + '</span>' +
-                  '</div>' 
-                : '') +
-              '</div>' +
-
-              // 右侧信息 (垂直居中)
-              '<div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 4px; flex-shrink: 0;">' +
-                '<div style="padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; ' +
-                'background: ' + sourceTheme.bg + '; color: ' + sourceTheme.color + '; letter-spacing: 0.5px;">' +
-                  targetSource +
-                '</div>' +
-                (countBadge) +
-              '</div>' +
-
-            '</div>';
-        }).join('');
-      } else {
-        // 空状态
-        recentMatchesHtml = '<div class="empty-state" style="padding: 32px 16px; text-align: center;">' +
-          '<div style="font-size: 32px; margin-bottom: 8px; opacity: 0.4;">📭</div>' +
-          '<div style="font-size: 13px; color: var(--text-secondary);">暂无有效匹配记录</div>' +
-          '</div>';
-      }
-    } catch (e) {
-      console.error("渲染匹配列表失败", e);
-      recentMatchesHtml = '<div style="padding: 12px; font-size: 12px; color: var(--error); background: rgba(239,68,68,0.1); border-radius: 8px;">数据读取异常: ' + e.message + '</div>';
+// 生成最近匹配列表HTML - 紧凑卡片设计（带图标）
+let recentMatchesHtml = '';
+try {
+  // 1. 获取 Map 数据
+  let mapEntries = [];
+  if (globals.lastSelectMap) {
+    if (globals.lastSelectMap instanceof Map) {
+      mapEntries = Array.from(globals.lastSelectMap.entries());
+    } else if (typeof globals.lastSelectMap === 'object') {
+      mapEntries = Object.entries(globals.lastSelectMap);
     }
+  }
+
+  // 2. 严格过滤与去重逻辑
+  const uniqueEntries = [];
+  if (mapEntries.length > 0) {
+    const displayedKeys = new Set();
+
+    for (let i = mapEntries.length - 1; i >= 0; i--) {
+      if (uniqueEntries.length >= 5) break;
+
+      const [key, value] = mapEntries[i];
+
+      if (!value || typeof value !== 'object') continue; 
+
+      const targetId = value.id || value.animeId || value.episodeId;
+      if (!targetId || targetId === '未匹配' || targetId === '无数据' || targetId === 'null' || targetId === 'undefined') continue;
+
+      const animeId = value.animeId || targetId;
+      const episodeTitle = value.episodeTitle || '';
+      const cleanKeyName = String(key).replace(/\s*from\s+.*$/i, '').trim();
+      
+      const uniqueKey = (animeId && episodeTitle) ? (animeId + ':' + episodeTitle) : cleanKeyName;
+
+      if (!displayedKeys.has(uniqueKey) && !displayedKeys.has(cleanKeyName)) {
+        displayedKeys.add(uniqueKey);
+        displayedKeys.add(cleanKeyName);
+        uniqueEntries.push([key, value]);
+      }
+    }
+  }
+
+  // 3. 渲染逻辑 - 紧凑三行设计（带图标）
+  if (uniqueEntries.length > 0) {
+    const sourceNameMap = {
+      'dandan': '弹弹Play', 'bilibili': 'B站', 'bilibili1': 'B站',
+      'iqiyi': '爱奇艺', 'qiyi': '爱奇艺', 'youku': '优酷', 'tencent': '腾讯',
+      'qq': '腾讯', 'mgtv': '芒果', 'imgo': '芒果', 'bahamut': '巴哈',
+      'renren': '人人', 'hanjutv': '韩剧TV', '360': '360', 'vod': 'VOD', 'url': 'URL', 'auto': '自动'
+    };
+
+    const sourceThemeMap = {
+      'dandan': { color: '#A78BFA', icon: '🎯' },
+      'bilibili': { color: '#60A5FA', icon: '📺' },
+      'bilibili1': { color: '#60A5FA', icon: '📺' },
+      'iqiyi': { color: '#34D399', icon: '🥝' },
+      'qiyi': { color: '#34D399', icon: '🥝' },
+      'youku': { color: '#22D3EE', icon: '📹' },
+      'tencent': { color: '#FBBF24', icon: '🐧' },
+      'qq': { color: '#FBBF24', icon: '🐧' },
+      'mgtv': { color: '#FB923C', icon: '🥭' },
+      'imgo': { color: '#FB923C', icon: '🥭' },
+      'bahamut': { color: '#F472B6', icon: '🎮' },
+      'default': { color: '#818CF8', icon: '🎬' }
+    };
+
+    recentMatchesHtml = uniqueEntries.map(([key, value]) => {
+      const targetId = value.id || value.animeId || value.episodeId || '未知ID';
+      const rawSource = value.source || value.type || 'auto';
+      const displayAnimeTitle = value.animeTitle || '';
+      const displayEpTitle = value.episodeTitle || String(key).replace(/\s*from\s+.*$/i, '');
+
+      const targetSource = sourceNameMap[rawSource.toLowerCase()] || rawSource;
+      const sourceTheme = sourceThemeMap[rawSource.toLowerCase()] || sourceThemeMap.default;
+
+      // 标题清洗
+      let mainTitle = displayAnimeTitle || displayEpTitle;
+      mainTitle = mainTitle.replace(/\s*from\s+.*$/i, '')
+        .replace(/【(?:电视剧|电影|纪录片|综艺|动漫|动画)】/g, '')
+        .trim();
+      
+      let subTitle = displayAnimeTitle ? displayEpTitle : `ID: ${targetId}`;
+      subTitle = subTitle.replace(/\s*from\s+.*$/i, '').replace(/^【.*?】\s*/, '').trim();
+      if (!subTitle || subTitle === mainTitle) subTitle = `弹幕ID: ${targetId}`;
+
+      // 时间处理
+      let timeStr = '';
+      const ts = value.timestamp || value.time || value.date || value.createdAt;
+      if (ts) {
+        const date = new Date(ts);
+        if (!isNaN(date.getTime())) {
+          const month = (date.getMonth() + 1).toString().padStart(2, '0');
+          const day = date.getDate().toString().padStart(2, '0');
+          const hour = date.getHours().toString().padStart(2, '0');
+          const minute = date.getMinutes().toString().padStart(2, '0');
+          timeStr = `${month}-${day} ${hour}:${minute}`;
+        }
+      }
+
+      // 弹幕数量
+      const count = value.count !== undefined && value.count !== null ? value.count : null;
+      const countColor = count === 0 ? 'var(--text-tertiary)' : sourceTheme.color;
+
+      return `
+        <div style="
+          background: var(--bg-tertiary);
+          border: 1px solid var(--border-color);
+          border-radius: 10px;
+          padding: 10px 12px;
+          margin-bottom: 8px;
+          transition: all 0.2s ease;
+          cursor: pointer;
+          display: flex;
+          gap: 10px;
+        " onmouseenter="
+          this.style.background = 'var(--bg-hover)';
+          this.style.borderColor = '${sourceTheme.color}';
+          this.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+        " onmouseleave="
+          this.style.background = 'var(--bg-tertiary)';
+          this.style.borderColor = 'var(--border-color)';
+          this.style.boxShadow = 'none';
+        ">
+          <!-- 左侧图标 -->
+          <div style="
+            flex-shrink: 0;
+            width: 36px;
+            height: 36px;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(10px);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.2s ease;
+          ">
+            ${sourceTheme.icon}
+          </div>
+
+          <!-- 右侧内容 -->
+          <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;">
+            <!-- 第一行：主标题 + 来源标签 -->
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div style="
+                flex: 1;
+                font-size: 14px;
+                font-weight: 600;
+                color: var(--text-primary);
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                line-height: 1.3;
+              " title="${mainTitle}">
+                ${mainTitle}
+              </div>
+              <div style="
+                flex-shrink: 0;
+                padding: 2px 8px;
+                background: rgba(255, 255, 255, 0.05);
+                backdrop-filter: blur(10px);
+                border: 1px solid ${sourceTheme.color}20;
+                border-radius: 5px;
+                font-size: 10px;
+                font-weight: 700;
+                color: ${sourceTheme.color};
+                letter-spacing: 0.3px;
+              ">
+                ${targetSource}
+              </div>
+            </div>
+
+            <!-- 第二行：副标题 -->
+            <div style="
+              font-size: 12px;
+              color: var(--text-secondary);
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+              line-height: 1.3;
+            " title="${subTitle}">
+              ${subTitle}
+            </div>
+
+            <!-- 第三行：时间 + 弹幕数 -->
+            <div style="display: flex; align-items: center; gap: 10px; font-size: 11px;">
+              ${timeStr ? `
+                <div style="display: flex; align-items: center; gap: 4px; color: var(--text-tertiary); font-family: 'SF Mono', Consolas, monospace;">
+                  <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.6;">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M12 6v6l3 3"/>
+                  </svg>
+                  ${timeStr}
+                </div>
+              ` : ''}
+              ${count !== null ? `
+                <div style="display: flex; align-items: center; gap: 4px; margin-left: auto;">
+                  <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="${countColor}" stroke-width="2.5" style="opacity: 0.7;">
+                    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+                  </svg>
+                  <span style="font-weight: 700; font-family: 'SF Mono', Consolas, monospace; color: ${countColor};">${count}</span>
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+  } else {
+    // 空状态
+    recentMatchesHtml = `
+      <div style="
+        padding: 32px 20px;
+        text-align: center;
+        background: var(--bg-tertiary);
+        border: 1.5px dashed var(--border-color);
+        border-radius: 10px;
+      ">
+        <div style="font-size: 36px; margin-bottom: 12px; opacity: 0.35;">📭</div>
+        <div style="font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">
+          暂无匹配记录
+        </div>
+        <div style="font-size: 12px; color: var(--text-tertiary); line-height: 1.4;">
+          开始使用弹幕测试功能后<br>即可在此查看匹配历史
+        </div>
+      </div>
+    `;
+  }
+} catch (e) {
+  console.error("渲染匹配列表失败", e);
+  recentMatchesHtml = `
+    <div style="
+      padding: 14px;
+      font-size: 12px;
+      color: var(--error);
+      background: rgba(239,68,68,0.08);
+      border: 1px solid var(--error);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    ">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/>
+        <path d="M12 8v4m0 4h.01"/>
+      </svg>
+      <span>数据读取异常: ${e.message}</span>
+    </div>
+  `;
+}
+
 
 
     const sourcesHtml = globals.sourceOrderArr.length > 0 
