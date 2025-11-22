@@ -995,7 +995,7 @@ async function handleHomepage(req) {
           // 最终显示判定 (在此处去掉 from 后缀，并清理标题中的年份、类型和平台标签)
           let mainTitle = displayAnimeTitle || displayEpTitle;
           mainTitle = mainTitle.replace(/\s*from\s+.*$/i, '')
-            .replace(/\((?:\d{4}|N\/A)\)|（(?:\d{4}|N\/A)）/gi, '') // 去除 (2025) 或 (N/A)
+            // .replace(/\((?:\d{4}|N\/A)\)|（(?:\d{4}|N\/A)）/gi, '') // 已注释：保留年份显示 (2025)
             .replace(/【(?:电视剧|电影|纪录片|综艺|动漫|动画)】/g, '') // 去除 【电视剧】 等类型
             .trim();
 
@@ -1009,23 +1009,29 @@ async function handleHomepage(req) {
           // 获取图标首字
           const iconChar = mainTitle.charAt(0).toUpperCase() || '?';
 
-          // 渲染 HTML
-          return '<div class="server-item" style="padding: 12px 16px; margin-bottom: 8px; align-items: center; gap: 14px;">' +
-            '<div class="server-badge" style="width: 40px; height: 40px; font-size: 18px; background: linear-gradient(135deg, var(--bg-hover), var(--bg-tertiary)); color: var(--primary-500); box-shadow: none; border: 1px solid var(--border-color); flex-shrink: 0;">' + iconChar + '</div>' +
-            '<div class="server-info" style="min-width: 0; flex: 1;">' +
-            '<div class="server-name" style="font-size: 15px; font-weight: 700; margin-bottom: 2px; line-height: 1.3; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' +
+          // 渲染 HTML - 优化版：更紧凑，合并信息行，显示年份
+          return '<div class="server-item" style="padding: 10px 12px; margin-bottom: 6px; align-items: center; gap: 12px; min-height: 56px;">' +
+            '<div class="server-badge" style="width: 36px; height: 36px; font-size: 16px; background: linear-gradient(135deg, var(--bg-hover), var(--bg-tertiary)); color: var(--primary-500); box-shadow: none; border: 1px solid var(--border-color); flex-shrink: 0;">' + iconChar + '</div>' +
+            '<div class="server-info" style="min-width: 0; flex: 1; display: flex; flex-direction: column; justify-content: center;">' +
+            // 第一行：主标题
+            '<div class="server-name" style="font-size: 14px; font-weight: 600; margin-bottom: 3px; line-height: 1.2; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' +
             mainTitle +
             '</div>' +
-            (subTitle ? '<div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + subTitle + '</div>' : '') +
-            '<div class="server-url" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: ' + (subTitle ? '2px' : '6px') + ';">' +
-            '<span style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 6px; font-size: 11px; background: rgba(99, 102, 241, 0.1); color: var(--primary-500); border: 1px solid rgba(99, 102, 241, 0.2);">' +
-            '<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" stroke-width="2"/><line x1="4" y1="22" x2="4" y2="15" stroke-width="2"/></svg>' +
-            targetSource +
-            '</span>' +
-            '<span title="ID: ' + displayId + '" style="font-family: monospace; font-size: 11px; color: var(--text-secondary); background: var(--bg-primary); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color); max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' +
-            displayId +
-            '</span>' +
-            countBadge +
+            // 第二行：来源 + ID + 弹幕数 + 副标题 (全部在一行)
+            '<div class="server-url" style="display: flex; align-items: center; gap: 6px; overflow: hidden;">' +
+              // 来源标签
+              '<span style="flex-shrink: 0; display: inline-flex; align-items: center; gap: 3px; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; background: rgba(99, 102, 241, 0.1); color: var(--primary-500); border: 1px solid rgba(99, 102, 241, 0.15);">' +
+                targetSource +
+              '</span>' +
+              // ID 标签
+              '<span title="ID: ' + displayId + '" style="flex-shrink: 0; font-family: monospace; font-size: 10px; color: var(--text-secondary); background: var(--bg-primary); padding: 1px 5px; border-radius: 4px; border: 1px solid var(--border-color); max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' +
+                displayId +
+              '</span>' +
+              // 数量标签 (如果存在)
+              (countBadge ? countBadge.replace('padding: 2px 8px', 'padding: 1px 5px').replace('font-size: 11px', 'font-size: 10px') : '') +
+              // 分隔符和副标题 (如果存在)
+              (subTitle ? '<span style="color: var(--border-color); flex-shrink: 0;">|</span>' : '') +
+              (subTitle ? '<span style="font-size: 11px; color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;" title="' + subTitle + '">' + subTitle + '</span>' : '') +
             '</div>' +
             '</div>' +
             '</div>';
