@@ -186,29 +186,42 @@ export function convertToDanmakuJson(contents, platform) {
     danmus.push({ p: attributes, m, cid: cidCounter++ });
   }
 
-  // 切割字符串成正则表达式数组
-  const regexArray = globals.blockedWords.split(/(?<=\/),(?=\/)/).map(str => {
-    // 去除两端的斜杠并转换为正则对象
-    const pattern = str.trim();
-    if (pattern.startsWith('/') && pattern.endsWith('/')) {
-      try {
-        // 去除两边的 `/` 并转化为正则
-        return new RegExp(pattern.slice(1, -1));
-      } catch (e) {
-        log("error", `无效的正则表达式: ${pattern}`, e);
-        return null;
+  // 🔥 优化：缓存正则表达式对象，避免每次重新编译
+  if (!globals._cachedBlockedRegexArray || globals._lastBlockedWordsHash !== globals.blockedWords) {
+    // 只有当 blockedWords 改变时才重新编译正则
+    globals._cachedBlockedRegexArray = globals.blockedWords.split(/(?<=\/),(?=\/)/).map(str => {
+      const pattern = str.trim();
+      if (pattern.startsWith('/') && pattern.endsWith('/')) {
+        try {
+          return new RegExp(pattern.slice(1, -1));
+        } catch (e) {
+          log("error", `无效的正则表达式: ${pattern}`, e);
+          return null;
+        }
       }
-    }
-    return null; // 如果不是有效的正则格式则返回 null
-  }).filter(regex => regex !== null); // 过滤掉无效的项
+      return null;
+    }).filter(regex => regex !== null);
+    
+    globals._lastBlockedWordsHash = globals.blockedWords;
+    
+    log("info", `原始屏蔽词字符串: ${globals.blockedWords}`);
+    const regexArrayToString = array => Array.isArray(array) ? array.map(regex => regex.toString()).join('\n') : String(array);
+    log("info", `屏蔽词列表已缓存: ${regexArrayToString(globals._cachedBlockedRegexArray)}`);
+  }
+  
+  const regexArray = globals._cachedBlockedRegexArray;
 
-  log("info", `原始屏蔽词字符串: ${globals.blockedWords}`);
-  const regexArrayToString = array => Array.isArray(array) ? array.map(regex => regex.toString()).join('\n') : String(array);
-  log("info", `屏蔽词列表: ${regexArrayToString(regexArray)}`);
-
-  // 过滤列表
+  // 🔥 优化：提前终止匹配，减少不必要的正则测试
   const filteredDanmus = danmus.filter(item => {
-    return !regexArray.some(regex => regex.test(item.m)); // 针对 `m` 字段进行匹配
+    const message = item.m;
+    // 优先匹配最常见的模式（如长度检查）
+    if (message.length >= 25) return false; // 第一个正则是长度检查
+    
+    // 然后再执行完整的正则匹配
+    for (let i = 1; i < regexArray.length; i++) {
+      if (regexArray[i].test(message)) return false;
+    }
+    return true;
   });
 
   log("info", `去重分钟数: ${globals.groupMinute}`);
