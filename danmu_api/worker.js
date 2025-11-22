@@ -1009,38 +1009,37 @@ async function handleHomepage(req) {
           // 获取图标首字
           const iconChar = mainTitle.charAt(0).toUpperCase() || '?';
 
-          // 渲染 HTML - 极简双行布局
-          // 结构：
-          // [图标] [主标题(包含年份).................]
-          //       [[来源] [ID] [数量] | 副标题......]
-          return '<div class="server-item" style="padding: 8px 12px; margin-bottom: 6px; align-items: center; gap: 10px; min-height: 52px;">' +
-            // 左侧图标：略微缩小至 34px
-            '<div class="server-badge" style="width: 34px; height: 34px; font-size: 15px; background: linear-gradient(135deg, var(--bg-hover), var(--bg-tertiary)); color: var(--primary-500); box-shadow: none; border: 1px solid var(--border-color); flex-shrink: 0;">' + iconChar + '</div>' +
+          // 渲染 HTML - 三行布局优化
+          // Line 1: 副标题 (具体的集数/文件名)
+          // Line 2: 主标题 (番剧名 + 年份)
+          // Line 3: 元数据 (来源 | ID | 数量)
+          return '<div class="server-item" style="padding: 10px 12px; margin-bottom: 6px; align-items: flex-start; gap: 12px;">' +
+            // 左侧图标：固定大小
+            '<div class="server-badge" style="width: 36px; height: 36px; font-size: 15px; background: linear-gradient(135deg, var(--bg-hover), var(--bg-tertiary)); color: var(--primary-500); box-shadow: none; border: 1px solid var(--border-color); flex-shrink: 0; margin-top: 2px;">' + iconChar + '</div>' +
             
-            // 右侧内容容器：使用 flex column + min-width: 0 防止文字溢出
-            '<div class="server-info" style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 3px;">' +
+            // 右侧内容容器：垂直排列
+            '<div class="server-info" style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;">' +
             
-            // 第一行：主标题 (加粗，主色)
-            '<div class="server-name" title="' + mainTitle + '" style="font-size: 14px; font-weight: 600; line-height: 1.2; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' +
+            // 第一行：副标题 (灰色小字，显示具体集数信息)
+            (subTitle ? '<div style="font-size: 12px; color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.2;" title="' + subTitle + '">' + subTitle + '</div>' : '') +
+            
+            // 第二行：主标题 (加粗，主色，显示番剧名和年份)
+            '<div class="server-name" title="' + mainTitle + '" style="font-size: 15px; font-weight: 700; line-height: 1.4; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' +
             mainTitle +
             '</div>' +
             
-            // 第二行：标签组 + 副标题 (灰色，小字)
-            '<div class="server-url" style="display: flex; align-items: center; gap: 6px; overflow: hidden; line-height: 1;">' +
+            // 第三行：元数据标签组 (来源、ID、数量)
+            '<div class="server-url" style="display: flex; align-items: center; gap: 6px; overflow: hidden; margin-top: 2px;">' +
               // 来源标签
-              '<span style="flex-shrink: 0; display: inline-flex; align-items: center; padding: 1px 5px; border-radius: 4px; font-size: 10px; font-weight: 600; background: rgba(99, 102, 241, 0.08); color: var(--primary-500); border: 1px solid rgba(99, 102, 241, 0.15);">' +
+              '<span style="flex-shrink: 0; display: inline-flex; align-items: center; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; background: rgba(99, 102, 241, 0.08); color: var(--primary-500); border: 1px solid rgba(99, 102, 241, 0.15);">' +
                 targetSource +
               '</span>' +
               // ID 标签
-              '<span title="ID: ' + displayId + '" style="flex-shrink: 0; font-family: monospace; font-size: 10px; color: var(--text-secondary); background: var(--bg-primary); padding: 1px 4px; border-radius: 3px; border: 1px solid var(--border-color); max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' +
+              '<span title="ID: ' + displayId + '" style="flex-shrink: 0; font-family: monospace; font-size: 10px; color: var(--text-secondary); background: var(--bg-primary); padding: 1px 5px; border-radius: 3px; border: 1px solid var(--border-color); max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' +
                 displayId +
               '</span>' +
-              // 数量标签 (如果存在)
-              (countBadge ? countBadge.replace('padding: 2px 8px', 'padding: 1px 4px').replace('font-size: 11px', 'font-size: 10px') : '') +
-              // 分隔符 (如果后面有副标题)
-              (subTitle ? '<span style="color: var(--border-color); flex-shrink: 0; height: 10px; border-left: 1px solid var(--border-color); margin: 0 2px;"></span>' : '') +
-              // 副标题/集数信息
-              (subTitle ? '<span style="font-size: 11px; color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;" title="' + subTitle + '">' + subTitle + '</span>' : '') +
+              // 数量标签 (如果有)
+              (countBadge ? countBadge.replace('padding: 2px 8px', 'padding: 1px 5px').replace('font-size: 11px', 'font-size: 10px') : '') +
             '</div>' +
             '</div>' +
             '</div>';
