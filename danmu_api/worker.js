@@ -1074,13 +1074,13 @@ async function handleHomepage(req) {
             
             // 右侧内容单元格
             '<td style="vertical-align: middle; padding: 0;">' +
-              '<div style="display: flex; flex-direction: column; gap: 4px;">' +
+              '<div style="display: flex; flex-direction: column; gap: 2px;">' +
                 
                 // 第一行：主标题
                 '<div class="server-name" title="' + mainTitle + '" style="' +
                   'font-size: 14px; ' +
                   'font-weight: 600; ' +
-                  'line-height: 1.2; ' +
+                  'line-height: 1.3; ' +
                   'color: var(--text-primary); ' +
                   'overflow: hidden; ' +
                   'text-overflow: ellipsis; ' +
@@ -1093,7 +1093,7 @@ async function handleHomepage(req) {
                 (subTitle ? 
                   '<div style="' +
                     'font-size: 12px; ' +
-                    'line-height: 1.2; ' +
+                    'line-height: 1.3; ' +
                     'color: var(--text-secondary); ' +
                     'overflow: hidden; ' +
                     'text-overflow: ellipsis; ' +
@@ -1103,8 +1103,8 @@ async function handleHomepage(req) {
                   '</div>' 
                   : '') +
               
-                // 第三行：标签组
-                '<div style="display: flex; align-items: center; gap: 5px; line-height: 1;">' +
+                // 第三行：标签组（与上方保持小间距）
+                '<div style="display: flex; align-items: center; gap: 5px; line-height: 1; margin-top: 3px;">' +
                   
                   // 来源标签
                   '<span style="' +
