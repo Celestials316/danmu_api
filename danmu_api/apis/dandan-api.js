@@ -857,23 +857,29 @@ export async function getComment(path, queryFormat) {
         globals.lastSelectMap.set(displayKey, matchInfo);
         log("info", `[lastSelect] 记录匹配信息: ${displayKey.substring(0, 50)}...`);
 
-        // 🔥 持久化保存到 Redis/数据库
+        // 🔥 持久化保存到 Redis/数据库（异步非阻塞）
         try {
           if (globals.databaseValid) {
             const { saveCacheData } = await import('../utils/db-util.js');
             const mapObj = Object.fromEntries(globals.lastSelectMap);
-            await saveCacheData('lastSelectMap', mapObj);
-            log("info", `[lastSelect] 已保存到数据库`);
+            saveCacheData('lastSelectMap', mapObj).catch(err => 
+              log("warn", `[lastSelect] 异步保存到数据库失败: ${err.message}`)
+            );
+            log("info", `[lastSelect] 已触发异步保存到数据库`);
           } else if (globals.redisValid) {
             const { setRedisKey } = await import('../utils/redis-util.js');
             const mapObj = Object.fromEntries(globals.lastSelectMap);
-            await setRedisKey('lastSelectMap', JSON.stringify(mapObj), true);
-            log("info", `[lastSelect] 已保存到 Redis`);
+            setRedisKey('lastSelectMap', JSON.stringify(mapObj), true).catch(err => 
+              log("warn", `[lastSelect] 异步保存到 Redis 失败: ${err.message}`)
+            );
+            log("info", `[lastSelect] 已触发异步保存到 Redis`);
           } else if (globals.localCacheValid) {
             const { writeCacheToFile } = await import('../utils/cache-util.js');
             const mapObj = Object.fromEntries(globals.lastSelectMap);
-            writeCacheToFile('lastSelectMap', JSON.stringify(mapObj));
-            log("info", `[lastSelect] 已保存到本地文件`);
+            Promise.resolve(writeCacheToFile('lastSelectMap', JSON.stringify(mapObj))).catch(err => 
+              log("warn", `[lastSelect] 异步保存到本地文件失败: ${err.message}`)
+            );
+            log("info", `[lastSelect] 已触发异步保存到本地文件`);
           }
         } catch (saveError) {
           log("warn", `[lastSelect] 持久化保存失败: ${saveError.message}`);
