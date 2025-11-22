@@ -992,17 +992,17 @@ async function handleHomepage(req) {
           // 🔥 修复：过滤掉未匹配成功的记录（只显示加载结果）
           if (displayId === '未匹配') return '';
 
-          // 最终显示判定 (在此处去掉 from 后缀，并清理标题中的年份、类型和平台标签)
+// 最终显示判定 (在此处去掉 from 后缀，并清理标题中的年份、类型和平台标签)
           let mainTitle = displayAnimeTitle || displayEpTitle;
           mainTitle = mainTitle.replace(/\s*from\s+.*$/i, '')
-            // .replace(/\((?:\d{4}|N\/A)\)|（(?:\d{4}|N\/A)）/gi, '') // 已注释：保留年份显示
-            .replace(/【(?:电视剧|电影|纪录片|综艺|动漫|动画)】/g, '') // 去除 【电视剧】 等类型
+            // .replace(/\((?:\d{4}|N\/A)\)|（(?:\d{4}|N\/A)）/gi, '') // 已注释:保留年份显示
+            .replace(/【(?:电视剧|电影|纪录片|综艺|动漫|动画)】/g, '') // 去除【电视剧】等类型
             .trim();
 
           let subTitle = displayAnimeTitle ? displayEpTitle : '';
           if (subTitle) {
             subTitle = subTitle.replace(/\s*from\s+.*$/i, '')
-              .replace(/^【.*?】\s*/, '') // 去除开头的平台标签 如 【qq】
+              .replace(/^【.*?】\s*/, '') // 去除开头的平台标签如【qq】
               .trim();
           }
 
@@ -1012,26 +1012,28 @@ async function handleHomepage(req) {
           // 渲染 HTML - 紧凑型三行布局 (High Density Layout)
           return '<div class="server-item" style="padding: 10px 12px; margin-bottom: 6px; align-items: flex-start; gap: 10px;">' +
             // 左侧图标
-            '<div class="server-badge" style="width: 34px; height: 34px; font-size: 15px; background: linear-gradient(135deg, var(--bg-hover), var(--bg-tertiary)); color: var(--primary-500); box-shadow: none; border: 1px solid var(--border-color); flex-shrink: 0; margin-top: 2px;">' + iconChar + '</div>' +
+            '<div class="server-badge" style="width: 34px; height: 34px; font-size: 15px; background: linear-gradient(135deg, var(--bg-hover), var(--bg-tertiary)); color: var(--primary-500); box-shadow: none; border: 1px solid var(--border-color); flex-shrink: 0; margin-top: 2px;">' + 
+              iconChar + 
+            '</div>' +
             
-            // 右侧内容容器：使用 flex column
+            // 右侧内容容器:使用 flex column
             '<div class="server-info" style="flex: 1; min-width: 0; display: flex; flex-direction: column;">' +
             
-              // 第一行：主标题 (加粗，行高1.2，几乎没有下边距)
+              // 第一行:主标题(加粗,行高1.2,几乎没有下边距)
               '<div class="server-name" title="' + mainTitle + '" style="font-size: 14px; font-weight: 700; line-height: 1.2; color: var(--text-primary); margin-bottom: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' +
-              mainTitle +
+                mainTitle +
               '</div>' +
 
-              // 第二行：副标题 (灰色小字，行高1.2)
+              // 第二行:副标题(灰色小字,行高1.2)
               (subTitle ? 
                 '<div style="font-size: 12px; color: var(--text-secondary); line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="' + subTitle + '">' + 
-                subTitle + 
+                  subTitle + 
                 '</div>' 
-              : '') +
+                : '') +
             
-              // 第三行：元数据标签组 (与上方保留 5px 间距，视觉上分为两组)
+              // 第三行:元数据标签组(与上方保留 5px 间距,视觉上分为两组)
               '<div class="server-url" style="margin-top: 5px; display: flex; align-items: center; gap: 6px; line-height: 1;">' +
-                // 来源标签 (小字体，紧凑padding)
+                // 来源标签(小字体,紧凑padding)
                 '<span style="flex-shrink: 0; display: inline-flex; align-items: center; padding: 1px 5px; border-radius: 4px; font-size: 10px; font-weight: 600; background: rgba(99, 102, 241, 0.08); color: var(--primary-500); border: 1px solid rgba(99, 102, 241, 0.15);">' +
                   targetSource +
                 '</span>' +
@@ -1039,12 +1041,12 @@ async function handleHomepage(req) {
                 '<span title="ID: ' + displayId + '" style="flex-shrink: 0; font-family: monospace; font-size: 10px; color: var(--text-tertiary); background: var(--bg-primary); padding: 1px 4px; border-radius: 3px; border: 1px solid var(--border-color); max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' +
                   displayId +
                 '</span>' +
-                // 数量标签 (如果有)
+                // 数量标签(如果有)
                 (countBadge ? countBadge.replace('padding: 2px 8px', 'padding: 1px 4px').replace('font-size: 11px', 'font-size: 10px') : '') +
               '</div>' +
               
             '</div>' +
-            '</div>';
+          '</div>';
         }).join('');
       } else {
         recentMatchesHtml = '<div class="empty-state" style="padding: 20px;">' +
