@@ -957,16 +957,20 @@ try {
       subTitle = subTitle.replace(/\s*from\s+.*$/i, '').replace(/^【.*?】\s*/, '').trim();
       if (!subTitle || subTitle === mainTitle) subTitle = `弹幕ID: ${targetId}`;
 
-      // 时间处理
+      // 时间处理 (已修正为北京时间 UTC+8)
       let timeStr = '';
       const ts = value.timestamp || value.time || value.date || value.createdAt;
       if (ts) {
         const date = new Date(ts);
         if (!isNaN(date.getTime())) {
-          const month = (date.getMonth() + 1).toString().padStart(2, '0');
-          const day = date.getDate().toString().padStart(2, '0');
-          const hour = date.getHours().toString().padStart(2, '0');
-          const minute = date.getMinutes().toString().padStart(2, '0');
+          // 计算 UTC 时间戳，然后加上 8 小时 (3600000ms * 8) 转换为北京时间
+          const utc = date.getTime() + (date.getTimezoneOffset() * 60000);
+          const shDate = new Date(utc + (3600000 * 8));
+
+          const month = (shDate.getMonth() + 1).toString().padStart(2, '0');
+          const day = shDate.getDate().toString().padStart(2, '0');
+          const hour = shDate.getHours().toString().padStart(2, '0');
+          const minute = shDate.getMinutes().toString().padStart(2, '0');
           timeStr = `${month}-${day} ${hour}:${minute}`;
         }
       }
