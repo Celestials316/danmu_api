@@ -872,7 +872,7 @@ async function handleHomepage(req) {
       'bahamut': 'BH'
     };
     
-    // 生成最近匹配列表HTML (严格过滤版)
+    // 生成最近匹配列表HTML (严格过滤 + 图标修复版)
     let recentMatchesHtml = '';
     try {
       // 1. 获取 Map 数据
@@ -966,12 +966,13 @@ async function handleHomepage(req) {
           subTitle = subTitle.replace(/\s*from\s+.*$/i, '').replace(/^【.*?】\s*/, '').trim();
           if (!subTitle || subTitle === mainTitle) subTitle = `ID: ${targetId}`;
 
-          // 弹幕数量徽章
+          // 弹幕数量徽章 (带图标)
           let countBadge = '';
           if (value.count !== undefined && value.count !== null) {
              const count = value.count;
              const isZero = count === 0;
              countBadge = '<div style="display: flex; align-items: center; gap: 3px; font-size: 11px; font-family: monospace; font-weight: 600; color: ' + (isZero ? 'var(--text-tertiary)' : sourceTheme.color) + ';">' +
+                  '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" style="opacity:0.8;"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"></path></svg>' +
                   '<span>' + count + '</span>' +
                 '</div>';
           }
