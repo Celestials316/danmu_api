@@ -6304,10 +6304,15 @@ async function handleHomepage(req) {
    }
    // 复制匹配信息功能
    function copyMatchInfo(title, subtitle, id) {
-     const info = `标题: ${title}${subtitle ? '\n集数: ' + subtitle : ''}\n弹幕ID: ${id}`;
+     var info = '标题: ' + title;
+     if (subtitle) {
+       info += '\\n集数: ' + subtitle;
+     }
+     info += '\\n弹幕ID: ' + id;
      copyToClipboard(info);
      showToast('已复制匹配信息', 'success', 2000);
    }
+
    // ========== 搜索源管理功能 ==========
    let vodHealthData = [];
    let vodPerformanceChart = null;
