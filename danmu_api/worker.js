@@ -872,7 +872,7 @@ async function handleHomepage(req) {
       'bahamut': 'BH'
     };
     
-    // 生成最近匹配列表HTML (严格过滤 + 图标修复版)
+    // 生成最近匹配列表HTML (UI优化+时间显示+严格过滤)
     let recentMatchesHtml = '';
     try {
       // 1. 获取 Map 数据
@@ -901,7 +901,8 @@ async function handleHomepage(req) {
 
           // 🔥 核心过滤：必须包含有效的 ID 字段
           const targetId = value.id || value.animeId || value.episodeId;
-          if (!targetId || targetId === '未匹配' || targetId === '无数据' || targetId === 'null') continue;
+          // 过滤掉 'undefined', 'null', '未匹配' 等无效ID
+          if (!targetId || targetId === '未匹配' || targetId === '无数据' || targetId === 'null' || targetId === 'undefined') continue;
 
           // 构建唯一标识 (番剧ID + 集标题) 用于去重
           const animeId = value.animeId || targetId;
@@ -966,6 +967,21 @@ async function handleHomepage(req) {
           subTitle = subTitle.replace(/\s*from\s+.*$/i, '').replace(/^【.*?】\s*/, '').trim();
           if (!subTitle || subTitle === mainTitle) subTitle = `ID: ${targetId}`;
 
+          // 时间处理 (支持 timestamp/time/date/createdAt 字段)
+          let timeStr = '';
+          const ts = value.timestamp || value.time || value.date || value.createdAt;
+          if (ts) {
+            const date = new Date(ts);
+            if (!isNaN(date.getTime())) {
+               // 格式：11-21 20:30
+               const month = (date.getMonth() + 1).toString().padStart(2, '0');
+               const day = date.getDate().toString().padStart(2, '0');
+               const hour = date.getHours().toString().padStart(2, '0');
+               const minute = date.getMinutes().toString().padStart(2, '0');
+               timeStr = `${month}-${day} ${hour}:${minute}`;
+            }
+          }
+
           // 弹幕数量徽章 (带图标)
           let countBadge = '';
           if (value.count !== undefined && value.count !== null) {
@@ -1003,10 +1019,13 @@ async function handleHomepage(req) {
                 iconChar +
               '</div>' +
 
-              // 中间信息 (Flex 1)
+              // 中间信息 (Flex 1) - 包含时间
               '<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;">' +
                 '<div style="font-size: 13px; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.3;" title="' + mainTitle + '">' + mainTitle + '</div>' +
-                '<div style="font-size: 11px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.3;" title="' + subTitle + '">' + subTitle + '</div>' +
+                '<div style="font-size: 11px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.3; display: flex; align-items: center;">' +
+                  '<span title="' + subTitle + '" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px;">' + subTitle + '</span>' +
+                  (timeStr ? '<span style="margin: 0 6px; opacity: 0.3;">|</span><span style="font-family: monospace; opacity: 0.8;">' + timeStr + '</span>' : '') +
+                '</div>' +
               '</div>' +
 
               // 右侧信息
