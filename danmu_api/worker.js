@@ -872,7 +872,7 @@ async function handleHomepage(req) {
       'bahamut': 'BH'
     };
     
-// 生成最近匹配列表HTML - 紧凑卡片设计
+// 生成最近匹配列表HTML - 紧凑卡片设计（带图标）
 let recentMatchesHtml = '';
 try {
   // 1. 获取 Map 数据
@@ -914,7 +914,7 @@ try {
     }
   }
 
-  // 3. 渲染逻辑 - 紧凑三行设计
+  // 3. 渲染逻辑 - 紧凑三行设计（带图标）
   if (uniqueEntries.length > 0) {
     const sourceNameMap = {
       'dandan': '弹弹Play', 'bilibili': 'B站', 'bilibili1': 'B站',
@@ -924,18 +924,18 @@ try {
     };
 
     const sourceThemeMap = {
-      'dandan': { color: '#A78BFA', bg: 'rgba(139, 92, 246, 0.08)' },
-      'bilibili': { color: '#60A5FA', bg: 'rgba(59, 130, 246, 0.08)' },
-      'bilibili1': { color: '#60A5FA', bg: 'rgba(59, 130, 246, 0.08)' },
-      'iqiyi': { color: '#34D399', bg: 'rgba(16, 185, 129, 0.08)' },
-      'qiyi': { color: '#34D399', bg: 'rgba(16, 185, 129, 0.08)' },
-      'youku': { color: '#22D3EE', bg: 'rgba(6, 182, 212, 0.08)' },
-      'tencent': { color: '#FBBF24', bg: 'rgba(245, 158, 11, 0.08)' },
-      'qq': { color: '#FBBF24', bg: 'rgba(245, 158, 11, 0.08)' },
-      'mgtv': { color: '#FB923C', bg: 'rgba(249, 115, 22, 0.08)' },
-      'imgo': { color: '#FB923C', bg: 'rgba(249, 115, 22, 0.08)' },
-      'bahamut': { color: '#F472B6', bg: 'rgba(236, 72, 153, 0.08)' },
-      'default': { color: '#818CF8', bg: 'rgba(99, 102, 241, 0.08)' }
+      'dandan': { color: '#A78BFA', icon: '🎯' },
+      'bilibili': { color: '#60A5FA', icon: '📺' },
+      'bilibili1': { color: '#60A5FA', icon: '📺' },
+      'iqiyi': { color: '#34D399', icon: '🥝' },
+      'qiyi': { color: '#34D399', icon: '🥝' },
+      'youku': { color: '#22D3EE', icon: '📹' },
+      'tencent': { color: '#FBBF24', icon: '🐧' },
+      'qq': { color: '#FBBF24', icon: '🐧' },
+      'mgtv': { color: '#FB923C', icon: '🥭' },
+      'imgo': { color: '#FB923C', icon: '🥭' },
+      'bahamut': { color: '#F472B6', icon: '🎮' },
+      'default': { color: '#818CF8', icon: '🎬' }
     };
 
     recentMatchesHtml = uniqueEntries.map(([key, value]) => {
@@ -984,7 +984,8 @@ try {
           margin-bottom: 8px;
           transition: all 0.2s ease;
           cursor: pointer;
-          position: relative;
+          display: flex;
+          gap: 10px;
         " onmouseenter="
           this.style.background = 'var(--bg-hover)';
           this.style.borderColor = '${sourceTheme.color}';
@@ -994,67 +995,87 @@ try {
           this.style.borderColor = 'var(--border-color)';
           this.style.boxShadow = 'none';
         ">
-          <!-- 第一行：主标题 + 来源标签 -->
-          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+          <!-- 左侧图标 -->
+          <div style="
+            flex-shrink: 0;
+            width: 36px;
+            height: 36px;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(10px);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.2s ease;
+          ">
+            ${sourceTheme.icon}
+          </div>
+
+          <!-- 右侧内容 -->
+          <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;">
+            <!-- 第一行：主标题 + 来源标签 -->
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div style="
+                flex: 1;
+                font-size: 14px;
+                font-weight: 600;
+                color: var(--text-primary);
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                line-height: 1.3;
+              " title="${mainTitle}">
+                ${mainTitle}
+              </div>
+              <div style="
+                flex-shrink: 0;
+                padding: 2px 8px;
+                background: rgba(255, 255, 255, 0.05);
+                backdrop-filter: blur(10px);
+                border: 1px solid ${sourceTheme.color}20;
+                border-radius: 5px;
+                font-size: 10px;
+                font-weight: 700;
+                color: ${sourceTheme.color};
+                letter-spacing: 0.3px;
+              ">
+                ${targetSource}
+              </div>
+            </div>
+
+            <!-- 第二行：副标题 -->
             <div style="
-              flex: 1;
-              font-size: 14px;
-              font-weight: 600;
-              color: var(--text-primary);
+              font-size: 12px;
+              color: var(--text-secondary);
               overflow: hidden;
               text-overflow: ellipsis;
               white-space: nowrap;
               line-height: 1.3;
-            " title="${mainTitle}">
-              ${mainTitle}
+            " title="${subTitle}">
+              ${subTitle}
             </div>
-            <div style="
-              flex-shrink: 0;
-              padding: 2px 8px;
-              background: ${sourceTheme.bg};
-              border: 1px solid ${sourceTheme.color}25;
-              border-radius: 5px;
-              font-size: 10px;
-              font-weight: 700;
-              color: ${sourceTheme.color};
-              letter-spacing: 0.3px;
-            ">
-              ${targetSource}
+
+            <!-- 第三行：时间 + 弹幕数 -->
+            <div style="display: flex; align-items: center; gap: 10px; font-size: 11px;">
+              ${timeStr ? `
+                <div style="display: flex; align-items: center; gap: 4px; color: var(--text-tertiary); font-family: 'SF Mono', Consolas, monospace;">
+                  <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.6;">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M12 6v6l3 3"/>
+                  </svg>
+                  ${timeStr}
+                </div>
+              ` : ''}
+              ${count !== null ? `
+                <div style="display: flex; align-items: center; gap: 4px; margin-left: auto;">
+                  <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="${countColor}" stroke-width="2.5" style="opacity: 0.7;">
+                    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+                  </svg>
+                  <span style="font-weight: 700; font-family: 'SF Mono', Consolas, monospace; color: ${countColor};">${count}</span>
+                </div>
+              ` : ''}
             </div>
-          </div>
-
-          <!-- 第二行：副标题 -->
-          <div style="
-            font-size: 12px;
-            color: var(--text-secondary);
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            line-height: 1.3;
-            margin-bottom: 6px;
-          " title="${subTitle}">
-            ${subTitle}
-          </div>
-
-          <!-- 第三行：时间 + 弹幕数 -->
-          <div style="display: flex; align-items: center; gap: 10px; font-size: 11px;">
-            ${timeStr ? `
-              <div style="display: flex; align-items: center; gap: 4px; color: var(--text-tertiary); font-family: 'SF Mono', Consolas, monospace;">
-                <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.6;">
-                  <circle cx="12" cy="12" r="10"/>
-                  <path d="M12 6v6l3 3"/>
-                </svg>
-                ${timeStr}
-              </div>
-            ` : ''}
-            ${count !== null ? `
-              <div style="display: flex; align-items: center; gap: 4px; margin-left: auto;">
-                <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="${countColor}" stroke-width="2.5" style="opacity: 0.7;">
-                  <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
-                </svg>
-                <span style="font-weight: 700; font-family: 'SF Mono', Consolas, monospace; color: ${countColor};">${count}</span>
-              </div>
-            ` : ''}
           </div>
         </div>
       `;
