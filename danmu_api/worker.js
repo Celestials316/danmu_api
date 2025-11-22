@@ -1074,17 +1074,18 @@ async function handleHomepage(req) {
             
             // 右侧内容单元格
             '<td style="vertical-align: middle; padding: 0;">' +
-              '<div style="display: flex; flex-direction: column; gap: 2px;">' +
+              '<div style="display: flex; flex-direction: column;">' +
                 
                 // 第一行：主标题
                 '<div class="server-name" title="' + mainTitle + '" style="' +
                   'font-size: 14px; ' +
                   'font-weight: 600; ' +
-                  'line-height: 1.3; ' +
+                  'line-height: 1.4; ' +
                   'color: var(--text-primary); ' +
                   'overflow: hidden; ' +
                   'text-overflow: ellipsis; ' +
-                  'white-space: nowrap;' +
+                  'white-space: nowrap; ' +
+                  'margin-bottom: 1px;' +
                 '">' +
                   mainTitle +
                 '</div>' +
@@ -1093,18 +1094,19 @@ async function handleHomepage(req) {
                 (subTitle ? 
                   '<div style="' +
                     'font-size: 12px; ' +
-                    'line-height: 1.3; ' +
+                    'line-height: 1.4; ' +
                     'color: var(--text-secondary); ' +
                     'overflow: hidden; ' +
                     'text-overflow: ellipsis; ' +
-                    'white-space: nowrap;' +
+                    'white-space: nowrap; ' +
+                    'margin-bottom: 3px;' +
                   '" title="' + subTitle + '">' +
                     subTitle +
                   '</div>' 
-                  : '') +
+                  : '<div style="margin-bottom: 3px;"></div>') +
               
-                // 第三行：标签组（与上方保持小间距）
-                '<div style="display: flex; align-items: center; gap: 5px; line-height: 1; margin-top: 3px;">' +
+                // 第三行：标签组
+                '<div style="display: flex; align-items: center; gap: 5px; line-height: 1;">' +
                   
                   // 来源标签
                   '<span style="' +
