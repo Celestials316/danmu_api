@@ -12,7 +12,8 @@ import { getBangumi, getComment, getCommentByUrl, matchAnime, searchAnime, searc
 
 let globals;
 
-// ========== 登录会话管理（Redis 持久化）==========
+// ========== 登录会话管理 (持久化/内存降级方案) ==========
+const sessions = new Map(); // 用于内存会话存储
 const SESSION_TIMEOUT = 24 * 60 * 60 * 1000; // 24小时过期
 
 function generateSessionId() {
@@ -25,42 +26,43 @@ async function validateSession(sessionId) {
   if (!sessionId) return false;
   
   try {
-    // 优先使用 Redis
+    // 1. 优先使用 Redis
     if (globals.redisValid) {
       const { getRedisKey } = await import('./utils/redis-util.js');
       const result = await getRedisKey(`session:${sessionId}`);
-      
       if (!result?.result) return false;
-      
       const session = JSON.parse(result.result);
-      
-      // 检查是否过期
       if (Date.now() - session.createdAt > SESSION_TIMEOUT) {
         await deleteSession(sessionId);
         return false;
       }
-      
       return true;
     }
     
-    // 降级到数据库
+    // 2. 降级到数据库
     if (globals.databaseValid) {
       const { loadCacheData } = await import('./utils/db-util.js');
       const sessionKey = `session:${sessionId}`;
       const session = await loadCacheData(sessionKey);
-      
       if (!session) return false;
-      
       if (Date.now() - session.createdAt > SESSION_TIMEOUT) {
         await deleteSession(sessionId);
         return false;
       }
-      
       return true;
     }
     
-    log("warn", "[session] 未配置持久化存储，会话无法保持");
-    return false;
+    // 3. 降级到内存
+    const session = sessions.get(sessionId);
+    if (!session) return false;
+    
+    if (Date.now() - session.createdAt > SESSION_TIMEOUT) {
+      sessions.delete(sessionId);
+      log("info", `[session] 内存会话已过期并移除: ${sessionId.substring(0, 8)}...`);
+      return false;
+    }
+    
+    return true;
     
   } catch (error) {
     log("error", `[session] 验证会话失败: ${error.message}`);
@@ -75,7 +77,7 @@ async function saveSession(sessionId, username) {
   };
   
   try {
-    // Redis 存储
+    // 1. 优先使用 Redis 存储
     if (globals.redisValid) {
       const { setRedisKey } = await import('./utils/redis-util.js');
       await setRedisKey(
@@ -84,18 +86,24 @@ async function saveSession(sessionId, username) {
         true,
         Math.floor(SESSION_TIMEOUT / 1000)
       );
+      log("info", "[session] 会话已保存至 Redis");
       return true;
     }
     
-    // 数据库存储（使用专门的缓存表）
+    // 2. 降级到数据库存储
     if (globals.databaseValid) {
       const { saveCacheData } = await import('./utils/db-util.js');
       const sessionKey = `session:${sessionId}`;
       await saveCacheData(sessionKey, session);
+      log("info", "[session] 会话已保存至数据库");
       return true;
     }
     
-    return false;
+    // 3. 降级到内存存储
+    sessions.set(sessionId, session);
+    log("warn", "[session] 未配置持久化存储，会话将保存在内存中（重启后失效）");
+    return true; // 关键：即使只存入内存也返回成功
+
   } catch (error) {
     log("error", `[session] 保存会话失败: ${error.message}`);
     return false;
@@ -104,30 +112,44 @@ async function saveSession(sessionId, username) {
 
 async function deleteSession(sessionId) {
   try {
+    // 1. 从 Redis 删除
     if (globals.redisValid) {
       const { setRedisKey } = await import('./utils/redis-util.js');
       await setRedisKey(`session:${sessionId}`, '', true, 1);
     }
     
+    // 2. 从数据库删除
     if (globals.databaseValid) {
       const { saveCacheData } = await import('./utils/db-util.js');
       const sessionKey = `session:${sessionId}`;
       await saveCacheData(sessionKey, null);
+    }
+
+    // 3. 从内存删除
+    if (sessions.has(sessionId)) {
+      sessions.delete(sessionId);
     }
   } catch (error) {
     log("error", `[session] 删除会话失败: ${error.message}`);
   }
 }
 
-// 清理过期会话
+// 每小时清理一次内存中过期的会话，防止内存泄漏
 setInterval(() => {
   const now = Date.now();
+  if (sessions.size === 0) return;
+
+  let clearedCount = 0;
   for (const [id, session] of sessions.entries()) {
     if (now - session.createdAt > SESSION_TIMEOUT) {
       sessions.delete(id);
+      clearedCount++;
     }
   }
-}, 60 * 60 * 1000); // 每小时清理一次
+  if (clearedCount > 0) {
+    log("info", `[session] 定时任务：清除了 ${clearedCount} 个过期的内存会话`);
+  }
+}, 60 * 60 * 1000);
 
 /**
  * 合并写入 Redis：读取现有 -> 合并 patch -> 写回
