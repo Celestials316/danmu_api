@@ -890,8 +890,8 @@ async function handleHomepage(req) {
         const displayedKeys = new Set();
         const uniqueEntries = [];
 
-        // 倒序遍历（最新的在前），去重后取前5条
-        for (let i = mapEntries.length - 1; i >= 0 && uniqueEntries.length < 5; i--) {
+        // 倒序遍历（最新的在前），去重后取前10条（实际显示时会过滤掉搜索query）
+        for (let i = mapEntries.length - 1; i >= 0 && uniqueEntries.length < 10; i--) {
           const [key, value] = mapEntries[i];
 
           // 构建唯一标识（番剧ID + 集标题）
