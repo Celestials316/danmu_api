@@ -8324,10 +8324,23 @@ function clearDanmuTest() {
      showToast('已复制到剪贴板', 'success');
    });
 
+   // 复制匹配信息功能 (已修复引号冲突问题)
+   function copyMatchInfo(title, subtitle, id) {
+     var info = '标题: ' + title;
+     if (subtitle) {
+       info += '\n集数: ' + subtitle;
+     }
+     info += '\n弹幕ID: ' + id;
+     
+     copyToClipboard(info);
+     showToast('已复制匹配信息', 'success', 2000);
+   }
+
    function copyToClipboard(text) {
      if (navigator.clipboard) {
        navigator.clipboard.writeText(text);
      } else {
+
        const textarea = document.createElement('textarea');
        textarea.value = text;
        textarea.style.position = 'fixed';
