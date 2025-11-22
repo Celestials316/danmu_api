@@ -1009,43 +1009,38 @@ async function handleHomepage(req) {
           // 获取图标首字
           const iconChar = mainTitle.charAt(0).toUpperCase() || '?';
 
-          // 渲染 HTML - 深度美化版
-          return '<div class="server-item" style="padding: 12px 14px; margin-bottom: 8px; align-items: flex-start; gap: 14px; border: 1px solid var(--border-color); background: var(--bg-tertiary); border-radius: 12px; transition: all 0.2s ease;">' +
-            // 左侧图标：增加阴影和质感，顶部对齐微调
-            '<div class="server-badge" style="width: 38px; height: 38px; font-size: 16px; background: linear-gradient(135deg, var(--bg-primary), var(--bg-hover)); color: var(--primary-500); border: 1px solid var(--border-color); box-shadow: 0 2px 6px rgba(0,0,0,0.05); flex-shrink: 0; margin-top: 2px; border-radius: 10px;">' + iconChar + '</div>' +
+          // 渲染 HTML - 紧凑型三行布局 (High Density Layout)
+          return '<div class="server-item" style="padding: 10px 12px; margin-bottom: 6px; align-items: flex-start; gap: 10px;">' +
+            // 左侧图标
+            '<div class="server-badge" style="width: 34px; height: 34px; font-size: 15px; background: linear-gradient(135deg, var(--bg-hover), var(--bg-tertiary)); color: var(--primary-500); box-shadow: none; border: 1px solid var(--border-color); flex-shrink: 0; margin-top: 2px;">' + iconChar + '</div>' +
             
-            // 右侧内容容器
+            // 右侧内容容器：使用 flex column
             '<div class="server-info" style="flex: 1; min-width: 0; display: flex; flex-direction: column;">' +
             
-              // --- 内容组 (标题 + 副标题) ---
-              
-              // 第一行：主标题 (加粗，行高收紧)
-              '<div class="server-name" title="' + mainTitle + '" style="font-size: 15px; font-weight: 700; line-height: 1.3; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; letter-spacing: 0.2px;">' +
+              // 第一行：主标题 (加粗，行高1.2，几乎没有下边距)
+              '<div class="server-name" title="' + mainTitle + '" style="font-size: 14px; font-weight: 700; line-height: 1.2; color: var(--text-primary); margin-bottom: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' +
               mainTitle +
               '</div>' +
 
-              // 第二行：副标题 (灰色小字，紧贴主标题，间距 2px)
+              // 第二行：副标题 (灰色小字，行高1.2)
               (subTitle ? 
-                '<div style="margin-top: 2px; font-size: 13px; color: var(--text-secondary); line-height: 1.4; display: flex; align-items: center; gap: 4px; overflow: hidden;">' +
-                  '<span style="opacity: 0.7; font-size: 12px;">📄</span>' + // 装饰小图标
-                  '<span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="' + subTitle + '">' + subTitle + '</span>' +
+                '<div style="font-size: 12px; color: var(--text-secondary); line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="' + subTitle + '">' + 
+                subTitle + 
                 '</div>' 
               : '') +
             
-              // --- 属性组 (元数据) ---
-              
-              // 第三行：标签组 (与上方内容保留 6px 间距，形成视觉分区)
-              '<div class="server-url" style="margin-top: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">' +
-                // 来源标签 (胶囊样式)
-                '<span style="flex-shrink: 0; display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 10px; font-size: 11px; font-weight: 600; background: rgba(99, 102, 241, 0.1); color: var(--primary-500); border: 1px solid rgba(99, 102, 241, 0.2);">' +
+              // 第三行：元数据标签组 (与上方保留 5px 间距，视觉上分为两组)
+              '<div class="server-url" style="margin-top: 5px; display: flex; align-items: center; gap: 6px; line-height: 1;">' +
+                // 来源标签 (小字体，紧凑padding)
+                '<span style="flex-shrink: 0; display: inline-flex; align-items: center; padding: 1px 5px; border-radius: 4px; font-size: 10px; font-weight: 600; background: rgba(99, 102, 241, 0.08); color: var(--primary-500); border: 1px solid rgba(99, 102, 241, 0.15);">' +
                   targetSource +
                 '</span>' +
-                // ID 标签 (代码样式)
-                '<span title="ID: ' + displayId + '" style="flex-shrink: 0; display: inline-flex; align-items: center; height: 20px; padding: 0 6px; border-radius: 6px; font-family: Monaco, Consolas, monospace; font-size: 11px; color: var(--text-secondary); background: var(--bg-primary); border: 1px solid var(--border-color); max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' +
+                // ID 标签
+                '<span title="ID: ' + displayId + '" style="flex-shrink: 0; font-family: monospace; font-size: 10px; color: var(--text-tertiary); background: var(--bg-primary); padding: 1px 4px; border-radius: 3px; border: 1px solid var(--border-color); max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' +
                   displayId +
                 '</span>' +
                 // 数量标签 (如果有)
-                (countBadge ? countBadge.replace('padding: 2px 8px', 'padding: 0 6px').replace('height: auto', 'height: 20px').replace('border-radius: 6px', 'border-radius: 10px') : '') +
+                (countBadge ? countBadge.replace('padding: 2px 8px', 'padding: 1px 4px').replace('font-size: 11px', 'font-size: 10px') : '') +
               '</div>' +
               
             '</div>' +
