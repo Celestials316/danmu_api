@@ -872,7 +872,7 @@ async function handleHomepage(req) {
       'bahamut': 'BH'
     };
     
-    // 生成最近匹配列表HTML
+// 生成最近匹配列表HTML
     let recentMatchesHtml = '';
     try {
       // 确保 globals.lastSelectMap 是一个 Map
@@ -924,6 +924,21 @@ async function handleHomepage(req) {
           'renren': '人人影视', 'hanjutv': '韩剧TV', '360': '360影视', 'vod': 'VOD', 'url': 'URL直连', 'auto': '自动匹配'
         };
 
+        // 来源主题色映射
+        const sourceThemeMap = {
+          'dandan': { primary: '#FF6B9D', bg: 'rgba(255, 107, 157, 0.08)', border: 'rgba(255, 107, 157, 0.2)' },
+          'bilibili': { primary: '#00A1D6', bg: 'rgba(0, 161, 214, 0.08)', border: 'rgba(0, 161, 214, 0.2)' },
+          'bilibili1': { primary: '#00A1D6', bg: 'rgba(0, 161, 214, 0.08)', border: 'rgba(0, 161, 214, 0.2)' },
+          'iqiyi': { primary: '#00BE06', bg: 'rgba(0, 190, 6, 0.08)', border: 'rgba(0, 190, 6, 0.2)' },
+          'qiyi': { primary: '#00BE06', bg: 'rgba(0, 190, 6, 0.08)', border: 'rgba(0, 190, 6, 0.2)' },
+          'youku': { primary: '#06A7E2', bg: 'rgba(6, 167, 226, 0.08)', border: 'rgba(6, 167, 226, 0.2)' },
+          'tencent': { primary: '#FF6C00', bg: 'rgba(255, 108, 0, 0.08)', border: 'rgba(255, 108, 0, 0.2)' },
+          'qq': { primary: '#FF6C00', bg: 'rgba(255, 108, 0, 0.08)', border: 'rgba(255, 108, 0, 0.2)' },
+          'mgtv': { primary: '#FF6F00', bg: 'rgba(255, 111, 0, 0.08)', border: 'rgba(255, 111, 0, 0.2)' },
+          'imgo': { primary: '#FF6F00', bg: 'rgba(255, 111, 0, 0.08)', border: 'rgba(255, 111, 0, 0.2)' },
+          'default': { primary: '#6366F1', bg: 'rgba(99, 102, 241, 0.08)', border: 'rgba(99, 102, 241, 0.2)' }
+        };
+
         recentMatchesHtml = uniqueEntries.map(([key, value]) => {
           let targetId = '未匹配';
           let targetSource = '未知';
@@ -962,12 +977,14 @@ async function handleHomepage(req) {
               if (value.limit && value.limit !== -1 && value.limit !== '-1') {
                 limitText = '/' + value.limit;
               }
-              const badgeColor = value.count > 0 ? 'var(--success)' : 'var(--text-tertiary)';
-              const badgeBg = value.count > 0 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(107, 114, 128, 0.1)';
+              const hasComments = value.count > 0;
+              const badgeColor = hasComments ? '#10B981' : '#9CA3AF';
+              const badgeBg = hasComments ? 'rgba(16, 185, 129, 0.1)' : 'rgba(156, 163, 175, 0.08)';
+              const badgeBorder = hasComments ? 'rgba(16, 185, 129, 0.25)' : 'rgba(156, 163, 175, 0.15)';
 
-              countBadge = '<span style="display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px; border-radius: 6px; font-size: 11px; background: ' + badgeBg + '; color: ' + badgeColor + '; border: 1px solid ' + badgeColor + '40;">' +
-                '<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke-width="2"/></svg>' +
-                countText + limitText +
+              countBadge = '<span style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 7px; border-radius: 6px; font-size: 11px; font-weight: 600; background: ' + badgeBg + '; color: ' + badgeColor + '; border: 1px solid ' + badgeBorder + ';">' +
+                '<svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor"><path d="M8 1a7 7 0 1 0 4.95 11.95l2.55 2.55a.5.5 0 0 0 .7-.7l-2.55-2.55A7 7 0 0 0 8 1zm3 9H5a.5.5 0 0 1 0-1h6a.5.5 0 0 1 0 1z"/></svg>' +
+                '<span style="font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', system-ui, sans-serif;">' + countText + limitText + '</span>' +
                 '</span>';
             }
           }
@@ -989,56 +1006,181 @@ async function handleHomepage(req) {
             displayId = '未匹配';
           }
 
-          // 🔥 修复：过滤掉未匹配成功的记录（只显示加载结果）
+          // 过滤掉未匹配成功的记录
           if (displayId === '未匹配') return '';
 
-          // 最终显示判定 (在此处去掉 from 后缀，并清理标题中的年份、类型和平台标签)
+          // 最终显示判定 (清理标题)
           let mainTitle = displayAnimeTitle || displayEpTitle;
           mainTitle = mainTitle.replace(/\s*from\s+.*$/i, '')
-            .replace(/\((?:\d{4}|N\/A)\)|（(?:\d{4}|N\/A)）/gi, '') // 去除 (2025) 或 (N/A)
-            .replace(/【(?:电视剧|电影|纪录片|综艺|动漫|动画)】/g, '') // 去除 【电视剧】 等类型
+            .replace(/【(?:电视剧|电影|纪录片|综艺|动漫|动画)】/g, '')
             .trim();
 
           let subTitle = displayAnimeTitle ? displayEpTitle : '';
           if (subTitle) {
             subTitle = subTitle.replace(/\s*from\s+.*$/i, '')
-              .replace(/^【.*?】\s*/, '') // 去除开头的平台标签 如 【qq】
+              .replace(/^【.*?】\s*/, '')
               .trim();
           }
 
-          // 获取图标首字
-          const iconChar = mainTitle.charAt(0).toUpperCase() || '?';
+          // 获取来源主题色
+          const sourceTheme = sourceThemeMap[rawSource.toLowerCase()] || sourceThemeMap.default;
 
-          // 渲染 HTML
-          return '<div class="server-item" style="padding: 12px 16px; margin-bottom: 8px; align-items: center; gap: 14px;">' +
-            '<div class="server-badge" style="width: 40px; height: 40px; font-size: 18px; background: linear-gradient(135deg, var(--bg-hover), var(--bg-tertiary)); color: var(--primary-500); box-shadow: none; border: 1px solid var(--border-color); flex-shrink: 0;">' + iconChar + '</div>' +
-            '<div class="server-info" style="min-width: 0; flex: 1;">' +
-            '<div class="server-name" style="font-size: 15px; font-weight: 700; margin-bottom: 2px; line-height: 1.3; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' +
-            mainTitle +
-            '</div>' +
-            (subTitle ? '<div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + subTitle + '</div>' : '') +
-            '<div class="server-url" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: ' + (subTitle ? '2px' : '6px') + ';">' +
-            '<span style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 6px; font-size: 11px; background: rgba(99, 102, 241, 0.1); color: var(--primary-500); border: 1px solid rgba(99, 102, 241, 0.2);">' +
-            '<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" stroke-width="2"/><line x1="4" y1="22" x2="4" y2="15" stroke-width="2"/></svg>' +
-            targetSource +
-            '</span>' +
-            '<span title="ID: ' + displayId + '" style="font-family: monospace; font-size: 11px; color: var(--text-secondary); background: var(--bg-primary); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color); max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' +
-            displayId +
-            '</span>' +
-            countBadge +
-            '</div>' +
-            '</div>' +
-            '</div>';
+          // 获取图标首字，并生成渐变背景
+          const iconChar = mainTitle.charAt(0).toUpperCase() || '?';
+          const gradientColors = [
+            ['#667eea', '#764ba2'], ['#f093fb', '#f5576c'], ['#4facfe', '#00f2fe'],
+            ['#43e97b', '#38f9d7'], ['#fa709a', '#fee140'], ['#30cfd0', '#330867']
+          ];
+          const gradientIndex = iconChar.charCodeAt(0) % gradientColors.length;
+          const [gradStart, gradEnd] = gradientColors[gradientIndex];
+
+          // 渲染 HTML - 紧凑卡片风格（强制左右布局）
+          return '<div class="server-item" style="' +
+            'position: relative; ' +
+            'padding: 10px 12px; ' +
+            'margin-bottom: 8px; ' +
+            'background: var(--bg-primary); ' +
+            'border: 1px solid var(--border-color); ' +
+            'border-radius: 10px; ' +
+            'box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); ' +
+            'transition: all 0.15s ease; ' +
+            'cursor: pointer;' +
+            '" onmouseenter="this.style.transform=\'translateX(2px)\'; this.style.boxShadow=\'0 2px 8px rgba(0, 0, 0, 0.08)\'; this.style.borderColor=\'' + sourceTheme.primary + '\';" onmouseleave="this.style.transform=\'translateX(0)\'; this.style.boxShadow=\'0 1px 3px rgba(0, 0, 0, 0.05)\'; this.style.borderColor=\'var(--border-color)\';">' +
+            
+            // 使用 table 布局确保左右结构
+            '<table style="width: 100%; border-collapse: collapse; table-layout: fixed;"><tr>' +
+            
+            // 左侧图标单元格
+            '<td style="width: 40px; vertical-align: middle; padding: 0;">' +
+              '<div class="server-badge" style="' +
+                'width: 40px; ' +
+                'height: 40px; ' +
+                'display: flex; ' +
+                'align-items: center; ' +
+                'justify-content: center; ' +
+                'font-size: 18px; ' +
+                'font-weight: 700; ' +
+                'color: white; ' +
+                'background: linear-gradient(135deg, ' + gradStart + ' 0%, ' + gradEnd + ' 100%); ' +
+                'border-radius: 8px; ' +
+                'box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);' +
+              '">' +
+                iconChar +
+              '</div>' +
+            '</td>' +
+            
+            // 中间间距
+            '<td style="width: 10px; padding: 0;"></td>' +
+            
+            // 右侧内容单元格
+            '<td style="vertical-align: middle; padding: 0;">' +
+              '<div style="display: flex; flex-direction: column;">' +
+                
+                // 第一行：主标题
+                '<div class="server-name" title="' + mainTitle + '" style="' +
+                  'font-size: 14px; ' +
+                  'font-weight: 600; ' +
+                  'line-height: 1.4; ' +
+                  'color: var(--text-primary); ' +
+                  'overflow: hidden; ' +
+                  'text-overflow: ellipsis; ' +
+                  'white-space: nowrap; ' +
+                  'margin-bottom: 1px;' +
+                '">' +
+                  mainTitle +
+                '</div>' +
+
+                // 第二行：副标题（如果有）
+                (subTitle ? 
+                  '<div style="' +
+                    'font-size: 12px; ' +
+                    'line-height: 1.4; ' +
+                    'color: var(--text-secondary); ' +
+                    'overflow: hidden; ' +
+                    'text-overflow: ellipsis; ' +
+                    'white-space: nowrap; ' +
+                    'margin-bottom: 3px;' +
+                  '" title="' + subTitle + '">' +
+                    subTitle +
+                  '</div>' 
+                  : '<div style="margin-bottom: 3px;"></div>') +
+              
+                // 第三行：标签组
+                '<div style="display: flex; align-items: center; gap: 5px; line-height: 1;">' +
+                  
+                  // 来源标签
+                  '<span style="' +
+                    'padding: 2px 6px; ' +
+                    'border-radius: 4px; ' +
+                    'font-size: 10px; ' +
+                    'font-weight: 600; ' +
+                    'background: ' + sourceTheme.bg + '; ' +
+                    'color: ' + sourceTheme.primary + '; ' +
+                    'border: 1px solid ' + sourceTheme.border + ';' +
+                  '">' +
+                    targetSource +
+                  '</span>' +
+                  
+                  // ID 标签
+                  '<span title="ID: ' + displayId + '" style="' +
+                    'padding: 2px 6px; ' +
+                    'border-radius: 4px; ' +
+                    'font-family: monospace; ' +
+                    'font-size: 10px; ' +
+                    'background: var(--bg-secondary); ' +
+                    'color: var(--text-tertiary); ' +
+                    'border: 1px solid var(--border-color); ' +
+                    'max-width: 80px; ' +
+                    'overflow: hidden; ' +
+                    'text-overflow: ellipsis; ' +
+                    'white-space: nowrap;' +
+                  '">' +
+                    displayId +
+                  '</span>' +
+                  
+                  // 弹幕数标签
+                  (countBadge ? countBadge.replace('padding: 3px 7px', 'padding: 2px 6px').replace('font-size: 11px', 'font-size: 10px').replace('gap: 4px', 'gap: 3px') : '') +
+                  
+                '</div>' +
+                
+              '</div>' +
+            '</td>' +
+            
+            '</tr></table>' +
+            
+          '</div>';
         }).join('');
       } else {
-        recentMatchesHtml = '<div class="empty-state" style="padding: 20px;">' +
-          '<div class="empty-state-icon" style="font-size: 32px; margin-bottom: 10px;">📭</div>' +
-          '<div class="empty-state-description">暂无匹配记录</div>' +
+        // 空状态优化
+        recentMatchesHtml = '<div class="empty-state" style="' +
+          'display: flex; ' +
+          'flex-direction: column; ' +
+          'align-items: center; ' +
+          'justify-content: center; ' +
+          'padding: 32px 20px; ' +
+          'text-align: center;' +
+          '">' +
+          '<div style="font-size: 48px; margin-bottom: 12px; opacity: 0.5;">📭</div>' +
+          '<div style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">暂无匹配记录</div>' +
+          '<div style="font-size: 12px; color: var(--text-secondary);">播放视频后会显示匹配历史</div>' +
           '</div>';
       }
     } catch (e) {
       console.error("渲染最近匹配失败", e);
-      recentMatchesHtml = '<div class="alert alert-error">读取记录失败: ' + e.message + '</div>';
+      recentMatchesHtml = '<div class="alert" style="' +
+        'padding: 16px; ' +
+        'background: rgba(239, 68, 68, 0.08); ' +
+        'border: 1px solid rgba(239, 68, 68, 0.2); ' +
+        'border-radius: 10px; ' +
+        'color: #EF4444; ' +
+        'font-size: 13px; ' +
+        'display: flex; ' +
+        'align-items: center; ' +
+        'gap: 10px;' +
+        '">' +
+        '<svg viewBox="0 0 16 16" width="18" height="18" fill="currentColor"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/><path d="M7.002 11a1 1 0 1 1 2 0 1 1 0 0 1-2 0zM7.1 4.995a.905.905 0 1 1 1.8 0l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 4.995z"/></svg>' +
+        '<div><strong>读取记录失败</strong><br/>' + e.message + '</div>' +
+        '</div>';
     }
 
     const sourcesHtml = globals.sourceOrderArr.length > 0 
