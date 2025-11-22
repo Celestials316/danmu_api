@@ -10,6 +10,7 @@ import {
 import { formatDanmuResponse } from "../utils/danmu-util.js";
 import { extractEpisodeTitle, convertChineseNumber, parseFileName, createDynamicPlatformOrder, normalizeSpaces } from "../utils/common-util.js";
 import { getTMDBChineseTitle } from "../utils/tmdb-util.js";
+import { saveCacheData } from "../utils/db-util.js";  // 🔥 新增
 import Kan360Source from "../sources/kan360.js";
 import VodSource from "../sources/vod.js";
 import TmdbSource from "../sources/tmdb.js";
@@ -857,33 +858,25 @@ export async function getComment(path, queryFormat) {
         globals.lastSelectMap.set(displayKey, matchInfo);
         log("info", `[lastSelect] 记录匹配信息: ${displayKey.substring(0, 50)}...`);
 
-        // 🔥 持久化保存到 Redis/数据库（异步非阻塞）
-        try {
-          if (globals.databaseValid) {
-            const { saveCacheData } = await import('../utils/db-util.js');
+        // 🔥 持久化保存到 Redis/数据库（真·异步非阻塞）
+        Promise.resolve().then(async () => {
+          try {
             const mapObj = Object.fromEntries(globals.lastSelectMap);
-            saveCacheData('lastSelectMap', mapObj).catch(err => 
-              log("warn", `[lastSelect] 异步保存到数据库失败: ${err.message}`)
-            );
-            log("info", `[lastSelect] 已触发异步保存到数据库`);
-          } else if (globals.redisValid) {
-            const { setRedisKey } = await import('../utils/redis-util.js');
-            const mapObj = Object.fromEntries(globals.lastSelectMap);
-            setRedisKey('lastSelectMap', JSON.stringify(mapObj), true).catch(err => 
-              log("warn", `[lastSelect] 异步保存到 Redis 失败: ${err.message}`)
-            );
-            log("info", `[lastSelect] 已触发异步保存到 Redis`);
-          } else if (globals.localCacheValid) {
-            const { writeCacheToFile } = await import('../utils/cache-util.js');
-            const mapObj = Object.fromEntries(globals.lastSelectMap);
-            Promise.resolve(writeCacheToFile('lastSelectMap', JSON.stringify(mapObj))).catch(err => 
-              log("warn", `[lastSelect] 异步保存到本地文件失败: ${err.message}`)
-            );
-            log("info", `[lastSelect] 已触发异步保存到本地文件`);
+            if (globals.databaseValid) {
+              await saveCacheData('lastSelectMap', mapObj);
+              log("info", `[lastSelect] 后台保存数据库成功`);
+            } else if (globals.redisValid) {
+              const { setRedisKey } = await import('../utils/redis-util.js');
+              await setRedisKey('lastSelectMap', JSON.stringify(mapObj), true);
+              log("info", `[lastSelect] 后台保存Redis成功`);
+            } else if (globals.localCacheValid) {
+              await writeCacheToFile('lastSelectMap', JSON.stringify(mapObj));
+              log("info", `[lastSelect] 后台保存本地文件成功`);
+            }
+          } catch (err) {
+            log("warn", `[lastSelect] 后台保存失败: ${err.message}`);
           }
-        } catch (saveError) {
-          log("warn", `[lastSelect] 持久化保存失败: ${saveError.message}`);
-        }
+        });
       }
     } catch (error) {
       log("warn", `[lastSelect] 记录匹配信息失败: ${error.message}`);
@@ -991,16 +984,22 @@ export async function getCommentByUrl(videoUrl, queryFormat) {
         globals.lastSelectMap.set(displayKey, matchInfo);
         log("info", `[lastSelect] 记录URL请求: ${displayKey.substring(0, 50)}...`);
         
-        // 持久化保存
-        if (globals.databaseValid) {
-          const { saveCacheData } = await import('../utils/db-util.js');
-          const mapObj = Object.fromEntries(globals.lastSelectMap);
-          await saveCacheData('lastSelectMap', mapObj);
-        } else if (globals.redisValid) {
-          const { setRedisKey } = await import('../utils/redis-util.js');
-          const mapObj = Object.fromEntries(globals.lastSelectMap);
-          await setRedisKey('lastSelectMap', JSON.stringify(mapObj), true);
-        }
+        // 持久化保存（后台执行）
+        Promise.resolve().then(async () => {
+          try {
+            const mapObj = Object.fromEntries(globals.lastSelectMap);
+            if (globals.databaseValid) {
+              await saveCacheData('lastSelectMap', mapObj);
+              log("info", `[lastSelect] URL请求后台保存数据库成功`);
+            } else if (globals.redisValid) {
+              const { setRedisKey } = await import('../utils/redis-util.js');
+              await setRedisKey('lastSelectMap', JSON.stringify(mapObj), true);
+              log("info", `[lastSelect] URL请求后台保存Redis成功`);
+            }
+          } catch (err) {
+            log("warn", `[lastSelect] URL请求后台保存失败: ${err.message}`);
+          }
+        });
       }
     } catch (e) {
       log("warn", `[lastSelect] 记录URL匹配信息失败: ${e.message}`);
