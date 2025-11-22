@@ -872,10 +872,10 @@ async function handleHomepage(req) {
       'bahamut': 'BH'
     };
     
-    // 生成最近匹配列表HTML (优化版)
+    // 生成最近匹配列表HTML (严格过滤版)
     let recentMatchesHtml = '';
     try {
-      // 确保 globals.lastSelectMap 是一个 Map
+      // 1. 获取 Map 数据
       let mapEntries = [];
       if (globals.lastSelectMap) {
         if (globals.lastSelectMap instanceof Map) {
@@ -885,24 +885,31 @@ async function handleHomepage(req) {
         }
       }
 
+      // 2. 严格过滤与去重逻辑
+      const uniqueEntries = [];
       if (mapEntries.length > 0) {
-        // 去重：使用 Set 存储已显示的 animeId + episodeTitle
         const displayedKeys = new Set();
-        const uniqueEntries = [];
 
-        // 倒序遍历（最新的在前），取前5条
-        for (let i = mapEntries.length - 1; i >= 0 && uniqueEntries.length < 5; i--) {
+        // 倒序遍历，直到找到 5 个有效条目或遍历完
+        for (let i = mapEntries.length - 1; i >= 0; i--) {
+          if (uniqueEntries.length >= 5) break; // 凑齐5个有效数据就停止
+
           const [key, value] = mapEntries[i];
 
-          // 构建唯一标识
-          const cleanKeyName = String(key).replace(/\s*from\s+.*$/i, '').trim();
-          let uniqueKey = cleanKeyName;
+          // 🔥 核心过滤：必须是对象，且不能是 null
+          if (!value || typeof value !== 'object') continue; 
 
-          if (value && typeof value === 'object') {
-            const animeId = value.id || value.animeId || '';
-            const episodeTitle = value.episodeTitle || '';
-            uniqueKey = animeId + ':' + episodeTitle;
-          }
+          // 🔥 核心过滤：必须包含有效的 ID 字段
+          const targetId = value.id || value.animeId || value.episodeId;
+          if (!targetId || targetId === '未匹配' || targetId === '无数据' || targetId === 'null') continue;
+
+          // 构建唯一标识 (番剧ID + 集标题) 用于去重
+          const animeId = value.animeId || targetId;
+          const episodeTitle = value.episodeTitle || '';
+          const cleanKeyName = String(key).replace(/\s*from\s+.*$/i, '').trim();
+          
+          // 优先使用 ID 组合作为唯一键，如果没有则使用清理后的 Key
+          const uniqueKey = (animeId && episodeTitle) ? (animeId + ':' + episodeTitle) : cleanKeyName;
 
           if (!displayedKeys.has(uniqueKey) && !displayedKeys.has(cleanKeyName)) {
             displayedKeys.add(uniqueKey);
@@ -910,7 +917,10 @@ async function handleHomepage(req) {
             uniqueEntries.push([key, value]);
           }
         }
+      }
 
+      // 3. 渲染逻辑
+      if (uniqueEntries.length > 0) {
         // 来源名称映射
         const sourceNameMap = {
           'dandan': '弹弹Play', 'bilibili': 'B站', 'bilibili1': 'B站',
@@ -921,64 +931,52 @@ async function handleHomepage(req) {
 
         // 来源配色方案 (Glass Design)
         const sourceThemeMap = {
-          'dandan': { color: '#A78BFA', bg: 'rgba(139, 92, 246, 0.15)' },
-          'bilibili': { color: '#60A5FA', bg: 'rgba(59, 130, 246, 0.15)' },
-          'bilibili1': { color: '#60A5FA', bg: 'rgba(59, 130, 246, 0.15)' },
-          'iqiyi': { color: '#34D399', bg: 'rgba(16, 185, 129, 0.15)' },
-          'qiyi': { color: '#34D399', bg: 'rgba(16, 185, 129, 0.15)' },
-          'youku': { color: '#22D3EE', bg: 'rgba(6, 182, 212, 0.15)' },
-          'tencent': { color: '#FBBF24', bg: 'rgba(245, 158, 11, 0.15)' },
-          'qq': { color: '#FBBF24', bg: 'rgba(245, 158, 11, 0.15)' },
-          'mgtv': { color: '#FB923C', bg: 'rgba(249, 115, 22, 0.15)' },
-          'imgo': { color: '#FB923C', bg: 'rgba(249, 115, 22, 0.15)' },
-          'bahamut': { color: '#F472B6', bg: 'rgba(236, 72, 153, 0.15)' },
-          'default': { color: '#818CF8', bg: 'rgba(99, 102, 241, 0.15)' }
+          'dandan': { color: '#A78BFA', bg: 'rgba(139, 92, 246, 0.12)' },
+          'bilibili': { color: '#60A5FA', bg: 'rgba(59, 130, 246, 0.12)' },
+          'bilibili1': { color: '#60A5FA', bg: 'rgba(59, 130, 246, 0.12)' },
+          'iqiyi': { color: '#34D399', bg: 'rgba(16, 185, 129, 0.12)' },
+          'qiyi': { color: '#34D399', bg: 'rgba(16, 185, 129, 0.12)' },
+          'youku': { color: '#22D3EE', bg: 'rgba(6, 182, 212, 0.12)' },
+          'tencent': { color: '#FBBF24', bg: 'rgba(245, 158, 11, 0.12)' },
+          'qq': { color: '#FBBF24', bg: 'rgba(245, 158, 11, 0.12)' },
+          'mgtv': { color: '#FB923C', bg: 'rgba(249, 115, 22, 0.12)' },
+          'imgo': { color: '#FB923C', bg: 'rgba(249, 115, 22, 0.12)' },
+          'bahamut': { color: '#F472B6', bg: 'rgba(236, 72, 153, 0.12)' },
+          'default': { color: '#818CF8', bg: 'rgba(99, 102, 241, 0.12)' }
         };
 
         recentMatchesHtml = uniqueEntries.map(([key, value]) => {
-          let targetId = '未匹配';
-          let rawSource = 'unknown';
-          let displayAnimeTitle = '';
-          let displayEpTitle = '';
-          let countBadge = '';
-
-          // 数据解析
-          if (value && typeof value === 'object' && !Array.isArray(value)) {
-            targetId = value.id || value.animeId || value.episodeId || '未匹配';
-            rawSource = value.source || value.type || 'auto';
-            displayAnimeTitle = value.animeTitle || '';
-            displayEpTitle = value.episodeTitle || '';
-
-            if (value.count !== undefined && value.count !== null) {
-              const count = value.count;
-              const isZero = count === 0;
-              // 弹幕数量徽章
-              countBadge = '<div style="display: flex; align-items: center; gap: 4px; font-size: 10px; color: ' + (isZero ? 'var(--text-tertiary)' : 'var(--success)') + ';">' +
-                  '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke-width="2"/></svg>' +
-                  '<span>' + count + (value.limit > 0 ? '/' + value.limit : '') + '</span>' +
-                '</div>';
-            }
-          } else {
-            // 简单类型或数组降级处理
-            rawSource = Array.isArray(value) ? (value[1] || 'unknown') : 'auto';
-            targetId = Array.isArray(value) ? value[0] : String(value);
-            displayEpTitle = String(key);
-          }
+          // 数据提取
+          const targetId = value.id || value.animeId || value.episodeId || '未知ID';
+          const rawSource = value.source || value.type || 'auto';
+          const displayAnimeTitle = value.animeTitle || '';
+          const displayEpTitle = value.episodeTitle || String(key).replace(/\s*from\s+.*$/i, ''); // 降级使用key
 
           const targetSource = sourceNameMap[rawSource.toLowerCase()] || rawSource;
           const sourceTheme = sourceThemeMap[rawSource.toLowerCase()] || sourceThemeMap.default;
 
-          // 标题处理
+          // 标题清洗
           let mainTitle = displayAnimeTitle || displayEpTitle;
           mainTitle = mainTitle.replace(/\s*from\s+.*$/i, '')
             .replace(/【(?:电视剧|电影|纪录片|综艺|动漫|动画)】/g, '')
             .trim();
           
+          // 副标题逻辑
           let subTitle = displayAnimeTitle ? displayEpTitle : '';
           subTitle = subTitle.replace(/\s*from\s+.*$/i, '').replace(/^【.*?】\s*/, '').trim();
-          if (!subTitle) subTitle = targetId; // 如果没有副标题，显示ID作为补充
+          if (!subTitle || subTitle === mainTitle) subTitle = `ID: ${targetId}`;
 
-          // 图标生成
+          // 弹幕数量徽章
+          let countBadge = '';
+          if (value.count !== undefined && value.count !== null) {
+             const count = value.count;
+             const isZero = count === 0;
+             countBadge = '<div style="display: flex; align-items: center; gap: 3px; font-size: 11px; font-family: monospace; font-weight: 600; color: ' + (isZero ? 'var(--text-tertiary)' : sourceTheme.color) + ';">' +
+                  '<span>' + count + '</span>' +
+                '</div>';
+          }
+
+          // 图标背景色
           const iconChar = mainTitle.charAt(0).toUpperCase() || '?';
           const softGradients = [
              ['#6366F1', '#818CF8'], ['#EC4899', '#F472B6'], ['#3B82F6', '#60A5FA'],
@@ -986,52 +984,51 @@ async function handleHomepage(req) {
           ];
           const gradient = softGradients[iconChar.charCodeAt(0) % softGradients.length];
 
-          // 紧凑卡片 HTML
+          // HTML 渲染
           return '<div class="match-card" style="' +
-              'display: flex; align-items: center; gap: 12px; padding: 10px; margin-bottom: 8px; ' +
+              'display: flex; align-items: center; gap: 12px; padding: 8px 12px; margin-bottom: 8px; ' +
               'background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 10px; ' +
-              'transition: all 0.2s ease; cursor: default; position: relative; overflow: hidden;' +
+              'transition: all 0.2s ease; cursor: default; position: relative; overflow: hidden; height: 56px;' +
               '" onmouseenter="this.style.background=\'var(--bg-hover)\'; this.style.borderColor=\'' + sourceTheme.color + '\'; this.style.transform=\'translateY(-1px)\'; this.style.boxShadow=\'0 4px 12px rgba(0,0,0,0.05)\'; " ' +
               'onmouseleave="this.style.background=\'var(--bg-tertiary)\'; this.style.borderColor=\'var(--border-color)\'; this.style.transform=\'translateY(0)\'; this.style.boxShadow=\'none\';">' +
               
-              // 左侧发光条 (Source Color Indicator)
-              '<div style="position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: ' + sourceTheme.color + '; opacity: 0.6;"></div>' +
+              // 左侧装饰条
+              '<div style="position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: ' + sourceTheme.color + '; opacity: 0.7;"></div>' +
 
               // 图标
-              '<div style="width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; ' +
-              'font-size: 16px; font-weight: 700; color: white; flex-shrink: 0; ' +
-              'background: linear-gradient(135deg, ' + gradient[0] + ', ' + gradient[1] + '); box-shadow: 0 2px 6px rgba(0,0,0,0.15);">' +
+              '<div style="width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; ' +
+              'font-size: 14px; font-weight: 700; color: white; flex-shrink: 0; ' +
+              'background: linear-gradient(135deg, ' + gradient[0] + ', ' + gradient[1] + '); box-shadow: 0 2px 6px rgba(0,0,0,0.1);">' +
                 iconChar +
               '</div>' +
 
-              // 中间内容 (标题 & 副标题)
-              '<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;">' +
-                '<div style="font-size: 13px; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="' + mainTitle + '">' + mainTitle + '</div>' +
-                '<div style="font-size: 11px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; gap: 6px;">' +
-                  '<span title="' + subTitle + '">' + subTitle + '</span>' +
-                '</div>' +
+              // 中间信息 (Flex 1)
+              '<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;">' +
+                '<div style="font-size: 13px; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.3;" title="' + mainTitle + '">' + mainTitle + '</div>' +
+                '<div style="font-size: 11px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.3;" title="' + subTitle + '">' + subTitle + '</div>' +
               '</div>' +
 
-              // 右侧信息 (来源徽章 & 弹幕数)
-              '<div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0;">' +
-                '<div style="padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; ' +
+              // 右侧信息
+              '<div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 2px; flex-shrink: 0;">' +
+                '<div style="padding: 1px 5px; border-radius: 3px; font-size: 10px; font-weight: 600; ' +
                 'background: ' + sourceTheme.bg + '; color: ' + sourceTheme.color + '; letter-spacing: 0.5px;">' +
                   targetSource +
                 '</div>' +
-                (countBadge || '<span style="font-size: 10px; color: var(--text-tertiary);">无数据</span>') +
+                (countBadge) +
               '</div>' +
 
             '</div>';
         }).join('');
       } else {
+        // 空状态
         recentMatchesHtml = '<div class="empty-state" style="padding: 32px 16px; text-align: center;">' +
           '<div style="font-size: 32px; margin-bottom: 8px; opacity: 0.4;">📭</div>' +
-          '<div style="font-size: 13px; color: var(--text-secondary);">暂无最近匹配记录</div>' +
+          '<div style="font-size: 13px; color: var(--text-secondary);">暂无有效匹配记录</div>' +
           '</div>';
       }
     } catch (e) {
       console.error("渲染匹配列表失败", e);
-      recentMatchesHtml = '<div style="padding: 12px; font-size: 12px; color: var(--error); background: rgba(239,68,68,0.1); border-radius: 8px;">加载失败: ' + e.message + '</div>';
+      recentMatchesHtml = '<div style="padding: 12px; font-size: 12px; color: var(--error); background: rgba(239,68,68,0.1); border-radius: 8px;">数据读取异常: ' + e.message + '</div>';
     }
 
 
