@@ -872,10 +872,10 @@ async function handleHomepage(req) {
       'bahamut': 'BH'
     };
     
-// 生成最近匹配列表HTML - 全面优化版
+    // 生成最近匹配列表HTML
     let recentMatchesHtml = '';
     try {
-      // 1. 数据准备
+      // 确保 globals.lastSelectMap 是一个 Map
       let mapEntries = [];
       if (globals.lastSelectMap) {
         if (globals.lastSelectMap instanceof Map) {
@@ -886,233 +886,224 @@ async function handleHomepage(req) {
       }
 
       if (mapEntries.length > 0) {
-        // 2. 去重与排序
+        // 去重逻辑
         const displayedKeys = new Set();
         const uniqueEntries = [];
 
-        // 倒序遍历（最新的在前），取前5-6条
+        // 倒序遍历，取最新的前6条
         for (let i = mapEntries.length - 1; i >= 0 && uniqueEntries.length < 6; i--) {
           const [key, value] = mapEntries[i];
-
-          // 智能构建唯一键：移除 "from ..." 后缀，忽略空格大小写
-          let cleanKey = String(key).replace(/\s*from\s+.*$/i, '').trim().toLowerCase();
+          const cleanKeyName = String(key).replace(/\s*from\s+.*$/i, '').trim();
+          let uniqueKey = cleanKeyName;
           
           if (value && typeof value === 'object') {
             const animeId = value.id || value.animeId || '';
             const episodeTitle = value.episodeTitle || '';
-            cleanKey = (animeId + ':' + episodeTitle).toLowerCase();
+            uniqueKey = animeId + ':' + episodeTitle;
           }
 
-          if (!displayedKeys.has(cleanKey)) {
-            displayedKeys.add(cleanKey);
+          if (!displayedKeys.has(uniqueKey) && !displayedKeys.has(cleanKeyName)) {
+            displayedKeys.add(uniqueKey);
+            displayedKeys.add(cleanKeyName);
             uniqueEntries.push([key, value]);
           }
         }
 
-        // 3. 映射字典配置
-        const sourceNameMap = {
-          'dandan': '弹弹Play', 'bilibili': '哔哩哔哩', 'bilibili1': '哔哩哔哩',
-          'iqiyi': '爱奇艺', 'qiyi': '爱奇艺', 'youku': '优酷视频', 'tencent': '腾讯视频',
-          'qq': '腾讯视频', 'mgtv': '芒果TV', 'imgo': '芒果TV', 'bahamut': '巴哈姆特',
-          'renren': '人人影视', 'hanjutv': '韩剧TV', '360': '360影视', 'vod': '采集站', 
-          'url': '直连URL', 'auto': '自动匹配'
+        // 来源显示配置
+        const sourceConfig = {
+          'dandan': { name: '弹弹Play', color: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.15)' },
+          'bilibili': { name: '哔哩哔哩', color: '#FB7299', bg: 'rgba(251, 114, 153, 0.15)' },
+          'bilibili1': { name: '哔哩哔哩', color: '#FB7299', bg: 'rgba(251, 114, 153, 0.15)' },
+          'iqiyi': { name: '爱奇艺', color: '#00CC4C', bg: 'rgba(0, 204, 76, 0.15)' },
+          'qiyi': { name: '爱奇艺', color: '#00CC4C', bg: 'rgba(0, 204, 76, 0.15)' },
+          'youku': { name: '优酷', color: '#06B6D4', bg: 'rgba(6, 182, 212, 0.15)' },
+          'tencent': { name: '腾讯视频', color: '#FF7F00', bg: 'rgba(255, 127, 0, 0.15)' },
+          'qq': { name: '腾讯视频', color: '#FF7F00', bg: 'rgba(255, 127, 0, 0.15)' },
+          'mgtv': { name: '芒果TV', color: '#F97316', bg: 'rgba(249, 115, 22, 0.15)' },
+          'imgo': { name: '芒果TV', color: '#F97316', bg: 'rgba(249, 115, 22, 0.15)' },
+          'bahamut': { name: '巴哈姆特', color: '#00B4D8', bg: 'rgba(0, 180, 216, 0.15)' },
+          'renren': { name: '人人影视', color: '#3B82F6', bg: 'rgba(59, 130, 246, 0.15)' },
+          'auto': { name: '自动匹配', color: '#6366F1', bg: 'rgba(99, 102, 241, 0.15)' },
+          'default': { name: '未知来源', color: '#9CA3AF', bg: 'rgba(156, 163, 175, 0.15)' }
         };
 
-        // 增强的配色方案（适配亮/暗主题）
-        const sourceThemeMap = {
-          'bilibili': { primary: '#FB7299', bg: 'rgba(251, 114, 153, 0.1)', border: 'rgba(251, 114, 153, 0.3)' }, // B站粉
-          'bilibili1': { primary: '#FB7299', bg: 'rgba(251, 114, 153, 0.1)', border: 'rgba(251, 114, 153, 0.3)' },
-          'iqiyi': { primary: '#00CC4C', bg: 'rgba(0, 204, 76, 0.1)', border: 'rgba(0, 204, 76, 0.3)' }, // 爱奇艺绿
-          'qiyi': { primary: '#00CC4C', bg: 'rgba(0, 204, 76, 0.1)', border: 'rgba(0, 204, 76, 0.3)' },
-          'youku': { primary: '#0C9DFC', bg: 'rgba(12, 157, 252, 0.1)', border: 'rgba(12, 157, 252, 0.3)' }, // 优酷蓝
-          'tencent': { primary: '#FF7C26', bg: 'rgba(255, 124, 38, 0.1)', border: 'rgba(255, 124, 38, 0.3)' }, // 腾讯橙
-          'qq': { primary: '#FF7C26', bg: 'rgba(255, 124, 38, 0.1)', border: 'rgba(255, 124, 38, 0.3)' },
-          'mgtv': { primary: '#FF5F00', bg: 'rgba(255, 95, 0, 0.1)', border: 'rgba(255, 95, 0, 0.3)' }, // 芒果红
-          'imgo': { primary: '#FF5F00', bg: 'rgba(255, 95, 0, 0.1)', border: 'rgba(255, 95, 0, 0.3)' },
-          'bahamut': { primary: '#1CB4B6', bg: 'rgba(28, 180, 182, 0.1)', border: 'rgba(28, 180, 182, 0.3)' }, // 巴哈青
-          'dandan': { primary: '#F45F93', bg: 'rgba(244, 95, 147, 0.1)', border: 'rgba(244, 95, 147, 0.3)' }, 
-          'default': { primary: '#6366F1', bg: 'rgba(99, 102, 241, 0.08)', border: 'rgba(99, 102, 241, 0.25)' }
-        };
-
-        // 4. 生成卡片 HTML
-        recentMatchesHtml = uniqueEntries.map(([key, value]) => {
+        recentMatchesHtml = uniqueEntries.map(([key, value], index) => {
+          // 数据解析
           let targetId = '未匹配';
-          let targetSource = 'auto';
-          let rawSource = 'unknown';
-
-          // 数据解析与清洗
+          let rawSource = 'auto';
           let displayAnimeTitle = '';
           let displayEpTitle = '';
           let countBadge = '';
 
           if (value && typeof value === 'object') {
             targetId = value.id || value.animeId || value.episodeId || '未匹配';
-            rawSource = (value.source || value.type || 'auto').toLowerCase();
-            targetSource = sourceNameMap[rawSource] || rawSource;
-
+            rawSource = value.source || value.type || 'auto';
             displayAnimeTitle = value.animeTitle || '';
             displayEpTitle = value.episodeTitle || '';
 
-            // 弹幕计数徽章
-            if (value.count !== undefined) {
-              const count = parseInt(value.count);
-              const isHigh = count > 1000;
-              const badgeStyle = isHigh 
-                ? 'background: linear-gradient(135deg, #10B981 0%, #059669 100%); color: white; border: none;' 
-                : 'background: rgba(16, 185, 129, 0.1); color: #10B981; border: 1px solid rgba(16, 185, 129, 0.2);';
-              
-              countBadge = `
-                <div style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 700; ${badgeStyle}">
-                  <svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg>
-                  <span>${count > 9999 ? (count/10000).toFixed(1)+'w' : count}</span>
-                </div>
-              `;
+            // 弹幕数量徽章
+            if (value.count !== undefined && value.count !== null) {
+               const countNum = parseInt(value.count);
+               if (countNum > 0) {
+                 countBadge = `<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 6px;border-radius:4px;background:var(--bg-primary);border:1px solid var(--border-color);font-size:10px;color:var(--text-secondary);">
+                   <span style="width:4px;height:4px;border-radius:50%;background:var(--success);"></span>${countNum}条
+                 </span>`;
+               }
             }
-          } else {
-             displayEpTitle = String(key);
+          } else if (typeof value === 'string' || typeof value === 'number') {
+             targetId = value;
           }
 
-          // 标题后处理：如果没取到 animeTitle，从 key 中正则提取
+          // 标题兜底逻辑
+          let fullKey = String(key);
           if (!displayAnimeTitle) {
-            const match = String(key).match(/^[【\[](.*?)[】\]](.*)/);
-            if (match) {
-              displayAnimeTitle = match[1].trim();
-              displayEpTitle = match[2].trim();
+            const bracketMatch = fullKey.match(/^[【\[](.*?)[】\]](.*)/);
+            if (bracketMatch) {
+              displayAnimeTitle = bracketMatch[1].trim();
+              displayEpTitle = bracketMatch[2].trim();
             } else {
-              displayEpTitle = String(key);
+              displayEpTitle = fullKey;
             }
           }
 
-          // 清理标题中的冗余标签
-          let mainTitle = (displayAnimeTitle || displayEpTitle).replace(/\s*from\s+.*$/i, '').replace(/【.*?】/g, '').trim();
-          let subTitle = displayAnimeTitle ? displayEpTitle.replace(/^【.*?】\s*/, '').trim() : '';
+          // 清理冗余信息
+          displayAnimeTitle = displayAnimeTitle.replace(/\s*from\s+.*$/i, '').replace(/【.*?】/g, '').trim();
+          displayEpTitle = displayEpTitle.replace(/\s*from\s+.*$/i, '').trim();
+          if (!displayAnimeTitle) {
+             displayAnimeTitle = displayEpTitle;
+             displayEpTitle = '';
+          }
 
-          // 过滤无效数据
-          if (targetId === '未匹配' || !mainTitle) return '';
-
-          // 视觉元素生成
-          const sourceTheme = sourceThemeMap[rawSource] || sourceThemeMap.default;
-          const firstChar = mainTitle.charAt(0).toUpperCase() || '?';
+          // 获取样式配置
+          const styleConf = sourceConfig[rawSource.toLowerCase()] || sourceConfig['default'];
+          const sourceName = styleConf.name;
           
-          // 动态渐变色 (基于首字母)
+          // 生成头像渐变
+          const iconChar = (displayAnimeTitle[0] || '?').toUpperCase();
           const gradients = [
-            ['#8B5CF6', '#6366F1'], ['#EC4899', '#D946EF'], ['#F59E0B', '#F97316'], 
-            ['#10B981', '#059669'], ['#3B82F6', '#2563EB'], ['#EF4444', '#DC2626']
+            'linear-gradient(135deg, #6366f1, #8b5cf6)',
+            'linear-gradient(135deg, #3b82f6, #2dd4bf)',
+            'linear-gradient(135deg, #f59e0b, #f97316)',
+            'linear-gradient(135deg, #ec4899, #f43f5e)',
+            'linear-gradient(135deg, #10b981, #059669)'
           ];
-          const gradIdx = firstChar.charCodeAt(0) % gradients.length;
-          const [g1, g2] = gradients[gradIdx];
+          const gradientBg = gradients[iconChar.charCodeAt(0) % gradients.length];
+
+          // 最新标签
+          const isLatest = index === 0 ? '<span style="position:absolute;top:0;right:0;background:var(--primary-500);color:white;font-size:9px;padding:1px 6px;border-radius:0 10px 0 6px;font-weight:700;z-index:2;">NEW</span>' : '';
 
           return `
-            <div class="match-card" style="
-              display: flex;
-              align-items: center;
-              gap: 16px;
-              padding: 16px;
-              margin-bottom: 12px;
-              background: var(--bg-tertiary);
-              border: 1px solid var(--border-color);
-              border-radius: 12px;
-              transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            <div class="server-item" style="
+              display: flex; 
+              align-items: center; 
+              gap: 14px; 
+              padding: 14px; 
+              background: var(--bg-tertiary); 
+              border: 1px solid var(--border-color); 
+              border-radius: 12px; 
+              margin-bottom: 10px; 
+              transition: all 0.2s ease;
+              cursor: pointer;
               position: relative;
               overflow: hidden;
-            " onmouseenter="
-              this.style.transform='translateY(-2px)';
-              this.style.boxShadow='0 8px 24px rgba(0,0,0,0.08)';
-              this.style.borderColor='${sourceTheme.primary}';
-              this.style.background='var(--bg-hover)';
-            " onmouseleave="
-              this.style.transform='none';
-              this.style.boxShadow='none';
-              this.style.borderColor='var(--border-color)';
-              this.style.background='var(--bg-tertiary)';
-            ">
-              <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: ${sourceTheme.primary}; opacity: 0.8;"></div>
+            " 
+            onmouseenter="this.style.borderColor='${styleConf.color}';this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)';" 
+            onmouseleave="this.style.borderColor='var(--border-color)';this.style.transform='translateY(0)';this.style.boxShadow='none';">
+              ${isLatest}
               
               <div style="
-                width: 48px; height: 48px; flex-shrink: 0;
-                background: linear-gradient(135deg, ${g1}, ${g2});
-                border-radius: 12px;
-                display: flex; align-items: center; justify-content: center;
-                color: white; font-weight: 800; font-size: 20px;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-                text-shadow: 0 1px 2px rgba(0,0,0,0.1);
-              ">${firstChar}</div>
+                width: 42px; 
+                height: 42px; 
+                border-radius: 10px; 
+                background: ${gradientBg}; 
+                color: white; 
+                display: flex; 
+                align-items: center; 
+                justify-content: center; 
+                font-size: 20px; 
+                font-weight: 700; 
+                flex-shrink: 0;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+                text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+              ">${iconChar}</div>
 
               <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;">
                 <div style="
-                  font-size: 15px; font-weight: 700; color: var(--text-primary);
-                  margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-                  line-height: 1.2;
-                " title="${mainTitle}">${mainTitle}</div>
+                  font-size: 14px; 
+                  font-weight: 700; 
+                  color: var(--text-primary); 
+                  margin-bottom: 3px;
+                  white-space: nowrap; 
+                  overflow: hidden; 
+                  text-overflow: ellipsis;
+                " title="${displayAnimeTitle}">${displayAnimeTitle}</div>
                 
-                <div style="
-                  font-size: 12px; color: var(--text-secondary);
-                  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-                  display: flex; align-items: center; gap: 6px;
-                ">
-                  ${subTitle ? `<span title="${subTitle}">${subTitle}</span>` : '<span>全集</span>'}
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  ${displayEpTitle ? `<div style="
+                    font-size: 12px; 
+                    color: var(--text-secondary); 
+                    white-space: nowrap; 
+                    overflow: hidden; 
+                    text-overflow: ellipsis;
+                  " title="${displayEpTitle}">${displayEpTitle}</div>` : ''}
+                  ${countBadge}
                 </div>
               </div>
 
-              <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0;">
-                <div style="display: flex; align-items: center; gap: 6px;">
-                  <span style="
-                    font-size: 10px; font-weight: 700;
-                    padding: 2px 8px; border-radius: 6px;
-                    color: ${sourceTheme.primary};
-                    background: ${sourceTheme.bg};
-                    border: 1px solid ${sourceTheme.border};
-                    text-transform: uppercase;
-                    letter-spacing: 0.5px;
-                  ">${targetSource}</span>
-                  ${countBadge}
-                </div>
-                
+              <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0;">
                 <div style="
-                  font-family: 'Monaco', monospace; font-size: 10px; color: var(--text-tertiary);
-                  background: var(--bg-primary); padding: 2px 6px; border-radius: 4px;
-                  border: 1px solid var(--border-color); opacity: 0.8;
-                " title="Resource ID">
-                  ${targetId}
+                  display: inline-flex; 
+                  align-items: center; 
+                  padding: 3px 8px; 
+                  border-radius: 6px; 
+                  font-size: 11px; 
+                  font-weight: 600; 
+                  color: ${styleConf.color}; 
+                  background: ${styleConf.bg};
+                  border: 1px solid ${styleConf.color}33;
+                ">
+                  ${sourceName}
+                </div>
+                <div style="
+                  font-family: 'Monaco', monospace; 
+                  font-size: 10px; 
+                  color: var(--text-tertiary); 
+                  background: var(--bg-primary); 
+                  padding: 1px 5px; 
+                  border-radius: 4px;
+                  border: 1px solid var(--border-color);
+                  opacity: 0.8;
+                " title="ID: ${targetId}">
+                  ${String(targetId).substring(0, 10)}${String(targetId).length > 10 ? '...' : ''}
                 </div>
               </div>
             </div>
           `;
         }).join('');
       } else {
-        // 优化后的空状态
+        // 空状态优化
         recentMatchesHtml = `
-          <div style="
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            padding: 48px 20px; text-align: center;
-            background: var(--bg-tertiary); border-radius: 16px; border: 1px dashed var(--border-color);
-          ">
+          <div class="empty-state" style="padding: 40px 20px;">
             <div style="
-              width: 64px; height: 64px; border-radius: 50%;
-              background: linear-gradient(135deg, var(--bg-hover), var(--bg-primary));
-              display: flex; align-items: center; justify-content: center;
-              font-size: 32px; margin-bottom: 16px; opacity: 0.8;
-              box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+              width: 64px; height: 64px; 
+              background: var(--bg-tertiary); 
+              border-radius: 50%; 
+              display: flex; align-items: center; justify-content: center; 
+              margin-bottom: 16px; 
+              font-size: 32px;
+              border: 1px dashed var(--border-color);
             ">📭</div>
-            <div style="font-size: 16px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">暂无匹配记录</div>
-            <div style="font-size: 13px; color: var(--text-secondary); max-width: 250px; line-height: 1.5;">
-              当您播放视频时，系统会自动记录匹配成功的番剧信息，方便您下次查看。
-            </div>
+            <div style="font-size: 15px; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px;">暂无匹配记录</div>
+            <div style="font-size: 12px; color: var(--text-tertiary);">开始播放视频后，匹配结果将显示在这里</div>
           </div>
         `;
       }
     } catch (e) {
       console.error("渲染最近匹配失败", e);
       recentMatchesHtml = `
-        <div class="alert alert-error" style="margin-bottom: 0;">
-          <svg class="alert-icon" viewBox="0 0 24 24" width="20" height="20">
-            <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
-            <path d="M12 8v4m0 4h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          </svg>
-          <div>
-            <strong>读取记录失败</strong>
-            <div style="font-size: 12px; margin-top: 4px; opacity: 0.8;">${e.message}</div>
-          </div>
+        <div class="alert alert-error" style="margin: 10px;">
+          <svg class="alert-icon" viewBox="0 0 24 24" width="16" height="16"><path d="M12 8v4m0 4h0" stroke="currentColor" stroke-width="2"/></svg>
+          <span>无法加载记录: ${e.message}</span>
         </div>
       `;
     }
