@@ -872,10 +872,10 @@ async function handleHomepage(req) {
       'bahamut': 'BH'
     };
     
-    // 生成最近匹配列表HTML (三行布局优化版)
+// 生成最近匹配列表HTML
     let recentMatchesHtml = '';
     try {
-      // 1. 获取 Map 数据
+      // 确保 globals.lastSelectMap 是一个 Map
       let mapEntries = [];
       if (globals.lastSelectMap) {
         if (globals.lastSelectMap instanceof Map) {
@@ -885,177 +885,303 @@ async function handleHomepage(req) {
         }
       }
 
-      // 2. 严格过滤与去重逻辑
-      const uniqueEntries = [];
       if (mapEntries.length > 0) {
+        // 去重：使用 Set 存储已显示的 animeId + episodeTitle，避免重复
         const displayedKeys = new Set();
+        const uniqueEntries = [];
 
-        // 倒序遍历，直到找到 5 个有效条目或遍历完
-        for (let i = mapEntries.length - 1; i >= 0; i--) {
-          if (uniqueEntries.length >= 5) break; // 凑齐5个有效数据就停止
-
+        // 倒序遍历（最新的在前），去重后取前6条（实际显示时会过滤掉搜索query，确保显示5条）
+        for (let i = mapEntries.length - 1; i >= 0 && uniqueEntries.length < 6; i--) {
           const [key, value] = mapEntries[i];
 
-          // 🔥 核心过滤：必须是对象，且不能是 null
-          if (!value || typeof value !== 'object') continue; 
-
-          // 🔥 核心过滤：必须包含有效的 ID 字段
-          const targetId = value.id || value.animeId || value.episodeId;
-          // 过滤掉 'undefined', 'null', '未匹配' 等无效ID
-          if (!targetId || targetId === '未匹配' || targetId === '无数据' || targetId === 'null' || targetId === 'undefined') continue;
-
-          // 构建唯一标识 (番剧ID + 集标题) 用于去重
-          const animeId = value.animeId || targetId;
-          const episodeTitle = value.episodeTitle || '';
+          // 构建唯一标识（番剧ID + 集标题）
+          let uniqueKey = '';
+          // 预处理：去掉 Key 中的 from 后缀，用于去重比较
           const cleanKeyName = String(key).replace(/\s*from\s+.*$/i, '').trim();
-          
-          // 优先使用 ID 组合作为唯一键，如果没有则使用清理后的 Key
-          const uniqueKey = (animeId && episodeTitle) ? (animeId + ':' + episodeTitle) : cleanKeyName;
 
+          if (value && typeof value === 'object') {
+            const animeId = value.id || value.animeId || '';
+            const episodeTitle = value.episodeTitle || '';
+            uniqueKey = animeId + ':' + episodeTitle;
+          } else {
+            // 降级：如果 value 不是对象，直接使用清理后的 Key 作为唯一标识
+            uniqueKey = cleanKeyName;
+          }
+
+          // 如果未显示过，则添加 (同时检查 uniqueKey 和 cleanKeyName 防止重复)
           if (!displayedKeys.has(uniqueKey) && !displayedKeys.has(cleanKeyName)) {
             displayedKeys.add(uniqueKey);
             displayedKeys.add(cleanKeyName);
             uniqueEntries.push([key, value]);
           }
         }
-      }
 
-      // 3. 渲染逻辑
-      if (uniqueEntries.length > 0) {
         // 来源名称映射
         const sourceNameMap = {
           'dandan': '弹弹Play', 'bilibili': 'B站', 'bilibili1': 'B站',
           'iqiyi': '爱奇艺', 'qiyi': '爱奇艺', 'youku': '优酷', 'tencent': '腾讯',
-          'qq': '腾讯', 'mgtv': '芒果', 'imgo': '芒果', 'bahamut': '巴哈',
-          'renren': '人人', 'hanjutv': '韩剧TV', '360': '360', 'vod': 'VOD', 'url': 'URL', 'auto': '自动'
+          'qq': '腾讯', 'mgtv': '芒果', 'imgo': '芒果', 'bahamut': '巴哈姆特',
+          'renren': '人人影视', 'hanjutv': '韩剧TV', '360': '360影视', 'vod': 'VOD', 'url': 'URL直连', 'auto': '自动匹配'
         };
 
-        // 来源配色方案 (Glass Design)
+        // 来源主题色映射 - 柔和配色方案
         const sourceThemeMap = {
-          'dandan': { color: '#A78BFA', bg: 'rgba(139, 92, 246, 0.12)' },
-          'bilibili': { color: '#60A5FA', bg: 'rgba(59, 130, 246, 0.12)' },
-          'bilibili1': { color: '#60A5FA', bg: 'rgba(59, 130, 246, 0.12)' },
-          'iqiyi': { color: '#34D399', bg: 'rgba(16, 185, 129, 0.12)' },
-          'qiyi': { color: '#34D399', bg: 'rgba(16, 185, 129, 0.12)' },
-          'youku': { color: '#22D3EE', bg: 'rgba(6, 182, 212, 0.12)' },
-          'tencent': { color: '#FBBF24', bg: 'rgba(245, 158, 11, 0.12)' },
-          'qq': { color: '#FBBF24', bg: 'rgba(245, 158, 11, 0.12)' },
-          'mgtv': { color: '#FB923C', bg: 'rgba(249, 115, 22, 0.12)' },
-          'imgo': { color: '#FB923C', bg: 'rgba(249, 115, 22, 0.12)' },
-          'bahamut': { color: '#F472B6', bg: 'rgba(236, 72, 153, 0.12)' },
-          'default': { color: '#818CF8', bg: 'rgba(99, 102, 241, 0.12)' }
+          'dandan': { primary: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.08)', border: 'rgba(139, 92, 246, 0.2)' },
+          'bilibili': { primary: '#3B82F6', bg: 'rgba(59, 130, 246, 0.08)', border: 'rgba(59, 130, 246, 0.2)' },
+          'bilibili1': { primary: '#3B82F6', bg: 'rgba(59, 130, 246, 0.08)', border: 'rgba(59, 130, 246, 0.2)' },
+          'iqiyi': { primary: '#10B981', bg: 'rgba(16, 185, 129, 0.08)', border: 'rgba(16, 185, 129, 0.2)' },
+          'qiyi': { primary: '#10B981', bg: 'rgba(16, 185, 129, 0.08)', border: 'rgba(16, 185, 129, 0.2)' },
+          'youku': { primary: '#06B6D4', bg: 'rgba(6, 182, 212, 0.08)', border: 'rgba(6, 182, 212, 0.2)' },
+          'tencent': { primary: '#F59E0B', bg: 'rgba(245, 158, 11, 0.08)', border: 'rgba(245, 158, 11, 0.2)' },
+          'qq': { primary: '#F59E0B', bg: 'rgba(245, 158, 11, 0.08)', border: 'rgba(245, 158, 11, 0.2)' },
+          'mgtv': { primary: '#F97316', bg: 'rgba(249, 115, 22, 0.08)', border: 'rgba(249, 115, 22, 0.2)' },
+          'imgo': { primary: '#F97316', bg: 'rgba(249, 115, 22, 0.08)', border: 'rgba(249, 115, 22, 0.2)' },
+          'default': { primary: '#6366F1', bg: 'rgba(99, 102, 241, 0.08)', border: 'rgba(99, 102, 241, 0.2)' }
         };
 
         recentMatchesHtml = uniqueEntries.map(([key, value]) => {
-          // 数据提取
-          const targetId = value.id || value.animeId || value.episodeId || '未知ID';
-          const rawSource = value.source || value.type || 'auto';
-          const displayAnimeTitle = value.animeTitle || '';
-          const displayEpTitle = value.episodeTitle || String(key).replace(/\s*from\s+.*$/i, ''); // 降级使用key
+          let targetId = '未匹配';
+          let targetSource = '未知';
+          let rawSource = 'unknown';
 
-          const targetSource = sourceNameMap[rawSource.toLowerCase()] || rawSource;
-          const sourceTheme = sourceThemeMap[rawSource.toLowerCase()] || sourceThemeMap.default;
+          // 宽容的数据解析逻辑
+          let countBadge = '';
+          let displayAnimeTitle = '';
+          let displayEpTitle = '';
 
-          // 标题清洗
+          if (value === null || value === undefined) {
+            targetId = '无数据';
+          } else if (typeof value !== 'object') {
+            targetId = value;
+            targetSource = '自动';
+            displayEpTitle = String(key);
+          } else if (Array.isArray(value)) {
+            targetId = value[0];
+            rawSource = value[1] || 'unknown';
+            targetSource = sourceNameMap[rawSource.toLowerCase()] || rawSource;
+            displayEpTitle = String(key);
+          } else {
+            // 对象类型
+            targetId = value.id || value.animeId || value.episodeId || '未匹配';
+            rawSource = value.source || value.type || 'auto';
+            targetSource = sourceNameMap[rawSource.toLowerCase()] || rawSource;
+
+            // 使用独立字段
+            displayAnimeTitle = value.animeTitle || '';
+            displayEpTitle = value.episodeTitle || '';
+
+            // 处理弹幕数量显示
+            if (value.count !== undefined && value.count !== null) {
+              let countText = String(value.count);
+              let limitText = '';
+              if (value.limit && value.limit !== -1 && value.limit !== '-1') {
+                limitText = '/' + value.limit;
+              }
+              const hasComments = value.count > 0;
+              const badgeColor = hasComments ? '#10B981' : '#9CA3AF';
+              const badgeBg = hasComments ? 'rgba(16, 185, 129, 0.1)' : 'rgba(156, 163, 175, 0.08)';
+              const badgeBorder = hasComments ? 'rgba(16, 185, 129, 0.25)' : 'rgba(156, 163, 175, 0.15)';
+
+              countBadge = '<span style="display: inline-flex; align-items: center; gap: 3px; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; background: ' + badgeBg + '; color: ' + badgeColor + '; border: 1px solid ' + badgeBorder + ';">' +
+                '<span style="font-size: 9px; font-weight: 700; letter-spacing: -0.5px;">弹幕</span>' +
+                '<span style="font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', system-ui, sans-serif;">' + countText + limitText + '</span>' +
+                '</span>';
+            }
+          }
+
+          // 如果没有独立的 animeTitle，尝试从 key 中解析
+          let fullKey = String(key);
+          if (!displayAnimeTitle) {
+            const bracketMatch = fullKey.match(/^[【\[](.*?)[】\]](.*)/);
+            if (bracketMatch) {
+              displayAnimeTitle = bracketMatch[1].trim();
+              displayEpTitle = bracketMatch[2].trim();
+            } else {
+              displayEpTitle = fullKey;
+            }
+          }
+
+          let displayId = String(targetId);
+          if (displayId === '[object Object]' || displayId === 'null' || displayId === 'undefined' || displayId === '') {
+            displayId = '未匹配';
+          }
+
+          // 过滤掉未匹配成功的记录
+          if (displayId === '未匹配') return '';
+
+          // 最终显示判定 (清理标题)
           let mainTitle = displayAnimeTitle || displayEpTitle;
           mainTitle = mainTitle.replace(/\s*from\s+.*$/i, '')
             .replace(/【(?:电视剧|电影|纪录片|综艺|动漫|动画)】/g, '')
             .trim();
-          
-          // 副标题逻辑
+
           let subTitle = displayAnimeTitle ? displayEpTitle : '';
-          subTitle = subTitle.replace(/\s*from\s+.*$/i, '').replace(/^【.*?】\s*/, '').trim();
-          if (!subTitle || subTitle === mainTitle) subTitle = `ID: ${targetId}`;
-
-          // 时间处理 (支持 timestamp/time/date/createdAt 字段)
-          let timeStr = '';
-          const ts = value.timestamp || value.time || value.date || value.createdAt;
-          if (ts) {
-            const date = new Date(ts);
-            if (!isNaN(date.getTime())) {
-               const month = (date.getMonth() + 1).toString().padStart(2, '0');
-               const day = date.getDate().toString().padStart(2, '0');
-               const hour = date.getHours().toString().padStart(2, '0');
-               const minute = date.getMinutes().toString().padStart(2, '0');
-               timeStr = `${month}-${day} ${hour}:${minute}`;
-            }
+          if (subTitle) {
+            subTitle = subTitle.replace(/\s*from\s+.*$/i, '')
+              .replace(/^【.*?】\s*/, '')
+              .trim();
           }
 
-          // 弹幕数量徽章 (带图标)
-          let countBadge = '';
-          if (value.count !== undefined && value.count !== null) {
-             const count = value.count;
-             const isZero = count === 0;
-             countBadge = '<div style="display: flex; align-items: center; gap: 3px; font-size: 11px; font-family: monospace; font-weight: 600; color: ' + (isZero ? 'var(--text-tertiary)' : sourceTheme.color) + ';">' +
-                  '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" style="opacity:0.8;"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"></path></svg>' +
-                  '<span>' + count + '</span>' +
-                '</div>';
-          }
+          // 获取来源主题色
+          const sourceTheme = sourceThemeMap[rawSource.toLowerCase()] || sourceThemeMap.default;
 
-          // 图标背景色
+          // 获取图标首字，并生成柔和渐变背景
           const iconChar = mainTitle.charAt(0).toUpperCase() || '?';
           const softGradients = [
-             ['#6366F1', '#818CF8'], ['#EC4899', '#F472B6'], ['#3B82F6', '#60A5FA'],
-             ['#10B981', '#34D399'], ['#F59E0B', '#FBBF24'], ['#8B5CF6', '#A78BFA']
+            ['#A78BFA', '#8B5CF6'], ['#F472B6', '#EC4899'], ['#60A5FA', '#3B82F6'],
+            ['#34D399', '#10B981'], ['#FBBF24', '#F59E0B'], ['#818CF8', '#6366F1']
           ];
-          const gradient = softGradients[iconChar.charCodeAt(0) % softGradients.length];
+          const gradientIndex = iconChar.charCodeAt(0) % softGradients.length;
+          const [gradStart, gradEnd] = softGradients[gradientIndex];
 
-          // HTML 渲染 - 三行布局
-          return '<div class="match-card" style="' +
-              'display: flex; align-items: center; gap: 12px; padding: 10px 12px; margin-bottom: 8px; ' +
-              'background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 10px; ' +
-              'transition: all 0.2s ease; cursor: default; position: relative; overflow: hidden;' +
-              '" onmouseenter="this.style.background=\'var(--bg-hover)\'; this.style.borderColor=\'' + sourceTheme.color + '\'; this.style.transform=\'translateY(-1px)\'; this.style.boxShadow=\'0 4px 12px rgba(0,0,0,0.05)\'; " ' +
-              'onmouseleave="this.style.background=\'var(--bg-tertiary)\'; this.style.borderColor=\'var(--border-color)\'; this.style.transform=\'translateY(0)\'; this.style.boxShadow=\'none\';">' +
-              
-              // 左侧装饰条
-              '<div style="position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: ' + sourceTheme.color + '; opacity: 0.7;"></div>' +
-
-              // 图标 (稍大一点以适应三行)
-              '<div style="width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; ' +
-              'font-size: 16px; font-weight: 700; color: white; flex-shrink: 0; margin-left: 2px; ' +
-              'background: linear-gradient(135deg, ' + gradient[0] + ', ' + gradient[1] + '); box-shadow: 0 2px 6px rgba(0,0,0,0.15);">' +
+          // 渲染 HTML - 紧凑卡片风格（强制左右布局）
+          return '<div class="server-item" style="' +
+            'position: relative; ' +
+            'padding: 10px 12px; ' +
+            'margin-bottom: 8px; ' +
+            'background: var(--bg-primary); ' +
+            'border: 1px solid var(--border-color); ' +
+            'border-radius: 10px; ' +
+            'box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); ' +
+            'transition: all 0.15s ease; ' +
+            'cursor: pointer;' +
+            '" onmouseenter="this.style.transform=\'translateX(2px)\'; this.style.boxShadow=\'0 2px 8px rgba(0, 0, 0, 0.08)\'; this.style.borderColor=\'' + sourceTheme.primary + '\';" onmouseleave="this.style.transform=\'translateX(0)\'; this.style.boxShadow=\'0 1px 3px rgba(0, 0, 0, 0.05)\'; this.style.borderColor=\'var(--border-color)\';">' +
+            
+            // 使用 table 布局确保左右结构
+            '<table style="width: 100%; border-collapse: collapse; table-layout: fixed;"><tr>' +
+            
+            // 左侧图标单元格
+            '<td style="width: 40px; vertical-align: middle; padding: 0;">' +
+              '<div class="server-badge" style="' +
+                'width: 40px; ' +
+                'height: 40px; ' +
+                'display: flex; ' +
+                'align-items: center; ' +
+                'justify-content: center; ' +
+                'font-size: 18px; ' +
+                'font-weight: 700; ' +
+                'color: white; ' +
+                'background: linear-gradient(135deg, ' + gradStart + ' 0%, ' + gradEnd + ' 100%); ' +
+                'border-radius: 8px; ' +
+                'box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);' +
+              '">' +
                 iconChar +
               '</div>' +
-
-              // 中间信息 (Flex 1 - 三行紧凑排列)
-              '<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 1px;">' +
+            '</td>' +
+            
+            // 中间间距
+            '<td style="width: 10px; padding: 0;"></td>' +
+            
+            // 右侧内容单元格
+            '<td style="vertical-align: middle; padding: 0;">' +
+              '<div style="display: flex; flex-direction: column;">' +
+                
                 // 第一行：主标题
-                '<div style="font-size: 13px; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.3;" title="' + mainTitle + '">' + mainTitle + '</div>' +
-                // 第二行：副标题/ID
-                '<div style="font-size: 11px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.2; opacity: 0.9;" title="' + subTitle + '">' + subTitle + '</div>' +
-                // 第三行：时间 (带小图标)
-                (timeStr ? 
-                  '<div style="display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--text-tertiary); font-family: monospace; line-height: 1.2; margin-top: 1px;">' +
-                    '<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>' +
-                    '<span>' + timeStr + '</span>' +
-                  '</div>' 
-                : '') +
-              '</div>' +
-
-              // 右侧信息 (垂直居中)
-              '<div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 4px; flex-shrink: 0;">' +
-                '<div style="padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; ' +
-                'background: ' + sourceTheme.bg + '; color: ' + sourceTheme.color + '; letter-spacing: 0.5px;">' +
-                  targetSource +
+                '<div class="server-name" title="' + mainTitle + '" style="' +
+                  'font-size: 14px; ' +
+                  'font-weight: 600; ' +
+                  'line-height: 1.4; ' +
+                  'color: var(--text-primary); ' +
+                  'overflow: hidden; ' +
+                  'text-overflow: ellipsis; ' +
+                  'white-space: nowrap; ' +
+                  'margin-bottom: 1px;' +
+                '">' +
+                  mainTitle +
                 '</div>' +
-                (countBadge) +
-              '</div>' +
 
-            '</div>';
+                // 第二行：副标题（如果有）
+                (subTitle ? 
+                  '<div style="' +
+                    'font-size: 12px; ' +
+                    'line-height: 1.4; ' +
+                    'color: var(--text-secondary); ' +
+                    'overflow: hidden; ' +
+                    'text-overflow: ellipsis; ' +
+                    'white-space: nowrap; ' +
+                    'margin-bottom: 3px;' +
+                  '" title="' + subTitle + '">' +
+                    subTitle +
+                  '</div>' 
+                  : '<div style="margin-bottom: 3px;"></div>') +
+              
+                // 第三行：标签组
+                '<div style="display: flex; align-items: center; gap: 5px; line-height: 1;">' +
+                  
+                  // 来源标签
+                  '<span style="' +
+                    'padding: 2px 6px; ' +
+                    'border-radius: 4px; ' +
+                    'font-size: 10px; ' +
+                    'font-weight: 600; ' +
+                    'background: ' + sourceTheme.bg + '; ' +
+                    'color: ' + sourceTheme.primary + '; ' +
+                    'border: 1px solid ' + sourceTheme.border + ';' +
+                  '">' +
+                    targetSource +
+                  '</span>' +
+                  
+                  // ID 标签
+                  '<span title="ID: ' + displayId + '" style="' +
+                    'padding: 2px 6px; ' +
+                    'border-radius: 4px; ' +
+                    'font-family: monospace; ' +
+                    'font-size: 10px; ' +
+                    'background: var(--bg-secondary); ' +
+                    'color: var(--text-tertiary); ' +
+                    'border: 1px solid var(--border-color); ' +
+                    'max-width: 80px; ' +
+                    'overflow: hidden; ' +
+                    'text-overflow: ellipsis; ' +
+                    'white-space: nowrap;' +
+                  '">' +
+                    displayId +
+                  '</span>' +
+                  
+                  // 弹幕数标签
+                  (countBadge || '') +
+                  
+                '</div>' +
+                
+              '</div>' +
+            '</td>' +
+            
+            '</tr></table>' +
+            
+          '</div>';
         }).join('');
       } else {
-        // 空状态
-        recentMatchesHtml = '<div class="empty-state" style="padding: 32px 16px; text-align: center;">' +
-          '<div style="font-size: 32px; margin-bottom: 8px; opacity: 0.4;">📭</div>' +
-          '<div style="font-size: 13px; color: var(--text-secondary);">暂无有效匹配记录</div>' +
+        // 空状态优化
+        recentMatchesHtml = '<div class="empty-state" style="' +
+          'display: flex; ' +
+          'flex-direction: column; ' +
+          'align-items: center; ' +
+          'justify-content: center; ' +
+          'padding: 32px 20px; ' +
+          'text-align: center;' +
+          '">' +
+          '<div style="font-size: 48px; margin-bottom: 12px; opacity: 0.5;">📭</div>' +
+          '<div style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">暂无匹配记录</div>' +
+          '<div style="font-size: 12px; color: var(--text-secondary);">播放视频后会显示匹配历史</div>' +
           '</div>';
       }
     } catch (e) {
-      console.error("渲染匹配列表失败", e);
-      recentMatchesHtml = '<div style="padding: 12px; font-size: 12px; color: var(--error); background: rgba(239,68,68,0.1); border-radius: 8px;">数据读取异常: ' + e.message + '</div>';
+      console.error("渲染最近匹配失败", e);
+      recentMatchesHtml = '<div class="alert" style="' +
+        'padding: 16px; ' +
+        'background: rgba(239, 68, 68, 0.08); ' +
+        'border: 1px solid rgba(239, 68, 68, 0.2); ' +
+        'border-radius: 10px; ' +
+        'color: #EF4444; ' +
+        'font-size: 13px; ' +
+        'display: flex; ' +
+        'align-items: center; ' +
+        'gap: 10px;' +
+        '">' +
+        '<svg viewBox="0 0 16 16" width="18" height="18" fill="currentColor"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/><path d="M7.002 11a1 1 0 1 1 2 0 1 1 0 0 1-2 0zM7.1 4.995a.905.905 0 1 1 1.8 0l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 4.995z"/></svg>' +
+        '<div><strong>读取记录失败</strong><br/>' + e.message + '</div>' +
+        '</div>';
     }
-
 
     const sourcesHtml = globals.sourceOrderArr.length > 0 
       ? globals.sourceOrderArr.map((source, index) => {
