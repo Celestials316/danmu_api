@@ -1009,24 +1009,24 @@ async function handleHomepage(req) {
           // 获取图标首字
           const iconChar = mainTitle.charAt(0).toUpperCase() || '?';
 
-          // 渲染 HTML - 三行布局优化
-          // Line 1: 副标题 (具体的集数/文件名)
-          // Line 2: 主标题 (番剧名 + 年份)
-          // Line 3: 元数据 (来源 | ID | 数量)
+          // 渲染 HTML - 三行布局 (修正版)
+          // Line 1: 主标题 (番剧名 + 年份) -> 最突出
+          // Line 2: 副标题 (具体的集数/文件名) -> 辅助信息
+          // Line 3: 元数据 (来源 | ID | 数量) -> 底部信息
           return '<div class="server-item" style="padding: 10px 12px; margin-bottom: 6px; align-items: flex-start; gap: 12px;">' +
-            // 左侧图标：固定大小
+            // 左侧图标
             '<div class="server-badge" style="width: 36px; height: 36px; font-size: 15px; background: linear-gradient(135deg, var(--bg-hover), var(--bg-tertiary)); color: var(--primary-500); box-shadow: none; border: 1px solid var(--border-color); flex-shrink: 0; margin-top: 2px;">' + iconChar + '</div>' +
             
-            // 右侧内容容器：垂直排列
+            // 右侧内容容器
             '<div class="server-info" style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;">' +
             
-            // 第一行：副标题 (灰色小字，显示具体集数信息)
-            (subTitle ? '<div style="font-size: 12px; color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.2;" title="' + subTitle + '">' + subTitle + '</div>' : '') +
-            
-            // 第二行：主标题 (加粗，主色，显示番剧名和年份)
+            // 第一行：主标题 (加粗，主色，显示番剧名和年份)
             '<div class="server-name" title="' + mainTitle + '" style="font-size: 15px; font-weight: 700; line-height: 1.4; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' +
             mainTitle +
             '</div>' +
+
+            // 第二行：副标题 (灰色小字，显示具体集数信息)
+            (subTitle ? '<div style="font-size: 12px; color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.2;" title="' + subTitle + '">' + subTitle + '</div>' : '') +
             
             // 第三行：元数据标签组 (来源、ID、数量)
             '<div class="server-url" style="display: flex; align-items: center; gap: 6px; overflow: hidden; margin-top: 2px;">' +
