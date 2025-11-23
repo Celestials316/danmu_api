@@ -883,7 +883,7 @@ async function handleHomepage(req) {
       `;
     }
 
-    // 生成数据源HTML
+// 生成数据源HTML
     const sourceIcons = {
       'dandan': 'D',
       'bilibili': 'B',
@@ -946,18 +946,54 @@ try {
     };
 
     const sourceThemeMap = {
-      'dandan': { color: '#A78BFA', icon: '🎯' },
-      'bilibili': { color: '#60A5FA', icon: '📺' },
-      'bilibili1': { color: '#60A5FA', icon: '📺' },
-      'iqiyi': { color: '#34D399', icon: '🥝' },
-      'qiyi': { color: '#34D399', icon: '🥝' },
-      'youku': { color: '#22D3EE', icon: '📹' },
-      'tencent': { color: '#FBBF24', icon: '🐧' },
-      'qq': { color: '#FBBF24', icon: '🐧' },
-      'mgtv': { color: '#FB923C', icon: '🥭' },
-      'imgo': { color: '#FB923C', icon: '🥭' },
-      'bahamut': { color: '#F472B6', icon: '🎮' },
-      'default': { color: '#818CF8', icon: '🎬' }
+      'dandan': { 
+        color: '#A78BFA', 
+        icon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5zm0 18c-3.86-.98-7-4.95-7-9V8.3l7-3.11 7 3.11V11c0 4.05-3.14 8.02-7 9z"/><circle cx="9" cy="11" r="1.5"/><circle cx="15" cy="11" r="1.5"/><path d="M12 17.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/></svg>' 
+      },
+      'bilibili': { 
+        color: '#60A5FA', 
+        icon: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M7 4l2 3M17 4l-2 3"/><circle cx="8" cy="12" r="1.5"/><circle cx="16" cy="12" r="1.5"/><path d="M8 16h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>' 
+      },
+      'bilibili1': { 
+        color: '#60A5FA', 
+        icon: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M7 4l2 3M17 4l-2 3"/><circle cx="8" cy="12" r="1.5"/><circle cx="16" cy="12" r="1.5"/><path d="M8 16h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>' 
+      },
+      'iqiyi': { 
+        color: '#34D399', 
+        icon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M12 8v8m-4-4l4 4 4-4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' 
+      },
+      'qiyi': { 
+        color: '#34D399', 
+        icon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M12 8v8m-4-4l4 4 4-4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' 
+      },
+      'youku': { 
+        color: '#22D3EE', 
+        icon: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/><path d="M10 8l6 4-6 4V8z" fill="white"/></svg>' 
+      },
+      'tencent': { 
+        color: '#FBBF24', 
+        icon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/><circle cx="8" cy="11" r="2"/><circle cx="16" cy="11" r="2"/><path d="M12 17c2.21 0 4-1.12 4-2.5h-8c0 1.38 1.79 2.5 4 2.5z"/></svg>' 
+      },
+      'qq': { 
+        color: '#FBBF24', 
+        icon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/><circle cx="8" cy="11" r="2"/><circle cx="16" cy="11" r="2"/><path d="M12 17c2.21 0 4-1.12 4-2.5h-8c0 1.38 1.79 2.5 4 2.5z"/></svg>' 
+      },
+      'mgtv': { 
+        color: '#FB923C', 
+        icon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l6.59-6.59L20 9l-8 8z"/></svg>' 
+      },
+      'imgo': { 
+        color: '#FB923C', 
+        icon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l6.59-6.59L20 9l-8 8z"/></svg>' 
+      },
+      'bahamut': { 
+        color: '#F472B6', 
+        icon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M15 12c0 1.66-1.34 3-3 3s-3-1.34-3-3 1.34-3 3-3 3 1.34 3 3zm-3-9C6.48 3 2 7.48 2 13c0 4.42 2.87 8.17 6.84 9.49.5.09.68-.22.68-.48 0-.24-.01-.87-.01-1.71-2.78.6-3.37-1.34-3.37-1.34-.45-1.15-1.11-1.46-1.11-1.46-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.89 1.52 2.34 1.08 2.91.83.09-.65.35-1.08.63-1.33-2.22-.25-4.56-1.11-4.56-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02.8-.22 1.65-.33 2.5-.33.85 0 1.7.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85 0 1.34-.01 2.42-.01 2.75 0 .27.18.58.69.48C19.14 21.16 22 17.42 22 13c0-5.52-4.48-10-10-10z"/></svg>' 
+      },
+      'default': { 
+        color: '#818CF8', 
+        icon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z"/></svg>' 
+      }
     };
 
 
@@ -1033,16 +1069,19 @@ try {
             flex-shrink: 0;
             width: 48px;
             height: 48px;
-            background: rgba(255, 255, 255, 0.08);
+            background: linear-gradient(135deg, ${sourceTheme.color}20, ${sourceTheme.color}10);
             backdrop-filter: blur(10px);
-            border-radius: 8px;
+            border: 1.5px solid ${sourceTheme.color}40;
+            border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 24px;
-            transition: all 0.2s ease;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            color: ${sourceTheme.color};
           ">
-            ${sourceTheme.icon}
+            <div style="width: 26px; height: 26px;">
+              ${sourceTheme.icon}
+            </div>
           </div>
 
           <!-- 右侧内容 -->
@@ -1111,17 +1150,17 @@ try {
             <div style="display: flex; align-items: center; gap: 10px; font-size: 11px;">
               ${timeStr ? `
                 <div style="display: flex; align-items: center; gap: 4px; color: var(--text-tertiary); font-family: 'SF Mono', Consolas, monospace;">
-                  <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.6;">
-                    <circle cx="12" cy="12" r="10"/>
-                    <path d="M12 6v6l3 3"/>
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" style="opacity: 0.7;">
+                    <circle cx="12" cy="12" r="9"/>
+                    <path d="M12 7v5l3 3"/>
                   </svg>
                   ${timeStr}
                 </div>
               ` : ''}
               ${count !== null ? `
                 <div style="display: flex; align-items: center; gap: 4px; margin-left: auto;">
-                  <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="${countColor}" stroke-width="2.5" style="opacity: 0.7;">
-                    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="${countColor}" stroke-width="2" style="opacity: 0.8;">
+                    <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/>
                   </svg>
                   <span style="font-weight: 700; font-family: 'SF Mono', Consolas, monospace; color: ${countColor};">${count}</span>
                 </div>
@@ -1142,7 +1181,13 @@ try {
         border: 1.5px dashed var(--border-color);
         border-radius: 10px;
       ">
-        <div style="font-size: 36px; margin-bottom: 12px; opacity: 0.35;">📭</div>
+        <div style="width: 64px; height: 64px; margin: 0 auto 16px; opacity: 0.4;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" stroke-width="1.5">
+            <path d="M20 6L9 17l-5-5"/>
+            <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+            <circle cx="12" cy="12" r="10" stroke-dasharray="2 2"/>
+          </svg>
+        </div>
         <div style="font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">
           暂无匹配记录
         </div>
@@ -1166,9 +1211,10 @@ try {
       align-items: center;
       gap: 10px;
     ">
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
         <circle cx="12" cy="12" r="10"/>
-        <path d="M12 8v4m0 4h.01"/>
+        <path d="M12 8v4"/>
+        <circle cx="12" cy="16" r="0.5" fill="currentColor"/>
       </svg>
       <span>数据读取异常: ${e.message}</span>
     </div>
