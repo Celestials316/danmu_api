@@ -945,20 +945,57 @@ try {
       'renren': '人人', 'hanjutv': '韩剧TV', '360': '360', 'vod': 'VOD', 'url': 'URL', 'auto': '自动'
     };
 
-    const sourceThemeMap = {
-      'dandan': { color: '#FF6B9D', icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><circle cx="12" cy="12" r="10"/><path d="M8 10h2v8H8zm6 0h2v8h-2z" fill="#fff"/></svg>' },
-      'bilibili': { color: '#00A1D6', icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M17.813 4.653h.854c1.51.054 2.769.578 3.773 1.574 1.004.995 1.524 2.249 1.56 3.76v7.36c-.036 1.51-.556 2.769-1.56 3.773s-2.262 1.524-3.773 1.56H5.333c-1.51-.036-2.769-.556-3.773-1.56S.036 18.858 0 17.347v-7.36c.036-1.511.556-2.765 1.56-3.76 1.004-.996 2.262-1.52 3.773-1.574h.774l-1.174-1.12a1.234 1.234 0 0 1-.373-.906c0-.356.124-.658.373-.907l.027-.027c.267-.249.573-.373.92-.373.347 0 .653.124.92.373L9.653 4.44c.071.071.134.142.187.213h4.267a.836.836 0 0 1 .16-.213l2.853-2.747c.267-.249.573-.373.92-.373.347 0 .662.151.929.4.267.249.391.551.391.907 0 .355-.124.657-.373.906zM5.333 7.24c-.746.018-1.373.276-1.88.773-.506.498-.769 1.13-.786 1.894v7.52c.017.764.28 1.395.786 1.893.507.498 1.134.756 1.88.773h13.334c.746-.017 1.373-.275 1.88-.773.506-.498.769-1.129.786-1.893v-7.52c-.017-.765-.28-1.396-.786-1.894-.507-.497-1.134-.755-1.88-.773zM8 11.107c.373 0 .684.124.933.373.25.249.383.569.4.96v1.173c-.017.391-.15.711-.4.96-.249.25-.56.374-.933.374s-.684-.125-.933-.374c-.25-.249-.383-.569-.4-.96V12.44c.017-.391.15-.711.4-.96.249-.249.56-.373.933-.373zm8 0c.373 0 .684.124.933.373.25.249.383.569.4.96v1.173c-.017.391-.15.711-.4.96-.249.25-.56.374-.933.374s-.684-.125-.933-.374c-.25-.249-.383-.569-.4-.96V12.44c.017-.391.15-.711.4-.96.249-.249.56-.373.933-.373z"/></svg>' },
-      'bilibili1': { color: '#00A1D6', icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M17.813 4.653h.854c1.51.054 2.769.578 3.773 1.574 1.004.995 1.524 2.249 1.56 3.76v7.36c-.036 1.51-.556 2.769-1.56 3.773s-2.262 1.524-3.773 1.56H5.333c-1.51-.036-2.769-.556-3.773-1.56S.036 18.858 0 17.347v-7.36c.036-1.511.556-2.765 1.56-3.76 1.004-.996 2.262-1.52 3.773-1.574h.774l-1.174-1.12a1.234 1.234 0 0 1-.373-.906c0-.356.124-.658.373-.907l.027-.027c.267-.249.573-.373.92-.373.347 0 .653.124.92.373L9.653 4.44c.071.071.134.142.187.213h4.267a.836.836 0 0 1 .16-.213l2.853-2.747c.267-.249.573-.373.92-.373.347 0 .662.151.929.4.267.249.391.551.391.907 0 .355-.124.657-.373.906zM5.333 7.24c-.746.018-1.373.276-1.88.773-.506.498-.769 1.13-.786 1.894v7.52c.017.764.28 1.395.786 1.893.507.498 1.134.756 1.88.773h13.334c.746-.017 1.373-.275 1.88-.773.506-.498.769-1.129.786-1.893v-7.52c-.017-.765-.28-1.396-.786-1.894-.507-.497-1.134-.755-1.88-.773zM8 11.107c.373 0 .684.124.933.373.25.249.383.569.4.96v1.173c-.017.391-.15.711-.4.96-.249.25-.56.374-.933.374s-.684-.125-.933-.374c-.25-.249-.383-.569-.4-.96V12.44c.017-.391.15-.711.4-.96.249-.249.56-.373.933-.373zm8 0c.373 0 .684.124.933.373.25.249.383.569.4.96v1.173c-.017.391-.15.711-.4.96-.249.25-.56.374-.933.374s-.684-.125-.933-.374c-.25-.249-.383-.569-.4-.96V12.44c.017-.391.15-.711.4-.96.249-.249.56-.373.933-.373z"/></svg>' },
-      'iqiyi': { color: '#00BE06', icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-5-9h2v6H7zm4-3h2v9h-2zm4 3h2v6h-2z"/></svg>' },
-      'qiyi': { color: '#00BE06', icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-5-9h2v6H7zm4-3h2v9h-2zm4 3h2v6h-2z"/></svg>' },
-      'youku': { color: '#06BEEF', icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>' },
-      'tencent': { color: '#FF9D00', icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M21.395 15.035a39.548 39.548 0 0 0-.803-2.264l-1.079-2.695c.001-.032.014-.562.014-.836C19.526 4.632 17.234 0 12 0S4.474 4.632 4.474 9.241c0 .274.013.804.014.836l-1.08 2.695a38.97 38.97 0 0 0-.802 2.264c-1.021 3.283-.69 4.643-.438 4.673.54.065 2.103-2.472 2.103-2.472 0 1.469.756 3.387 2.394 4.771-.612.188-1.363.479-1.845.835-.434.32-.379.646-.301.778.343.578 5.883.474 7.479.474 1.596 0 7.135.104 7.479-.474.078-.132.132-.458-.301-.778-.482-.356-1.233-.646-1.845-.835 1.638-1.384 2.394-3.302 2.394-4.771 0 0 1.563 2.537 2.103 2.472.251-.03.581-1.39-.438-4.673z"/></svg>' },
-      'qq': { color: '#FF9D00', icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M21.395 15.035a39.548 39.548 0 0 0-.803-2.264l-1.079-2.695c.001-.032.014-.562.014-.836C19.526 4.632 17.234 0 12 0S4.474 4.632 4.474 9.241c0 .274.013.804.014.836l-1.08 2.695a38.97 38.97 0 0 0-.802 2.264c-1.021 3.283-.69 4.643-.438 4.673.54.065 2.103-2.472 2.103-2.472 0 1.469.756 3.387 2.394 4.771-.612.188-1.363.479-1.845.835-.434.32-.379.646-.301.778.343.578 5.883.474 7.479.474 1.596 0 7.135.104 7.479-.474.078-.132.132-.458-.301-.778-.482-.356-1.233-.646-1.845-.835 1.638-1.384 2.394-3.302 2.394-4.771 0 0 1.563 2.537 2.103 2.472.251-.03.581-1.39-.438-4.673z"/></svg>' },
-      'mgtv': { color: '#F95D3B', icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-8-5zm0 18c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6zm-1-9h2v5h-2z"/></svg>' },
-      'imgo': { color: '#F95D3B', icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-8-5zm0 18c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6zm-1-9h2v5h-2z"/></svg>' },
-      'bahamut': { color: '#00A7E1', icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm4.59-12.42L10 14.17l-2.59-2.58L6 13l4 4 8-8z"/></svg>' },
-      'default': { color: '#818CF8', icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>' }
-    };
+const sourceThemeMap = {
+  'dandan': {
+    color: '#FF6B9D',
+    icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" fill="currentColor"/><path d="M10 9.5v5l4-2.5-4-2.5z" fill="#fff"/></svg>'
+  },
+  'bilibili': {
+    color: '#00A1D6',
+    icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="7" width="18" height="11" rx="3" ry="3" fill="currentColor"/><path d="M9 5.5L7.2 3.7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M15 5.5L16.8 3.7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M9.5 12.25v2" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><path d="M14.5 12.25v2" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/></svg>'
+  },
+  'bilibili1': {
+    color: '#00A1D6',
+    icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="7" width="18" height="11" rx="3" ry="3" fill="currentColor"/><path d="M9 5.5L7.2 3.7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M15 5.5L16.8 3.7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M9.5 12.25v2" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><path d="M14.5 12.25v2" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/></svg>'
+  },
+  'iqiyi': {
+    color: '#00BE06',
+    icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="5" width="18" height="14" rx="3" ry="3" stroke="currentColor" stroke-width="1.5"/><rect x="6" y="8" width="12" height="8" rx="1.5" ry="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M8.5 10.2v3.6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M11 10.2v3.6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M13 10.2v3.6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M15.5 10.2v3.6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>'
+  },
+  'qiyi': {
+    color: '#00BE06',
+    icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="5" width="18" height="14" rx="3" ry="3" stroke="currentColor" stroke-width="1.5"/><rect x="6" y="8" width="12" height="8" rx="1.5" ry="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M8.5 10.2v3.6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M11 10.2v3.6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M13 10.2v3.6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M15.5 10.2v3.6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>'
+  },
+  'youku': {
+    color: '#06BEEF',
+    icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/><path d="M10 9v6l4-3-4-3z" fill="currentColor"/></svg>'
+  },
+  'tencent': {
+    color: '#FF9D00',
+    icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" fill="#fff"/><path d="M8.5 7l7 5-7 5z" fill="currentColor"/></svg>'
+  },
+  'qq': {
+    color: '#FF9D00',
+    icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" fill="#fff"/><path d="M8.5 7l7 5-7 5z" fill="currentColor"/></svg>'
+  },
+  'mgtv': {
+    color: '#F95D3B',
+    icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="5" width="18" height="14" rx="3" ry="3" fill="currentColor"/><path d="M7 15V9l2.5 3L12 9v6" stroke="#fff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+  },
+  'imgo': {
+    color: '#F95D3B',
+    icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="5" width="18" height="14" rx="3" ry="3" fill="currentColor"/><path d="M7 15V9l2.5 3L12 9v6" stroke="#fff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+  },
+  'bahamut': {
+    color: '#00A7E1',
+    icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 15c2-4.5 5.5-7 11-8-0.8 2.4-1.9 4.9-3.5 7.1l2.5 2.9-3.2-0.4C9.2 17.4 6.9 16.6 4 15z" fill="currentColor"/></svg>'
+  },
+  'default': {
+    color: '#818CF8',
+    icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" fill="currentColor"/><path d="M11 11h2v6h-2zM11 7h2v2h-2z" fill="#fff"/></svg>'
+  }
+};
+
 
     recentMatchesHtml = uniqueEntries.map(([key, value]) => {
       const targetId = value.id || value.animeId || value.episodeId || '未知ID';
