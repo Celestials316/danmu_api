@@ -12,7 +12,8 @@ import { getBangumi, getComment, getCommentByUrl, matchAnime, searchAnime, searc
 
 let globals;
 
-// ========== 登录会话管理（Redis 持久化）==========
+// ========== 登录会话管理 (持久化/内存降级方案) ==========
+const sessions = new Map(); // 用于内存会话存储
 const SESSION_TIMEOUT = 24 * 60 * 60 * 1000; // 24小时过期
 
 function generateSessionId() {
@@ -25,42 +26,43 @@ async function validateSession(sessionId) {
   if (!sessionId) return false;
   
   try {
-    // 优先使用 Redis
+    // 1. 优先使用 Redis
     if (globals.redisValid) {
       const { getRedisKey } = await import('./utils/redis-util.js');
       const result = await getRedisKey(`session:${sessionId}`);
-      
       if (!result?.result) return false;
-      
       const session = JSON.parse(result.result);
-      
-      // 检查是否过期
       if (Date.now() - session.createdAt > SESSION_TIMEOUT) {
         await deleteSession(sessionId);
         return false;
       }
-      
       return true;
     }
     
-    // 降级到数据库
+    // 2. 降级到数据库
     if (globals.databaseValid) {
       const { loadCacheData } = await import('./utils/db-util.js');
       const sessionKey = `session:${sessionId}`;
       const session = await loadCacheData(sessionKey);
-      
       if (!session) return false;
-      
       if (Date.now() - session.createdAt > SESSION_TIMEOUT) {
         await deleteSession(sessionId);
         return false;
       }
-      
       return true;
     }
     
-    log("warn", "[session] 未配置持久化存储，会话无法保持");
-    return false;
+    // 3. 降级到内存
+    const session = sessions.get(sessionId);
+    if (!session) return false;
+    
+    if (Date.now() - session.createdAt > SESSION_TIMEOUT) {
+      sessions.delete(sessionId);
+      log("info", `[session] 内存会话已过期并移除: ${sessionId.substring(0, 8)}...`);
+      return false;
+    }
+    
+    return true;
     
   } catch (error) {
     log("error", `[session] 验证会话失败: ${error.message}`);
@@ -75,7 +77,7 @@ async function saveSession(sessionId, username) {
   };
   
   try {
-    // Redis 存储
+    // 1. 优先使用 Redis 存储
     if (globals.redisValid) {
       const { setRedisKey } = await import('./utils/redis-util.js');
       await setRedisKey(
@@ -84,18 +86,24 @@ async function saveSession(sessionId, username) {
         true,
         Math.floor(SESSION_TIMEOUT / 1000)
       );
+      log("info", "[session] 会话已保存至 Redis");
       return true;
     }
     
-    // 数据库存储（使用专门的缓存表）
+    // 2. 降级到数据库存储
     if (globals.databaseValid) {
       const { saveCacheData } = await import('./utils/db-util.js');
       const sessionKey = `session:${sessionId}`;
       await saveCacheData(sessionKey, session);
+      log("info", "[session] 会话已保存至数据库");
       return true;
     }
     
-    return false;
+    // 3. 降级到内存存储
+    sessions.set(sessionId, session);
+    log("warn", "[session] 未配置持久化存储，会话将保存在内存中（重启后失效）");
+    return true; // 关键：即使只存入内存也返回成功
+
   } catch (error) {
     log("error", `[session] 保存会话失败: ${error.message}`);
     return false;
@@ -104,30 +112,44 @@ async function saveSession(sessionId, username) {
 
 async function deleteSession(sessionId) {
   try {
+    // 1. 从 Redis 删除
     if (globals.redisValid) {
       const { setRedisKey } = await import('./utils/redis-util.js');
       await setRedisKey(`session:${sessionId}`, '', true, 1);
     }
     
+    // 2. 从数据库删除
     if (globals.databaseValid) {
       const { saveCacheData } = await import('./utils/db-util.js');
       const sessionKey = `session:${sessionId}`;
       await saveCacheData(sessionKey, null);
+    }
+
+    // 3. 从内存删除
+    if (sessions.has(sessionId)) {
+      sessions.delete(sessionId);
     }
   } catch (error) {
     log("error", `[session] 删除会话失败: ${error.message}`);
   }
 }
 
-// 清理过期会话
+// 每小时清理一次内存中过期的会话，防止内存泄漏
 setInterval(() => {
   const now = Date.now();
+  if (sessions.size === 0) return;
+
+  let clearedCount = 0;
   for (const [id, session] of sessions.entries()) {
     if (now - session.createdAt > SESSION_TIMEOUT) {
       sessions.delete(id);
+      clearedCount++;
     }
   }
-}, 60 * 60 * 1000); // 每小时清理一次
+  if (clearedCount > 0) {
+    log("info", `[session] 定时任务：清除了 ${clearedCount} 个过期的内存会话`);
+  }
+}, 60 * 60 * 1000);
 
 /**
  * 合并写入 Redis：读取现有 -> 合并 patch -> 写回
@@ -938,6 +960,7 @@ try {
       'default': { color: '#818CF8', icon: '🎬' }
     };
 
+
     recentMatchesHtml = uniqueEntries.map(([key, value]) => {
       const targetId = value.id || value.animeId || value.episodeId || '未知ID';
       const rawSource = value.source || value.type || 'auto';
@@ -949,24 +972,34 @@ try {
 
       // 标题清洗
       let mainTitle = displayAnimeTitle || displayEpTitle;
-      mainTitle = mainTitle.replace(/\s*from\s+.*$/i, '')
-        .replace(/【(?:电视剧|电影|纪录片|综艺|动漫|动画)】/g, '')
+      // 提取所有分类标签
+      const categoryMatch = mainTitle.match(/【(韩剧|泰剧|美剧|日剧|英剧|港剧|台剧|国产剧|电视剧|电影|纪录片|综艺|动漫|动画)】/);
+      const categoryTag = categoryMatch ? categoryMatch[1] : null;
+      
+      // 清理标题，移除所有分类标签和 from 后缀
+      mainTitle = mainTitle
+        .replace(/\s*from\s+.*$/i, '')
+        .replace(/【(?:韩剧|泰剧|美剧|日剧|英剧|港剧|台剧|国产剧|电视剧|电影|纪录片|综艺|动漫|动画)】/g, '')
         .trim();
       
       let subTitle = displayAnimeTitle ? displayEpTitle : `ID: ${targetId}`;
       subTitle = subTitle.replace(/\s*from\s+.*$/i, '').replace(/^【.*?】\s*/, '').trim();
       if (!subTitle || subTitle === mainTitle) subTitle = `弹幕ID: ${targetId}`;
 
-      // 时间处理
+      // 时间处理 (已修正为北京时间 UTC+8)
       let timeStr = '';
       const ts = value.timestamp || value.time || value.date || value.createdAt;
       if (ts) {
         const date = new Date(ts);
         if (!isNaN(date.getTime())) {
-          const month = (date.getMonth() + 1).toString().padStart(2, '0');
-          const day = date.getDate().toString().padStart(2, '0');
-          const hour = date.getHours().toString().padStart(2, '0');
-          const minute = date.getMinutes().toString().padStart(2, '0');
+          // 计算 UTC 时间戳,然后加上 8 小时 (3600000ms * 8) 转换为北京时间
+          const utc = date.getTime() + (date.getTimezoneOffset() * 60000);
+          const shDate = new Date(utc + (3600000 * 8));
+
+          const month = (shDate.getMonth() + 1).toString().padStart(2, '0');
+          const day = shDate.getDate().toString().padStart(2, '0');
+          const hour = shDate.getHours().toString().padStart(2, '0');
+          const minute = shDate.getMinutes().toString().padStart(2, '0');
           timeStr = `${month}-${day} ${hour}:${minute}`;
         }
       }
@@ -998,15 +1031,15 @@ try {
           <!-- 左侧图标 -->
           <div style="
             flex-shrink: 0;
-            width: 36px;
-            height: 36px;
+            width: 48px;
+            height: 48px;
             background: rgba(255, 255, 255, 0.08);
             backdrop-filter: blur(10px);
             border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 18px;
+            font-size: 24px;
             transition: all 0.2s ease;
           ">
             ${sourceTheme.icon}
@@ -1014,20 +1047,21 @@ try {
 
           <!-- 右侧内容 -->
           <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;">
-            <!-- 第一行：主标题 + 来源标签 -->
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <div style="
-                flex: 1;
-                font-size: 14px;
-                font-weight: 600;
-                color: var(--text-primary);
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-                line-height: 1.3;
-              " title="${mainTitle}">
-                ${mainTitle}
-              </div>
+            <!-- 第一行：主标题 -->
+            <div style="
+              font-size: 14px;
+              font-weight: 600;
+              color: var(--text-primary);
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+              line-height: 1.3;
+            " title="${mainTitle}">
+              ${mainTitle}
+            </div>
+
+            <!-- 新增：平台标签行 + 分类标签 -->
+            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
               <div style="
                 flex-shrink: 0;
                 padding: 2px 8px;
@@ -1042,9 +1076,25 @@ try {
               ">
                 ${targetSource}
               </div>
+              ${categoryTag ? `
+                <div style="
+                  flex-shrink: 0;
+                  padding: 2px 8px;
+                  background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(168, 85, 247, 0.15));
+                  backdrop-filter: blur(10px);
+                  border: 1px solid rgba(168, 85, 247, 0.3);
+                  border-radius: 5px;
+                  font-size: 10px;
+                  font-weight: 700;
+                  color: #C084FC;
+                  letter-spacing: 0.3px;
+                ">
+                  ${categoryTag}
+                </div>
+              ` : ''}
             </div>
 
-            <!-- 第二行：副标题 -->
+            <!-- 第三行：副标题 -->
             <div style="
               font-size: 12px;
               color: var(--text-secondary);
@@ -1056,7 +1106,8 @@ try {
               ${subTitle}
             </div>
 
-            <!-- 第三行：时间 + 弹幕数 -->
+
+            <!-- 第四行：时间 + 弹幕数 -->
             <div style="display: flex; align-items: center; gap: 10px; font-size: 11px;">
               ${timeStr ? `
                 <div style="display: flex; align-items: center; gap: 4px; color: var(--text-tertiary); font-family: 'SF Mono', Consolas, monospace;">
@@ -1123,6 +1174,7 @@ try {
     </div>
   `;
 }
+
 
 
 
