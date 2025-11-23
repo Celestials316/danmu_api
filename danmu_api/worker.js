@@ -894,39 +894,36 @@ async function handleHomepage(req) {
       'bahamut': 'BH'
     };
     
-// 生成最近匹配列表HTML - 紧凑卡片设计（带图标）
+// 生成最近匹配列表HTML - 紧凑卡片设计（带图标） - 优化版
 let recentMatchesHtml = '';
 try {
   // 1. 获取 Map 数据
   let mapEntries = [];
   if (globals.lastSelectMap) {
-    if (globals.lastSelectMap instanceof Map) {
-      mapEntries = Array.from(globals.lastSelectMap.entries());
-    } else if (typeof globals.lastSelectMap === 'object') {
-      mapEntries = Object.entries(globals.lastSelectMap);
-    }
+    mapEntries = globals.lastSelectMap instanceof Map 
+      ? Array.from(globals.lastSelectMap.entries()) 
+      : Object.entries(globals.lastSelectMap);
   }
 
   // 2. 严格过滤与去重逻辑
   const uniqueEntries = [];
   if (mapEntries.length > 0) {
     const displayedKeys = new Set();
-
+    // 倒序遍历，只取最新的5条
     for (let i = mapEntries.length - 1; i >= 0; i--) {
       if (uniqueEntries.length >= 5) break;
 
       const [key, value] = mapEntries[i];
-
-      if (!value || typeof value !== 'object') continue; 
+      if (!value || typeof value !== 'object') continue;
 
       const targetId = value.id || value.animeId || value.episodeId;
-      if (!targetId || targetId === '未匹配' || targetId === '无数据' || targetId === 'null' || targetId === 'undefined') continue;
+      // 简化无效ID判断
+      if (!targetId || ['未匹配', '无数据', 'null', 'undefined'].includes(String(targetId))) continue;
 
-      const animeId = value.animeId || targetId;
-      const episodeTitle = value.episodeTitle || '';
       const cleanKeyName = String(key).replace(/\s*from\s+.*$/i, '').trim();
-      
-      const uniqueKey = (animeId && episodeTitle) ? (animeId + ':' + episodeTitle) : cleanKeyName;
+      const uniqueKey = (value.animeId && value.episodeTitle) 
+        ? `${value.animeId}:${value.episodeTitle}` 
+        : cleanKeyName;
 
       if (!displayedKeys.has(uniqueKey) && !displayedKeys.has(cleanKeyName)) {
         displayedKeys.add(uniqueKey);
@@ -936,242 +933,167 @@ try {
     }
   }
 
-  // 3. 渲染逻辑 - 紧凑三行设计（带图标）
+  // 3. 渲染逻辑 - 极简卡片设计
   if (uniqueEntries.length > 0) {
-    const sourceNameMap = {
-      'dandan': '弹弹Play', 'bilibili': 'B站', 'bilibili1': 'B站',
-      'iqiyi': '爱奇艺', 'qiyi': '爱奇艺', 'youku': '优酷', 'tencent': '腾讯',
-      'qq': '腾讯', 'mgtv': '芒果', 'imgo': '芒果', 'bahamut': '巴哈',
-      'renren': '人人', 'hanjutv': '韩剧TV', '360': '360', 'vod': 'VOD', 'url': 'URL', 'auto': '自动'
+    // 定义图标常量（压缩SVG以保持代码整洁）
+    const ICONS = {
+      play: '<path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5zm0 18c-3.86-.98-7-4.95-7-9V8.3l7-3.11 7 3.11V11c0 4.05-3.14 8.02-7 9z"/><circle cx="9" cy="11" r="1.5"/><circle cx="15" cy="11" r="1.5"/><path d="M12 17.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/>',
+      tv: '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M7 4l2 3M17 4l-2 3"/><path d="M8 12h.01M16 12h.01M8 16h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
+      triangle: '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M10 8l6 4-6 4V8z" fill="rgba(255,255,255,0.9)"/>',
+      circle: '<circle cx="12" cy="12" r="10"/><path d="M10 8l6 4-6 4V8z" fill="rgba(255,255,255,0.9)"/>',
+      penguin: '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/><circle cx="8" cy="11" r="2"/><circle cx="16" cy="11" r="2"/><path d="M12 17c2.21 0 4-1.12 4-2.5h-8c0 1.38 1.79 2.5 4 2.5z"/>',
+      box: '<path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l6.59-6.59L20 9l-8 8z"/>',
+      smile: '<path d="M15 12c0 1.66-1.34 3-3 3s-3-1.34-3-3 1.34-3 3-3 3 1.34 3 3zm-3-9C6.48 3 2 7.48 2 13c0 4.42 2.87 8.17 6.84 9.49.5.09.68-.22.68-.48 0-.24-.01-.87-.01-1.71-2.78.6-3.37-1.34-3.37-1.34-.45-1.15-1.11-1.46-1.11-1.46 1 .07 1.53 1.03 1.53 1.03.89 1.52 2.34 1.08 2.91.83.09-.65.35-1.08.63-1.33-2.22-.25-4.56-1.11-4.56-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02.85 0 1.7.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85 0 1.34-.01 2.42-.01 2.75 0 .27.18.58.69.48C19.14 21.16 22 17.42 22 13c0-5.52-4.48-10-10-10z"/>',
+      file: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm2 14h-3l-2-4H9l2 4H7L5 4h2l2 4 2-4h2l-2 4 2 4z"/>'
     };
 
-    const sourceThemeMap = {
-      'dandan': { 
-        color: '#A78BFA', 
-        icon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5zm0 18c-3.86-.98-7-4.95-7-9V8.3l7-3.11 7 3.11V11c0 4.05-3.14 8.02-7 9z"/><circle cx="9" cy="11" r="1.5"/><circle cx="15" cy="11" r="1.5"/><path d="M12 17.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/></svg>' 
-      },
-      'bilibili': { 
-        color: '#60A5FA', 
-        icon: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M7 4l2 3M17 4l-2 3"/><circle cx="8" cy="12" r="1.5"/><circle cx="16" cy="12" r="1.5"/><path d="M8 16h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>' 
-      },
-      'bilibili1': { 
-        color: '#60A5FA', 
-        icon: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M7 4l2 3M17 4l-2 3"/><circle cx="8" cy="12" r="1.5"/><circle cx="16" cy="12" r="1.5"/><path d="M8 16h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>' 
-      },
-      'iqiyi': { 
-        color: '#34D399', 
-        icon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M12 8v8m-4-4l4 4 4-4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' 
-      },
-      'qiyi': { 
-        color: '#34D399', 
-        icon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M12 8v8m-4-4l4 4 4-4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' 
-      },
-      'youku': { 
-        color: '#22D3EE', 
-        icon: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/><path d="M10 8l6 4-6 4V8z" fill="white"/></svg>' 
-      },
-      'tencent': { 
-        color: '#FBBF24', 
-        icon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/><circle cx="8" cy="11" r="2"/><circle cx="16" cy="11" r="2"/><path d="M12 17c2.21 0 4-1.12 4-2.5h-8c0 1.38 1.79 2.5 4 2.5z"/></svg>' 
-      },
-      'qq': { 
-        color: '#FBBF24', 
-        icon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/><circle cx="8" cy="11" r="2"/><circle cx="16" cy="11" r="2"/><path d="M12 17c2.21 0 4-1.12 4-2.5h-8c0 1.38 1.79 2.5 4 2.5z"/></svg>' 
-      },
-      'mgtv': { 
-        color: '#FB923C', 
-        icon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l6.59-6.59L20 9l-8 8z"/></svg>' 
-      },
-      'imgo': { 
-        color: '#FB923C', 
-        icon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l6.59-6.59L20 9l-8 8z"/></svg>' 
-      },
-      'bahamut': { 
-        color: '#F472B6', 
-        icon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M15 12c0 1.66-1.34 3-3 3s-3-1.34-3-3 1.34-3 3-3 3 1.34 3 3zm-3-9C6.48 3 2 7.48 2 13c0 4.42 2.87 8.17 6.84 9.49.5.09.68-.22.68-.48 0-.24-.01-.87-.01-1.71-2.78.6-3.37-1.34-3.37-1.34-.45-1.15-1.11-1.46-1.11-1.46-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.89 1.52 2.34 1.08 2.91.83.09-.65.35-1.08.63-1.33-2.22-.25-4.56-1.11-4.56-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02.8-.22 1.65-.33 2.5-.33.85 0 1.7.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85 0 1.34-.01 2.42-.01 2.75 0 .27.18.58.69.48C19.14 21.16 22 17.42 22 13c0-5.52-4.48-10-10-10z"/></svg>' 
-      },
-      'default': { 
-        color: '#818CF8', 
-        icon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z"/></svg>' 
-      }
+    // 配置源样式
+    const getSourceTheme = (key) => {
+      const map = {
+        'dandan':   { name: '弹弹Play', color: '#A78BFA', icon: ICONS.play },
+        'bilibili': { name: 'Bilibili', color: '#60A5FA', icon: ICONS.tv },
+        'iqiyi':    { name: '爱奇艺',   color: '#34D399', icon: ICONS.triangle },
+        'qiyi':     { name: '爱奇艺',   color: '#34D399', icon: ICONS.triangle },
+        'youku':    { name: '优酷',     color: '#22D3EE', icon: ICONS.circle },
+        'tencent':  { name: '腾讯视频', color: '#FBBF24', icon: ICONS.penguin },
+        'qq':       { name: '腾讯视频', color: '#FBBF24', icon: ICONS.penguin },
+        'mgtv':     { name: '芒果TV',   color: '#FB923C', icon: ICONS.box },
+        'imgo':     { name: '芒果TV',   color: '#FB923C', icon: ICONS.box },
+        'bahamut':  { name: '巴哈姆特', color: '#F472B6', icon: ICONS.smile },
+        'default':  { name: '本地/其他', color: '#818CF8', icon: ICONS.file }
+      };
+      // 模糊匹配
+      const k = String(key).toLowerCase();
+      if (k.includes('bilibili')) return map.bilibili;
+      return map[k] || map.default;
     };
 
+    // 北京时间格式化器 (比手动计算更准确)
+    const timeFormatter = new Intl.DateTimeFormat('zh-CN', {
+      timeZone: 'Asia/Shanghai',
+      month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false
+    });
 
     recentMatchesHtml = uniqueEntries.map(([key, value]) => {
       const targetId = value.id || value.animeId || value.episodeId || '未知ID';
       const rawSource = value.source || value.type || 'auto';
-      const displayAnimeTitle = value.animeTitle || '';
-      const displayEpTitle = value.episodeTitle || String(key).replace(/\s*from\s+.*$/i, '');
+      const theme = getSourceTheme(rawSource);
 
-      const targetSource = sourceNameMap[rawSource.toLowerCase()] || rawSource;
-      const sourceTheme = sourceThemeMap[rawSource.toLowerCase()] || sourceThemeMap.default;
-
-      // 标题清洗
-      let mainTitle = displayAnimeTitle || displayEpTitle;
-      // 提取所有分类标签
-      const categoryMatch = mainTitle.match(/【(韩剧|泰剧|美剧|日剧|英剧|港剧|台剧|国产剧|电视剧|电影|纪录片|综艺|动漫|动画)】/);
-      const categoryTag = categoryMatch ? categoryMatch[1] : null;
+      // 智能标题处理
+      let mainTitle = (value.animeTitle || value.episodeTitle || String(key)).replace(/\s*from\s+.*$/i, '');
       
-      // 清理标题，移除所有分类标签和 from 后缀
-      mainTitle = mainTitle
-        .replace(/\s*from\s+.*$/i, '')
-        .replace(/【(?:韩剧|泰剧|美剧|日剧|英剧|港剧|台剧|国产剧|电视剧|电影|纪录片|综艺|动漫|动画)】/g, '')
-        .trim();
-      
-      let subTitle = displayAnimeTitle ? displayEpTitle : `ID: ${targetId}`;
-      subTitle = subTitle.replace(/\s*from\s+.*$/i, '').replace(/^【.*?】\s*/, '').trim();
-      if (!subTitle || subTitle === mainTitle) subTitle = `弹幕ID: ${targetId}`;
+      // 提取分类标签 (从标题中移除，单独显示)
+      const typeMatch = mainTitle.match(/【(.*?)】/);
+      const typeTag = typeMatch ? typeMatch[1] : null;
+      if (typeTag && ['韩剧','日剧','动漫','动画','电影'].some(k => typeTag.includes(k))) {
+         mainTitle = mainTitle.replace(typeMatch[0], '');
+      }
+      mainTitle = mainTitle.trim();
 
-      // 时间处理 (已修正为北京时间 UTC+8)
+      // 副标题逻辑
+      let subTitle = value.animeTitle ? value.episodeTitle : `ID: ${targetId}`;
+      subTitle = (subTitle || '').replace(/\s*from\s+.*$/i, '').trim();
+      if (!subTitle || subTitle === mainTitle) subTitle = `匹配ID: ${targetId}`;
+
+      // 时间处理
       let timeStr = '';
       const ts = value.timestamp || value.time || value.date || value.createdAt;
       if (ts) {
-        const date = new Date(ts);
-        if (!isNaN(date.getTime())) {
-          // 计算 UTC 时间戳,然后加上 8 小时 (3600000ms * 8) 转换为北京时间
-          const utc = date.getTime() + (date.getTimezoneOffset() * 60000);
-          const shDate = new Date(utc + (3600000 * 8));
-
-          const month = (shDate.getMonth() + 1).toString().padStart(2, '0');
-          const day = shDate.getDate().toString().padStart(2, '0');
-          const hour = shDate.getHours().toString().padStart(2, '0');
-          const minute = shDate.getMinutes().toString().padStart(2, '0');
-          timeStr = `${month}-${day} ${hour}:${minute}`;
-        }
+        try {
+          timeStr = timeFormatter.format(new Date(ts)).replace(/\//g, '-');
+        } catch (e) {}
       }
 
-      // 弹幕数量
-      const count = value.count !== undefined && value.count !== null ? value.count : null;
-      const countColor = count === 0 ? 'var(--text-tertiary)' : sourceTheme.color;
+      // 弹幕数处理
+      const count = (value.count !== undefined && value.count !== null) ? value.count : null;
+      const countColor = count === 0 ? 'var(--text-tertiary)' : theme.color;
 
       return `
         <div style="
-          background: var(--bg-tertiary);
+          position: relative;
+          background: linear-gradient(to right, var(--bg-tertiary), rgba(255,255,255,0.02));
           border: 1px solid var(--border-color);
-          border-radius: 10px;
-          padding: 10px 12px;
+          border-radius: 12px;
+          padding: 10px;
           margin-bottom: 8px;
-          transition: all 0.2s ease;
+          transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
           cursor: pointer;
           display: flex;
-          gap: 10px;
+          align-items: center;
+          gap: 12px;
+          overflow: hidden;
         " onmouseenter="
+          this.style.transform = 'translateY(-1px)';
+          this.style.borderColor = '${theme.color}60';
           this.style.background = 'var(--bg-hover)';
-          this.style.borderColor = '${sourceTheme.color}';
-          this.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+          this.style.boxShadow = '0 4px 12px -2px rgba(0,0,0,0.15)';
         " onmouseleave="
-          this.style.background = 'var(--bg-tertiary)';
+          this.style.transform = 'none';
           this.style.borderColor = 'var(--border-color)';
+          this.style.background = 'linear-gradient(to right, var(--bg-tertiary), rgba(255,255,255,0.02))';
           this.style.boxShadow = 'none';
         ">
-          <!-- 左侧图标 -->
+          <div style="position: absolute; left: 0; top: 12px; bottom: 12px; width: 3px; background: ${theme.color}; border-radius: 0 4px 4px 0; opacity: 0.8;"></div>
+
           <div style="
             flex-shrink: 0;
-            width: 48px;
-            height: 48px;
-            background: linear-gradient(135deg, ${sourceTheme.color}20, ${sourceTheme.color}10);
-            backdrop-filter: blur(10px);
-            border: 1.5px solid ${sourceTheme.color}40;
-            border-radius: 12px;
+            width: 44px;
+            height: 44px;
+            background: ${theme.color}15;
+            border-radius: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            color: ${sourceTheme.color};
+            color: ${theme.color};
+            box-shadow: inset 0 0 10px ${theme.color}05;
           ">
-            <div style="width: 26px; height: 26px;">
-              ${sourceTheme.icon}
-            </div>
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">${theme.icon}</svg>
           </div>
 
-          <!-- 右侧内容 -->
-          <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;">
-            <!-- 第一行：主标题 + 时间 -->
-            <div style="display: flex; align-items: center; gap: 8px;">
+          <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px;">
+            <div style="display: flex; justify-content: space-between; align-items: baseline;">
               <div style="
-                flex: 1;
                 font-size: 14px;
                 font-weight: 600;
                 color: var(--text-primary);
+                white-space: nowrap;
                 overflow: hidden;
                 text-overflow: ellipsis;
-                white-space: nowrap;
-                line-height: 1.3;
-              " title="${mainTitle}">
-                ${mainTitle}
-              </div>
-              ${timeStr ? `
-                <div style="
-                  flex-shrink: 0;
-                  font-size: 10px;
-                  color: var(--text-tertiary);
-                  font-family: 'SF Mono', Consolas, monospace;
-                  opacity: 0.8;
-                  letter-spacing: 0.3px;
-                ">
-                  ${timeStr}
-                </div>
-              ` : ''}
+                padding-right: 8px;
+              " title="${mainTitle}">${mainTitle}</div>
+              ${timeStr ? `<div style="font-size: 10px; color: var(--text-tertiary); font-family: monospace; opacity: 0.7;">${timeStr}</div>` : ''}
             </div>
-
-            <!-- 第二行：副标题 -->
-            <div style="
-              font-size: 12px;
-              color: var(--text-secondary);
-              overflow: hidden;
-              text-overflow: ellipsis;
-              white-space: nowrap;
-              line-height: 1.3;
-            " title="${subTitle}">
+            
+            <div style="font-size: 12px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${subTitle}">
               ${subTitle}
             </div>
 
-            <!-- 第三行：平台标签 + 分类标签 + 弹幕数 -->
-            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 6px; margin-top: 2px;">
               <div style="
-                flex-shrink: 0;
-                padding: 2px 8px;
-                background: rgba(255, 255, 255, 0.05);
-                backdrop-filter: blur(10px);
-                border: 1px solid ${sourceTheme.color}20;
-                border-radius: 5px;
-                font-size: 10px;
-                font-weight: 700;
-                color: ${sourceTheme.color};
-                letter-spacing: 0.3px;
-              ">
-                ${targetSource}
-              </div>
-              ${categoryTag ? `
+                font-size: 10px; 
+                padding: 1px 6px; 
+                border-radius: 4px; 
+                background: ${theme.color}15; 
+                color: ${theme.color}; 
+                font-weight: bold;
+                border: 1px solid ${theme.color}20;
+              ">${theme.name}</div>
+              
+              ${typeTag ? `
                 <div style="
-                  flex-shrink: 0;
-                  padding: 2px 8px;
-                  background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(168, 85, 247, 0.15));
-                  backdrop-filter: blur(10px);
-                  border: 1px solid rgba(168, 85, 247, 0.3);
-                  border-radius: 5px;
-                  font-size: 10px;
-                  font-weight: 700;
-                  color: #C084FC;
-                  letter-spacing: 0.3px;
-                ">
-                  ${categoryTag}
-                </div>
+                  font-size: 10px; 
+                  padding: 1px 6px; 
+                  border-radius: 4px; 
+                  background: rgba(255,255,255,0.05); 
+                  color: var(--text-secondary); 
+                  border: 1px solid var(--border-color);
+                ">${typeTag}</div>
               ` : ''}
+
               ${count !== null ? `
-                <div style="
-                  display: flex;
-                  align-items: center;
-                  gap: 3px;
-                  margin-left: auto;
-                  padding: 2px 6px;
-                  background: rgba(255, 255, 255, 0.03);
-                  border-radius: 4px;
-                ">
-                  <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="${countColor}" stroke-width="2" style="opacity: 0.8;">
-                    <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/>
-                  </svg>
-                  <span style="font-weight: 700; font-size: 10px; font-family: 'SF Mono', Consolas, monospace; color: ${countColor};">${count}</span>
+                <div style="margin-left: auto; display: flex; align-items: center; gap: 3px; font-size: 10px; color: ${countColor}; font-weight: 600;">
+                  <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                  ${count}
                 </div>
               ` : ''}
             </div>
@@ -1181,57 +1103,39 @@ try {
     }).join('');
 
   } else {
-    // 空状态
+    // 空状态 - 优化后的视觉
     recentMatchesHtml = `
       <div style="
-        padding: 32px 20px;
+        padding: 36px 20px;
         text-align: center;
         background: var(--bg-tertiary);
-        border: 1.5px dashed var(--border-color);
-        border-radius: 10px;
-      ">
-        <div style="width: 64px; height: 64px; margin: 0 auto 16px; opacity: 0.4;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" stroke-width="1.5">
-            <path d="M20 6L9 17l-5-5"/>
-            <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
-            <circle cx="12" cy="12" r="10" stroke-dasharray="2 2"/>
+        border: 1px dashed var(--border-color);
+        border-radius: 12px;
+        color: var(--text-tertiary);
+        transition: border-color 0.3s;
+      " onmouseenter="this.style.borderColor = 'var(--text-secondary)'" onmouseleave="this.style.borderColor = 'var(--border-color)'">
+        <div style="opacity: 0.3; margin-bottom: 12px;">
+          <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+            <path d="M12 8v4" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="12" cy="16" r="1" fill="currentColor"/>
           </svg>
         </div>
-        <div style="font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">
-          暂无匹配记录
-        </div>
-        <div style="font-size: 12px; color: var(--text-tertiary); line-height: 1.4;">
-          开始使用弹幕测试功能后<br>即可在此查看匹配历史
-        </div>
+        <div style="font-size: 13px; font-weight: 500; margin-bottom: 4px; color: var(--text-secondary);">暂无匹配历史</div>
+        <div style="font-size: 12px; opacity: 0.7;">最近播放与匹配成功的记录将显示在此</div>
       </div>
     `;
   }
 } catch (e) {
   console.error("渲染匹配列表失败", e);
+  // 错误状态
   recentMatchesHtml = `
-    <div style="
-      padding: 14px;
-      font-size: 12px;
-      color: var(--error);
-      background: rgba(239,68,68,0.08);
-      border: 1px solid var(--error);
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    ">
-      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="12" cy="12" r="10"/>
-        <path d="M12 8v4"/>
-        <circle cx="12" cy="16" r="0.5" fill="currentColor"/>
-      </svg>
-      <span>数据读取异常: ${e.message}</span>
+    <div style="padding: 12px; font-size: 12px; color: #F87171; background: rgba(248,113,113,0.1); border-radius: 8px; border: 1px solid rgba(248,113,113,0.2); display: flex; align-items: center; gap: 8px;">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+      <span>数据加载异常: ${e.message}</span>
     </div>
   `;
 }
-
-
-
 
     const sourcesHtml = globals.sourceOrderArr.length > 0 
       ? globals.sourceOrderArr.map((source, index) => {
