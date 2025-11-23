@@ -1031,15 +1031,15 @@ try {
           <!-- 左侧图标 -->
           <div style="
             flex-shrink: 0;
-            width: 72px;
-            height: 72px;
+            width: 48px;
+            height: 48px;
             background: rgba(255, 255, 255, 0.08);
             backdrop-filter: blur(10px);
             border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 36px;
+            font-size: 24px;
             transition: all 0.2s ease;
           ">
             ${sourceTheme.icon}
