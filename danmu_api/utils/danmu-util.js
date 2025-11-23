@@ -140,13 +140,13 @@ export function convertToDanmakuJson(contents, platform) {
     // 新增:处理新格式的弹幕数据
     if ("progress" in item && "mode" in item && "content" in item) {
       // 处理新格式的弹幕对象
-      time = (item.progress / 1000).toFixed(2);
+      time = parseFloat((item.progress / 1000).toFixed(2));
       mode = item.mode || 1;
       color = item.color || 16777215;
       m = item.content;
     } else if ("timepoint" in item) {
       // 处理对象数组输入
-      time = parseFloat(item.timepoint).toFixed(2);
+      time = parseFloat(parseFloat(item.timepoint).toFixed(2));
       mode = item.ct || 0;
       color = item.color || 16777215;
       m = item.content;
@@ -156,9 +156,8 @@ export function convertToDanmakuJson(contents, platform) {
       }
       // 处理 XML 解析后的格式
       const pValues = item.p.split(",");
-      time = parseFloat(pValues[0]).toFixed(2);
+      time = parseFloat(parseFloat(pValues[0]).toFixed(2));
       mode = pValues[1] || 0;
-
       // 支持多种格式的 p 属性
       // 旧格式(4字段):时间,类型,颜色,来源
       // 标准格式(8字段):时间,类型,字体,颜色,时间戳,弹幕池,用户Hash,弹幕ID
@@ -201,14 +200,14 @@ export function convertToDanmakuJson(contents, platform) {
       }
       return null;
     }).filter(regex => regex !== null);
-    
+
     globals._lastBlockedWordsHash = globals.blockedWords;
-    
+
     log("info", `原始屏蔽词字符串: ${globals.blockedWords}`);
     const regexArrayToString = array => Array.isArray(array) ? array.map(regex => regex.toString()).join('\n') : String(array);
     log("info", `屏蔽词列表已缓存: ${regexArrayToString(globals._cachedBlockedRegexArray)}`);
   }
-  
+
   const regexArray = globals._cachedBlockedRegexArray;
 
   // 🔥 优化：提前终止匹配，减少不必要的正则测试
@@ -216,7 +215,7 @@ export function convertToDanmakuJson(contents, platform) {
     const message = item.m;
     // 优先匹配最常见的模式（如长度检查）
     if (message.length >= 25) return false; // 第一个正则是长度检查
-    
+
     // 然后再执行完整的正则匹配
     for (let i = 1; i < regexArray.length; i++) {
       if (regexArray[i].test(message)) return false;
