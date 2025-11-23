@@ -950,6 +950,7 @@ try {
       const map = {
         'dandan':   { name: '弹弹Play', color: '#A78BFA', icon: ICONS.play },
         'bilibili': { name: 'Bilibili', color: '#60A5FA', icon: ICONS.tv },
+        'bilibili1': { name: 'Bilibili', color: '#60A5FA', icon: ICONS.tv },
         'iqiyi':    { name: '爱奇艺',   color: '#34D399', icon: ICONS.triangle },
         'qiyi':     { name: '爱奇艺',   color: '#34D399', icon: ICONS.triangle },
         'youku':    { name: '优酷',     color: '#22D3EE', icon: ICONS.circle },
@@ -958,7 +959,8 @@ try {
         'mgtv':     { name: '芒果TV',   color: '#FB923C', icon: ICONS.box },
         'imgo':     { name: '芒果TV',   color: '#FB923C', icon: ICONS.box },
         'bahamut':  { name: '巴哈姆特', color: '#F472B6', icon: ICONS.smile },
-        'default':  { name: '本地/其他', color: '#818CF8', icon: ICONS.file }
+        'hanjutv':  { name: '韩剧TV', color: '#818CF8', icon: ICONS.file },
+        'default':  { name: '其他', color: '#818CF8', icon: ICONS.file }
       };
       const k = String(key).toLowerCase();
       if (k.includes('bilibili')) return map.bilibili;
