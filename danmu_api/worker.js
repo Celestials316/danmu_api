@@ -1085,7 +1085,7 @@ try {
           </div>
 
           <!-- 右侧内容 -->
-          <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px;">
+          <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;">
             <!-- 第一行：主标题 + 时间 -->
             <div style="display: flex; align-items: center; gap: 8px;">
               <div style="
@@ -1114,7 +1114,19 @@ try {
               ` : ''}
             </div>
 
-            <!-- 第二行：平台标签 + 分类标签 + 弹幕数 -->
+            <!-- 第二行：副标题 -->
+            <div style="
+              font-size: 12px;
+              color: var(--text-secondary);
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+              line-height: 1.3;
+            " title="${subTitle}">
+              ${subTitle}
+            </div>
+
+            <!-- 第三行：平台标签 + 分类标签 + 弹幕数 -->
             <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
               <div style="
                 flex-shrink: 0;
@@ -1162,18 +1174,6 @@ try {
                   <span style="font-weight: 700; font-size: 10px; font-family: 'SF Mono', Consolas, monospace; color: ${countColor};">${count}</span>
                 </div>
               ` : ''}
-            </div>
-
-            <!-- 第三行：副标题 -->
-            <div style="
-              font-size: 12px;
-              color: var(--text-secondary);
-              overflow: hidden;
-              text-overflow: ellipsis;
-              white-space: nowrap;
-              line-height: 1.3;
-            " title="${subTitle}">
-              ${subTitle}
             </div>
           </div>
         </div>
