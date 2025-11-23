@@ -992,7 +992,7 @@ try {
       if (ts) {
         const date = new Date(ts);
         if (!isNaN(date.getTime())) {
-          // 计算 UTC 时间戳，然后加上 8 小时 (3600000ms * 8) 转换为北京时间
+          // 计算 UTC 时间戳,然后加上 8 小时 (3600000ms * 8) 转换为北京时间
           const utc = date.getTime() + (date.getTimezoneOffset() * 60000);
           const shDate = new Date(utc + (3600000 * 8));
 
@@ -1031,15 +1031,15 @@ try {
           <!-- 左侧图标 -->
           <div style="
             flex-shrink: 0;
-            width: 36px;
-            height: 36px;
+            width: 72px;
+            height: 72px;
             background: rgba(255, 255, 255, 0.08);
             backdrop-filter: blur(10px);
             border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 18px;
+            font-size: 36px;
             transition: all 0.2s ease;
           ">
             ${sourceTheme.icon}
@@ -1174,6 +1174,7 @@ try {
     </div>
   `;
 }
+
 
 
 
