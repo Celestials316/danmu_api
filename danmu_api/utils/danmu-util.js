@@ -175,6 +175,11 @@ export function convertToDanmakuJson(contents, platform) {
       m = item.m;
     }
 
+    // 修复 HTML 实体编码的表情
+    if (m) {
+      m = m.replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(dec));
+    }
+
     attributes = [
       time,
       mode,
