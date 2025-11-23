@@ -1078,6 +1078,7 @@ try {
             justify-content: center;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             color: ${sourceTheme.color};
+            align-self: center;
           ">
             <div style="width: 26px; height: 26px;">
               ${sourceTheme.icon}
