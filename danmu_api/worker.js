@@ -917,7 +917,6 @@ try {
       if (!value || typeof value !== 'object') continue;
 
       const targetId = value.id || value.animeId || value.episodeId;
-      // 简化无效ID判断
       if (!targetId || ['未匹配', '无数据', 'null', 'undefined'].includes(String(targetId))) continue;
 
       const cleanKeyName = String(key).replace(/\s*from\s+.*$/i, '').trim();
@@ -935,7 +934,7 @@ try {
 
   // 3. 渲染逻辑 - 极简卡片设计
   if (uniqueEntries.length > 0) {
-    // 定义图标常量（压缩SVG以保持代码整洁）
+    // 定义图标常量
     const ICONS = {
       play: '<path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5zm0 18c-3.86-.98-7-4.95-7-9V8.3l7-3.11 7 3.11V11c0 4.05-3.14 8.02-7 9z"/><circle cx="9" cy="11" r="1.5"/><circle cx="15" cy="11" r="1.5"/><path d="M12 17.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/>',
       tv: '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M7 4l2 3M17 4l-2 3"/><path d="M8 12h.01M16 12h.01M8 16h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
@@ -947,7 +946,6 @@ try {
       file: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm2 14h-3l-2-4H9l2 4H7L5 4h2l2 4 2-4h2l-2 4 2 4z"/>'
     };
 
-    // 配置源样式
     const getSourceTheme = (key) => {
       const map = {
         'dandan':   { name: '弹弹Play', color: '#A78BFA', icon: ICONS.play },
@@ -962,13 +960,11 @@ try {
         'bahamut':  { name: '巴哈姆特', color: '#F472B6', icon: ICONS.smile },
         'default':  { name: '本地/其他', color: '#818CF8', icon: ICONS.file }
       };
-      // 模糊匹配
       const k = String(key).toLowerCase();
       if (k.includes('bilibili')) return map.bilibili;
       return map[k] || map.default;
     };
 
-    // 北京时间格式化器 (比手动计算更准确)
     const timeFormatter = new Intl.DateTimeFormat('zh-CN', {
       timeZone: 'Asia/Shanghai',
       month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false
@@ -979,32 +975,36 @@ try {
       const rawSource = value.source || value.type || 'auto';
       const theme = getSourceTheme(rawSource);
 
-      // 智能标题处理
+      // --- 标题智能清洗开始 ---
+      
+      // 1. 获取原始标题
       let mainTitle = (value.animeTitle || value.episodeTitle || String(key)).replace(/\s*from\s+.*$/i, '');
       
-      // 提取分类标签 (从标题中移除，单独显示)
-      const typeMatch = mainTitle.match(/【(.*?)】/);
+      // 2. 提取分类标签（用于底部显示）
+      const typeMatch = mainTitle.match(/【(电视剧|电影|综艺|动漫|动画|纪录片|韩剧|日剧|美剧|英剧|泰剧|港剧|台剧|国产剧)】/);
       const typeTag = typeMatch ? typeMatch[1] : null;
-      if (typeTag && ['韩剧','日剧','动漫','动画','电影'].some(k => typeTag.includes(k))) {
-         mainTitle = mainTitle.replace(typeMatch[0], '');
-      }
-      mainTitle = mainTitle.trim();
 
-      // 副标题逻辑
+      // 3. 清洗主标题：移除 【电视剧】 等后缀
+      mainTitle = mainTitle.replace(/【(电视剧|电影|综艺|动漫|动画|纪录片|韩剧|日剧|美剧|英剧|泰剧|港剧|台剧|国产剧)】/g, '').trim();
+
+      // 4. 清洗副标题
       let subTitle = value.animeTitle ? value.episodeTitle : `ID: ${targetId}`;
-      subTitle = (subTitle || '').replace(/\s*from\s+.*$/i, '').trim();
-      if (!subTitle || subTitle === mainTitle) subTitle = `匹配ID: ${targetId}`;
+      subTitle = (subTitle || '')
+        .replace(/\s*from\s+.*$/i, '')
+        // 移除开头的平台标识，如 【iqiyi】, [Bilibili], 【腾讯】等
+        .replace(/^(【.*?】|\[.*?\])\s*/, '')
+        .trim();
 
-      // 时间处理
+      if (!subTitle || subTitle === mainTitle) subTitle = `匹配ID: ${targetId}`;
+      
+      // --- 标题智能清洗结束 ---
+
       let timeStr = '';
       const ts = value.timestamp || value.time || value.date || value.createdAt;
       if (ts) {
-        try {
-          timeStr = timeFormatter.format(new Date(ts)).replace(/\//g, '-');
-        } catch (e) {}
+        try { timeStr = timeFormatter.format(new Date(ts)).replace(/\//g, '-'); } catch (e) {}
       }
 
-      // 弹幕数处理
       const count = (value.count !== undefined && value.count !== null) ? value.count : null;
       const countColor = count === 0 ? 'var(--text-tertiary)' : theme.color;
 
@@ -1103,7 +1103,7 @@ try {
     }).join('');
 
   } else {
-    // 空状态 - 优化后的视觉
+    // 空状态
     recentMatchesHtml = `
       <div style="
         padding: 36px 20px;
@@ -1128,7 +1128,6 @@ try {
   }
 } catch (e) {
   console.error("渲染匹配列表失败", e);
-  // 错误状态
   recentMatchesHtml = `
     <div style="padding: 12px; font-size: 12px; color: #F87171; background: rgba(248,113,113,0.1); border-radius: 8px; border: 1px solid rgba(248,113,113,0.2); display: flex; align-items: center; gap: 8px;">
       <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
@@ -1136,6 +1135,10 @@ try {
     </div>
   `;
 }
+
+
+
+
 
     const sourcesHtml = globals.sourceOrderArr.length > 0 
       ? globals.sourceOrderArr.map((source, index) => {
