@@ -9,7 +9,8 @@ import http from 'http';
 import https from 'https';
 import url from 'url';
 import { HttpsProxyAgent } from 'https-proxy-agent';
-
+// 🔥 导入并初始化 Globals
+import { Globals } from './danmu_api/configs/globals.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -258,7 +259,7 @@ async function needsAsyncStartup() {
 
     // 尝试检测已安装的 node-fetch 版本
     const packagePath = path.join(__dirname, '..', 'node_modules', 'node-fetch', 'package.json');
-    
+
     if (!fs.existsSync(packagePath)) {
       console.log('[server] Cannot detect node-fetch, using sync startup');
       return false;
@@ -285,10 +286,14 @@ async function needsAsyncStartup() {
 
 // --- 核心 HTTP 服务器（端口 9321）逻辑 ---
 async function createServer() {
+  // 🔥 初始化 Globals（确保在处理请求前完成）
+  await Globals.init(process.env, 'node');
+  console.log('[server] Globals initialized successfully');
+
   const nodeFetch = await import('node-fetch');
   const fetch = nodeFetch.default;
   const { Request, Response } = nodeFetch;
-  
+
   const workerModule = await import('./worker.js');
   const { handleRequest } = workerModule;
 
