@@ -7383,6 +7383,7 @@ try {
    }
 
    // 🔥 新增：显示剧集列表
+   // 🔥 新增：显示剧集列表
    function displayEpisodeList(episodes) {
      const episodeListContainer = document.getElementById('episodeListContainer');
      const episodeCount = document.getElementById('episodeCount');
@@ -7398,25 +7399,26 @@ try {
        return;
      }
 
-     episodeCount.textContent = \`\${episodes.length} 集\`;
+     episodeCount.textContent = episodes.length + ' 集';
 
      const html = episodes.map((episode, index) => {
-       const episodeNum = episode.episodeNumber || episode.episodeTitle || \`第\${index + 1}集\`;
-       const episodeTitle = episode.episodeTitle || \`集数 \${episodeNum}\`;
+       const episodeNum = episode.episodeNumber || episode.episodeTitle || ('第' + (index + 1) + '集');
+       const episodeTitle = episode.episodeTitle || ('集数 ' + episodeNum);
+       const episodeId = episode.episodeId;
 
-       return \`
-         <div class="source-item" onclick="loadEpisodeDanmu('\${episode.episodeId}', '\${episodeNum}', '\${episodeTitle}')" 
+       return `
+         <div class="source-item" onclick="loadEpisodeDanmu(${episodeId}, '${episodeNum}', '${escapeHtml(episodeTitle)}')" 
               style="cursor: pointer; margin-bottom: 8px; padding: 12px 16px; transition: all 0.2s;">
            <div style="display: flex; align-items: center; gap: 12px;">
              <div style="min-width: 60px; padding: 6px 12px; background: var(--primary-500); color: white; border-radius: 6px; font-weight: 700; text-align: center; font-size: 13px;">
-               第\${episodeNum}集
+               第${episodeNum}集
              </div>
              <div style="flex: 1; min-width: 0;">
                <div style="font-size: 14px; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                 \${episodeTitle}
+                 ${escapeHtml(episodeTitle)}
                </div>
                <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 2px;">
-                 ID: \${episode.episodeId}
+                 ID: ${episodeId}
                </div>
              </div>
              <div style="opacity: 0.5;">
@@ -7426,94 +7428,51 @@ try {
              </div>
            </div>
          </div>
-       \`;
+       `;
      }).join('');
 
      episodeListContainer.innerHTML = html;
    }
 
    // 🔥 新增：加载指定集数的弹幕
-   async function loadEpisodeDanmu(episodeId, episodeNum, episodeTitle) {
-     if (!episodeId) {
-       showToast('缺少剧集ID', 'error');
+   // 🔥 新增：获取并显示剧集列表
+   async function loadEpisodeList(animeId) {
+     if (!animeId) {
+       console.error('[Episode List] 缺少 animeId');
        return;
      }
 
-     const previewContainer = document.getElementById('danmuPreviewContainer');
-
-     previewContainer.innerHTML = `
-       <div style="text-align: center; padding: 80px 20px;">
-         <span class="loading-spinner" style="width: 48px; height: 48px; border-width: 4px;"></span>
-         <div style="margin-top: 24px; color: var(--text-primary); font-size: 16px; font-weight: 600;">
-           正在加载第\${episodeNum}集弹幕...
-         </div>
-       </div>
-     `;
-
-     document.getElementById('exportJsonBtn').style.display = 'none';
-     document.getElementById('exportXmlBtn').style.display = 'none';
-
      try {
-       showToast(\`🔄 正在加载第\${episodeNum}集...\`, 'info', 2000);
+       currentAnimeId = animeId;
+       const episodeListCard = document.getElementById('episodeListCard');
+       const episodeListContainer = document.getElementById('episodeListContainer');
 
-       const apiUrl = \`/api/v2/comment/\${episodeId}?format=json\`;
-       const response = await fetch(apiUrl);
+       // 显示加载状态
+       episodeListCard.style.display = 'block';
+       episodeListContainer.innerHTML = 
+         '<div style="text-align: center; padding: 40px 20px;">' +
+           '<span class="loading-spinner" style="width: 32px; height: 32px; border-width: 3px;"></span>' +
+           '<div style="margin-top: 16px; color: var(--text-secondary); font-size: 14px;">正在加载剧集列表...</div>' +
+         '</div>';
+
+       const response = await fetch('/api/v2/bangumi/' + animeId);
        const result = await response.json();
 
-       let comments = [];
-       if (Array.isArray(result)) {
-         comments = result;
-       } else if (result.comments) {
-         comments = result.comments;
-       } else if (result.danmus) {
-         comments = result.danmus;
+       if (!result.success || !result.bangumi || !result.bangumi.episodes) {
+         throw new Error('获取剧集列表失败');
        }
 
-       if (result.success === false) {
-         throw new Error(result.errorMessage || result.message || '获取弹幕失败');
-       }
-
-       currentDanmuData = comments;
-       filteredDanmuData = [...currentDanmuData];
-
-       // 更新匹配结果显示
-       document.getElementById('matchedEpisodeTitle').textContent = episodeTitle;
-       document.getElementById('matchedEpisode').textContent = 'E' + String(episodeNum).padStart(2, '0');
-       document.getElementById('matchedEpisodeId').textContent = episodeId;
-
-       if (currentDanmuData.length === 0) {
-         previewContainer.innerHTML = `
-           <div style="text-align: center; padding: 80px 20px; color: var(--text-tertiary);">
-             <div style="font-size: 56px; margin-bottom: 20px; opacity: 0.5;">😢</div>
-             <div style="font-size: 17px; font-weight: 600; margin-bottom: 10px; color: var(--text-secondary);">
-               第\${episodeNum}集暂无弹幕
-             </div>
-             <div style="font-size: 14px; opacity: 0.8;">该集可能还没有弹幕数据</div>
-           </div>
-         `;
-         document.getElementById('danmuTestCount').textContent = '0 条';
-         return;
-       }
-
-       displayDanmuList(filteredDanmuData);
-       updateDanmuStats();
-       showToast(\`✅ 第\${episodeNum}集弹幕加载成功（\${currentDanmuData.length} 条）\`, 'success');
-
-       document.getElementById('exportJsonBtn').style.display = 'inline-flex';
-       document.getElementById('exportXmlBtn').style.display = 'inline-flex';
+       currentEpisodeList = result.bangumi.episodes;
+       displayEpisodeList(currentEpisodeList);
 
      } catch (error) {
-       console.error('[Load Episode] 加载弹幕失败:', error);
-       previewContainer.innerHTML = `
-         <div style="text-align: center; padding: 80px 20px; color: var(--error);">
-           <div style="font-size: 56px; margin-bottom: 20px; opacity: 0.7;">❌</div>
-           <div style="font-size: 17px; font-weight: 600; margin-bottom: 10px;">加载失败</div>
-           <div style="font-size: 14px; color: var(--text-secondary); max-width: 400px; margin: 0 auto;">
-             \${error.message}
-           </div>
-         </div>
-       `;
-       showToast(\`❌ 加载失败: \${error.message}\`, 'error');
+       console.error('[Episode List] 加载失败:', error);
+       const episodeListContainer = document.getElementById('episodeListContainer');
+       episodeListContainer.innerHTML = 
+         '<div style="text-align: center; padding: 40px 20px; color: var(--error);">' +
+           '<div style="font-size: 36px; margin-bottom: 12px;">❌</div>' +
+           '<div style="font-size: 14px;">加载剧集列表失败: ' + error.message + '</div>' +
+         '</div>';
      }
    }
    function displayDanmuList(danmuList) {
