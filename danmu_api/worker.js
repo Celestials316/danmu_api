@@ -7649,11 +7649,11 @@ function clearDanmuTest() {
      const episodes = currentAnimeInfo.episodes;
      document.getElementById('episodeListTitle').textContent = currentAnimeInfo.animeTitle + ' - 共 ' + episodes.length + ' 集';
 
-     const html = episodes.map((ep, index) => {
+     const html = episodes.map(function(ep, index) {
        const epNum = ep.episodeNumber || (index + 1);
        const epTitle = ep.episodeTitle || ('第 ' + epNum + ' 集');
        
-       return '<div class="server-item" style="cursor: pointer; transition: all 0.3s;" onclick="loadEpisodeDanmu(\'' + ep.episodeId + '\', \'' + epNum + '\')">' +
+       return '<div class="server-item" style="cursor: pointer; transition: all 0.3s;" onclick="loadEpisodeDanmu(\\'' + ep.episodeId + '\\', \\'' + epNum + '\\')">' +
          '<div class="server-badge">' + epNum + '</div>' +
          '<div class="server-info">' +
            '<div class="server-name">' + epTitle + '</div>' +
