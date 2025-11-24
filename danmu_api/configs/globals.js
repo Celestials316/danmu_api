@@ -36,6 +36,17 @@ const Globals = {
   animes: [],
   episodeIds: [],
   episodeNum: 10001,
+
+  // 🔥 重置函数 - 确保数组类型
+  resetCache() {
+    this.animes = [];
+    this.episodeIds = [];
+    this.episodeNum = 10001;
+    this.lastSelectMap = new Map();
+    this.searchCache = new Map();
+    this.commentCache = new Map();
+    console.log('[Globals] 缓存已重置为初始状态');
+  },
   logBuffer: [],
   requestHistory: new Map(),
   lastSelectMap: new Map(),
@@ -115,7 +126,7 @@ const Globals = {
           const pingResult = await pingRedis();
           if (pingResult && pingResult.result === "PONG") {
             this.redisValid = true;
-            
+
             const result = await getRedisKey('env_configs');
             if (result && result.result) {
               try {
