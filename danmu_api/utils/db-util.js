@@ -373,3 +373,40 @@ export async function checkDatabaseConnection() {
     return false;
   }
 }
+
+/**
+ * 删除指定的缓存数据
+ * @param {string} key 缓存键
+ */
+export async function deleteCacheData(key) {
+  const client = getDbClient();
+  if (!client || !globals.databaseValid) return false;
+
+  try {
+    await client.execute({
+      sql: 'DELETE FROM cache_data WHERE key = ?',
+      args: [key]
+    });
+    return true;
+  } catch (error) {
+    log("error", `[database] ❌ 删除缓存失败 (${key}): ${error.message}`);
+    return false;
+  }
+}
+
+/**
+ * 清空所有缓存数据
+ */
+export async function clearAllCache() {
+  const client = getDbClient();
+  if (!client || !globals.databaseValid) return false;
+
+  try {
+    await client.execute('DELETE FROM cache_data');
+    log("info", "[database] ✅ 已清空 cache_data 表");
+    return true;
+  } catch (error) {
+    log("error", `[database] ❌ 清空缓存失败: ${error.message}`);
+    return false;
+  }
+}
