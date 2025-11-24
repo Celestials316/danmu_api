@@ -1,4 +1,4 @@
-import { Globals } from './configs/globals.js';
+import { Globals, globals } from './configs/globals.js'; // 🔥 直接导入 globals
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import fs from 'fs';
@@ -10,7 +10,6 @@ import { cleanupExpiredIPs, findUrlById, getCommentCache } from "./utils/cache-u
 import { formatDanmuResponse } from "./utils/danmu-util.js";
 import { getBangumi, getComment, getCommentByUrl, matchAnime, searchAnime, searchEpisodes } from "./apis/dandan-api.js";
 
-let globals;
 
 // ========== 登录会话管理 (持久化/内存降级方案) ==========
 const sessions = new Map(); // 用于内存会话存储
@@ -563,25 +562,6 @@ function getRealEnvValue(key) {
 }
 
 async function handleRequest(req, env, deployPlatform, clientIp) {
-  // ✅ 修复：确保 globals 已定义且初始化
-  if (!globals || typeof globals !== 'object') {
-    console.error('[handleRequest] CRITICAL: globals is undefined or invalid');
-    // 强制重新初始化
-    const { Globals } = await import('./configs/globals.js');
-    const initializedGlobals = await Globals.init(env, deployPlatform);
-    
-    if (!initializedGlobals || typeof initializedGlobals !== 'object') {
-      return new Response(JSON.stringify({
-        errorCode: 500,
-        success: false,
-        errorMessage: "Server initialization failed"
-      }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
-  }
-
   // ✅ 只在首次请求或 globals 未初始化时初始化
   if (!globals.configLoaded) {
     log("info", "[init] 🚀 首次启动，初始化全局配置...");
@@ -591,7 +571,6 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
       globals.initializationLock = true;
       
       try {
-        const { Globals } = await import('./configs/globals.js');
         await Globals.init(env, deployPlatform);
         log("info", "[init] ✅ 全局配置初始化完成");
       } catch (error) {
