@@ -10513,7 +10513,7 @@ docker-compose pull danmu-api && docker-compose up -d danmu-api`;
         if (clearComment) clearedItems.push('弹幕缓存');
       }
 
-      // 3. 最后选择记录 (这是你最关心的部分)
+      // 3. 最后选择记录
       if (clearAll || clearLastSelect) {
         if (globals.lastSelectMap) {
           globals.lastSelectMap.clear();
@@ -10552,7 +10552,7 @@ docker-compose pull danmu-api && docker-compose up -d danmu-api`;
             const commands = allKeys.map(k => ['DEL', k]);
             await runPipeline(commands);
             
-            // 清空本地哈希记录，防止误判无变化
+            // 清空本地哈希记录
             globals.lastHashes = {};
             clearedItems.push('Redis全量');
           } else if (keysToDelete.length > 0) {
