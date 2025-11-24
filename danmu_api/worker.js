@@ -3956,10 +3956,24 @@ try {
    }
 
    /* ========== 新增：弹幕测试页面样式 ========== */
+   /* 响应式搜索布局容器 */
+   .manual-search-layout {
+     display: grid;
+     grid-template-columns: 280px 1fr;
+     gap: 24px;
+     align-items: start;
+   }
+   
+   .anime-list-card {
+     margin-bottom: 0; 
+     max-height: 800px; 
+     overflow-y: auto;
+   }
+
    .anime-grid {
      display: grid;
-     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-     gap: 16px;
+     grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+     gap: 12px;
      margin-top: 16px;
    }
 
@@ -3971,6 +3985,8 @@ try {
      cursor: pointer;
      transition: all 0.3s var(--ease-smooth);
      position: relative;
+     display: flex;
+     flex-direction: column;
    }
 
    .anime-card:hover {
@@ -3982,6 +3998,7 @@ try {
    .anime-card.active {
      border-color: var(--primary-500);
      box-shadow: 0 0 0 2px var(--primary-500);
+     background: var(--bg-hover);
    }
 
    .anime-cover {
@@ -3993,6 +4010,9 @@ try {
 
    .anime-info {
      padding: 10px;
+     flex: 1;
+     display: flex;
+     flex-direction: column;
    }
 
    .anime-title {
@@ -4010,30 +4030,33 @@ try {
    .anime-meta {
      font-size: 12px;
      color: var(--text-tertiary);
+     margin-top: auto;
    }
 
    .episode-grid {
      display: grid;
      grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
      gap: 8px;
-     max-height: 300px;
+     max-height: 400px;
      overflow-y: auto;
      padding: 4px;
    }
 
    .episode-btn {
-     padding: 8px 4px;
+     padding: 10px 4px; /* 增加点击区域 */
      background: var(--bg-tertiary);
      border: 1px solid var(--border-color);
-     border-radius: 6px;
+     border-radius: 8px;
      color: var(--text-secondary);
-     font-size: 13px;
+     font-size: 14px;
+     font-weight: 500;
      cursor: pointer;
      transition: all 0.2s;
      text-align: center;
      white-space: nowrap;
      overflow: hidden;
      text-overflow: ellipsis;
+     user-select: none;
    }
 
    .episode-btn:hover {
@@ -4046,6 +4069,33 @@ try {
      background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
      color: white;
      border-color: var(--primary-500);
+     box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
+   }
+
+   /* 移动端适配样式 */
+   @media (max-width: 768px) {
+     .manual-search-layout {
+       grid-template-columns: 1fr; /* 变为单列堆叠 */
+       gap: 16px;
+     }
+
+     .anime-list-card {
+       max-height: 350px; /* 限制列表高度，避免占据整个屏幕 */
+       border-bottom: 2px solid var(--border-color);
+     }
+     
+     .anime-grid {
+       grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); /* 更小的卡片宽度 */
+     }
+     
+     .anime-title {
+       font-size: 13px;
+     }
+     
+     .episode-grid {
+       grid-template-columns: repeat(auto-fill, minmax(55px, 1fr));
+       max-height: none; /* 移动端不限制高度，让它自然延伸 */
+     }
    }
 
    /* 匹配结果卡片动画 */
@@ -5261,24 +5311,30 @@ try {
        </div>
 
        <div id="manualSearchResults" style="display: none;">
-         <div style="display: grid; grid-template-columns: 280px 1fr; gap: 24px;">
-           <div class="card" style="margin-bottom: 0; max-height: 800px; overflow-y: auto;">
-             <div class="card-header" style="position: sticky; top: 0; background: var(--glass-bg); z-index: 10; padding-top: 0;">
-               <h3 class="card-title" style="font-size: 16px;">搜索结果</h3>
+         <div class="manual-search-layout">
+           <div class="card anime-list-card">
+             <div class="card-header" style="position: sticky; top: 0; background: var(--glass-bg); z-index: 10; padding-top: 0; padding-bottom: 12px; margin-bottom: 12px; backdrop-filter: blur(10px);">
+               <h3 class="card-title" style="font-size: 16px;">
+                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8" stroke-width="2"/><path d="m21 21-4.35-4.35" stroke-width="2"/></svg>
+                 搜索结果
+               </h3>
              </div>
-             <div id="animeListContainer" class="anime-grid" style="grid-template-columns: 1fr; margin-top: 0;">
-               <div style="text-align: center; padding: 40px 0; color: var(--text-tertiary);">请先搜索关键词</div>
+             <div id="animeListContainer" class="anime-grid">
+               <div style="grid-column: 1/-1; text-align: center; padding: 40px 0; color: var(--text-tertiary);">请先搜索关键词</div>
              </div>
            </div>
 
-           <div class="card" style="margin-bottom: 0;">
+           <div class="card" id="episodeCard" style="margin-bottom: 0;">
              <div class="card-header">
-               <h3 class="card-title" style="font-size: 16px;">剧集列表</h3>
-               <span class="badge badge-secondary" id="selectedAnimeTitle">未选择动漫</span>
+               <h3 class="card-title" style="font-size: 16px;">
+                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"><path d="M4 6h16M4 12h16M4 18h16" stroke-width="2"/></svg>
+                 剧集列表
+               </h3>
+               <span class="badge badge-secondary" id="selectedAnimeTitle" style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">未选择</span>
              </div>
              <div id="episodeListContainer">
                <div style="text-align: center; padding: 60px 0; color: var(--text-tertiary);">
-                 请在左侧选择一部动漫/电影
+                 请先选择一部动漫/电影
                </div>
              </div>
            </div>
@@ -7285,6 +7341,16 @@ try {
      const container = document.getElementById('episodeListContainer');
      container.innerHTML = '<div style="text-align: center; padding: 40px;"><span class="loading-spinner"></span> 加载剧集...</div>';
      
+     // 移动端体验优化：点击番剧后，自动平滑滚动到剧集列表区域
+     if (window.innerWidth <= 768) {
+       setTimeout(() => {
+         const episodeCard = document.getElementById('episodeCard');
+         if (episodeCard) {
+           episodeCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+         }
+       }, 100);
+     }
+     
      try {
        const response = await fetch(\`/api/v2/bangumi/\${animeId}\`);
        const result = await response.json();
@@ -7314,6 +7380,7 @@ try {
        container.innerHTML = \`<div style="text-align: center; padding: 20px; color: var(--error);">加载失败: \${error.message}</div>\`;
      }
    }
+
 
    // 加载特定剧集的弹幕
    async function loadEpisodeDanmu(episodeId, btnElement) {
