@@ -5222,7 +5222,7 @@ try {
          </div>
        </div>
 
-       <!-- 🔥 新增：剧集列表卡片 -->
+       <!-- 剧集列表卡片 -->
        <div class="card" id="episodeListCard" style="display: none; border-left: 4px solid var(--primary-500); animation: slideInFromLeft 0.4s ease-out;">
          <div class="card-header">
            <h3 class="card-title">
@@ -5234,7 +5234,6 @@ try {
            <span id="episodeCount" class="badge badge-info" style="font-size: 13px;">0 集</span>
          </div>
          <div id="episodeListContainer" style="max-height: 400px; overflow-y: auto; padding: 8px;">
-           <!-- 动态加载剧集列表 -->
          </div>
        </div>
 
