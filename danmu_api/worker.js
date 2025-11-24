@@ -7250,6 +7250,10 @@ try {
       
       // 生成剧集列表 HTML
       const episodesHtml = episodes.map((ep, index) => {
+        const safeAnimeTitle = (anime.animeTitle || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        const safeEpisodeTitle = (ep.episodeTitle || '暂无标题').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        const displayEpisodeTitle = ep.episodeTitle || '暂无标题';
+        
         return `
           <div style="
             padding: 14px 16px;
@@ -7265,13 +7269,13 @@ try {
           " 
           onmouseenter="this.style.background='var(--bg-hover)'; this.style.borderColor='var(--primary-500)';"
           onmouseleave="this.style.background='var(--bg-tertiary)'; this.style.borderColor='var(--border-color)';"
-          onclick="loadEpisodeDanmu('${ep.episodeId}', '${escapeHtml(anime.animeTitle)}', '${escapeHtml(ep.episodeTitle)}', '${ep.episodeNumber}', '${anime.source || 'unknown'}')">
+          onclick="loadEpisodeDanmu('${ep.episodeId}', '${safeAnimeTitle}', '${safeEpisodeTitle}', '${ep.episodeNumber}', '${anime.source || 'unknown'}')">
             <div style="flex: 1; min-width: 0;">
               <div style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">
                 第 ${ep.episodeNumber} 集
               </div>
               <div style="font-size: 12px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                ${ep.episodeTitle || '暂无标题'}
+                ${displayEpisodeTitle}
               </div>
             </div>
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" style="flex-shrink: 0; margin-left: 12px; color: var(--primary-500);">
