@@ -7117,7 +7117,7 @@ try {
      
      // 更新 Tab 样式
      document.querySelectorAll('.tabs .tab-item').forEach(btn => btn.classList.remove('active'));
-     document.getElementById(`tab-${mode}`).classList.add('active');
+     document.getElementById(\`tab-\${mode}\`).classList.add('active');
 
      // 更新 UI 显示
      const matchOptions = document.getElementById('matchOptions');
@@ -7132,8 +7132,11 @@ try {
      if (mode === 'match') {
        matchOptions.style.display = 'grid';
        manualResults.style.display = 'none';
+       // 只有当有匹配ID时才显示结果卡片
        if (matchResultCard.querySelector('#matchedEpisodeId').textContent !== '-') {
          matchResultCard.style.display = 'block';
+       } else {
+         matchResultCard.style.display = 'none';
        }
        actionText.textContent = '自动匹配';
        inputLabel.textContent = '🎬 文件名 / 标题 / 视频链接';
@@ -7167,10 +7170,9 @@ try {
 
    // 逻辑1：自动匹配 (Auto Match)
    async function executeAutoMatch(input) {
-     const previewContainer = document.getElementById('danmuPreviewContainer');
      const matchResultCard = document.getElementById('matchResultCard');
-     
      matchResultCard.style.display = 'none';
+     
      clearDanmuPreview();
      showLoading('正在智能匹配...', 'Auto Match 接口');
 
@@ -7186,13 +7188,13 @@ try {
        if (input.startsWith('http://') || input.startsWith('https://')) {
          apiUrl = '/api/v2/comment?url=' + encodeURIComponent(input) + '&format=json';
        } else {
-         // 构建搜索字符串
+         // 构建搜索字符串，转义正则中的特殊字符
          let searchQuery = input
-           .replace(/\.(mkv|mp4|avi|flv|wmv|mov|rmvb|webm)$/i, '')
-           .replace(/[\[\](){}]/g, ' ')
+           .replace(/\\.(mkv|mp4|avi|flv|wmv|mov|rmvb|webm)$/i, '')
+           .replace(/[\\[\\](){}]/g, ' ')
            .trim();
          
-         if (year && !/\.(19|20)\d{2}\./.test(searchQuery)) searchQuery += '.' + year;
+         if (year && !/\\.(19|20)\\d{2}\\./.test(searchQuery)) searchQuery += '.' + year;
          
          const finalSeason = season || '1';
          if (episode) {
@@ -7242,7 +7244,7 @@ try {
      document.getElementById('selectedAnimeTitle').textContent = '未选择';
      
      try {
-       const response = await fetch(`/api/v2/search/anime?keyword=${encodeURIComponent(keyword)}`);
+       const response = await fetch(\`/api/v2/search/anime?keyword=\${encodeURIComponent(keyword)}\`);
        const result = await response.json();
        
        if (!result.success || !result.animes || result.animes.length === 0) {
@@ -7252,7 +7254,7 @@ try {
        
        renderAnimeList(result.animes);
      } catch (error) {
-       animeContainer.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 20px; color: var(--error);">搜索出错: ${error.message}</div>`;
+       animeContainer.innerHTML = \`<div style="grid-column: 1/-1; text-align: center; padding: 20px; color: var(--error);">搜索出错: \${error.message}</div>\`;
      }
    }
 
@@ -7260,15 +7262,15 @@ try {
    function renderAnimeList(animes) {
      const container = document.getElementById('animeListContainer');
      
-     const html = animes.map(anime => `
-       <div class="anime-card" onclick="loadEpisodes('${anime.animeId}', '${escapeHtml(anime.animeTitle)}', this)">
-         <img src="${anime.imageUrl || ''}" class="anime-cover" loading="lazy" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTUwIiB2aWV3Qm94PSIwIDAgMTAwIDE1MCI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxNTAiIGZpbGw9IiMzMzMiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzY2NiIgZm9udC1zaXplPSIxNCI+Tm8gSW1hZ2U8L3RleHQ+PC9zdmc+'">
+     const html = animes.map(anime => \`
+       <div class="anime-card" onclick="loadEpisodes('\${anime.animeId}', '\${escapeHtml(anime.animeTitle)}', this)">
+         <img src="\${anime.imageUrl || ''}" class="anime-cover" loading="lazy" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTUwIiB2aWV3Qm94PSIwIDAgMTAwIDE1MCI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxNTAiIGZpbGw9IiMzMzMiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzY2NiIgZm9udC1zaXplPSIxNCI+Tm8gSW1hZ2U8L3RleHQ+PC9zdmc+'">
          <div class="anime-info">
-           <div class="anime-title" title="${anime.animeTitle}">${anime.animeTitle}</div>
-           <div class="anime-meta">类型: ${anime.typeDescription || '未知'}</div>
+           <div class="anime-title" title="\${anime.animeTitle}">\${anime.animeTitle}</div>
+           <div class="anime-meta">类型: \${anime.typeDescription || '未知'}</div>
          </div>
        </div>
-     `).join('');
+     \`).join('');
      
      container.innerHTML = html;
    }
@@ -7284,7 +7286,7 @@ try {
      container.innerHTML = '<div style="text-align: center; padding: 40px;"><span class="loading-spinner"></span> 加载剧集...</div>';
      
      try {
-       const response = await fetch(`/api/v2/bangumi/${animeId}`);
+       const response = await fetch(\`/api/v2/bangumi/\${animeId}\`);
        const result = await response.json();
        
        if (!result.success || !result.bangumi || !result.bangumi.episodes) {
@@ -7297,19 +7299,19 @@ try {
          return;
        }
        
-       const html = `
+       const html = \`
          <div class="episode-grid">
-           ${episodes.map(ep => `
-             <div class="episode-btn" title="${ep.episodeTitle}" onclick="loadEpisodeDanmu('${ep.episodeId}', this)">
-               ${ep.episodeNumber}
+           \${episodes.map(ep => \`
+             <div class="episode-btn" title="\${ep.episodeTitle}" onclick="loadEpisodeDanmu('\${ep.episodeId}', this)">
+               \${ep.episodeNumber}
              </div>
-           `).join('')}
+           \`).join('')}
          </div>
-       `;
+       \`;
        container.innerHTML = html;
        
      } catch (error) {
-       container.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--error);">加载失败: ${error.message}</div>`;
+       container.innerHTML = \`<div style="text-align: center; padding: 20px; color: var(--error);">加载失败: \${error.message}</div>\`;
      }
    }
 
@@ -7320,10 +7322,10 @@ try {
      if (btnElement) btnElement.classList.add('active');
      
      clearDanmuPreview();
-     showLoading('正在获取弹幕...', `Episode ID: ${episodeId}`);
+     showLoading('正在获取弹幕...', \`Episode ID: \${episodeId}\`);
      
      try {
-       await fetchAndDisplayDanmu(`/api/v2/comment/${episodeId}?format=json`);
+       await fetchAndDisplayDanmu(\`/api/v2/comment/\${episodeId}?format=json\`);
      } catch (error) {
        showError('获取弹幕失败', error.message);
      }
@@ -7352,7 +7354,7 @@ try {
      } else {
        displayDanmuList(filteredDanmuData);
        updateDanmuStats();
-       showToast(`🎉 成功获取 ${currentDanmuData.length} 条弹幕`, 'success');
+       showToast(\`🎉 成功获取 \${currentDanmuData.length} 条弹幕\`, 'success');
        document.getElementById('exportJsonBtn').style.display = 'inline-flex';
        document.getElementById('exportXmlBtn').style.display = 'inline-flex';
      }
@@ -7369,33 +7371,33 @@ try {
 
    function showLoading(title, subtitle) {
      const container = document.getElementById('danmuPreviewContainer');
-     container.innerHTML = `
+     container.innerHTML = \`
        <div style="text-align: center; padding: 80px 20px;">
          <span class="loading-spinner" style="width: 48px; height: 48px; border-width: 4px;"></span>
-         <div style="margin-top: 24px; color: var(--text-primary); font-size: 16px; font-weight: 600;">${title}</div>
-         <div style="margin-top: 8px; color: var(--text-tertiary); font-size: 13px;">${subtitle}</div>
-       </div>`;
+         <div style="margin-top: 24px; color: var(--text-primary); font-size: 16px; font-weight: 600;">\${title}</div>
+         <div style="margin-top: 8px; color: var(--text-tertiary); font-size: 13px;">\${subtitle}</div>
+       </div>\`;
    }
 
    function showEmptyState() {
      const container = document.getElementById('danmuPreviewContainer');
-     container.innerHTML = `
+     container.innerHTML = \`
        <div style="text-align: center; padding: 80px 20px; color: var(--text-tertiary);">
          <div style="font-size: 56px; margin-bottom: 20px; opacity: 0.5;">😢</div>
          <div style="font-size: 17px; font-weight: 600; margin-bottom: 10px; color: var(--text-secondary);">未获取到弹幕</div>
          <div style="font-size: 14px; opacity: 0.8;">该视频可能没有弹幕数据</div>
-       </div>`;
+       </div>\`;
    }
 
    function showError(title, message) {
      const container = document.getElementById('danmuPreviewContainer');
-     container.innerHTML = `
+     container.innerHTML = \`
        <div style="text-align: center; padding: 80px 20px; color: var(--error);">
          <div style="font-size: 56px; margin-bottom: 20px; opacity: 0.7;">❌</div>
-         <div style="font-size: 17px; font-weight: 600; margin-bottom: 10px;">${title}</div>
-         <div style="font-size: 14px; color: var(--text-secondary); max-width: 400px; margin: 0 auto; line-height: 1.5;">${message}</div>
-       </div>`;
-     showToast(`❌ ${title}: ${message}`, 'error');
+         <div style="font-size: 17px; font-weight: 600; margin-bottom: 10px;">\${title}</div>
+         <div style="font-size: 14px; color: var(--text-secondary); max-width: 400px; margin: 0 auto; line-height: 1.5;">\${message}</div>
+       </div>\`;
+     showToast(\`❌ \${title}: \${message}\`, 'error');
    }
 
    // ✅ 显示匹配结果信息
@@ -7435,32 +7437,32 @@ try {
        const modeText = mode === '1' ? '滚动' : mode === '4' ? '底部' : mode === '5' ? '顶部' : '滚动';
        const hexColor = '#' + parseInt(color).toString(16).padStart(6, '0');
 
-       return `
+       return \`
          <div style="padding: 12px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 12px; transition: background 0.2s;" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='transparent'">
-           <div style="min-width: 60px; font-size: 12px; color: var(--text-tertiary); font-family: monospace;">${time}</div>
+           <div style="min-width: 60px; font-size: 12px; color: var(--text-tertiary); font-family: monospace;">\${time}</div>
            <div style="min-width: 50px;">
-             <span style="display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; background: var(--bg-tertiary); color: var(--text-secondary);">${modeText}</span>
+             <span style="display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; background: var(--bg-tertiary); color: var(--text-secondary);">\${modeText}</span>
            </div>
-           <div style="width: 30px; height: 20px; border-radius: 4px; border: 1px solid var(--border-color); background: ${hexColor};" title="${hexColor}"></div>
-           <div style="flex: 1; color: var(--text-primary); font-size: 14px; word-break: break-all;">${escapeHtml(text)}</div>
+           <div style="width: 30px; height: 20px; border-radius: 4px; border: 1px solid var(--border-color); background: \${hexColor};" title="\${hexColor}"></div>
+           <div style="flex: 1; color: var(--text-primary); font-size: 14px; word-break: break-all;">\${escapeHtml(text)}</div>
          </div>
-       `;
+       \`;
      }).join('');
 
      container.innerHTML = html;
      
      if (danmuList.length > 500) {
-       container.innerHTML += `<div style="text-align: center; padding: 20px; color: var(--text-tertiary); font-size: 13px;">仅显示前 500 条弹幕，共 ${danmuList.length} 条</div>`;
+       container.innerHTML += \`<div style="text-align: center; padding: 20px; color: var(--text-tertiary); font-size: 13px;">仅显示前 500 条弹幕，共 \${danmuList.length} 条</div>\`;
      }
 
-     document.getElementById('danmuTestCount').textContent = `${danmuList.length} 条`;
+     document.getElementById('danmuTestCount').textContent = \`\${danmuList.length} 条\`;
    }
 
    function formatTime(seconds) {
      const sec = Math.floor(parseFloat(seconds));
      const m = Math.floor(sec / 60);
      const s = sec % 60;
-     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+     return \`\${m.toString().padStart(2, '0')}:\${s.toString().padStart(2, '0')}\`;
    }
 
    function escapeHtml(text) {
@@ -7470,156 +7472,183 @@ try {
    }
 
    function applyDanmuFilter() {
-      // 保持原有逻辑...
-      if (!currentDanmuData || currentDanmuData.length === 0) {
-        showToast('请先获取弹幕数据', 'warning');
-        return;
-      }
-      
-      // ... (原代码保持不变) ...
-      const blockedWords = document.getElementById('testBlockedWords').value
-        .split(',')
-        .map(w => w.trim())
-        .filter(w => w.length > 0);
-      
-      const enableSimplified = document.getElementById('testSimplified').checked;
-      const enableConvert = document.getElementById('testTopBottomConvert').checked;
+     if (!currentDanmuData || currentDanmuData.length === 0) {
+       showToast('请先获取弹幕数据', 'warning');
+       return;
+     }
 
-      let filtered = [...currentDanmuData];
-      let blockedCount = 0;
-      let convertedCount = 0;
+     const blockedWords = document.getElementById('testBlockedWords').value
+       .split(',')
+       .map(w => w.trim())
+       .filter(w => w.length > 0);
+     
+     const enableSimplified = document.getElementById('testSimplified').checked;
+     const enableConvert = document.getElementById('testTopBottomConvert').checked;
 
-      // 屏蔽词过滤
-      if (blockedWords.length > 0) {
-        const beforeCount = filtered.length;
-        filtered = filtered.filter(danmu => {
-          const text = danmu.m || danmu.text || '';
-          return !blockedWords.some(word => text.includes(word));
-        });
-        blockedCount = beforeCount - filtered.length;
-      }
+     let filtered = [...currentDanmuData];
+     let blockedCount = 0;
+     let convertedCount = 0;
 
-      // 繁简转换
-      if (enableSimplified) {
-        filtered = filtered.map(danmu => ({
-          ...danmu,
-          m: (danmu.m || danmu.text || '').replace(/[繁體]/g, match => {
-            const map = { '繁': '繁', '體': '体' };
-            return map[match] || match;
-          })
-        }));
-      }
+     // 屏蔽词过滤
+     if (blockedWords.length > 0) {
+       const beforeCount = filtered.length;
+       filtered = filtered.filter(danmu => {
+         const text = danmu.m || danmu.text || '';
+         return !blockedWords.some(word => text.includes(word));
+       });
+       blockedCount = beforeCount - filtered.length;
+     }
 
-      // 顶底转滚动
-      if (enableConvert) {
-        filtered = filtered.map(danmu => {
-          const p = danmu.p ? danmu.p.split(',') : [];
-          if (p[1] === '4' || p[1] === '5') {
-            p[1] = '1';
-            convertedCount++;
-            return { ...danmu, p: p.join(',') };
-          }
-          return danmu;
-        });
-      }
+     // 繁简转换
+     if (enableSimplified) {
+       filtered = filtered.map(danmu => ({
+         ...danmu,
+         m: (danmu.m || danmu.text || '').replace(/[繁體]/g, match => {
+           const map = { '繁': '繁', '體': '体' };
+           return map[match] || match;
+         })
+       }));
+     }
 
-      filteredDanmuData = filtered;
-      displayDanmuList(filteredDanmuData);
+     // 顶底转滚动
+     if (enableConvert) {
+       filtered = filtered.map(danmu => {
+         const p = danmu.p ? danmu.p.split(',') : [];
+         if (p[1] === '4' || p[1] === '5') {
+           p[1] = '1';
+           convertedCount++;
+           return { ...danmu, p: p.join(',') };
+         }
+         return danmu;
+       });
+     }
 
-      // 显示过滤统计
-      const statsEl = document.getElementById('filterStats');
-      const statsText = document.getElementById('filterStatsText');
-      if (statsEl && statsText) {
-        const parts = [];
-        if (blockedCount > 0) parts.push(`屏蔽 ${blockedCount} 条`);
-        if (convertedCount > 0) parts.push(`转换 ${convertedCount} 条`);
-        
-        if (parts.length > 0) {
-          statsText.textContent = `✅ 过滤完成: ${parts.join('，')}，剩余 ${filtered.length} 条弹幕`;
-          statsEl.style.display = 'flex';
-        } else {
-          statsEl.style.display = 'none';
-        }
-      }
+     filteredDanmuData = filtered;
+     displayDanmuList(filteredDanmuData);
 
-      updateDanmuStats();
+     // 显示过滤统计
+     const statsEl = document.getElementById('filterStats');
+     const statsText = document.getElementById('filterStatsText');
+     if (statsEl && statsText) {
+       const parts = [];
+       if (blockedCount > 0) parts.push(\`屏蔽 \${blockedCount} 条\`);
+       if (convertedCount > 0) parts.push(\`转换 \${convertedCount} 条\`);
+       
+       if (parts.length > 0) {
+         statsText.textContent = \`✅ 过滤完成: \${parts.join('，')}，剩余 \${filtered.length} 条弹幕\`;
+         statsEl.style.display = 'flex';
+       } else {
+         statsEl.style.display = 'none';
+       }
+     }
+
+     updateDanmuStats();
    }
 
-   // ... updateDanmuStats, updateDanmuTimeChart, updateDanmuWordCloud 保持不变 ...
    function updateDanmuStats() {
-      // 保持原有逻辑
-      if (!filteredDanmuData || filteredDanmuData.length === 0) return;
-      updateDanmuTimeChart();
-      updateDanmuWordCloud();
+     if (!filteredDanmuData || filteredDanmuData.length === 0) {
+       return;
+     }
+
+     // 更新时间分布图
+     updateDanmuTimeChart();
+     
+     // 更新词云（简化版）
+     updateDanmuWordCloud();
    }
-   
+
    function updateDanmuTimeChart() {
-      // 保持原有逻辑 (复制原代码)
-      const ctx = document.getElementById('danmuTimeChart');
-      if (!ctx) return;
-      const timeSlots = {};
-      filteredDanmuData.forEach(danmu => {
-        const time = parseFloat(danmu.p?.split(',')[0] || danmu.time || 0);
-        const minute = Math.floor(time / 60);
-        timeSlots[minute] = (timeSlots[minute] || 0) + 1;
-      });
-      const sortedMinutes = Object.keys(timeSlots).sort((a, b) => parseInt(a) - parseInt(b));
-      const labels = sortedMinutes.map(m => `${m}分`);
-      const data = sortedMinutes.map(m => timeSlots[m]);
+     const ctx = document.getElementById('danmuTimeChart');
+     if (!ctx) return;
 
-      if (danmuTimeChart) danmuTimeChart.destroy();
+     // 按分钟统计弹幕数量
+     const timeSlots = {};
+     filteredDanmuData.forEach(danmu => {
+       const time = parseFloat(danmu.p?.split(',')[0] || danmu.time || 0);
+       const minute = Math.floor(time / 60);
+       timeSlots[minute] = (timeSlots[minute] || 0) + 1;
+     });
 
-      danmuTimeChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: labels,
-          datasets: [{
-            label: '弹幕数量',
-            data: data,
-            borderColor: 'rgb(99, 102, 241)',
-            backgroundColor: 'rgba(99, 102, 241, 0.1)',
-            tension: 0.4,
-            fill: true
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
-          scales: {
-            y: { beginAtZero: true, grid: { color: 'rgba(255, 255, 255, 0.1)' }, ticks: { color: '#9ca3af' } },
-            x: { grid: { color: 'rgba(255, 255, 255, 0.1)' }, ticks: { color: '#9ca3af', maxRotation: 45, minRotation: 45 } }
-          }
-        }
-      });
+     const sortedMinutes = Object.keys(timeSlots).sort((a, b) => parseInt(a) - parseInt(b));
+     const labels = sortedMinutes.map(m => \`\${m}分\`);
+     const data = sortedMinutes.map(m => timeSlots[m]);
+
+     if (danmuTimeChart) {
+       danmuTimeChart.destroy();
+     }
+
+     danmuTimeChart = new Chart(ctx, {
+       type: 'line',
+       data: {
+         labels: labels,
+         datasets: [{
+           label: '弹幕数量',
+           data: data,
+           borderColor: 'rgb(99, 102, 241)',
+           backgroundColor: 'rgba(99, 102, 241, 0.1)',
+           tension: 0.4,
+           fill: true
+         }]
+       },
+       options: {
+         responsive: true,
+         maintainAspectRatio: false,
+         plugins: {
+           legend: { display: false }
+         },
+         scales: {
+           y: {
+             beginAtZero: true,
+             grid: { color: 'rgba(255, 255, 255, 0.1)' },
+             ticks: { color: '#9ca3af' }
+           },
+           x: {
+             grid: { color: 'rgba(255, 255, 255, 0.1)' },
+             ticks: { 
+               color: '#9ca3af',
+               maxRotation: 45,
+               minRotation: 45
+             }
+           }
+         }
+       }
+     });
    }
-   
+
    function updateDanmuWordCloud() {
-     // 保持原有逻辑
      const container = document.getElementById('danmuWordCloud');
      if (!container) return;
+
+     // 简化的词频统计
      const words = {};
      filteredDanmuData.forEach(danmu => {
        const text = danmu.m || danmu.text || '';
+       // 简单分词（实际应该用专业分词库）
        const chars = text.split('');
        chars.forEach(char => {
-         if (char.match(/[\u4e00-\u9fa5a-zA-Z]/)) {
+         if (char.match(/[\\u4e00-\\u9fa5a-zA-Z]/)) {
            words[char] = (words[char] || 0) + 1;
          }
        });
      });
-     const sorted = Object.entries(words).sort((a, b) => b[1] - a[1]).slice(0, 30);
+
+     const sorted = Object.entries(words)
+       .sort((a, b) => b[1] - a[1])
+       .slice(0, 30);
+
      if (sorted.length === 0) {
        container.innerHTML = '<div style="color: var(--text-tertiary); font-size: 14px;">暂无数据</div>';
        return;
      }
+
      const maxCount = sorted[0][1];
      const html = sorted.map(([word, count]) => {
        const size = 12 + (count / maxCount) * 24;
        const opacity = 0.5 + (count / maxCount) * 0.5;
-       return `<span style="font-size: ${size}px; opacity: ${opacity}; margin: 4px 8px; display: inline-block; color: var(--primary-400);">${word}</span>`;
+       return \`<span style="font-size: \${size}px; opacity: \${opacity}; margin: 4px 8px; display: inline-block; color: var(--primary-400);">\${word}</span>\`;
      }).join('');
-     container.innerHTML = `<div style="padding: 20px; line-height: 2;">${html}</div>`;
+
+     container.innerHTML = \`<div style="padding: 20px; line-height: 2;">\${html}</div>\`;
    }
 
    function clearDanmuTest() {
