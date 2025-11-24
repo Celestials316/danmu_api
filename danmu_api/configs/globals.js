@@ -460,7 +460,8 @@ const Globals = {
  * 自动转发所有属性访问到 Globals.getConfig()
  */
 // 在文件末尾，替换现有的 globals 定义
-export const globals = new Proxy(Globals, {  // ← 直接代理 Globals 对象本身
+export const globals = Globals.getConfig();
+export { Globals };
   get(target, prop) {
     // 优先返回 envs 中的属性
     if (prop in target.envs) {
