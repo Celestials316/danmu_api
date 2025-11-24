@@ -459,22 +459,28 @@ const Globals = {
  * 全局配置代理对象
  * 自动转发所有属性访问到 Globals.getConfig()
  */
-export const globals = new Proxy({}, {
+// 在文件末尾，替换现有的 globals 定义
+export const globals = new Proxy(Globals, {  // ← 直接代理 Globals 对象本身
   get(target, prop) {
-    return Globals.getConfig()[prop];
+    // 优先返回 envs 中的属性
+    if (prop in target.envs) {
+      return target.envs[prop];
+    }
+    // 直接返回 Globals 的属性
+    return target[prop];
   },
   set(target, prop, value) {
-    Globals.getConfig()[prop] = value;
+    // 如果是 envs 中的属性，设置到 envs
+    if (prop in target.envs) {
+      target.envs[prop] = value;
+    } else {
+      // 否则直接设置到 Globals
+      target[prop] = value;
+    }
     return true;
   },
   has(target, prop) {
-    return prop in Globals.getConfig();
-  },
-  ownKeys(target) {
-    return Reflect.ownKeys(Globals.getConfig());
-  },
-  getOwnPropertyDescriptor(target, prop) {
-    return Object.getOwnPropertyDescriptor(Globals.getConfig(), prop);
+    return prop in target.envs || prop in target;
   }
 });
 
