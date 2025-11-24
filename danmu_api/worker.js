@@ -7655,10 +7655,11 @@ function clearDanmuTest() {
      for (let i = 0; i < episodes.length; i++) {
        const ep = episodes[i];
        const epNum = ep.episodeNumber || (i + 1);
-       const epTitle = ep.episodeTitle || ('第 ' + epNum + ' 集');
+       const defaultTitle = '第 ' + epNum + ' 集';
+       const epTitle = ep.episodeTitle || defaultTitle;
        
-       htmlParts.push(
-         '<div class="server-item" style="cursor: pointer; transition: all 0.3s;" onclick="loadEpisodeDanmu(\'' + ep.episodeId + '\', \'' + epNum + '\')">' +
+       const itemHtml = 
+         '<div class="server-item" style="cursor: pointer; transition: all 0.3s;" onclick="loadEpisodeDanmu(' + "'" + ep.episodeId + "', '" + epNum + "'" + ')">' +
          '<div class="server-badge">' + epNum + '</div>' +
          '<div class="server-info">' +
          '<div class="server-name">' + epTitle + '</div>' +
@@ -7670,8 +7671,9 @@ function clearDanmuTest() {
          '<path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>' +
          '</svg>' +
          '</div>' +
-         '</div>'
-       );
+         '</div>';
+       
+       htmlParts.push(itemHtml);
      }
 
      document.getElementById('episodeListContent').innerHTML = htmlParts.join('');
