@@ -129,6 +129,29 @@ export async function setRedisKeyWithExpiry(key, value, expirySeconds) {
   }
 }
 
+// 使用 POST 发送 DEL 命令 (删除键)
+export async function delRedisKey(key) {
+  const url = `${globals.redisUrl}/del/${key}`;
+  log("info", `[redis] 开始发送 DEL 请求:`, url);
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${globals.redisToken}`
+      }
+    });
+    const result = await response.json();
+    // 删除本地哈希记录，确保下次能正常更新
+    if (globals.lastHashes && globals.lastHashes[key]) {
+      delete globals.lastHashes[key];
+    }
+    return result;
+  } catch (error) {
+    log("error", `[redis] DEL 请求失败:`, error.message);
+    return null;
+  }
+}
+
 // 通用的 pipeline 请求函数
 export async function runPipeline(commands) {
   const url = `${globals.redisUrl}/pipeline`;

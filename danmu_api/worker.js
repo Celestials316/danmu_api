@@ -10486,64 +10486,83 @@ docker-compose pull danmu-api && docker-compose up -d danmu-api`;
       const { clearSearch, clearComment, clearLastSelect, clearAll } = body;
 
       let clearedItems = [];
+      // 记录需要从持久化存储中删除的 Key
+      const keysToDelete = [];
 
+      // 1. 搜索缓存
       if (clearAll || clearSearch) {
-        if (globals.caches?.search) {
-          globals.caches.search.clear();
-          clearedItems.push('搜索缓存');
-        }
+        if (globals.caches?.search) globals.caches.search.clear();
         if (globals.animes) {
           globals.animes = {};
-          clearedItems.push('番剧数据');
+          keysToDelete.push('animes');
+          clearedItems.push('搜索缓存');
         }
       }
 
+      // 2. 弹幕缓存
       if (clearAll || clearComment) {
-        if (globals.caches?.comment) {
-          globals.caches.comment.clear();
-          clearedItems.push('弹幕缓存');
-        }
+        if (globals.caches?.comment) globals.caches.comment.clear();
         if (globals.episodeIds) {
           globals.episodeIds = {};
-          clearedItems.push('剧集映射');
+          keysToDelete.push('episodeIds');
         }
         if (globals.episodeNum) {
           globals.episodeNum = {};
-          clearedItems.push('集数映射');
+          keysToDelete.push('episodeNum');
         }
+        if (clearComment) clearedItems.push('弹幕缓存');
       }
 
+      // 3. 最后选择记录
       if (clearAll || clearLastSelect) {
         if (globals.lastSelectMap) {
           globals.lastSelectMap.clear();
+          keysToDelete.push('lastSelectMap');
           clearedItems.push('最后选择记录');
         }
       }
 
-      // 清理持久化存储
-      if (clearAll) {
-        // Redis 清理
-        if (globals.redisValid) {
-          try {
-            const { setRedisKey } = await import('./utils/redis-util.js');
-            await setRedisKey('cache:info', '', true, 1);
-            clearedItems.push('Redis缓存');
-          } catch (e) {
-            log("warn", `[cache/clear] Redis 清理失败: ${e.message}`);
-          }
-        }
-
-        // 数据库清理
-        if (globals.databaseValid) {
-          try {
-            const { clearAllCache } = await import('./utils/db-util.js');
-            if (typeof clearAllCache === 'function') {
-              await clearAllCache();
-              clearedItems.push('数据库缓存');
+      // 执行持久化清理
+      // 数据库清理
+      if (globals.databaseValid) {
+        try {
+          const { clearAllCache, deleteCacheData } = await import('./utils/db-util.js');
+          
+          if (clearAll) {
+            await clearAllCache();
+            clearedItems.push('数据库全量');
+          } else if (keysToDelete.length > 0) {
+            for (const key of keysToDelete) {
+              await deleteCacheData(key);
             }
-          } catch (e) {
-            log("warn", `[cache/clear] 数据库清理失败: ${e.message}`);
           }
+        } catch (e) {
+          log("warn", `[cache/clear] 数据库清理失败: ${e.message}`);
+        }
+      }
+
+      // Redis 清理
+      if (globals.redisValid) {
+        try {
+          const { runPipeline, delRedisKey } = await import('./utils/redis-util.js');
+          
+          if (clearAll) {
+            // 批量删除所有相关 Key
+            const allKeys = ['animes', 'episodeIds', 'episodeNum', 'lastSelectMap', 'cache:info'];
+            const commands = allKeys.map(k => ['DEL', k]);
+            await runPipeline(commands);
+            
+            // 清空本地哈希记录
+            globals.lastHashes = {};
+            clearedItems.push('Redis全量');
+          } else if (keysToDelete.length > 0) {
+            // 逐个删除特定 Key
+            for (const key of keysToDelete) {
+              await delRedisKey(key);
+            }
+          }
+        } catch (e) {
+          log("warn", `[cache/clear] Redis 清理失败: ${e.message}`);
         }
       }
 
