@@ -5108,6 +5108,14 @@ try {
              </svg>
              弹幕搜索
            </h3>
+           <div class="card-actions">
+             <button class="btn btn-secondary" onclick="showEpisodeListModal()" id="episodeListBtn" style="display: none; padding: 8px 16px; font-size: 13px;">
+               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor">
+                 <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" stroke-width="2"/>
+               </svg>
+               集数列表
+             </button>
+           </div>
          </div>
 
          <div style="padding: 0 8px;">
@@ -5118,12 +5126,12 @@ try {
              </label>
              <input type="text" class="form-input" id="danmuTestInput" 
                     placeholder="例如：藏海传、Blood.River、爱情公寓、https://youku.com/..." 
-                    style="font-size: 15px; padding: 14px 16px;">
+                    style="font-size: 15px; padding: 14px 16px;"
+                    onkeypress="if(event.key==='Enter') testDanmuByUrl()">
              <div class="form-hint" style="margin-top: 8px; font-size: 12px; color: var(--text-tertiary);">
-               💡 支持中/英文标题、网盘资源命名、特殊格式（如：爱情公寓.ipartment.2009.S03E05）
+               💡 支持中/英文标题、网盘资源命名、特殊格式（如：爱情公寓.ipartment.2009.S03E05）| 按 Enter 快速搜索
              </div>
            </div>
-
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 16px;">
               <div class="form-group" style="margin-bottom: 0;">
                 <label class="form-label" style="font-size: 13px;">🔌 接口类型</label>
@@ -5698,7 +5706,32 @@ try {
      </div>
    </div>
  </div>
-
+<!-- 集数列表弹窗 -->
+ <div class="modal-overlay" id="episodeListModal">
+   <div class="modal" style="max-width: 900px; max-height: 90vh;">
+     <div class="modal-header">
+       <h3 class="modal-title">
+         <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor">
+           <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" stroke-width="2"/>
+         </svg>
+         <span id="episodeListTitle">集数列表</span>
+       </h3>
+       <button class="modal-close" onclick="closeModal('episodeListModal')">
+         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor">
+           <path d="M6 18L18 6M6 6l12 12" stroke-width="2" stroke-linecap="round"/>
+         </svg>
+       </button>
+     </div>
+     <div class="modal-body" style="max-height: 70vh; overflow-y: auto; padding: 20px;">
+       <div id="episodeListContent" style="display: grid; gap: 12px;">
+         <!-- 动态生成集数列表 -->
+       </div>
+     </div>
+     <div class="modal-footer">
+       <button class="btn btn-secondary" onclick="closeModal('episodeListModal')">关闭</button>
+     </div>
+   </div>
+ </div>
  <!-- 快速配置模态框 - 优化版（防误触 + 单滚动条）-->
  <div class="modal-overlay" id="quickConfigModal">
    <div class="modal" style="max-width: 760px; max-height: 90vh;">
@@ -7082,6 +7115,9 @@ try {
       }
     }
 
+    // 全局变量存储当前番剧信息
+    let currentAnimeInfo = null;
+
     async function testDanmuByUrl() {
       const input = document.getElementById('danmuTestInput').value.trim();
       if (!input) {
@@ -7097,9 +7133,11 @@ try {
 
       const previewContainer = document.getElementById('danmuPreviewContainer');
       const matchResultCard = document.getElementById('matchResultCard');
+      const episodeListBtn = document.getElementById('episodeListBtn');
       
       matchResultCard.style.display = 'none';
-      
+      episodeListBtn.style.display = 'none';
+      currentAnimeInfo = null;      
       previewContainer.innerHTML = '<div style="text-align: center; padding: 80px 20px;">' +
         '<span class="loading-spinner" style="width: 48px; height: 48px; border-width: 4px;"></span>' +
         '<div style="margin-top: 24px; color: var(--text-primary); font-size: 16px; font-weight: 600;">正在获取弹幕...</div>' +
@@ -7168,8 +7206,14 @@ try {
             type: anime.source || 'unknown'
           };
           
-          apiUrl = '/api/v2/comment/' + episodeId + '?format=json';
+          // 保存番剧信息用于显示集数列表
+          currentAnimeInfo = {
+            animeId: animeId,
+            animeTitle: anime.animeTitle,
+            episodes: bangumiResult.bangumi.episodes
+          };
           
+          apiUrl = '/api/v2/comment/' + episodeId + '?format=json';          
         } else {
           // ========== Match 接口模式 ==========
           let searchQuery = input;
@@ -7255,6 +7299,11 @@ try {
 
         if (matchInfo) {
           displayMatchResult(matchInfo);
+        }
+
+        // 如果有番剧信息，显示集数列表按钮
+        if (currentAnimeInfo && currentAnimeInfo.episodes && currentAnimeInfo.episodes.length > 1) {
+          document.getElementById('episodeListBtn').style.display = 'inline-flex';
         }
 
         if (currentDanmuData.length === 0) {
@@ -7550,6 +7599,7 @@ try {
 function clearDanmuTest() {
   currentDanmuData = [];
   filteredDanmuData = [];
+  currentAnimeInfo = null;
   document.getElementById('danmuTestInput').value = '';
   document.getElementById('danmuTestApiType').value = 'match';
   document.getElementById('danmuTestYear').value = '';
@@ -7589,7 +7639,112 @@ function clearDanmuTest() {
   
   showToast('✨ 已清空弹幕测试数据', 'info');
 }
+// ========== 集数列表管理 ==========
+   function showEpisodeListModal() {
+     if (!currentAnimeInfo || !currentAnimeInfo.episodes) {
+       showToast('暂无集数信息', 'warning');
+       return;
+     }
 
+     const episodes = currentAnimeInfo.episodes;
+     document.getElementById('episodeListTitle').textContent = `${currentAnimeInfo.animeTitle} - 共 ${episodes.length} 集`;
+
+     const html = episodes.map((ep, index) => {
+       const epNum = ep.episodeNumber || (index + 1);
+       const epTitle = ep.episodeTitle || `第 ${epNum} 集`;
+       
+       return `
+         <div class="server-item" style="cursor: pointer; transition: all 0.3s;" onclick="loadEpisodeDanmu('${ep.episodeId}', '${epNum}')">
+           <div class="server-badge">${epNum}</div>
+           <div class="server-info">
+             <div class="server-name">${epTitle}</div>
+             <div class="server-url" style="font-size: 11px; color: var(--text-tertiary);">ID: ${ep.episodeId}</div>
+           </div>
+           <div class="server-actions">
+             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor">
+               <path d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" fill="currentColor"/>
+               <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
+             </svg>
+           </div>
+         </div>
+       `;
+     }).join('');
+
+     document.getElementById('episodeListContent').innerHTML = html;
+     showModal('episodeListModal');
+   }
+
+   async function loadEpisodeDanmu(episodeId, episodeNum) {
+     closeModal('episodeListModal');
+     
+     const previewContainer = document.getElementById('danmuPreviewContainer');
+     previewContainer.innerHTML = '<div style="text-align: center; padding: 80px 20px;">' +
+       '<span class="loading-spinner" style="width: 48px; height: 48px; border-width: 4px;"></span>' +
+       '<div style="margin-top: 24px; color: var(--text-primary); font-size: 16px; font-weight: 600;">正在加载第 ' + episodeNum + ' 集弹幕...</div>' +
+       '</div>';
+
+     try {
+       const apiUrl = '/api/v2/comment/' + episodeId + '?format=json';
+       const response = await fetch(apiUrl);
+       const result = await response.json();
+
+       let comments = [];
+       if (Array.isArray(result)) {
+         comments = result;
+       } else if (result.comments) {
+         comments = result.comments;
+       } else if (result.danmus) {
+         comments = result.danmus;
+       }
+
+       if (result.success === false) {
+         throw new Error(result.errorMessage || result.message || '获取弹幕失败');
+       }
+
+       currentDanmuData = comments;
+       filteredDanmuData = [...currentDanmuData];
+
+       if (currentDanmuData.length === 0) {
+         previewContainer.innerHTML = '<div style="text-align: center; padding: 80px 20px; color: var(--text-tertiary);">' +
+           '<div style="font-size: 56px; margin-bottom: 20px; opacity: 0.5;">😢</div>' +
+           '<div style="font-size: 17px; font-weight: 600; margin-bottom: 10px; color: var(--text-secondary);">未获取到弹幕</div>' +
+           '<div style="font-size: 14px; opacity: 0.8;">该集可能没有弹幕数据</div>' +
+           '</div>';
+         document.getElementById('danmuTestCount').textContent = '0 条';
+         return;
+       }
+
+       displayDanmuList(filteredDanmuData);
+       updateDanmuStats();
+       
+       // 更新匹配结果显示
+       if (currentAnimeInfo) {
+         const matchResultCard = document.getElementById('matchResultCard');
+         const targetEpisode = currentAnimeInfo.episodes.find(ep => ep.episodeId === episodeId);
+         
+         if (targetEpisode) {
+           document.getElementById('matchedAnimeTitle').textContent = currentAnimeInfo.animeTitle;
+           document.getElementById('matchedEpisodeTitle').textContent = targetEpisode.episodeTitle || `第 ${episodeNum} 集`;
+           document.getElementById('matchedEpisode').textContent = 'E' + String(episodeNum).padStart(2, '0');
+           document.getElementById('matchedEpisodeId').textContent = episodeId;
+           matchResultCard.style.display = 'block';
+         }
+       }
+
+       showToast('🎉 成功加载第 ' + episodeNum + ' 集 ' + currentDanmuData.length + ' 条弹幕', 'success');
+       
+       document.getElementById('exportJsonBtn').style.display = 'inline-flex';
+       document.getElementById('exportXmlBtn').style.display = 'inline-flex';
+
+     } catch (error) {
+       console.error('加载弹幕失败:', error);
+       previewContainer.innerHTML = '<div style="text-align: center; padding: 80px 20px; color: var(--error);">' +
+         '<div style="font-size: 56px; margin-bottom: 20px; opacity: 0.7;">❌</div>' +
+         '<div style="font-size: 17px; font-weight: 600; margin-bottom: 10px;">加载失败</div>' +
+         '<div style="font-size: 14px; color: var(--text-secondary);">' + error.message + '</div></div>';
+       showToast('❌ 加载弹幕失败: ' + error.message, 'error');
+     }
+   }
 // ========== 弹幕导出功能 ==========
    // ========== 弹幕导出功能 ==========
    function exportDanmu(format) {
