@@ -10524,35 +10524,54 @@ docker-compose pull danmu-api && docker-compose up -d danmu-api`;
       // 记录需要从持久化存储中删除的 Key
       const keysToDelete = [];
 
-      // 1. 搜索缓存
+      // 1. 搜索缓存 - 强制清空所有搜索相关缓存
       if (clearAll || clearSearch) {
-        if (globals.caches?.search) globals.caches.search.clear();
+        // 🔥 强制重建缓存对象（不依赖 clear() 方法）
+        if (globals.caches) {
+          globals.caches.search = new Map();
+          log("info", "[cache/clear] 强制重建 globals.caches.search");
+        }
+        
+        // 清空主存储
         if (globals.animes) {
           globals.animes = {};
           keysToDelete.push('animes');
-          clearedItems.push('搜索缓存');
+          log("info", "[cache/clear] 清空 globals.animes");
         }
+        
+        clearedItems.push('搜索缓存');
       }
 
-      // 2. 弹幕缓存
+      // 2. 弹幕缓存 - 强制清空所有弹幕相关缓存
       if (clearAll || clearComment) {
-        if (globals.caches?.comment) globals.caches.comment.clear();
+        // 🔥 强制重建缓存对象
+        if (globals.caches) {
+          globals.caches.comment = new Map();
+          log("info", "[cache/clear] 强制重建 globals.caches.comment");
+        }
+        
+        // 清空主存储
         if (globals.episodeIds) {
           globals.episodeIds = {};
           keysToDelete.push('episodeIds');
+          log("info", "[cache/clear] 清空 globals.episodeIds");
         }
         if (globals.episodeNum) {
           globals.episodeNum = {};
           keysToDelete.push('episodeNum');
+          log("info", "[cache/clear] 清空 globals.episodeNum");
         }
+        
         if (clearComment) clearedItems.push('弹幕缓存');
       }
 
-      // 3. 最后选择记录
+      // 3. 最后选择记录 - 强制清空
       if (clearAll || clearLastSelect) {
         if (globals.lastSelectMap) {
-          globals.lastSelectMap.clear();
+          // 🔥 强制重建 Map 对象
+          globals.lastSelectMap = new Map();
           keysToDelete.push('lastSelectMap');
+          log("info", "[cache/clear] 强制重建 globals.lastSelectMap");
           clearedItems.push('最后选择记录');
         }
       }
@@ -10601,7 +10620,7 @@ docker-compose pull danmu-api && docker-compose up -d danmu-api`;
         }
       }
 
-      // 🔥 关键修复：重置存储检查标志，强制下次请求重新加载数据库缓存
+// 🔥 关键修复：重置存储检查标志，强制下次请求重新加载数据库缓存
       globals.storageChecked = false;
       log("info", `[cache/clear] 已重置 storageChecked 标志，下次请求将重新加载数据库`);
 
