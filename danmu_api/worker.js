@@ -7117,24 +7117,23 @@ try {
       matchResultCard.style.display = 'none';
       episodeSelectCard.style.display = 'none';
       
+      const apiTypeText = apiType === 'anime' ? 'Anime' : 'Match';
       previewContainer.innerHTML = '<div style="text-align: center; padding: 80px 20px;">' +
         '<span class="loading-spinner" style="width: 48px; height: 48px; border-width: 4px;"></span>' +
         '<div style="margin-top: 24px; color: var(--text-primary); font-size: 16px; font-weight: 600;">正在搜索...</div>' +
-        '<div style="margin-top: 8px; color: var(--text-tertiary); font-size: 13px;">使用 ' + (apiType === 'anime' ? 'Anime' : 'Match') + ' 接口</div>' +
+        '<div style="margin-top: 8px; color: var(--text-tertiary); font-size: 13px;">使用 ' + apiTypeText + ' 接口</div>' +
         '</div>';
 
       document.getElementById('exportJsonBtn').style.display = 'none';
       document.getElementById('exportXmlBtn').style.display = 'none';
 
       try {
-        // 如果是 URL 直接获取弹幕
         if (input.startsWith('http://') || input.startsWith('https://')) {
           const apiUrl = '/api/v2/comment?url=' + encodeURIComponent(input) + '&format=json';
           await loadDanmuByUrl(apiUrl, null);
           return;
         }
 
-        // Anime 接口模式：搜索 -> 显示剧集列表
         if (apiType === 'anime') {
           showToast('🔍 正在搜索番剧 "' + input + '"', 'info', 2000);
           
@@ -7160,12 +7159,10 @@ try {
             throw new Error('获取剧集列表失败');
           }
           
-          // 显示剧集选择列表
           displayEpisodeList(bangumiResult.bangumi, anime);
           return;
         }
 
-        // Match 接口模式：智能匹配
         let searchQuery = input;
         
         searchQuery = searchQuery
