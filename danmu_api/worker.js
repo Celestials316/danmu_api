@@ -7640,7 +7640,6 @@ function clearDanmuTest() {
   currentDanmuData = [];
   filteredDanmuData = [];
   document.getElementById('danmuTestInput').value = '';
-  document.getElementById('episodeSelectCard').style.display = 'none';
   document.getElementById('danmuTestApiType').value = 'match';
   document.getElementById('danmuTestYear').value = '';
   document.getElementById('danmuTestSeason').value = '';
@@ -7655,6 +7654,12 @@ function clearDanmuTest() {
   const matchResultCard = document.getElementById('matchResultCard');
   if (matchResultCard) {
     matchResultCard.style.display = 'none';
+  }
+  
+  // ✅ 隐藏剧集选择卡片
+  const episodeSelectCard = document.getElementById('episodeSelectCard');
+  if (episodeSelectCard) {
+    episodeSelectCard.style.display = 'none';
   }
   
   const previewContainer = document.getElementById('danmuPreviewContainer');
