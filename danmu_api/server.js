@@ -10,7 +10,7 @@ import https from 'https';
 import url from 'url';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 // 🔥 导入并初始化 Globals
-import { Globals } from './danmu_api/configs/globals.js';
+import { Globals } from './configs/globals.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
