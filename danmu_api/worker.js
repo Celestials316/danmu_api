@@ -4484,7 +4484,7 @@ try {
                <span class="badge badge-info">GET</span>
              </div>
              <div class="config-value">
-               <code>/api/v2/search/anime?anime={关键词}</code>
+               <code>/api/v2/search/anime?kayword={关键词}</code>
              </div>
              <div style="margin-top: 12px; padding: 12px; background: var(--bg-primary); border-radius: 8px; font-size: 12px; color: var(--text-secondary);">
                <strong>参数：</strong><br>
@@ -5178,6 +5178,21 @@ try {
                <span>清空</span>
              </button>
            </div>
+         </div>
+       </div>
+
+       <!-- 剧集选择列表（动态显示） -->
+       <div class="card" id="episodeSelectCard" style="display: none; border-left: 4px solid var(--primary-500); animation: slideInFromLeft 0.4s ease-out;">
+         <div class="card-header" style="padding-bottom: 16px;">
+           <h3 class="card-title" style="color: var(--primary-500);">
+             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+               <path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" stroke-width="2"/>
+             </svg>
+             <span id="episodeSelectTitle">请选择剧集</span>
+           </h3>
+         </div>
+         <div id="episodeSelectContainer" style="max-height: 400px; overflow-y: auto; padding: 0 8px;">
+           <!-- 动态生成剧集列表 -->
          </div>
        </div>
 
@@ -7097,12 +7112,14 @@ try {
 
       const previewContainer = document.getElementById('danmuPreviewContainer');
       const matchResultCard = document.getElementById('matchResultCard');
+      const episodeSelectCard = document.getElementById('episodeSelectCard');
       
       matchResultCard.style.display = 'none';
+      episodeSelectCard.style.display = 'none';
       
       previewContainer.innerHTML = '<div style="text-align: center; padding: 80px 20px;">' +
         '<span class="loading-spinner" style="width: 48px; height: 48px; border-width: 4px;"></span>' +
-        '<div style="margin-top: 24px; color: var(--text-primary); font-size: 16px; font-weight: 600;">正在获取弹幕...</div>' +
+        '<div style="margin-top: 24px; color: var(--text-primary); font-size: 16px; font-weight: 600;">正在搜索...</div>' +
         '<div style="margin-top: 8px; color: var(--text-tertiary); font-size: 13px;">使用 ' + (apiType === 'anime' ? 'Anime' : 'Match') + ' 接口</div>' +
         '</div>';
 
@@ -7110,18 +7127,16 @@ try {
       document.getElementById('exportXmlBtn').style.display = 'none';
 
       try {
-        let apiUrl = '';
-        let matchInfo = null;
-        
+        // 如果是 URL 直接获取弹幕
         if (input.startsWith('http://') || input.startsWith('https://')) {
-          apiUrl = '/api/v2/comment?url=' + encodeURIComponent(input) + '&format=json';
-        } else if (apiType === 'anime') {
-          // ========== Anime 接口模式 ==========
-          if (!episode) {
-            throw new Error('使用 Anime 接口必须指定集数');
-          }
+          const apiUrl = '/api/v2/comment?url=' + encodeURIComponent(input) + '&format=json';
+          await loadDanmuByUrl(apiUrl, null);
+          return;
+        }
 
-          showToast('🔍 第1步：搜索番剧 "' + input + '"', 'info', 2000);
+        // Anime 接口模式：搜索 -> 显示剧集列表
+        if (apiType === 'anime') {
+          showToast('🔍 正在搜索番剧 "' + input + '"', 'info', 2000);
           
           const searchUrl = '/api/v2/search/anime?keyword=' + encodeURIComponent(input);
           const searchResponse = await fetch(searchUrl);
@@ -7135,7 +7150,7 @@ try {
           const animeId = anime.animeId;
           
           showToast('✅ 找到番剧: ' + anime.animeTitle, 'success', 2000);
-          showToast('🔍 第2步：获取剧集列表...', 'info', 2000);
+          showToast('🔍 正在获取剧集列表...', 'info', 2000);
           
           const bangumiUrl = '/api/v2/bangumi/' + animeId;
           const bangumiResponse = await fetch(bangumiUrl);
@@ -7145,92 +7160,168 @@ try {
             throw new Error('获取剧集列表失败');
           }
           
-          const targetEpisode = bangumiResult.bangumi.episodes.find(ep => 
-            ep.episodeNumber === episode || parseInt(ep.episodeNumber) === parseInt(episode)
-          );
-          
-          if (!targetEpisode) {
-            throw new Error('未找到第 ' + episode + ' 集，共 ' + bangumiResult.bangumi.episodes.length + ' 集');
-          }
-          
-          const episodeId = targetEpisode.episodeId;
-          
-          showToast('✅ 找到第 ' + episode + ' 集: ' + targetEpisode.episodeTitle, 'success', 2000);
-          showToast('🔍 第3步：获取弹幕...', 'info', 2000);
-          
-          matchInfo = {
-            animeTitle: anime.animeTitle,
-            episodeTitle: targetEpisode.episodeTitle,
-            episodeNumber: episode,
-            season: season || '1',
-            episode: episode,
-            episodeId: episodeId,
-            type: anime.source || 'unknown'
-          };
-          
-          apiUrl = '/api/v2/comment/' + episodeId + '?format=json';
-          
-        } else {
-          // ========== Match 接口模式 ==========
-          let searchQuery = input;
-          
-          searchQuery = searchQuery
-            .replace(/\.(mkv|mp4|avi|flv|wmv|mov|rmvb|webm)$/i, '')
-            .replace(/[\[\](){}]/g, ' ')
-            .trim();
-          
-          const hasYearInTitle = /\.(19|20)\d{2}\./.test(searchQuery);
-          
-          if (year && !hasYearInTitle) {
-            searchQuery += '.' + year;
-          }
-          
-          const finalSeason = season || '1';
-          if (episode) {
-            searchQuery += ' S' + finalSeason.padStart(2, '0') + 'E' + episode.padStart(2, '0');
-          } else if (season) {
-            searchQuery += ' S' + season.padStart(2, '0');
-          }
-          
-          if (platform) {
-            searchQuery += ' @' + platform;
-          }
-          
-          showToast('🔍 正在智能匹配: ' + searchQuery, 'info', 2000);
-          
-          const matchResponse = await fetch('/api/v2/match', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              fileName: searchQuery
-            })
-          });
-          
-          const matchResult = await matchResponse.json();
-          
-          if (!matchResult.success) {
-            throw new Error(matchResult.errorMessage || '匹配失败');
-          }
-          
-          if (!matchResult.isMatched || !matchResult.matches || matchResult.matches.length === 0) {
-            throw new Error('未找到匹配结果："' + searchQuery + '"');
-          }
-          
-          const match = matchResult.matches[0];
-          matchInfo = match;
-          
-          showToast('✅ 匹配成功: ' + match.animeTitle, 'success', 2000);
-          showToast('正在获取弹幕...', 'info', 2000);
-          
-          apiUrl = '/api/v2/comment/' + match.episodeId + '?format=json';
+          // 显示剧集选择列表
+          displayEpisodeList(bangumiResult.bangumi, anime);
+          return;
         }
 
+        // Match 接口模式：智能匹配
+        let searchQuery = input;
+        
+        searchQuery = searchQuery
+          .replace(/\.(mkv|mp4|avi|flv|wmv|mov|rmvb|webm)$/i, '')
+          .replace(/[\[\](){}]/g, ' ')
+          .trim();
+        
+        const hasYearInTitle = /\.(19|20)\d{2}\./.test(searchQuery);
+        
+        if (year && !hasYearInTitle) {
+          searchQuery += '.' + year;
+        }
+        
+        const finalSeason = season || '1';
+        if (episode) {
+          searchQuery += ' S' + finalSeason.padStart(2, '0') + 'E' + episode.padStart(2, '0');
+        } else if (season) {
+          searchQuery += ' S' + season.padStart(2, '0');
+        }
+        
+        if (platform) {
+          searchQuery += ' @' + platform;
+        }
+        
+        showToast('🔍 正在智能匹配: ' + searchQuery, 'info', 2000);
+        
+        const matchResponse = await fetch('/api/v2/match', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            fileName: searchQuery
+          })
+        });
+        
+        const matchResult = await matchResponse.json();
+        
+        if (!matchResult.success) {
+          throw new Error(matchResult.errorMessage || '匹配失败');
+        }
+        
+        if (!matchResult.isMatched || !matchResult.matches || matchResult.matches.length === 0) {
+          throw new Error('未找到匹配结果："' + searchQuery + '"');
+        }
+        
+        const match = matchResult.matches[0];
+        
+        showToast('✅ 匹配成功: ' + match.animeTitle, 'success', 2000);
+        showToast('正在获取弹幕...', 'info', 2000);
+        
+        const apiUrl = '/api/v2/comment/' + match.episodeId + '?format=json';
+        await loadDanmuByUrl(apiUrl, match);
+
+      } catch (error) {
+        console.error('搜索失败:', error);
+        previewContainer.innerHTML = '<div style="text-align: center; padding: 80px 20px; color: var(--error);">' +
+          '<div style="font-size: 56px; margin-bottom: 20px; opacity: 0.7;">❌</div>' +
+          '<div style="font-size: 17px; font-weight: 600; margin-bottom: 10px;">搜索失败</div>' +
+          '<div style="font-size: 14px; color: var(--text-secondary); max-width: 400px; margin: 0 auto; line-height: 1.5;">' +
+          error.message + '</div></div>';
+        showToast('❌ 搜索失败: ' + error.message, 'error');
+      }
+    }
+
+// 显示剧集选择列表
+    function displayEpisodeList(bangumi, anime) {
+      const episodeSelectCard = document.getElementById('episodeSelectCard');
+      const episodeSelectTitle = document.getElementById('episodeSelectTitle');
+      const episodeSelectContainer = document.getElementById('episodeSelectContainer');
+      const previewContainer = document.getElementById('danmuPreviewContainer');
+      
+      episodeSelectTitle.textContent = anime.animeTitle + ' - 请选择剧集';
+      
+      const episodes = bangumi.episodes || [];
+      
+      if (episodes.length === 0) {
+        episodeSelectContainer.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-tertiary);">暂无剧集数据</div>';
+        episodeSelectCard.style.display = 'block';
+        return;
+      }
+      
+      // 生成剧集列表 HTML
+      const episodesHtml = episodes.map((ep, index) => {
+        return `
+          <div style="
+            padding: 14px 16px;
+            margin-bottom: 8px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+          " 
+          onmouseenter="this.style.background='var(--bg-hover)'; this.style.borderColor='var(--primary-500)';"
+          onmouseleave="this.style.background='var(--bg-tertiary)'; this.style.borderColor='var(--border-color)';"
+          onclick="loadEpisodeDanmu('${ep.episodeId}', '${escapeHtml(anime.animeTitle)}', '${escapeHtml(ep.episodeTitle)}', '${ep.episodeNumber}', '${anime.source || 'unknown'}')">
+            <div style="flex: 1; min-width: 0;">
+              <div style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">
+                第 ${ep.episodeNumber} 集
+              </div>
+              <div style="font-size: 12px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                ${ep.episodeTitle || '暂无标题'}
+              </div>
+            </div>
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" style="flex-shrink: 0; margin-left: 12px; color: var(--primary-500);">
+              <path d="M9 5l7 7-7 7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+        `;
+      }).join('');
+      
+      episodeSelectContainer.innerHTML = episodesHtml;
+      episodeSelectCard.style.display = 'block';
+      
+      // 清空预览区域
+      previewContainer.innerHTML = '<div style="text-align: center; padding: 80px 20px; color: var(--text-tertiary);">' +
+        '<div style="font-size: 56px; margin-bottom: 20px; opacity: 0.6;">📺</div>' +
+        '<div style="font-size: 17px; font-weight: 600; margin-bottom: 10px; color: var(--text-secondary);">请选择剧集</div>' +
+        '<div style="font-size: 14px; opacity: 0.8;">在上方列表中选择要观看的剧集</div>' +
+        '</div>';
+    }
+
+    // 加载选中剧集的弹幕
+    async function loadEpisodeDanmu(episodeId, animeTitle, episodeTitle, episodeNumber, source) {
+      const previewContainer = document.getElementById('danmuPreviewContainer');
+      
+      previewContainer.innerHTML = '<div style="text-align: center; padding: 80px 20px;">' +
+        '<span class="loading-spinner" style="width: 48px; height: 48px; border-width: 4px;"></span>' +
+        '<div style="margin-top: 24px; color: var(--text-primary); font-size: 16px; font-weight: 600;">正在加载弹幕...</div>' +
+        '<div style="margin-top: 8px; color: var(--text-tertiary); font-size: 13px;">第 ' + episodeNumber + ' 集</div>' +
+        '</div>';
+      
+      const matchInfo = {
+        animeTitle: animeTitle,
+        episodeTitle: episodeTitle,
+        episodeNumber: episodeNumber,
+        episode: episodeNumber,
+        episodeId: episodeId,
+        type: source
+      };
+      
+      const apiUrl = '/api/v2/comment/' + episodeId + '?format=json';
+      await loadDanmuByUrl(apiUrl, matchInfo);
+    }
+
+    // 通用弹幕加载函数
+    async function loadDanmuByUrl(apiUrl, matchInfo) {
+      const previewContainer = document.getElementById('danmuPreviewContainer');
+      
+      try {
         const response = await fetch(apiUrl);
         const result = await response.json();
-
-        console.log('[Debug] 后端返回数据:', result);
 
         let comments = [];
         
@@ -7288,8 +7379,6 @@ try {
         document.getElementById('exportXmlBtn').style.display = 'none';
       }
     }
-
-
    // ✅ 显示匹配结果信息
    function displayMatchResult(matchInfo) {
      const matchResultCard = document.getElementById('matchResultCard');
@@ -7551,6 +7640,7 @@ function clearDanmuTest() {
   currentDanmuData = [];
   filteredDanmuData = [];
   document.getElementById('danmuTestInput').value = '';
+  document.getElementById('episodeSelectCard').style.display = 'none';
   document.getElementById('danmuTestApiType').value = 'match';
   document.getElementById('danmuTestYear').value = '';
   document.getElementById('danmuTestSeason').value = '';
