@@ -5,12 +5,8 @@ import {
   initDatabase, 
   saveCacheBatch, 
   loadCacheBatch, 
-  checkDatabaseConnection,
-  deleteCacheData, // 新增
-  clearAllCache    // 新增
+  checkDatabaseConnection 
 } from './db-util.js';
-// 还需要确保引入 delRedisKey，如果 redis-util.js 是单独文件，请在对应 import 处添加
-// import { ..., delRedisKey } from './utils/redis-util.js'; 
 
 // =====================
 // upstash redis 读写请求 （先简单实现,不加锁）
@@ -146,18 +142,13 @@ export async function delRedisKey(key) {
     });
     const result = await response.json();
     // 删除本地哈希记录，确保下次能正常更新
-    delete globals.lastHashes[key];
+    if (globals.lastHashes && globals.lastHashes[key]) {
+      delete globals.lastHashes[key];
+    }
     return result;
   } catch (error) {
     log("error", `[redis] DEL 请求失败:`, error.message);
     return null;
-  }
-}
-    log("error", '- 错误类型:', error.name);
-    if (error.cause) {
-      log("error", '- 码:', error.cause.code);
-      log("error", '- 原因:', error.cause.message);
-    }
   }
 }
 
