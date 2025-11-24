@@ -189,9 +189,10 @@ export async function getRedisCaches() {
         const cacheMap = await loadCacheBatch();
 
         if (Object.keys(cacheMap).length > 0) {
-          globals.animes = cacheMap.animes || globals.animes;
-          globals.episodeIds = cacheMap.episodeIds || globals.episodeIds;
-          globals.episodeNum = cacheMap.episodeNum || globals.episodeNum;
+          // 🔥 确保加载的数据是正确的类型
+          globals.animes = Array.isArray(cacheMap.animes) ? cacheMap.animes : [];
+          globals.episodeIds = Array.isArray(cacheMap.episodeIds) ? cacheMap.episodeIds : [];
+          globals.episodeNum = typeof cacheMap.episodeNum === 'number' ? cacheMap.episodeNum : 10001;
 
           // 恢复 lastSelectMap
           if (cacheMap.lastSelectMap && typeof cacheMap.lastSelectMap === 'object') {
@@ -218,9 +219,14 @@ export async function getRedisCaches() {
         const commands = keys.map(key => ['GET', key]);
         const results = await runPipeline(commands);
 
-        globals.animes = results[0].result ? JSON.parse(results[0].result) : globals.animes;
-        globals.episodeIds = results[1].result ? JSON.parse(results[1].result) : globals.episodeIds;
-        globals.episodeNum = results[2].result ? JSON.parse(results[2].result) : globals.episodeNum;
+        // 🔥 确保加载的数据是正确的类型
+        const animesData = results[0].result ? JSON.parse(results[0].result) : [];
+        const episodeIdsData = results[1].result ? JSON.parse(results[1].result) : [];
+        const episodeNumData = results[2].result ? JSON.parse(results[2].result) : 10001;
+        
+        globals.animes = Array.isArray(animesData) ? animesData : [];
+        globals.episodeIds = Array.isArray(episodeIdsData) ? episodeIdsData : [];
+        globals.episodeNum = typeof episodeNumData === 'number' ? episodeNumData : 10001;
 
         const lastSelectMapData = results[3].result ? JSON.parse(results[3].result) : null;
         if (lastSelectMapData && typeof lastSelectMapData === 'object') {
