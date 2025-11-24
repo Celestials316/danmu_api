@@ -317,7 +317,12 @@ function filterSameEpisodeTitle(filteredTmpEpisodes) {
 async function matchAniAndEp(season, episode, searchData, title, req, platform, preferAnimeId) {
   let resAnime;
   let resEpisode;
-  if (season && episode) {
+  
+  // 🔥 添加类型验证：确保 season 和 episode 是有效的数字
+  const isValidSeason = season !== null && season !== undefined && typeof season === 'number' && !isNaN(season);
+  const isValidEpisode = episode !== null && episode !== undefined && typeof episode === 'number' && !isNaN(episode);
+  
+  if (isValidSeason && isValidEpisode) {
     // 判断剧集
     const normalizedTitle = normalizeSpaces(title);
     // 🔥 确保 searchData.animes 是数组
@@ -400,12 +405,18 @@ async function matchAniAndEp(season, episode, searchData, title, req, platform, 
 async function fallbackMatchAniAndEp(searchData, req, season, episode, resEpisode, resAnime) {
   // 🔥 确保 searchData.animes 是数组
   const animeList = Array.isArray(searchData.animes) ? searchData.animes : [];
+  
+  // 🔥 添加类型验证
+  const isValidSeason = season !== null && season !== undefined && typeof season === 'number' && !isNaN(season);
+  const isValidEpisode = episode !== null && episode !== undefined && typeof episode === 'number' && !isNaN(episode);
+  
   for (const anime of animeList) {
     let originBangumiUrl = new URL(req.url.replace("/match", `bangumi/${anime.bangumiId}`));
     const bangumiRes = await getBangumi(originBangumiUrl.pathname);
     const bangumiData = await bangumiRes.json();
     log("info", bangumiData);
-    if (season && episode) {
+    
+    if (isValidSeason && isValidEpisode) {
       // 过滤集标题正则条件的 episode
       const filteredTmpEpisodes = bangumiData.bangumi.episodes.filter(episode => {
         return !globals.episodeTitleFilter.test(episode.episodeTitle);
@@ -530,7 +541,13 @@ export async function matchAnime(url, req) {
       title = await getTMDBChineseTitle(title.replace('.', ' '), season, episode);
     }
 
-    log("info", "Parsed title, season, episode", { title, season, episode });
+    log("info", "Parsed title, season, episode", { 
+      title, 
+      season: season !== null ? season : 'null', 
+      episode: episode !== null ? episode : 'null',
+      seasonType: typeof season,
+      episodeType: typeof episode
+    });
 
     // 获取prefer animeIdgetPreferAnimeId
     const [preferAnimeId, preferSource] = getPreferAnimeId(title);
