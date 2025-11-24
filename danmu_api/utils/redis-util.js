@@ -5,8 +5,12 @@ import {
   initDatabase, 
   saveCacheBatch, 
   loadCacheBatch, 
-  checkDatabaseConnection 
+  checkDatabaseConnection,
+  deleteCacheData, // 新增
+  clearAllCache    // 新增
 } from './db-util.js';
+// 还需要确保引入 delRedisKey，如果 redis-util.js 是单独文件，请在对应 import 处添加
+// import { ..., delRedisKey } from './utils/redis-util.js'; 
 
 // =====================
 // upstash redis 读写请求 （先简单实现,不加锁）
