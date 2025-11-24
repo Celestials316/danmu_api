@@ -563,19 +563,75 @@ function getRealEnvValue(key) {
 }
 
 async function handleRequest(req, env, deployPlatform, clientIp) {
-  // ✅ 只在首次请求时初始化
-  if (!Globals.configLoaded) {
-    log("info", "[init] 🚀 首次启动，初始化全局配置...");
-    globals = await Globals.init(env, deployPlatform);
-    log("info", "[init] ✅ 全局配置初始化完成");
+  // ✅ 修复：确保 globals 已定义且初始化
+  if (!globals || typeof globals !== 'object') {
+    console.error('[handleRequest] CRITICAL: globals is undefined or invalid');
+    // 强制重新初始化
+    const { Globals } = await import('./configs/globals.js');
+    const initializedGlobals = await Globals.init(env, deployPlatform);
+    
+    if (!initializedGlobals || typeof initializedGlobals !== 'object') {
+      return new Response(JSON.stringify({
+        errorCode: 500,
+        success: false,
+        errorMessage: "Server initialization failed"
+      }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
   }
 
-  // 后续请求直接使用已加载的 globals
-  // 不再重复加载
+  // ✅ 只在首次请求或 globals 未初始化时初始化
+  if (!globals.configLoaded) {
+    log("info", "[init] 🚀 首次启动，初始化全局配置...");
+    
+    // 使用双重检查锁定模式，避免并发初始化
+    if (!globals.initializationLock) {
+      globals.initializationLock = true;
+      
+      try {
+        const { Globals } = await import('./configs/globals.js');
+        await Globals.init(env, deployPlatform);
+        log("info", "[init] ✅ 全局配置初始化完成");
+      } catch (error) {
+        log("error", `[init] ❌ 初始化失败: ${error.message}`);
+        globals.initializationLock = false;
+        
+        return new Response(JSON.stringify({
+          errorCode: 500,
+          success: false,
+          errorMessage: "Configuration initialization failed"
+        }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+    } else {
+      // 等待其他请求完成初始化
+      let retries = 0;
+      while (!globals.configLoaded && retries < 50) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        retries++;
+      }
+      
+      if (!globals.configLoaded) {
+        return new Response(JSON.stringify({
+          errorCode: 503,
+          success: false,
+          errorMessage: "Server is initializing, please retry"
+        }), {
+          status: 503,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+    }
+  }
 
-
-
+  // ✅ 现在可以安全设置 deployPlatform
   globals.deployPlatform = deployPlatform;
+
+  // ... 后续代码保持不变
 
   const url = new URL(req.url);
   let path = url.pathname;
