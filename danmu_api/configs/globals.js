@@ -462,28 +462,3 @@ const Globals = {
 // 在文件末尾，替换现有的 globals 定义
 export const globals = Globals.getConfig();
 export { Globals };
-  get(target, prop) {
-    // 优先返回 envs 中的属性
-    if (prop in target.envs) {
-      return target.envs[prop];
-    }
-    // 直接返回 Globals 的属性
-    return target[prop];
-  },
-  set(target, prop, value) {
-    // 如果是 envs 中的属性，设置到 envs
-    if (prop in target.envs) {
-      target.envs[prop] = value;
-    } else {
-      // 否则直接设置到 Globals
-      target[prop] = value;
-    }
-    return true;
-  },
-  has(target, prop) {
-    return prop in target.envs || prop in target;
-  }
-});
-
-// 导出 Globals 对象(用于初始化)
-export { Globals };
