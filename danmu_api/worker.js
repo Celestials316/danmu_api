@@ -10486,65 +10486,74 @@ docker-compose pull danmu-api && docker-compose up -d danmu-api`;
       const { clearSearch, clearComment, clearLastSelect, clearAll } = body;
 
       let clearedItems = [];
+      // 定义需要从持久化存储中删除的 Key 列表
+      const persistenceKeysToDelete = new Set();
 
+      // 1. 搜索缓存
       if (clearAll || clearSearch) {
-        if (globals.caches?.search) {
-          globals.caches.search.clear();
-          clearedItems.push('搜索缓存');
-        }
-        if (globals.animes) {
-          globals.animes = {};
-          clearedItems.push('番剧数据');
-        }
+        if (globals.caches?.search) globals.caches.search.clear();
+        if (globals.animes) globals.animes = {};
+        clearedItems.push('搜索缓存');
+        persistenceKeysToDelete.add('animes');
       }
 
+      // 2. 弹幕缓存
       if (clearAll || clearComment) {
-        if (globals.caches?.comment) {
-          globals.caches.comment.clear();
-          clearedItems.push('弹幕缓存');
-        }
-        if (globals.episodeIds) {
-          globals.episodeIds = {};
-          clearedItems.push('剧集映射');
-        }
-        if (globals.episodeNum) {
-          globals.episodeNum = {};
-          clearedItems.push('集数映射');
-        }
+        if (globals.caches?.comment) globals.caches.comment.clear();
+        if (globals.episodeIds) globals.episodeIds = {};
+        if (globals.episodeNum) globals.episodeNum = {};
+        clearedItems.push('弹幕缓存');
+        persistenceKeysToDelete.add('episodeIds');
+        persistenceKeysToDelete.add('episodeNum');
       }
 
+      // 3. 最后选择记录 (关键修复：确保加入持久化删除列表)
       if (clearAll || clearLastSelect) {
-        if (globals.lastSelectMap) {
-          globals.lastSelectMap.clear();
-          clearedItems.push('最后选择记录');
-        }
+        if (globals.lastSelectMap) globals.lastSelectMap.clear();
+        clearedItems.push('最后选择记录');
+        persistenceKeysToDelete.add('lastSelectMap');
       }
 
-      // 清理持久化存储
+      // 4. 执行持久化清理
       if (clearAll) {
-        // Redis 清理
+        // 全量清理
+        if (globals.databaseValid) {
+          const { clearAllCache } = await import('./utils/db-util.js');
+          await clearAllCache();
+          clearedItems.push('数据库全量');
+        }
         if (globals.redisValid) {
-          try {
-            const { setRedisKey } = await import('./utils/redis-util.js');
-            await setRedisKey('cache:info', '', true, 1);
-            clearedItems.push('Redis缓存');
-          } catch (e) {
-            log("warn", `[cache/clear] Redis 清理失败: ${e.message}`);
+          const { runPipeline } = await import('./utils/redis-util.js');
+          // 批量删除所有相关 Key
+          const keys = ['animes', 'episodeIds', 'episodeNum', 'lastSelectMap'];
+          const commands = keys.map(k => ['DEL', k]);
+          await runPipeline(commands);
+          clearedItems.push('Redis全量');
+        }
+        // 重置哈希防止误判无变化
+        globals.lastHashes = {};
+      } else if (persistenceKeysToDelete.size > 0) {
+        // 部分清理
+        const keys = Array.from(persistenceKeysToDelete);
+        
+        // 数据库部分清理
+        if (globals.databaseValid) {
+          const { deleteCacheData } = await import('./utils/db-util.js');
+          for (const key of keys) {
+            await deleteCacheData(key);
           }
         }
 
-        // 数据库清理
-        if (globals.databaseValid) {
-          try {
-            const { clearAllCache } = await import('./utils/db-util.js');
-            if (typeof clearAllCache === 'function') {
-              await clearAllCache();
-              clearedItems.push('数据库缓存');
-            }
-          } catch (e) {
-            log("warn", `[cache/clear] 数据库清理失败: ${e.message}`);
+        // Redis 部分清理
+        if (globals.redisValid) {
+          const { delRedisKey } = await import('./utils/redis-util.js');
+          for (const key of keys) {
+            await delRedisKey(key);
           }
         }
+        
+        // 清除对应的 Hash 记录，确保下次数据变化时能写入
+        keys.forEach(k => delete globals.lastHashes[k]);
       }
 
       log("info", `[cache/clear] 已清理: ${clearedItems.join('、')}`);
