@@ -286,9 +286,19 @@ async function needsAsyncStartup() {
 
 // --- 核心 HTTP 服务器（端口 9321）逻辑 ---
 async function createServer() {
-  // 🔥 初始化 Globals（确保在处理请求前完成）
-  await Globals.init(process.env, 'node');
-  console.log('[server] Globals initialized successfully');
+  // 🔥 确保在处理任何请求前完成初始化
+  try {
+    await Globals.init(process.env, 'node');
+    console.log('[server] ✅ Globals initialized successfully');
+    
+    // 验证初始化结果
+    if (!globals || !globals.configLoaded) {
+      throw new Error('Globals initialization failed - config not loaded');
+    }
+  } catch (error) {
+    console.error('[server] ❌ Fatal: Globals initialization failed:', error);
+    process.exit(1); // 初始化失败直接退出
+  }
 
   const nodeFetch = await import('node-fetch');
   const fetch = nodeFetch.default;
@@ -301,22 +311,16 @@ async function createServer() {
     try {
       const fullUrl = `http://${req.headers.host}${req.url}`;
 
-      // 获取请求客户端的ip
+      // 获取客户端 IP (保持原有逻辑)
       let clientIp = 'unknown';
-
       const forwardedFor = req.headers['x-forwarded-for'];
       if (forwardedFor) {
         clientIp = forwardedFor.split(',')[0].trim();
-        console.log(`[server] Using X-Forwarded-For IP: ${clientIp}`);
       } else if (req.headers['x-real-ip']) {
         clientIp = req.headers['x-real-ip'];
-        console.log(`[server] Using X-Real-IP: ${clientIp}`);
       } else {
         clientIp = req.socket.remoteAddress || 'unknown';
-        console.log(`[server] Using direct connection IP: ${clientIp}`);
       }
-
-      // 清理IPv6前缀
       if (clientIp && clientIp.startsWith('::ffff:')) {
         clientIp = clientIp.substring(7);
       }
