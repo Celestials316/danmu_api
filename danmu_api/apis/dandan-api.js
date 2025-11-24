@@ -320,7 +320,9 @@ async function matchAniAndEp(season, episode, searchData, title, req, platform, 
   if (season && episode) {
     // 判断剧集
     const normalizedTitle = normalizeSpaces(title);
-    for (const anime of searchData.animes) {
+    // 🔥 确保 searchData.animes 是数组
+    const animeList = Array.isArray(searchData.animes) ? searchData.animes : [];
+    for (const anime of animeList) {
       if (globals.rememberLastSelect && preferAnimeId && anime.bangumiId.toString() !== preferAnimeId.toString() &&
           anime.animeId.toString() !== preferAnimeId.toString()) continue;
       if (normalizeSpaces(anime.animeTitle).includes(normalizedTitle)) {
@@ -363,7 +365,9 @@ async function matchAniAndEp(season, episode, searchData, title, req, platform, 
     }
   } else {
     // 判断电影
-    for (const anime of searchData.animes) {
+    // 🔥 确保 searchData.animes 是数组
+    const animeList = Array.isArray(searchData.animes) ? searchData.animes : [];
+    for (const anime of animeList) {
       if (globals.rememberLastSelect && preferAnimeId && anime.bangumiId.toString() !== preferAnimeId.toString()) continue;
       const animeTitle = anime.animeTitle.split("(")[0].trim();
       if (animeTitle === title) {
@@ -394,7 +398,9 @@ async function matchAniAndEp(season, episode, searchData, title, req, platform, 
 }
 
 async function fallbackMatchAniAndEp(searchData, req, season, episode, resEpisode, resAnime) {
-  for (const anime of searchData.animes) {
+  // 🔥 确保 searchData.animes 是数组
+  const animeList = Array.isArray(searchData.animes) ? searchData.animes : [];
+  for (const anime of animeList) {
     let originBangumiUrl = new URL(req.url.replace("/match", `bangumi/${anime.bangumiId}`));
     const bangumiRes = await getBangumi(originBangumiUrl.pathname);
     const bangumiData = await bangumiRes.json();
@@ -683,16 +689,19 @@ export async function getBangumi(path) {
   const idParam = path.split("/").pop();
   const animeId = parseInt(idParam);
 
+  // 🔥 确保 globals.animes 是数组
+  const animeList = Array.isArray(globals.animes) ? globals.animes : [];
+
   // 尝试通过 animeId(数字) 或 bangumiId(字符串) 查找
   let anime;
   if (!isNaN(animeId)) {
     // 如果是有效数字,先尝试通过 animeId 查找
-    anime = globals.animes.find((a) => a.animeId.toString() === animeId.toString());
+    anime = animeList.find((a) => a.animeId.toString() === animeId.toString());
   }
 
   // 如果通过 animeId 未找到,尝试通过 bangumiId 查找
   if (!anime) {
-    anime = globals.animes.find((a) => a.bangumiId === idParam);
+    anime = animeList.find((a) => a.bangumiId === idParam);
   }
 
   if (!anime) {
@@ -853,7 +862,7 @@ export async function getComment(path, queryFormat) {
           animeTitle: animeTitle,
           episodeTitle: title
         };
-        
+
         // 更新内存映射
         globals.lastSelectMap.set(displayKey, matchInfo);
         log("info", `[lastSelect] 记录匹配信息: ${displayKey.substring(0, 50)}...`);
@@ -967,7 +976,7 @@ export async function getCommentByUrl(videoUrl, queryFormat) {
       const rawKey = `[URL] ${cleanFileName || urlPath.substring(0, 30)}`;
       const displayKey = rawKey.replace(/\s*from\s+.*$/i, '').trim();
 
-      
+
       // 检查是否已存在
       const existing = globals.lastSelectMap.get(displayKey);
       if (!existing || existing.timestamp < Date.now() - 60000) {
@@ -983,7 +992,7 @@ export async function getCommentByUrl(videoUrl, queryFormat) {
 
         globals.lastSelectMap.set(displayKey, matchInfo);
         log("info", `[lastSelect] 记录URL请求: ${displayKey.substring(0, 50)}...`);
-        
+
         // 持久化保存（后台执行）
         Promise.resolve().then(async () => {
           try {
