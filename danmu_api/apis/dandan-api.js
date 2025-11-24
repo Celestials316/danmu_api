@@ -479,28 +479,39 @@ export async function matchAnime(url, req) {
       // 3. 自动去掉后面的年份、技术参数等垃圾
 
       // 情况1：开头是中文（最常见的中文字幕组文件名）
-      const chineseStart = title.match(/^[\u4e00-\u9fa5·]+(?:[A-Za-z0-9]?)/); // 允许中文后面紧跟一个字母/数字，如 亲爱的X、无忧渡
+      // ============ 新标题提取逻辑(重点)============
+      // 目标:
+      // 1. 优先保留最干净、最像剧名的那一段(通常是开头)
+      // 2. 支持:纯中文、纯英文、中英混排、带年份的、中文+英文混合(如宇宙Marry Me?)
+      // 3. 自动去掉后面的年份、技术参数等垃圾
+
+      // 情况1:开头是中文(最常见的中文字幕组文件名)
+      // 修复:允许中文后面跟任意英文/数字/空格/标点,直到遇到明显的技术字段
+      const chineseStart = title.match(/^[\u4e00-\u9fa5·]+(?:[A-Za-z0-9\s\?!\-\'\"]+)?/);
       if (chineseStart) {
-        title = chineseStart[0];
+        let extracted = chineseStart[0].trim();
+        // 去掉末尾可能的技术参数(如果误匹配到)
+        extracted = extracted.replace(/\s*(?:2160p|1080p|720p|H265|H264|x264|x265|WEB|BluRay|HDTV|DVDRip).*$/i, '');
+        title = extracted;
       }
-      // 情况2：开头是英文（欧美剧常见，如 Blood.River）
+      // 情况2:开头是英文(欧美剧常见,如 Blood.River)
       else if (/^[A-Za-z0-9]/.test(title)) {
         // 从开头一直取到第一个明显的技术字段或年份之前
         const engMatch = title.match(/^([A-Za-z0-9.&\s]+?)(?=\.\d{4}|$)/);
         if (engMatch) {
-          title = engMatch[1].trim().replace(/[._]/g, ' '); // Blood.River → Blood River（也可以保留.看你喜好）
-          // 如果你想保留原样点号，就去掉上面这行 replace
+          title = engMatch[1].trim().replace(/[._]/g, ' '); // Blood.River → Blood River(也可以保留.看你喜好)
+          // 如果你想保留原样点号,就去掉上面这行 replace
         }
       }
-      // 情况3：中文+英文混排（如 爱情公寓.ipartment.2009）
+      // 情况3:中文+英文混排(如 爱情公寓.ipartment.2009)
       else {
-        // 先尝试取到第一个年份或分辨率之前的所有内容，再优先保留中文开头部分
+        // 先尝试取到第一个年份或分辨率之前的所有内容,再优先保留中文开头部分
         const beforeYear = title.split(/\.(?:19|20)\d{2}|2160p|1080p|720p|H265|iPhone/)[0];
         const chineseInMixed = beforeYear.match(/^[\u4e00-\u9fa5·]+/);
         title = chineseInMixed ? chineseInMixed[0] : beforeYear.trim();
       }
 
-      // 最后再保险清理一次常见的年份尾巴（防止漏网）
+      // 最后再保险清理一次常见的年份尾巴(防止漏网)
       title = title.replace(/\.\d{4}$/i, '').trim();
     } else {
       // 没有 S##E## 格式，尝试提取第一个片段作为标题
