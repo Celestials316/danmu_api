@@ -7647,27 +7647,25 @@ function clearDanmuTest() {
      }
 
      const episodes = currentAnimeInfo.episodes;
-     document.getElementById('episodeListTitle').textContent = `${currentAnimeInfo.animeTitle} - 共 ${episodes.length} 集`;
+     document.getElementById('episodeListTitle').textContent = currentAnimeInfo.animeTitle + ' - 共 ' + episodes.length + ' 集';
 
      const html = episodes.map((ep, index) => {
        const epNum = ep.episodeNumber || (index + 1);
-       const epTitle = ep.episodeTitle || `第 ${epNum} 集`;
+       const epTitle = ep.episodeTitle || ('第 ' + epNum + ' 集');
        
-       return `
-         <div class="server-item" style="cursor: pointer; transition: all 0.3s;" onclick="loadEpisodeDanmu('${ep.episodeId}', '${epNum}')">
-           <div class="server-badge">${epNum}</div>
-           <div class="server-info">
-             <div class="server-name">${epTitle}</div>
-             <div class="server-url" style="font-size: 11px; color: var(--text-tertiary);">ID: ${ep.episodeId}</div>
-           </div>
-           <div class="server-actions">
-             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor">
-               <path d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" fill="currentColor"/>
-               <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
-             </svg>
-           </div>
-         </div>
-       `;
+       return '<div class="server-item" style="cursor: pointer; transition: all 0.3s;" onclick="loadEpisodeDanmu(\'' + ep.episodeId + '\', \'' + epNum + '\')">' +
+         '<div class="server-badge">' + epNum + '</div>' +
+         '<div class="server-info">' +
+           '<div class="server-name">' + epTitle + '</div>' +
+           '<div class="server-url" style="font-size: 11px; color: var(--text-tertiary);">ID: ' + ep.episodeId + '</div>' +
+         '</div>' +
+         '<div class="server-actions">' +
+           '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor">' +
+             '<path d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" fill="currentColor"/>' +
+             '<path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>' +
+           '</svg>' +
+         '</div>' +
+       '</div>';
      }).join('');
 
      document.getElementById('episodeListContent').innerHTML = html;
