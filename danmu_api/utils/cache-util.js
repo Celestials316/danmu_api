@@ -88,6 +88,12 @@ export function setCommentCache(videoUrl, comments) {
 
 // 添加元素到 episodeIds：检查 url 是否存在，若不存在则以自增 id 添加
 export function addEpisode(url, title) {
+    // 🔥 确保 episodeIds 是数组
+    if (!Array.isArray(globals.episodeIds)) {
+        log("warn", `[addEpisode] episodeIds is not an array, resetting to empty array`);
+        globals.episodeIds = [];
+    }
+
     // 检查是否已存在相同的 url 和 title
     const existingEpisode = globals.episodeIds.find(episode => episode.url === url && episode.title === title);
     if (existingEpisode) {
@@ -108,6 +114,13 @@ export function addEpisode(url, title) {
 
 // 删除指定 URL 的对象从 episodeIds
 export function removeEpisodeByUrl(url) {
+    // 🔥 确保 episodeIds 是数组
+    if (!Array.isArray(globals.episodeIds)) {
+        log("warn", `[removeEpisodeByUrl] episodeIds is not an array, resetting to empty array`);
+        globals.episodeIds = [];
+        return false;
+    }
+
     const initialLength = globals.episodeIds.length;
     globals.episodeIds = globals.episodeIds.filter(episode => episode.url !== url);
     const removedCount = initialLength - globals.episodeIds.length;
@@ -121,6 +134,12 @@ export function removeEpisodeByUrl(url) {
 
 // 根据 ID 查找 URL
 export function findUrlById(id) {
+    // 🔥 确保 episodeIds 是数组
+    if (!Array.isArray(globals.episodeIds)) {
+        log("warn", `[findUrlById] episodeIds is not an array`);
+        return null;
+    }
+
     const episode = globals.episodeIds.find(episode => episode.id === id);
     if (episode) {
         log("info", `Found URL for ID ${id}: ${episode.url}`);
@@ -132,6 +151,12 @@ export function findUrlById(id) {
 
 // 根据 ID 查找 TITLE
 export function findTitleById(id) {
+    // 🔥 确保 episodeIds 是数组
+    if (!Array.isArray(globals.episodeIds)) {
+        log("warn", `[findTitleById] episodeIds is not an array`);
+        return null;
+    }
+
     const episode = globals.episodeIds.find(episode => episode.id === id);
     if (episode) {
         log("info", `Found TITLE for ID ${id}: ${episode.title}`);
@@ -145,6 +170,16 @@ export function findTitleById(id) {
 export function addAnime(anime) {
     anime = Anime.fromJson(anime);
     try {
+        // 🔥 确保 animes 和 episodeIds 是数组
+        if (!Array.isArray(globals.animes)) {
+            log("warn", `[addAnime] animes is not an array, resetting to empty array`);
+            globals.animes = [];
+        }
+        if (!Array.isArray(globals.episodeIds)) {
+            log("warn", `[addAnime] episodeIds is not an array, resetting to empty array`);
+            globals.episodeIds = [];
+        }
+
         // 确保 anime 有 links 属性且是数组
         if (!anime.links || !Array.isArray(anime.links)) {
             log("error", `Invalid or missing links in anime: ${JSON.stringify(anime)}`);
@@ -202,6 +237,13 @@ export function addAnime(anime) {
 
 // 删除最早添加的 anime，并从 episodeIds 删除其 links 中的 url
 export function removeEarliestAnime() {
+    // 🔥 确保 animes 是数组
+    if (!Array.isArray(globals.animes)) {
+        log("warn", `[removeEarliestAnime] animes is not an array, resetting to empty array`);
+        globals.animes = [];
+        return false;
+    }
+
     if (globals.animes.length === 0) {
         log("error", "No animes to remove.");
         return false;
@@ -255,6 +297,12 @@ export function storeAnimeIdsToMap(curAnimes, key) {
 
 // 根据给定的 commentId 查找对应的 animeId
 export function findAnimeIdByCommentId(commentId) {
+  // 🔥 确保 animes 是数组
+  if (!Array.isArray(globals.animes)) {
+    log("warn", `[findAnimeIdByCommentId] animes is not an array`);
+    return [null, null];
+  }
+
   for (const anime of globals.animes) {
     for (const link of anime.links) {
       if (link.id === commentId) {
@@ -341,10 +389,14 @@ export async function getLocalCaches() {
     try {
       log("info", 'getLocalCaches start.');
 
-      // 从本地缓存文件读取数据并恢复到 globals 中
-      globals.animes = JSON.parse(readCacheFromFile('animes')) || globals.animes;
-      globals.episodeIds = JSON.parse(readCacheFromFile('episodeIds')) || globals.episodeIds;
-      globals.episodeNum = JSON.parse(readCacheFromFile('episodeNum')) || globals.episodeNum;
+      // 🔥 从本地缓存文件读取数据并恢复到 globals 中，确保类型正确
+      const animesData = readCacheFromFile('animes');
+      const episodeIdsData = readCacheFromFile('episodeIds');
+      const episodeNumData = readCacheFromFile('episodeNum');
+
+      globals.animes = animesData ? (Array.isArray(JSON.parse(animesData)) ? JSON.parse(animesData) : []) : [];
+      globals.episodeIds = episodeIdsData ? (Array.isArray(JSON.parse(episodeIdsData)) ? JSON.parse(episodeIdsData) : []) : [];
+      globals.episodeNum = episodeNumData ? (typeof JSON.parse(episodeNumData) === 'number' ? JSON.parse(episodeNumData) : 10001) : 10001;
 
       // 恢复 lastSelectMap 并转换为 Map 对象
       const lastSelectMapData = readCacheFromFile('lastSelectMap');
