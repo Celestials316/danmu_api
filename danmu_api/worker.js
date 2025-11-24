@@ -3960,13 +3960,13 @@ try {
    .manual-search-container {
      position: relative;
      min-height: 400px;
-     background: var(--bg-tertiary); /* 稍微深一点的背景，突出内容 */
+     background: var(--bg-tertiary);
      border: 1px solid var(--border-color);
      border-radius: 16px;
-     overflow: hidden; /* 隐藏滑动溢出 */
+     overflow: hidden;
    }
 
-   /* 视图容器，用于绝对定位切换 */
+   /* 视图容器 */
    .search-view {
      width: 100%;
      height: 100%;
@@ -3975,7 +3975,6 @@ try {
      opacity: 1;
    }
 
-   /* 隐藏状态 */
    .search-view.hidden-left {
      transform: translateX(-20%);
      opacity: 0;
@@ -4220,9 +4219,9 @@ try {
        padding-bottom: 12px;
        position: sticky;
        top: 0;
-       background: var(--bg-tertiary); /* 粘性头部背景 */
+       background: var(--bg-tertiary);
        z-index: 10;
-       margin-top: -10px; /* 修正顶部间距 */
+       margin-top: -10px;
        padding-top: 10px;
      }
 
@@ -4232,7 +4231,7 @@ try {
      
      .episode-grid {
        grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
-       max-height: none; /* 移动端滚动 */
+       max-height: none;
        padding-bottom: 40px;
      }
 
@@ -7445,22 +7444,22 @@ try {
      // 确保回到列表视图
      backToAnimeList();
      
-     animeContainer.innerHTML = `
+     animeContainer.innerHTML = \`
        <div style="grid-column: 1/-1; text-align: center; padding: 60px 0; color: var(--text-secondary);">
          <span class="loading-spinner" style="width: 32px; height: 32px; border-width: 3px;"></span> 
          <div style="margin-top: 16px;">正在搜索动漫...</div>
-       </div>`;
+       </div>\`;
      
      try {
        const response = await fetch(\`/api/v2/search/anime?keyword=\${encodeURIComponent(keyword)}\`);
        const result = await response.json();
        
        if (!result.success || !result.animes || result.animes.length === 0) {
-         animeContainer.innerHTML = `
+         animeContainer.innerHTML = \`
            <div style="grid-column: 1/-1; text-align: center; padding: 60px 0; color: var(--text-tertiary);">
              <div style="font-size: 48px; margin-bottom: 12px; opacity: 0.5;">🤔</div>
              未找到相关动漫，请尝试更换关键词
-           </div>`;
+           </div>\`;
          return;
        }
        
@@ -7514,11 +7513,11 @@ try {
      episodeView.classList.add('active');
      
      // 3. 显示加载状态
-     container.innerHTML = `
+     container.innerHTML = \`
        <div style="text-align: center; padding: 100px 0; color: var(--text-secondary);">
          <span class="loading-spinner" style="width: 40px; height: 40px; border-width: 3px;"></span>
          <div style="margin-top: 20px;">正在获取剧集列表...</div>
-       </div>`;
+       </div>\`;
      
      // 4. 滚动到顶部 (移动端优化)
      const searchContainer = document.querySelector('.manual-search-container');
@@ -7534,11 +7533,11 @@ try {
        
        const episodes = result.bangumi.episodes;
        if (episodes.length === 0) {
-         container.innerHTML = `
+         container.innerHTML = \`
            <div style="text-align: center; padding: 80px 0; color: var(--text-tertiary);">
              <div style="font-size: 48px; opacity: 0.5; margin-bottom: 16px;">📭</div>
              暂无剧集数据
-           </div>`;
+           </div>\`;
          return;
        }
        
@@ -7577,6 +7576,7 @@ try {
        listView.classList.add('active');
      }
    }
+
 
 
    // 加载特定剧集的弹幕
