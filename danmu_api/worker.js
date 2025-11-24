@@ -10601,6 +10601,10 @@ docker-compose pull danmu-api && docker-compose up -d danmu-api`;
         }
       }
 
+      // 🔥 关键修复：重置存储检查标志，强制下次请求重新加载数据库缓存
+      globals.storageChecked = false;
+      log("info", `[cache/clear] 已重置 storageChecked 标志，下次请求将重新加载数据库`);
+
       log("info", `[cache/clear] 已清理: ${clearedItems.join('、')}`);
 
       return jsonResponse({
