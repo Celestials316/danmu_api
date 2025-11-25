@@ -10280,19 +10280,23 @@ if (path === "/api/logout" && method === "POST") {
   if (path === "/api/version/update" && method === "POST") {
     try {
       // 验证是否在 Docker 环境中
-      const isDocker = process.env.DOCKER_ENV === 'true';
+      const isDocker = process.env.DOCKER_ENV === 'true' || 
+                      (typeof process !== 'undefined' && process.env?.DOCKER_ENV === 'true');
+      
       if (!isDocker) {
-        return jsonResponse({
+        return new Response(JSON.stringify({
           success: false,
           error: '当前环境不支持自动更新（仅支持 Docker 部署）'
-        }, 400);
+        }), {
+          status: 400,
+          headers: { 
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
       }
 
       log("info", "[update] 开始执行 Docker 容器更新...");
-
-      const { exec } = await import('child_process');
-      const { promisify } = await import('util');
-      const execAsync = promisify(exec);
 
       // 🔍 尝试通过 HTTP API 触发 Watchtower 更新
       let watchtowerApiUrl = process.env.WATCHTOWER_HTTP_API_URL || 'http://watchtower:8080';
@@ -10324,13 +10328,21 @@ if (path === "/api/logout" && method === "POST") {
         if (response.ok) {
           log("info", "[update] ✅ Watchtower HTTP API 触发成功");
           
-          // 🔥 重要：必须先返回成功响应，再让容器重启
-          return jsonResponse({
+          // 🔥 修复：手动构造带 CORS 头的响应，避免依赖外部函数，确保前端能收到成功消息
+          return new Response(JSON.stringify({
             success: true,
             message: '✅ 更新已触发，容器将在 30 秒后自动重启',
             method: 'watchtower-http-api',
             updateTriggered: true,
             estimatedTime: 30
+          }), {
+            status: 200,
+            headers: { 
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*',
+              'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+              'Access-Control-Allow-Headers': '*'
+            }
           });
         } else {
           const errorText = await response.text();
@@ -10340,7 +10352,7 @@ if (path === "/api/logout" && method === "POST") {
         
       } catch (watchtowerError) {
         log("error", `[update] Watchtower HTTP API 失败: ${watchtowerError.message}`);
-        // 继续执行手动更新提示
+        // 只有在 Watchtower 确实失败时，才向下执行方案 2
       }
 
       // 🔧 方案 2: 返回手动更新指令
@@ -10352,7 +10364,7 @@ docker pull w254992/danmu-api:latest && docker restart danmu-api
 # 或者如果使用 docker-compose：
 docker-compose pull danmu-api && docker-compose up -d danmu-api`;
       
-      return jsonResponse({
+      return new Response(JSON.stringify({
         success: false,
         error: '⚠️ 自动更新失败：容器内无法执行 Docker 命令',
         method: 'manual',
@@ -10368,19 +10380,32 @@ docker-compose pull danmu-api && docker-compose up -d danmu-api`;
    WATCHTOWER_HTTP_API_TOKEN: "your-secret-token"
    
 3. 重启容器后即可使用一键更新功能`
-      }, 400);
+      }), {
+        status: 400,
+        headers: { 
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      });
 
     } catch (error) {
       log("error", `[update] 更新失败: ${error.message}`);
       log("error", `[update] 错误堆栈: ${error.stack}`);
       
-      return jsonResponse({
+      return new Response(JSON.stringify({
         success: false,
         error: `❌ 更新失败: ${error.message}`,
         suggestion: '建议手动执行: docker pull w254992/danmu-api:latest && docker restart danmu-api'
-      }, 500);
+      }), {
+        status: 500,
+        headers: { 
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      });
     }
   }
+
 
   // GET /api/vod/test - 测试 VOD 服务器连通性
   if (path === "/api/vod/test" && method === "GET") {
