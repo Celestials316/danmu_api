@@ -10521,81 +10521,31 @@ docker-compose pull danmu-api && docker-compose up -d danmu-api`;
       const { clearSearch, clearComment, clearLastSelect, clearAll } = body;
 
       let clearedItems = [];
-      const keysToDelete = [];
-
-      // 1. 搜索缓存
-      if (clearAll || clearSearch) {
-        // 清空内存 Map
-        if (globals.caches && globals.caches.search) {
-          if (typeof globals.caches.search.clear === 'function') {
-             globals.caches.search.clear();
-          } else {
-             globals.caches.search = new Map();
-          }
-        }
-        // 清空主存储对象
-        if (globals.animes) {
-          globals.animes = {};
-          keysToDelete.push('animes');
-        }
-        clearedItems.push('搜索缓存');
-        log("info", "[cache/clear] 内存搜索缓存已清空");
-      }
-
-      // 2. 弹幕缓存
+      // 收集需要清理的 Key
+      const keysToClean = [];
+      if (clearAll || clearSearch) keysToClean.push('animes');
       if (clearAll || clearComment) {
-        if (globals.caches && globals.caches.comment) {
-          if (typeof globals.caches.comment.clear === 'function') {
-             globals.caches.comment.clear();
-          } else {
-             globals.caches.comment = new Map();
-          }
-        }
-        if (globals.episodeIds) {
-          globals.episodeIds = {};
-          keysToDelete.push('episodeIds');
-        }
-        if (globals.episodeNum) {
-          globals.episodeNum = {};
-          keysToDelete.push('episodeNum');
-        }
-        if (clearComment) {
-            clearedItems.push('弹幕缓存');
-            log("info", "[cache/clear] 内存弹幕缓存已清空");
-        }
+        keysToClean.push('episodeIds');
+        keysToClean.push('episodeNum');
       }
+      if (clearAll || clearLastSelect) keysToClean.push('lastSelectMap');
 
-      // 3. 最后选择记录
-      if (clearAll || clearLastSelect) {
-        if (globals.lastSelectMap) {
-          if (typeof globals.lastSelectMap.clear === 'function') {
-             globals.lastSelectMap.clear();
-          } else {
-             globals.lastSelectMap = new Map();
-          }
-          keysToDelete.push('lastSelectMap');
-          clearedItems.push('最后选择记录');
-          log("info", "[cache/clear] 内存选择记录已清空");
-        }
-      }
-
-      // 执行持久化清理 - 数据库
+      // 1. 优先执行持久化清理 (DB/Redis)
+      // 必须先清理远程存储，防止清理内存后又读取到旧数据
       if (globals.databaseValid) {
         try {
           const { clearAllCache, deleteCacheData } = await import('./utils/db-util.js');
           if (clearAll) {
             await clearAllCache();
             clearedItems.push('数据库全量');
-          } else if (keysToDelete.length > 0) {
-            // 确保并发删除完成
-            await Promise.all(keysToDelete.map(key => deleteCacheData(key)));
+          } else if (keysToClean.length > 0) {
+            await Promise.all(keysToClean.map(key => deleteCacheData(key)));
           }
         } catch (e) {
           log("warn", `[cache/clear] 数据库清理失败: ${e.message}`);
         }
       }
 
-      // 执行持久化清理 - Redis
       if (globals.redisValid) {
         try {
           const { runPipeline, delRedisKey } = await import('./utils/redis-util.js');
@@ -10605,24 +10555,60 @@ docker-compose pull danmu-api && docker-compose up -d danmu-api`;
             await runPipeline(commands);
             globals.lastHashes = {};
             clearedItems.push('Redis全量');
-          } else if (keysToDelete.length > 0) {
-            await Promise.all(keysToDelete.map(key => delRedisKey(key)));
+          } else if (keysToClean.length > 0) {
+            // 修复：非全量模式下也要清理对应的 Redis Key
+            await Promise.all(keysToClean.map(key => delRedisKey(key)));
           }
         } catch (e) {
           log("warn", `[cache/clear] Redis 清理失败: ${e.message}`);
         }
       }
 
-      // 🔥 修复：不再重置 storageChecked。
-      // 因为内存已经被手动清空了，现在的空状态就是最新状态。
-      // 如果重置为 false，会导致下一次请求重新从数据库加载（而数据库可能还有残留或读写延迟），导致旧缓存复活。
-      // globals.storageChecked = false; // <--- 这一行被移除
+      // 2. 内存深度清理 (强制重置引用)
+      if (clearAll || clearSearch) {
+        if (globals.caches?.search) {
+           if (typeof globals.caches.search.clear === 'function') globals.caches.search.clear();
+           else globals.caches.search = new Map();
+        }
+        globals.animes = {}; 
+        clearedItems.push('搜索缓存');
+      }
 
-      log("info", `[cache/clear] 缓存清理完成: ${clearedItems.join('、')}`);
+      if (clearAll || clearComment) {
+        if (globals.caches?.comment) {
+           if (typeof globals.caches.comment.clear === 'function') globals.caches.comment.clear();
+           else globals.caches.comment = new Map();
+        }
+        globals.episodeIds = {};
+        globals.episodeNum = {};
+        // 额外清理可能存在的临时对象引用
+        if(globals.caches?.bangumi) globals.caches.bangumi = {}; 
+        clearedItems.push('弹幕缓存');
+      }
+
+      if (clearAll || clearLastSelect) {
+        if (globals.lastSelectMap) {
+           if (typeof globals.lastSelectMap.clear === 'function') globals.lastSelectMap.clear();
+           else globals.lastSelectMap = new Map();
+        }
+        clearedItems.push('最后选择记录');
+      }
+
+      // 3. 关键修复：强制重置存储检查状态
+      // 只有将此标志置为 false，系统才会在下次请求时重新执行 "check storage" 流程。
+      // 此时因为步骤1已经清理了DB/Redis，重新检查会得到干净的空状态，从而解决"死锁"问题。
+      globals.storageChecked = false;
+      
+      // 强制垃圾回收建议 (仅在支持的环境下有效，辅助释放内存)
+      if (global.gc) {
+        try { global.gc(); } catch(e) {}
+      }
+
+      log("info", `[cache/clear] 缓存清理完成，系统状态已重置: ${clearedItems.join('、')}`);
 
       return jsonResponse({
         success: true,
-        message: `已清理: ${clearedItems.join('、')}`,
+        message: `已清理: ${clearedItems.join('、')} (状态已重置)`,
         clearedItems
       });
 
@@ -10634,6 +10620,7 @@ docker-compose pull danmu-api && docker-compose up -d danmu-api`;
       }, 500);
     }
   }
+
 
 
   return jsonResponse({ message: "Not found" }, 404);
