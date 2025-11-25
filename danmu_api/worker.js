@@ -10325,15 +10325,12 @@ if (path === "/api/logout" && method === "POST") {
           log("info", "[update] ✅ Watchtower HTTP API 触发成功");
           
           // 🔥 重要：必须先返回成功响应，再让容器重启
-          return new Response(JSON.stringify({
+          return jsonResponse({
             success: true,
             message: '✅ 更新已触发，容器将在 30 秒后自动重启',
             method: 'watchtower-http-api',
             updateTriggered: true,
             estimatedTime: 30
-          }), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' }
           });
         } else {
           const errorText = await response.text();
