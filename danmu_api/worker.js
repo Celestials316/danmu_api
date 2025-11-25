@@ -940,28 +940,40 @@ try {
       : Object.entries(globals.lastSelectMap);
   }
 
+  // 🔥 核心优化：按时间戳倒序排序（最新的排在最前面）
+  mapEntries.sort((a, b) => {
+    const tA = a[1]?.timestamp || a[1]?.time || a[1]?.date || a[1]?.createdAt || 0;
+    const tB = b[1]?.timestamp || b[1]?.time || b[1]?.date || b[1]?.createdAt || 0;
+    return tB - tA; // 时间戳大的（最新的）排前面
+  });
+
   // 2. 严格过滤与去重逻辑
   const uniqueEntries = [];
   if (mapEntries.length > 0) {
     const displayedKeys = new Set();
-    // 倒序遍历，只取最新的5条
-    for (let i = mapEntries.length - 1; i >= 0; i--) {
+    
+    // 因为已经按时间倒序排列了，所以直接正序遍历即可获取最新的
+    for (const [key, value] of mapEntries) {
       if (uniqueEntries.length >= 5) break;
 
-      const [key, value] = mapEntries[i];
       if (!value || typeof value !== 'object') continue;
 
       const targetId = value.id || value.animeId || value.episodeId;
       if (!targetId || ['未匹配', '无数据', 'null', 'undefined'].includes(String(targetId))) continue;
 
+      // 提取原始搜索词（通常是剧名）作为去重依据
       const cleanKeyName = String(key).replace(/\s*from\s+.*$/i, '').trim();
-      const uniqueKey = (value.animeId && value.episodeTitle) 
-        ? `${value.animeId}:${value.episodeTitle}` 
-        : cleanKeyName;
+      
+      // 构造唯一键。
+      // 如果你想在列表中看到同一部剧的不同集数（如看了第1集又看第2集，保留两条记录），
+      // 请使用: const uniqueKey = value.animeId ? `${value.animeId}:${value.episodeTitle}` : cleanKeyName;
+      // 
+      // 如果你只想看到该剧的【最新】观看记录（看第2集后，第1集记录不再显示），请使用下面的逻辑（推荐）：
+      // 优先使用 animeTitle 或 animeId 去重，这样能保证同一部剧只显示最新的进度
+      const uniqueKey = value.animeTitle || cleanKeyName;
 
-      if (!displayedKeys.has(uniqueKey) && !displayedKeys.has(cleanKeyName)) {
+      if (!displayedKeys.has(uniqueKey)) {
         displayedKeys.add(uniqueKey);
-        displayedKeys.add(cleanKeyName);
         uniqueEntries.push([key, value]);
       }
     }
@@ -1172,9 +1184,6 @@ try {
     </div>
   `;
 }
-
-
-
 
 
     const sourcesHtml = globals.sourceOrderArr.length > 0 
