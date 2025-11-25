@@ -426,10 +426,61 @@ export async function extractTitleSeasonEpisode(cleanFileName) {
     // 2. 支持：纯中文、纯英文、中英混排、带年份的、中文+单个字母（如亲爱的X）
     // 3. 自动去掉后面的年份、技术参数等垃圾
 
-    // 情况1：开头是中文（最常见的中文字幕组文件名）
-    const chineseStart = title.match(/^[\u4e00-\u9fa5·]+[^\.\r\n]*/); // 允许中文后面紧跟非.符号，如 亲爱的X、宇宙Marry Me?
+    // 情况1:开头是中文（最常见的中文字幕组文件名）
+    // 允许中文后面紧跟非.符号，包括英文单词和标点符号（如 亲爱的X、宇宙Marry Me?、南京！南京！）
+    const chineseStart = title.match(/^[\u4e00-\u9fa5·]+[^\.\r\n]*/);
     if (chineseStart) {
-      title = chineseStart[0];
+      let extractedTitle = chineseStart[0];
+      
+      // 智能处理结尾标点符号：根据标点前的字符类型统一标点
+      // 支持的标点：问号(?？)、感叹号(!！)、省略号(...…)
+      
+      // 处理问号
+      if (/[?？]$/.test(extractedTitle)) {
+        const beforePunct = extractedTitle.slice(0, -1);
+        const lastChar = beforePunct.slice(-1);
+        // 如果标点前是中文字符，统一用中文问号
+        if (/[\u4e00-\u9fa5]/.test(lastChar)) {
+          extractedTitle = beforePunct + '？';
+        } 
+        // 如果标点前是英文字符，统一用英文问号
+        else if (/[a-zA-Z0-9]/.test(lastChar)) {
+          extractedTitle = beforePunct + '?';
+        }
+      }
+      
+      // 处理感叹号
+      else if (/[!！]$/.test(extractedTitle)) {
+        const beforePunct = extractedTitle.slice(0, -1);
+        const lastChar = beforePunct.slice(-1);
+        // 如果标点前是中文字符，统一用中文感叹号
+        if (/[\u4e00-\u9fa5]/.test(lastChar)) {
+          extractedTitle = beforePunct + '！';
+        } 
+        // 如果标点前是英文字符，统一用英文感叹号
+        else if (/[a-zA-Z0-9]/.test(lastChar)) {
+          extractedTitle = beforePunct + '!';
+        }
+      }
+      
+      // 处理省略号（中文六点…… 或 英文三点...）
+      else if (/[.…]+$/.test(extractedTitle)) {
+        const match = extractedTitle.match(/^(.+?)([.…]+)$/);
+        if (match) {
+          const beforePunct = match[1];
+          const lastChar = beforePunct.slice(-1);
+          // 如果省略号前是中文字符，统一用中文省略号
+          if (/[\u4e00-\u9fa5]/.test(lastChar)) {
+            extractedTitle = beforePunct + '…';
+          } 
+          // 如果省略号前是英文字符，统一用英文省略号
+          else if (/[a-zA-Z0-9]/.test(lastChar)) {
+            extractedTitle = beforePunct + '...';
+          }
+        }
+      }
+      
+      title = extractedTitle;
     }
     // 情况2：开头是英文（欧美剧常见，如 Blood.River）
     else if (/^[A-Za-z0-9]/.test(title)) {
