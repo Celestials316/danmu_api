@@ -10521,7 +10521,7 @@ docker-compose pull danmu-api && docker-compose up -d danmu-api`;
       const { clearSearch, clearComment, clearLastSelect, clearAll } = body;
 
       let clearedItems = [];
-      // 收集需要清理的 Key
+      // 收集需要清理的 Key 用于持久化层
       const keysToClean = [];
       if (clearAll || clearSearch) keysToClean.push('animes');
       if (clearAll || clearComment) {
@@ -10530,8 +10530,7 @@ docker-compose pull danmu-api && docker-compose up -d danmu-api`;
       }
       if (clearAll || clearLastSelect) keysToClean.push('lastSelectMap');
 
-      // 1. 优先执行持久化清理 (DB/Redis)
-      // 必须先清理远程存储，防止清理内存后又读取到旧数据
+      // 1. 清理持久化层 (DB/Redis)
       if (globals.databaseValid) {
         try {
           const { clearAllCache, deleteCacheData } = await import('./utils/db-util.js');
@@ -10556,7 +10555,6 @@ docker-compose pull danmu-api && docker-compose up -d danmu-api`;
             globals.lastHashes = {};
             clearedItems.push('Redis全量');
           } else if (keysToClean.length > 0) {
-            // 修复：非全量模式下也要清理对应的 Redis Key
             await Promise.all(keysToClean.map(key => delRedisKey(key)));
           }
         } catch (e) {
@@ -10564,51 +10562,59 @@ docker-compose pull danmu-api && docker-compose up -d danmu-api`;
         }
       }
 
-      // 2. 内存深度清理 (强制重置引用)
-      if (clearAll || clearSearch) {
-        if (globals.caches?.search) {
-           if (typeof globals.caches.search.clear === 'function') globals.caches.search.clear();
-           else globals.caches.search = new Map();
+      // 2. 清理内存 - 关键：保持引用，清空内容
+      // 不要使用 = {} 赋值，这会断开其他模块持有的引用
+      const clearObject = (obj) => {
+        if (!obj || typeof obj !== 'object') return;
+        // 如果是数组，重置长度
+        if (Array.isArray(obj)) {
+          obj.length = 0;
+        } else {
+          // 如果是对象，删除所有键
+          for (const key in obj) {
+            if (Object.prototype.hasOwnProperty.call(obj, key)) {
+              delete obj[key];
+            }
+          }
         }
-        globals.animes = {}; 
+      };
+
+      if (clearAll || clearSearch) {
+        if (globals.caches?.search) globals.caches.search.clear();
+        // 这里的关键修复：不要重新赋值 globals.animes = {}
+        if (globals.animes) clearObject(globals.animes);
         clearedItems.push('搜索缓存');
       }
 
       if (clearAll || clearComment) {
-        if (globals.caches?.comment) {
-           if (typeof globals.caches.comment.clear === 'function') globals.caches.comment.clear();
-           else globals.caches.comment = new Map();
+        if (globals.caches?.comment) globals.caches.comment.clear();
+        // 关键修复：保留引用，清空内容
+        if (globals.episodeIds) clearObject(globals.episodeIds);
+        if (globals.episodeNum) clearObject(globals.episodeNum);
+        // 额外清理可能的 bangumi 缓存
+        if (globals.caches?.bangumi && typeof globals.caches.bangumi === 'object') {
+             clearObject(globals.caches.bangumi);
         }
-        globals.episodeIds = {};
-        globals.episodeNum = {};
-        // 额外清理可能存在的临时对象引用
-        if(globals.caches?.bangumi) globals.caches.bangumi = {}; 
         clearedItems.push('弹幕缓存');
       }
 
       if (clearAll || clearLastSelect) {
-        if (globals.lastSelectMap) {
-           if (typeof globals.lastSelectMap.clear === 'function') globals.lastSelectMap.clear();
-           else globals.lastSelectMap = new Map();
-        }
+        if (globals.lastSelectMap) globals.lastSelectMap.clear();
         clearedItems.push('最后选择记录');
       }
 
-      // 3. 关键修复：强制重置存储检查状态
-      // 只有将此标志置为 false，系统才会在下次请求时重新执行 "check storage" 流程。
-      // 此时因为步骤1已经清理了DB/Redis，重新检查会得到干净的空状态，从而解决"死锁"问题。
+      // 3. 强制重置状态，触发下一次请求的正确初始化
+      // 此时因为步骤1已清理了DB，重新校验会得到正确的空状态
       globals.storageChecked = false;
-      
-      // 强制垃圾回收建议 (仅在支持的环境下有效，辅助释放内存)
-      if (global.gc) {
-        try { global.gc(); } catch(e) {}
-      }
 
-      log("info", `[cache/clear] 缓存清理完成，系统状态已重置: ${clearedItems.join('、')}`);
+      // 强制垃圾回收（辅助）
+      if (global.gc) { try { global.gc(); } catch(e) {} }
+
+      log("info", `[cache/clear] 缓存清理完成 (引用保留模式): ${clearedItems.join('、')}`);
 
       return jsonResponse({
         success: true,
-        message: `已清理: ${clearedItems.join('、')} (状态已重置)`,
+        message: `已清理: ${clearedItems.join('、')}`,
         clearedItems
       });
 
