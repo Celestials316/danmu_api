@@ -18,6 +18,7 @@ import DoubanSource from "../sources/douban.js";
 import RenrenSource from "../sources/renren.js";
 import HanjutvSource from "../sources/hanjutv.js";
 import BahamutSource from "../sources/bahamut.js";
+import DandanSource from "../sources/dandan.js";
 import TencentSource from "../sources/tencent.js";
 import IqiyiSource from "../sources/iqiyi.js";
 import MangoSource from "../sources/mango.js";
@@ -35,6 +36,7 @@ const vodSource = new VodSource();
 const renrenSource = new RenrenSource();
 const hanjutvSource = new HanjutvSource();
 const bahamutSource = new BahamutSource();
+const dandanSource = new DandanSource();
 const tencentSource = new TencentSource();
 const youkuSource = new YoukuSource();
 const iqiyiSource = new IqiyiSource();
@@ -168,6 +170,7 @@ export async function searchAnime(url, preferAnimeId = null, preferSource = null
       if (source === "renren") return renrenSource.search(queryTitle);
       if (source === "hanjutv") return hanjutvSource.search(queryTitle);
       if (source === "bahamut") return bahamutSource.search(queryTitle);
+      if (source === "dandan") return dandanSource.search(queryTitle);      
       if (source === "tencent") return tencentSource.search(queryTitle);
       if (source === "youku") return youkuSource.search(queryTitle);
       if (source === "iqiyi") return iqiyiSource.search(queryTitle);
@@ -189,8 +192,8 @@ export async function searchAnime(url, preferAnimeId = null, preferSource = null
     // 解构出返回的结果
     const {
       vod: animesVodResults, 360: animes360, tmdb: animesTmdb, douban: animesDouban, renren: animesRenren,
-      hanjutv: animesHanjutv, bahamut: animesBahamut, tencent: animesTencent, youku: animesYouku, iqiyi: animesIqiyi,
-      imgo: animesImgo, bilibili: animesBilibili
+      hanjutv: animesHanjutv, bahamut: animesBahamut, dandan: animesDandan, tencent: animesTencent, youku: animesYouku,
+      iqiyi: animesIqiyi, imgo: animesImgo, bilibili: animesBilibili
     } = resultData;
 
     // 按顺序处理每个来源的结果
@@ -222,6 +225,9 @@ export async function searchAnime(url, preferAnimeId = null, preferSource = null
       } else if (key === 'bahamut') {
         // 等待处理Bahamut来源
         await bahamutSource.handleAnimes(animesBahamut, queryTitle, curAnimes);
+      } else if (key === 'dandan') {
+        // 等待处理弹弹play来源
+        await dandanSource.handleAnimes(animesDandan, queryTitle, curAnimes);
       } else if (key === 'tencent') {
         // 等待处理Tencent来源
         await tencentSource.handleAnimes(animesTencent, queryTitle, curAnimes);
@@ -317,11 +323,11 @@ function filterSameEpisodeTitle(filteredTmpEpisodes) {
 async function matchAniAndEp(season, episode, searchData, title, req, platform, preferAnimeId) {
   let resAnime;
   let resEpisode;
-  
+
   // 🔥 添加类型验证：确保 season 和 episode 是有效的数字
   const isValidSeason = season !== null && season !== undefined && typeof season === 'number' && !isNaN(season);
   const isValidEpisode = episode !== null && episode !== undefined && typeof episode === 'number' && !isNaN(episode);
-  
+
   if (isValidSeason && isValidEpisode) {
     // 判断剧集
     const normalizedTitle = normalizeSpaces(title);
@@ -405,17 +411,17 @@ async function matchAniAndEp(season, episode, searchData, title, req, platform, 
 async function fallbackMatchAniAndEp(searchData, req, season, episode, resEpisode, resAnime) {
   // 🔥 确保 searchData.animes 是数组
   const animeList = Array.isArray(searchData.animes) ? searchData.animes : [];
-  
+
   // 🔥 添加类型验证
   const isValidSeason = season !== null && season !== undefined && typeof season === 'number' && !isNaN(season);
   const isValidEpisode = episode !== null && episode !== undefined && typeof episode === 'number' && !isNaN(episode);
-  
+
   for (const anime of animeList) {
     let originBangumiUrl = new URL(req.url.replace("/match", `bangumi/${anime.bangumiId}`));
     const bangumiRes = await getBangumi(originBangumiUrl.pathname);
     const bangumiData = await bangumiRes.json();
     log("info", bangumiData);
-    
+
     if (isValidSeason && isValidEpisode) {
       // 过滤集标题正则条件的 episode
       const filteredTmpEpisodes = bangumiData.bangumi.episodes.filter(episode => {
@@ -856,6 +862,8 @@ export async function getComment(path, queryFormat) {
       danmus = await hanjutvSource.getComments(url, plat);
     } else if (plat === "bahamut") {
       danmus = await bahamutSource.getComments(url, plat);
+    } else if (plat === "dandan") {
+      danmus = await dandanSource.getComments(url, plat);
     }
   }
 
