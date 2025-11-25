@@ -27,6 +27,57 @@ import YoukuSource from "../sources/youku.js";
 import OtherSource from "../sources/other.js";
 import {Anime, AnimeMatch, Episodes, Bangumi} from "../models/dandan-model.js";
 
+// 🔥 新增：标准化搜索关键词中的标点符号
+function normalizeSearchKeyword(keyword) {
+  if (!keyword) return keyword;
+  
+  let normalized = keyword;
+  
+  // 智能处理标点符号：根据标点前的字符类型统一标点
+  // 处理问号
+  normalized = normalized.replace(/([?？])/g, (match, punct, offset) => {
+    if (offset === 0) return punct; // 开头的标点保持原样
+    const beforeChar = normalized[offset - 1];
+    // 中文字符后用中文问号
+    if (/[\u4e00-\u9fa5]/.test(beforeChar)) {
+      return '？';
+    }
+    // 英文/数字后用英文问号
+    else if (/[a-zA-Z0-9]/.test(beforeChar)) {
+      return '?';
+    }
+    return punct;
+  });
+  
+  // 处理感叹号
+  normalized = normalized.replace(/([!！])/g, (match, punct, offset) => {
+    if (offset === 0) return punct;
+    const beforeChar = normalized[offset - 1];
+    if (/[\u4e00-\u9fa5]/.test(beforeChar)) {
+      return '！';
+    }
+    else if (/[a-zA-Z0-9]/.test(beforeChar)) {
+      return '!';
+    }
+    return punct;
+  });
+  
+  // 处理省略号
+  normalized = normalized.replace(/([.…]{2,})/g, (match, punct, offset) => {
+    if (offset === 0) return punct;
+    const beforeChar = normalized[offset - 1];
+    if (/[\u4e00-\u9fa5]/.test(beforeChar)) {
+      return '…';
+    }
+    else if (/[a-zA-Z0-9]/.test(beforeChar)) {
+      return '...';
+    }
+    return punct;
+  });
+  
+  return normalized;
+}
+
 // =====================
 // 兼容弹弹play接口
 // =====================
@@ -76,7 +127,7 @@ function matchSeason(anime, queryTitle, season) {
 
 // Extracted function for GET /api/v2/search/anime
 export async function searchAnime(url, preferAnimeId = null, preferSource = null) {
-  const queryTitle = url.searchParams.get("keyword");
+  let queryTitle = url.searchParams.get("keyword");
   log("info", `Search anime with keyword: ${queryTitle}`);
 
   // 关键字为空直接返回，不用多余查询
@@ -88,6 +139,10 @@ export async function searchAnime(url, preferAnimeId = null, preferSource = null
       animes: [],
     });
   }
+
+  // 🔥 标准化搜索关键词中的标点符号，提高缓存命中率
+  queryTitle = normalizeSearchKeyword(queryTitle);
+  log("info", `Normalized search keyword: ${queryTitle}`);
 
   // 检查搜索缓存
   const cachedResults = getSearchCache(queryTitle);
