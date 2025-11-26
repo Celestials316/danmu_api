@@ -6527,29 +6527,54 @@ try {
    function initSourcesPage() {
      console.log('初始化搜索源管理页面');
      
-     // 初始化源状态
-     ALL_SOURCES.forEach(source => {
-       sourceStatus[source] = true; // 默认全部启用
-     });
-     
-     ALL_PLATFORMS.forEach(platform => {
-       platformStatus[platform] = true; // 默认全部启用
-     });
-     
-     // 从配置中恢复状态
-     if (AppState.config.SOURCE_STATUS) {
-       try {
-         sourceStatus = JSON.parse(AppState.config.SOURCE_STATUS);
-       } catch (e) {
-         console.warn('解析 SOURCE_STATUS 失败');
+     // 1. 动态合并环境变量中的自定义源到 ALL_SOURCES
+     if (AppState.config.SOURCE_ORDER) {
+       const configuredSources = AppState.config.SOURCE_ORDER.split(',').map(s => s.trim()).filter(s => s);
+       configuredSources.forEach(s => {
+         if (!ALL_SOURCES.includes(s)) ALL_SOURCES.push(s);
+       });
+     }
+
+     // 2. 动态合并环境变量中的自定义平台到 ALL_PLATFORMS
+     if (AppState.config.PLATFORM_ORDER) {
+       const configuredPlatforms = AppState.config.PLATFORM_ORDER.split(',').map(s => s.trim()).filter(s => s);
+       configuredPlatforms.forEach(p => {
+         if (!ALL_PLATFORMS.includes(p)) ALL_PLATFORMS.push(p);
+       });
+     }
+
+     // 3. 初始化源状态 (基于 SOURCE_ORDER 环境变量作为事实标准)
+     // 如果配置了 SOURCE_ORDER，则只启用在其中的项，其他的禁用。如果没有配置，则默认全部启用。
+     if (AppState.config.SOURCE_ORDER) {
+       const activeSources = new Set(AppState.config.SOURCE_ORDER.split(',').map(s => s.trim()));
+       ALL_SOURCES.forEach(source => {
+         sourceStatus[source] = activeSources.has(source);
+       });
+     } else {
+       // 首次使用或未配置，默认全部启用
+       ALL_SOURCES.forEach(source => sourceStatus[source] = true);
+       // 尝试读取旧的辅助状态配置（如果有）
+       if (AppState.config.SOURCE_STATUS) {
+         try {
+           const savedStatus = JSON.parse(AppState.config.SOURCE_STATUS);
+           Object.assign(sourceStatus, savedStatus);
+         } catch (e) { console.warn('解析 SOURCE_STATUS 失败'); }
        }
      }
      
-     if (AppState.config.PLATFORM_STATUS) {
-       try {
-         platformStatus = JSON.parse(AppState.config.PLATFORM_STATUS);
-       } catch (e) {
-         console.warn('解析 PLATFORM_STATUS 失败');
+     // 4. 初始化平台状态 (同理)
+     if (AppState.config.PLATFORM_ORDER) {
+       const activePlatforms = new Set(AppState.config.PLATFORM_ORDER.split(',').map(s => s.trim()));
+       ALL_PLATFORMS.forEach(platform => {
+         platformStatus[platform] = activePlatforms.has(platform);
+       });
+     } else {
+       ALL_PLATFORMS.forEach(platform => platformStatus[platform] = true);
+       if (AppState.config.PLATFORM_STATUS) {
+         try {
+           const savedStatus = JSON.parse(AppState.config.PLATFORM_STATUS);
+           Object.assign(platformStatus, savedStatus);
+         } catch (e) { console.warn('解析 PLATFORM_STATUS 失败'); }
        }
      }
      
@@ -6584,26 +6609,27 @@ try {
        targetTab.classList.add('active');
      }
    }
-// 加载搜索源顺序列表
+   // 加载搜索源顺序列表
    function loadSourceOrderList() {
      const container = document.getElementById('sourceOrderList');
      if (!container) return;
 
-     // 从环境变量获取当前顺序
-     let currentOrder = [];
+     // 1. 解析环境变量中的顺序（这些是启用的，且有顺序）
+     let activeOrder = [];
      const sourceOrderEnv = AppState.config.SOURCE_ORDER;
      
      if (sourceOrderEnv) {
-       currentOrder = sourceOrderEnv.split(',').map(s => s.trim()).filter(s => s);
+       activeOrder = sourceOrderEnv.split(',').map(s => s.trim()).filter(s => s);
      } else {
-       currentOrder = ['360', 'vod', 'renren', 'hanjutv'];
+       // 默认缺省
+       activeOrder = ['360', 'vod', 'renren', 'hanjutv'];
      }
      
-     // 确保所有源都在列表中（包括未配置的）
-     const allSourcesSet = new Set([...currentOrder, ...ALL_SOURCES]);
-     const finalOrder = [...currentOrder];
+     // 2. 构建完整列表：先放启用的（按顺序），再放禁用的（按默认顺序）
+     // 这样确保列表里包含所有 ALL_SOURCES 里的项
+     const finalOrder = [...activeOrder];
      
-     // 添加未配置的源到末尾
+     // 找出所有不在 activeOrder 里的源，追加到后面
      ALL_SOURCES.forEach(source => {
        if (!finalOrder.includes(source)) {
          finalOrder.push(source);
@@ -6612,10 +6638,18 @@ try {
 
      const html = finalOrder.map((source, index) => {
        const sourceName = SOURCE_NAMES[source] || source;
-       const sourceDesc = SOURCE_DESCRIPTIONS[source] || '';
-       const icon = source === '360' ? '360' : source.substring(0, 2).toUpperCase();
-       const isEnabled = sourceStatus[source] !== false;
+       const sourceDesc = SOURCE_DESCRIPTIONS[source] || '自定义数据源';
+       // 简单的图标逻辑：如果是已知源用已知图标，否则取首字母
+       let icon = source.substring(0, 2).toUpperCase();
+       if (source === '360') icon = '360';
+       
+       // 状态判断：必须显式为 true (基于 initSourcesPage 的初始化逻辑)
+       const isEnabled = sourceStatus[source] === true;
        const disabledClass = isEnabled ? '' : 'disabled';
+       
+       // 优先级显示：只有启用的才显示数字，禁用的显示 -
+       const priorityDisplay = isEnabled ? (activeOrder.indexOf(source) + 1) : '-';
+       const priorityClass = isEnabled ? '' : 'style="background: var(--text-tertiary);"';
        
        return \`
          <div class="source-modern-item draggable \${disabledClass}" draggable="true" data-index="\${index}" data-source="\${source}">
@@ -6624,7 +6658,7 @@ try {
                <path d="M9 5h2v2H9V5zm0 6h2v2H9v-2zm0 6h2v2H9v-2zm4-12h2v2h-2V5zm0 6h2v2h-2v-2zm0 6h2v2h-2v-2z" fill="currentColor"/>
              </svg>
            </div>
-           <div class="source-modern-priority">\${index + 1}</div>
+           <div class="source-modern-priority" \${priorityClass}>\${priorityDisplay}</div>
            <div class="source-modern-icon">\${icon}</div>
            <div class="source-modern-info">
              <div class="source-modern-name">\${sourceName}</div>
@@ -6665,16 +6699,16 @@ try {
      const container = document.getElementById('platformOrderList');
      if (!container) return;
 
-     // 从环境变量获取当前顺序
-     let currentOrder = [];
+     // 1. 解析环境变量中的顺序（启用的）
+     let activeOrder = [];
      const platformOrderEnv = AppState.config.PLATFORM_ORDER;
      
      if (platformOrderEnv) {
-       currentOrder = platformOrderEnv.split(',').map(s => s.trim()).filter(s => s);
+       activeOrder = platformOrderEnv.split(',').map(s => s.trim()).filter(s => s);
      }
      
-     // 确保所有平台都在列表中
-     const finalOrder = [...currentOrder];
+     // 2. 构建完整列表：先放启用的，再放禁用的
+     const finalOrder = [...activeOrder];
      ALL_PLATFORMS.forEach(platform => {
        if (!finalOrder.includes(platform)) {
          finalOrder.push(platform);
@@ -6683,10 +6717,14 @@ try {
 
      const html = finalOrder.map((platform, index) => {
        const platformName = PLATFORM_NAMES[platform] || platform;
-       const platformDesc = PLATFORM_DESCRIPTIONS[platform] || '';
+       const platformDesc = PLATFORM_DESCRIPTIONS[platform] || '自定义平台';
        const icon = platform.substring(0, 2).toUpperCase();
-       const isEnabled = platformStatus[platform] !== false;
+       
+       const isEnabled = platformStatus[platform] === true;
        const disabledClass = isEnabled ? '' : 'disabled';
+       
+       const priorityDisplay = isEnabled ? (activeOrder.indexOf(platform) + 1) : '-';
+       const priorityClass = isEnabled ? '' : 'style="background: var(--text-tertiary);"';
        
        return \`
          <div class="source-modern-item draggable \${disabledClass}" draggable="true" data-index="\${index}" data-platform="\${platform}">
@@ -6695,7 +6733,7 @@ try {
                <path d="M9 5h2v2H9V5zm0 6h2v2H9v-2zm0 6h2v2H9v-2zm4-12h2v2h-2V5zm0 6h2v2h-2v-2zm0 6h2v2h-2v-2z" fill="currentColor"/>
              </svg>
            </div>
-           <div class="source-modern-priority">\${index + 1}</div>
+           <div class="source-modern-priority" \${priorityClass}>\${priorityDisplay}</div>
            <div class="source-modern-icon">\${icon}</div>
            <div class="source-modern-info">
              <div class="source-modern-name">\${platformName}</div>
