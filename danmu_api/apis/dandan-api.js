@@ -24,7 +24,8 @@ import IqiyiSource from "../sources/iqiyi.js";
 import MangoSource from "../sources/mango.js";
 import BilibiliSource from "../sources/bilibili.js";
 import YoukuSource from "../sources/youku.js";
-import SohuSource from "../sources/sohu.js";  // 🔥 新增
+import SohuSource from "../sources/sohu.js";
+import LetvSource from "../sources/letv.js";  // 🔥 新增
 import OtherSource from "../sources/other.js";
 import {Anime, AnimeMatch, Episodes, Bangumi} from "../models/dandan-model.js";
 
@@ -94,8 +95,8 @@ const youkuSource = new YoukuSource();
 const iqiyiSource = new IqiyiSource();
 const mangoSource = new MangoSource();
 const bilibiliSource = new BilibiliSource();
-// 第62行 - 缺少这一行！
 const sohuSource = new SohuSource();
+const letvSource = new LetvSource();  // 🔥 新增
 const otherSource = new OtherSource();
 const doubanSource = new DoubanSource(tencentSource, iqiyiSource, youkuSource, bilibiliSource);
 const tmdbSource = new TmdbSource(doubanSource);
@@ -234,7 +235,8 @@ export async function searchAnime(url, preferAnimeId = null, preferSource = null
       if (source === "iqiyi") return iqiyiSource.search(queryTitle);
       if (source === "imgo") return mangoSource.search(queryTitle);
       if (source === "bilibili") return bilibiliSource.search(queryTitle);
-      if (source === "sohu") return sohuSource.search(queryTitle);  // 🔥 新增
+      if (source === "sohu") return sohuSource.search(queryTitle);
+      if (source === "letv") return letvSource.search(queryTitle);  // 🔥 新增
     });
 
     // 执行所有请求并等待结果
@@ -252,7 +254,7 @@ export async function searchAnime(url, preferAnimeId = null, preferSource = null
     const {
       vod: animesVodResults, 360: animes360, tmdb: animesTmdb, douban: animesDouban, renren: animesRenren,
       hanjutv: animesHanjutv, bahamut: animesBahamut, dandan: animesDandan, tencent: animesTencent, youku: animesYouku,
-      iqiyi: animesIqiyi, imgo: animesImgo, bilibili: animesBilibili, sohu: animesSohu  // 🔥 新增
+      iqiyi: animesIqiyi, imgo: animesImgo, bilibili: animesBilibili, sohu: animesSohu, letv: animesLetv  // 🔥 新增
     } = resultData;
 
     // 按顺序处理每个来源的结果
@@ -303,8 +305,11 @@ export async function searchAnime(url, preferAnimeId = null, preferSource = null
         // 等待处理Bilibili来源
         await bilibiliSource.handleAnimes(animesBilibili, queryTitle, curAnimes);
       } else if (key === 'sohu') {
-        // 🔥 新增：等待处理Sohu来源
+        // 等待处理Sohu来源
         await sohuSource.handleAnimes(animesSohu, queryTitle, curAnimes);
+      } else if (key === 'letv') {
+        // 🔥 新增：等待处理Letv来源
+        await letvSource.handleAnimes(animesLetv, queryTitle, curAnimes);
       }
     }
   } catch (error) {
@@ -953,8 +958,11 @@ export async function getComment(path, queryFormat) {
   } else if (url.includes('.youku.com')) {
     danmus = await youkuSource.getComments(url, plat);
   } else if (url.includes('.sohu.com') || url.includes('tv.sohu.com')) {
-    // 🔥 新增：处理搜狐视频
+    // 处理搜狐视频
     danmus = await sohuSource.getComments(url, plat);
+  } else if (url.includes('.le.com')) {
+    // 🔥 新增：处理乐视视频
+    danmus = await letvSource.getComments(url, plat);
   }
 
   // 请求其他平台弹幕
@@ -1099,8 +1107,11 @@ export async function getCommentByUrl(videoUrl, queryFormat) {
     } else if (url.includes('.youku.com')) {
       danmus = await youkuSource(url, "youku");
     } else if (url.includes('.sohu.com') || url.includes('tv.sohu.com')) {
-      // 🔥 新增：处理搜狐视频
+      // 处理搜狐视频
       danmus = await sohuSource.getComments(url, "sohu");
+    } else if (url.includes('.le.com')) {
+      // 🔥 新增：处理乐视视频
+      danmus = await letvSource.getComments(url, "letv");
     } else {
       // 如果不是已知平台，尝试第三方弹幕服务器
       const urlPattern = /^(https?:\/\/)?([\w.-]+)\.([a-z]{2,})(\/.*)?$/i;
