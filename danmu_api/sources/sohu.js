@@ -429,86 +429,79 @@ export default class SohuSource extends BaseSource {
     }
   }
 
-  async getDanmuSegment(vid, aid, start, end) {
-    try {
-      const params = new URLSearchParams({
-        act: 'dmlist_v2',
-        vid: vid,
-        aid: aid,
-        pct: '2',
-        time_begin: String(start),
-        time_end: String(end),
-        dct: '1',
-        request_from: 'h5_js'
-      });
+async getDanmuSegment(vid, aid, start, end) {
+  try {
+    const params = new URLSearchParams({
+      act: 'dmlist_v2',
+      vid: vid,
+      aid: aid,
+      pct: '2',
+      time_begin: String(start),
+      time_end: String(end),
+      dct: '1',
+      request_from: 'h5_js'
+    });
 
-      const response = await httpGet(`${this.danmuApiUrl}?${params.toString()}`, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          'Referer': 'https://tv.sohu.com/'
-        }
-      });
-
-      if (!response || !response.data) {
-        return [];
+    const url = `${this.danmuApiUrl}?${params.toString()}`;
+    
+    const response = await httpGet(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Referer': 'https://tv.sohu.com/'
       }
+    });
 
-      const data = typeof response.data === "string" ? JSON.parse(response.data) : response.data;
-      const comments = data?.info?.comments || [];
-
-      return comments;
-
-    } catch (error) {
-      log("error", `[Sohu] 获取弹幕段失败 (vid=${vid}, ${start}-${end}s):`, error.message);
+    if (!response || !response.data) {
       return [];
     }
-  }
 
-  parseColor(comment) {
-    try {
-      const color = comment?.t?.c || '16777215';
-      if (typeof color === 'string' && color.startsWith('#')) {
-        return parseInt(color.substring(1), 16);
-      }
-      return parseInt(String(color), 16) || 16777215;
-    } catch {
-      return 16777215;
+    const data = typeof response.data === "string" ? JSON.parse(response.data) : response.data;
+    
+    // 打印第一次调用的响应结构以便调试
+    if (start === 0) {
+      log("debug", `[Sohu] API 完整响应: ${JSON.stringify(data)}`);
     }
+    
+    const comments = data?.info?.comments || data?.comments || [];
+
+    return comments;
+
+  } catch (error) {
+    log("error", `[Sohu] 获取弹幕段失败 (vid=${vid}, ${start}-${end}s):`, error.message);
+    return [];
   }
+}
 
-  formatComments(comments) {
-    return comments.map(item => {
-      try {
-        // 解析颜色
-        const color = this.parseColor(item);
-
-        // 时间（秒）
-        const vtime = parseFloat(item.v || 0);
-
-        // 时间戳
-        const timestamp = parseInt(item.created || Date.now() / 1000);
-
-        // 用户ID和弹幕ID
-        const uid = item.uid || '';
-        const danmuId = item.i || '';
-
-        // 弹幕内容
-        const content = item.c || '';
-
-        return {
-          timepoint: vtime,
-          ct: 1, // 滚动弹幕
-          size: 25,
-          color: color,
-          unixtime: timestamp,
-          uid: uid,
-          content: content,
-          cid: String(danmuId)
-        };
-      } catch (error) {
-        log("warn", `[Sohu] 格式化弹幕失败: ${error.message}`);
-        return null;
+formatComments(comments) {
+  return comments.map(item => {
+    try {
+      // 尝试多个可能的弹幕内容字段
+      const content = item.c || item.m || item.content || item.text || item.msg || '';
+      
+      if (!content || content.trim() === '') {
+        return null; // 跳过空弹幕
       }
-    }).filter(item => item !== null);
-  }
+
+      const color = this.parseColor(item);
+      const vtime = parseFloat(item.v || item.time || 0);
+      const timestamp = parseInt(item.created || item.timestamp || Date.now() / 1000);
+      const uid = item.uid || item.user_id || '';
+      const danmuId = item.i || item.id || '';
+
+      return {
+        timepoint: vtime,
+        ct: 1,
+        size: 25,
+        color: color,
+        unixtime: timestamp,
+        uid: uid,
+        content: content,
+        cid: String(danmuId)
+      };
+    } catch (error) {
+      log("warn", `[Sohu] 格式化弹幕失败: ${error.message}`);
+      return null;
+    }
+  }).filter(item => item !== null);
+}
 }
