@@ -24,15 +24,16 @@ import IqiyiSource from "../sources/iqiyi.js";
 import MangoSource from "../sources/mango.js";
 import BilibiliSource from "../sources/bilibili.js";
 import YoukuSource from "../sources/youku.js";
+import SohuSource from "../sources/sohu.js";  // 🔥 新增
 import OtherSource from "../sources/other.js";
 import {Anime, AnimeMatch, Episodes, Bangumi} from "../models/dandan-model.js";
 
 // 🔥 新增：标准化搜索关键词中的标点符号
 function normalizeSearchKeyword(keyword) {
   if (!keyword) return keyword;
-  
+
   let normalized = keyword;
-  
+
   // 智能处理标点符号：根据标点前的字符类型统一标点
   // 处理问号
   normalized = normalized.replace(/([?？])/g, (match, punct, offset) => {
@@ -48,7 +49,7 @@ function normalizeSearchKeyword(keyword) {
     }
     return punct;
   });
-  
+
   // 处理感叹号
   normalized = normalized.replace(/([!！])/g, (match, punct, offset) => {
     if (offset === 0) return punct;
@@ -61,7 +62,7 @@ function normalizeSearchKeyword(keyword) {
     }
     return punct;
   });
-  
+
   // 处理省略号
   normalized = normalized.replace(/([.…]{2,})/g, (match, punct, offset) => {
     if (offset === 0) return punct;
@@ -74,7 +75,7 @@ function normalizeSearchKeyword(keyword) {
     }
     return punct;
   });
-  
+
   return normalized;
 }
 
@@ -231,6 +232,7 @@ export async function searchAnime(url, preferAnimeId = null, preferSource = null
       if (source === "iqiyi") return iqiyiSource.search(queryTitle);
       if (source === "imgo") return mangoSource.search(queryTitle);
       if (source === "bilibili") return bilibiliSource.search(queryTitle);
+      if (source === "sohu") return sohuSource.search(queryTitle);  // 🔥 新增
     });
 
     // 执行所有请求并等待结果
@@ -248,7 +250,7 @@ export async function searchAnime(url, preferAnimeId = null, preferSource = null
     const {
       vod: animesVodResults, 360: animes360, tmdb: animesTmdb, douban: animesDouban, renren: animesRenren,
       hanjutv: animesHanjutv, bahamut: animesBahamut, dandan: animesDandan, tencent: animesTencent, youku: animesYouku,
-      iqiyi: animesIqiyi, imgo: animesImgo, bilibili: animesBilibili
+      iqiyi: animesIqiyi, imgo: animesImgo, bilibili: animesBilibili, sohu: animesSohu  // 🔥 新增
     } = resultData;
 
     // 按顺序处理每个来源的结果
@@ -298,6 +300,9 @@ export async function searchAnime(url, preferAnimeId = null, preferSource = null
       } else if (key === 'bilibili') {
         // 等待处理Bilibili来源
         await bilibiliSource.handleAnimes(animesBilibili, queryTitle, curAnimes);
+      } else if (key === 'sohu') {
+        // 🔥 新增：等待处理Sohu来源
+        await sohuSource.handleAnimes(animesSohu, queryTitle, curAnimes);
       }
     }
   } catch (error) {
@@ -486,10 +491,10 @@ export async function extractTitleSeasonEpisode(cleanFileName) {
     const chineseStart = title.match(/^[\u4e00-\u9fa5·]+[^\.\r\n]*/);
     if (chineseStart) {
       let extractedTitle = chineseStart[0];
-      
+
       // 智能处理结尾标点符号：根据标点前的字符类型统一标点
       // 支持的标点：问号(?？)、感叹号(!！)、省略号(...…)
-      
+
       // 处理问号
       if (/[?？]$/.test(extractedTitle)) {
         const beforePunct = extractedTitle.slice(0, -1);
@@ -503,7 +508,7 @@ export async function extractTitleSeasonEpisode(cleanFileName) {
           extractedTitle = beforePunct + '?';
         }
       }
-      
+
       // 处理感叹号
       else if (/[!！]$/.test(extractedTitle)) {
         const beforePunct = extractedTitle.slice(0, -1);
@@ -517,7 +522,7 @@ export async function extractTitleSeasonEpisode(cleanFileName) {
           extractedTitle = beforePunct + '!';
         }
       }
-      
+
       // 处理省略号（中文六点…… 或 英文三点...）
       else if (/[.…]+$/.test(extractedTitle)) {
         const match = extractedTitle.match(/^(.+?)([.…]+)$/);
@@ -534,7 +539,7 @@ export async function extractTitleSeasonEpisode(cleanFileName) {
           }
         }
       }
-      
+
       title = extractedTitle;
     }
     // 情况2：开头是英文（欧美剧常见，如 Blood.River）
@@ -945,6 +950,9 @@ export async function getComment(path, queryFormat) {
     danmus = await bilibiliSource.getComments(url, plat);
   } else if (url.includes('.youku.com')) {
     danmus = await youkuSource.getComments(url, plat);
+  } else if (url.includes('.sohu.com') || url.includes('tv.sohu.com')) {
+    // 🔥 新增：处理搜狐视频
+    danmus = await sohuSource.getComments(url, plat);
   }
 
   // 请求其他平台弹幕
@@ -1088,6 +1096,9 @@ export async function getCommentByUrl(videoUrl, queryFormat) {
       danmus = await bilibiliSource.getComments(url, "bilibili1");
     } else if (url.includes('.youku.com')) {
       danmus = await youkuSource(url, "youku");
+    } else if (url.includes('.sohu.com') || url.includes('tv.sohu.com')) {
+      // 🔥 新增：处理搜狐视频
+      danmus = await sohuSource.getComments(url, "sohu");
     } else {
       // 如果不是已知平台，尝试第三方弹幕服务器
       const urlPattern = /^(https?:\/\/)?([\w.-]+)\.([a-z]{2,})(\/.*)?$/i;
