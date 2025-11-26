@@ -405,7 +405,7 @@ const Globals = {
    * 解析数据源顺序
    */
   parseSourceOrder(sourceOrder) {
-    const ALLOWED_SOURCES = ['360', 'vod', 'tmdb', 'douban', 'tencent', 'youku', 'iqiyi', 'imgo', 'bilibili', 'renren', 'hanjutv', 'bahamut'];
+    const ALLOWED_SOURCES = ['360', 'vod', 'tmdb', 'douban', 'tencent', 'youku', 'iqiyi', 'imgo', 'bilibili', 'renren', 'hanjutv', 'bahamut', 'dandan', 'sohu'];
     const orderArr = sourceOrder
       .split(',')
       .map(s => s.trim())
