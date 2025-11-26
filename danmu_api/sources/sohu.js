@@ -521,61 +521,68 @@ export default class SohuSource extends BaseSource {
     }
   }
 
-  formatComments(comments) {
-    if (!comments || !Array.isArray(comments)) {
-      log("warn", "[Sohu] formatComments 接收到无效的 comments 参数");
-      return [];
-    }
+formatComments(comments) {
+  if (!comments || !Array.isArray(comments)) {
+    log("warn", "[Sohu] formatComments 接收到无效的 comments 参数");
+    return [];
+  }
 
-    const formatted = [];
-    let errorCount = 0;
+  const formatted = [];
+  let errorCount = 0;
 
-    for (let i = 0; i < comments.length; i++) {
-      try {
-        const item = comments[i];
+  for (let i = 0; i < comments.length; i++) {
+    try {
+      const item = comments[i];
 
-        // 打印第一条数据用于调试
-        if (i === 0) {
-          log("debug", `[Sohu] 弹幕原始数据示例: ${JSON.stringify(item)}`);
-        }
+      // 打印第一条数据用于调试
+      if (i === 0) {
+        log("debug", `[Sohu] 弹幕原始数据示例: ${JSON.stringify(item)}`);
+      }
 
-        // 尝试所有可能的内容字段
-        const content = item.c || item.m || item.content || item.text || item.msg || item.message || '';
+      // 尝试所有可能的内容字段
+      const content = item.c || item.m || item.content || item.text || item.msg || item.message || '';
 
-        if (!content || content.trim() === '') {
-          continue;
-        }
+      if (!content || content.trim() === '') {
+        continue;
+      }
 
-        const color = this.parseColor(item);
-        const vtime = parseFloat(item.v || item.time || 0);
-        const timestamp = parseInt(item.created || item.timestamp || Date.now() / 1000);
-        const uid = item.uid || item.user_id || '';
-        const danmuId = item.i || item.id || '';
+      // 解析参数
+      const color = this.parseColor(item);
+      const vtime = parseFloat(item.v || item.time || 0);
+      const timestamp = parseInt(item.created || item.timestamp || Date.now() / 1000);
+      const uid = String(item.uid || item.user_id || '');
+      const danmuId = String(item.i || item.id || '');
 
-        formatted.push({
-          timepoint: vtime,
-          ct: 1,
-          size: 25,
-          color: color,
-          unixtime: timestamp,
-          uid: uid,
-          content: content,
-          cid: String(danmuId)
-        });
-      } catch (error) {
-        errorCount++;
-        // 只输出前3个错误，避免日志过多
-        if (errorCount <= 3) {
-          log("warn", `[Sohu] 格式化单条弹幕失败: ${error.message}`);
-        }
+      // 🔥 关键修复：使用弹弹Play标准格式
+      // 格式：时间,模式,颜色,时间戳,用户ID,弹幕ID,0,0
+      // 模式：1=滚动 4=底部 5=顶部
+      const mode = 1; // 搜狐视频默认都是滚动弹幕
+      
+      formatted.push({
+        p: `${vtime},${mode},${color},${timestamp},${uid},${danmuId},0,0`,
+        m: content
+      });
+    } catch (error) {
+      errorCount++;
+      // 只输出前3个错误，避免日志过多
+      if (errorCount <= 3) {
+        log("warn", `[Sohu] 格式化单条弹幕失败: ${error.message}`);
       }
     }
-
-    // 如果有大量错误，输出汇总信息
-    if (errorCount > 3) {
-      log("warn", `[Sohu] 共有 ${errorCount} 条弹幕格式化失败（仅显示前3条错误）`);
-    }
-
-    return formatted;
   }
+
+  // 如果有大量错误，输出汇总信息
+  if (errorCount > 3) {
+    log("warn", `[Sohu] 共有 ${errorCount} 条弹幕格式化失败（仅显示前3条错误）`);
+  }
+
+  log("info", `[Sohu] 格式化完成，有效弹幕 ${formatted.length} 条`);
+  
+  // 打印前3条格式化后的弹幕用于验证
+  if (formatted.length > 0) {
+    log("debug", `[Sohu] 格式化后示例: ${JSON.stringify(formatted.slice(0, 3))}`);
+  }
+
+  return formatted;
+}
 }
