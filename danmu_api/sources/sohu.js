@@ -276,22 +276,27 @@ export default class SohuSource extends BaseSource {
           const eps = await this.getEpisodes(anime.mediaId);
           let links = [];
 
+          // 先计算 numericAnimeId，用于生成分集ID
+          const numericAnimeId = convertToAsciiSum(anime.mediaId);
+
           for (let i = 0; i < eps.length; i++) {
             const ep = eps[i];
             const epTitle = ep.title || `第${i + 1}集`;
-            // 构建完整URL
             const fullUrl = ep.url || `https://tv.sohu.com/item/${anime.mediaId}.html`;
+            
+            // 🔥 关键修复：为每个分集生成唯一的数字 ID
+            // 格式：animeId * 1000000 + 分集序号
+            const episodeNumericId = numericAnimeId * 1000000 + (i + 1);
+            
             links.push({
               "name": (i + 1).toString(),
               "url": fullUrl,
               "title": `【sohu】 ${epTitle}`,
-              "id": ep.episodeId
+              "id": episodeNumericId  // ✅ 使用纯数字 ID
             });
           }
 
           if (links.length > 0) {
-            // 将字符串mediaId转换为数字ID (使用哈希函数)
-            const numericAnimeId = convertToAsciiSum(anime.mediaId);
             let transformedAnime = {
               animeId: numericAnimeId,
               bangumiId: anime.mediaId,
@@ -327,15 +332,11 @@ export default class SohuSource extends BaseSource {
     log("info", "[Sohu] 开始从本地请求搜狐视频弹幕...", url);
 
     try {
-      // 解析 episodeId (格式: "vid:aid")
       let vid, aid;
-      
-      // 如果传入的是episodeId格式
-      if (url.includes(':')) {
-        [vid, aid] = url.split(':');
-      } else {
-        // 从URL中提取vid和aid
-        // 先尝试从URL获取页面内容
+
+      // 🔥 修复：支持数字ID和URL两种格式
+      if (url.includes('tv.sohu.com')) {
+        // 情况1：传入的是完整 URL
         const pageResponse = await httpGet(url, {
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -348,12 +349,14 @@ export default class SohuSource extends BaseSource {
           return [];
         }
 
-        const pageContent = typeof pageResponse.data === 'string' ? pageResponse.data : JSON.stringify(pageResponse.data);
-        
+        const pageContent = typeof pageResponse.data === 'string' 
+          ? pageResponse.data 
+          : JSON.stringify(pageResponse.data);
+
         // 从页面中提取vid和aid
         const vidMatch = pageContent.match(/var\s+vid\s*=\s*["\']?(\d+)["\']?/);
         const aidMatch = pageContent.match(/var\s+playlistId\s*=\s*["\']?(\d+)["\']?/);
-        
+
         if (!vidMatch || !aidMatch) {
           log("error", "[Sohu] 无法从页面中提取vid或aid");
           return [];
@@ -361,6 +364,26 @@ export default class SohuSource extends BaseSource {
 
         vid = vidMatch[1];
         aid = aidMatch[1];
+      } else {
+        // 情况2：传入的是数字 episodeId，需要从 globals.animes 中查找对应的 URL
+        const episodeId = parseInt(url);
+        let foundLink = null;
+        
+        for (const anime of globals.animes) {
+          if (anime.links) {
+            foundLink = anime.links.find(link => link.id === episodeId);
+            if (foundLink) {
+              log("info", `[Sohu] 找到 episodeId ${episodeId} 对应的URL: ${foundLink.url}`);
+              // 递归调用，使用找到的 URL
+              return await this.getComments(foundLink.url, platform);
+            }
+          }
+        }
+        
+        if (!foundLink) {
+          log("error", `[Sohu] 未找到 episodeId ${episodeId} 对应的URL`);
+          return [];
+        }
       }
 
       log("info", `[Sohu] 解析得到 vid=${vid}, aid=${aid}`);
@@ -395,7 +418,7 @@ export default class SohuSource extends BaseSource {
 
       // 格式化弹幕
       const formattedComments = this.formatComments(allComments);
-      
+
       printFirst200Chars(formattedComments);
 
       return formattedComments;
