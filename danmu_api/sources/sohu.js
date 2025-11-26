@@ -61,7 +61,7 @@ export default class SohuSource extends BaseSource {
     // 缓存分集列表（如果搜索结果中包含）
     if (item.videos && item.videos.length > 0) {
       this.episodesCache.set(String(item.aid), item.videos);
-      log("info", `[Sohu] 缓存了 ${item.videos.length} 个分集 (aid=${item.aid})`);
+      log("debug", `[Sohu] 缓存了 ${item.videos.length} 个分集 (aid=${item.aid})`);
     }
 
     return {
@@ -283,11 +283,11 @@ export default class SohuSource extends BaseSource {
             const ep = eps[i];
             const epTitle = ep.title || `第${i + 1}集`;
             const fullUrl = ep.url || `https://tv.sohu.com/item/${anime.mediaId}.html`;
-            
+
             // 🔥 关键修复：为每个分集生成唯一的数字 ID
             // 格式：animeId * 1000000 + 分集序号
             const episodeNumericId = numericAnimeId * 1000000 + (i + 1);
-            
+
             links.push({
               "name": (i + 1).toString(),
               "url": fullUrl,
@@ -368,7 +368,7 @@ export default class SohuSource extends BaseSource {
         // 情况2：传入的是数字 episodeId，需要从 globals.animes 中查找对应的 URL
         const episodeId = parseInt(url);
         let foundLink = null;
-        
+
         for (const anime of globals.animes) {
           if (anime.links) {
             foundLink = anime.links.find(link => link.id === episodeId);
@@ -379,7 +379,7 @@ export default class SohuSource extends BaseSource {
             }
           }
         }
-        
+
         if (!foundLink) {
           log("error", `[Sohu] 未找到 episodeId ${episodeId} 对应的URL`);
           return [];
@@ -388,10 +388,11 @@ export default class SohuSource extends BaseSource {
 
       log("info", `[Sohu] 解析得到 vid=${vid}, aid=${aid}`);
 
-      // 获取弹幕 - 默认最大7200秒（2小时）
-      const maxTime = 7200;
+      // 获取弹幕 - 优化：动态调整最大时长
+      const maxTime = 7200; // 最大2小时
       const allComments = [];
       const segmentDuration = 60;
+      let consecutiveEmptySegments = 0; // 连续空分段计数
 
       for (let start = 0; start < maxTime; start += segmentDuration) {
         const end = start + segmentDuration;
@@ -399,14 +400,24 @@ export default class SohuSource extends BaseSource {
 
         if (comments && comments.length > 0) {
           allComments.push(...comments);
-          log("info", `[Sohu] 获取第 ${start / 60 + 1} 分钟: ${comments.length} 条弹幕`);
-        } else if (start > 600) {
-          // 10分钟后无数据可能到末尾
-          break;
+          consecutiveEmptySegments = 0; // 重置计数器
+          
+          // 只在第一个和每10分钟输出一次日志
+          if (start === 0 || (start / 60) % 10 === 0) {
+            log("info", `[Sohu] 已获取 ${start / 60 + 1} 分钟弹幕: 累计 ${allComments.length} 条`);
+          }
+        } else {
+          consecutiveEmptySegments++;
+          
+          // 优化：连续3个空分段(3分钟)后提前终止
+          if (consecutiveEmptySegments >= 3 && start >= 600) {
+            log("info", `[Sohu] 连续3分钟无弹幕，提前终止 (已获取 ${start / 60} 分钟)`);
+            break;
+          }
         }
 
-        // 避免请求过快
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // 减少延迟以提高速度（从100ms改为50ms）
+        await new Promise(resolve => setTimeout(resolve, 50));
       }
 
       if (allComments.length === 0) {
@@ -429,94 +440,142 @@ export default class SohuSource extends BaseSource {
     }
   }
 
-async getDanmuSegment(vid, aid, start, end) {
-  try {
-    const params = new URLSearchParams({
-      act: 'dmlist_v2',
-      vid: vid,
-      aid: aid,
-      pct: '2',
-      time_begin: String(start),
-      time_end: String(end),
-      dct: '1',
-      request_from: 'h5_js'
-    });
+  async getDanmuSegment(vid, aid, start, end) {
+    try {
+      const params = new URLSearchParams({
+        act: 'dmlist_v2',
+        vid: vid,
+        aid: aid,
+        pct: '2',
+        time_begin: String(start),
+        time_end: String(end),
+        dct: '1',
+        request_from: 'h5_js'
+      });
 
-    const url = `${this.danmuApiUrl}?${params.toString()}`;
-    
-    const response = await httpGet(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Referer': 'https://tv.sohu.com/'
+      const url = `${this.danmuApiUrl}?${params.toString()}`;
+
+      const response = await httpGet(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Referer': 'https://tv.sohu.com/'
+        }
+      });
+
+      if (!response || !response.data) {
+        return [];
       }
-    });
 
-    if (!response || !response.data) {
+      const data = typeof response.data === "string" ? JSON.parse(response.data) : response.data;
+
+      // 只在第一次调用时打印API响应（减少日志输出）
+      if (start === 0) {
+        log("debug", `[Sohu] API 响应结构: ${JSON.stringify(data).substring(0, 500)}...`);
+      }
+
+      const comments = data?.info?.comments || data?.comments || [];
+
+      // 只在第一次调用时打印弹幕数据结构
+      if (comments.length > 0 && start === 0) {
+        log("debug", `[Sohu] 弹幕数据示例: ${JSON.stringify(comments[0])}`);
+      }
+
+      return comments;
+
+    } catch (error) {
+      log("error", `[Sohu] 获取弹幕段失败 (vid=${vid}, ${start}-${end}s):`, error.message);
+      return [];
+    }
+  }
+
+  /**
+   * 解析弹幕颜色
+   * @param {Object} item - 弹幕项
+   * @returns {number} 十进制颜色值
+   */
+  parseColor(item) {
+    try {
+      // 搜狐弹幕可能的颜色字段：color, cl, c
+      const colorStr = item.color || item.cl || item.c || '';
+      
+      if (!colorStr) {
+        return 16777215; // 默认白色
+      }
+
+      // 如果是十六进制字符串（如 "#ffffff" 或 "ffffff"）
+      if (typeof colorStr === 'string') {
+        const hex = colorStr.replace('#', '');
+        const decimal = parseInt(hex, 16);
+        return isNaN(decimal) ? 16777215 : decimal;
+      }
+
+      // 如果已经是数字
+      if (typeof colorStr === 'number') {
+        return colorStr;
+      }
+
+      return 16777215; // 默认白色
+    } catch (error) {
+      log("debug", `[Sohu] 解析颜色失败: ${error.message}`);
+      return 16777215;
+    }
+  }
+
+  formatComments(comments) {
+    if (!comments || !Array.isArray(comments)) {
+      log("warn", "[Sohu] formatComments 接收到无效的 comments 参数");
       return [];
     }
 
-    const data = typeof response.data === "string" ? JSON.parse(response.data) : response.data;
-    
-    // 🔥 打印完整 API 响应以便调试
-    if (start === 0) {
-      log("info", `[Sohu] API 完整响应: ${JSON.stringify(data).substring(0, 1000)}`);
+    const formatted = [];
+    let errorCount = 0;
+
+    for (let i = 0; i < comments.length; i++) {
+      try {
+        const item = comments[i];
+
+        // 打印第一条数据用于调试
+        if (i === 0) {
+          log("debug", `[Sohu] 弹幕原始数据示例: ${JSON.stringify(item)}`);
+        }
+
+        // 尝试所有可能的内容字段
+        const content = item.c || item.m || item.content || item.text || item.msg || item.message || '';
+
+        if (!content || content.trim() === '') {
+          continue;
+        }
+
+        const color = this.parseColor(item);
+        const vtime = parseFloat(item.v || item.time || 0);
+        const timestamp = parseInt(item.created || item.timestamp || Date.now() / 1000);
+        const uid = item.uid || item.user_id || '';
+        const danmuId = item.i || item.id || '';
+
+        formatted.push({
+          timepoint: vtime,
+          ct: 1,
+          size: 25,
+          color: color,
+          unixtime: timestamp,
+          uid: uid,
+          content: content,
+          cid: String(danmuId)
+        });
+      } catch (error) {
+        errorCount++;
+        // 只输出前3个错误，避免日志过多
+        if (errorCount <= 3) {
+          log("warn", `[Sohu] 格式化单条弹幕失败: ${error.message}`);
+        }
+      }
     }
-    
-    const comments = data?.info?.comments || data?.comments || [];
 
-    // 🔥 打印前3条弹幕的完整结构
-    if (comments.length > 0 && start === 0) {
-      log("info", `[Sohu] 前3条弹幕数据:`);
-      comments.slice(0, 3).forEach((c, i) => {
-        log("info", `  弹幕${i + 1}: ${JSON.stringify(c)}`);
-      });
+    // 如果有大量错误，输出汇总信息
+    if (errorCount > 3) {
+      log("warn", `[Sohu] 共有 ${errorCount} 条弹幕格式化失败（仅显示前3条错误）`);
     }
 
-    return comments;
-
-  } catch (error) {
-    log("error", `[Sohu] 获取弹幕段失败 (vid=${vid}, ${start}-${end}s):`, error.message);
-    return [];
+    return formatted;
   }
-}
-
-formatComments(comments) {
-  const self = this; // 保存 this 上下文
-  
-  return comments.map(item => {
-    try {
-      // 打印第一条数据用于调试
-      if (comments.indexOf(item) === 0) {
-        log("debug", `[Sohu] 弹幕原始数据示例: ${JSON.stringify(item)}`);
-      }
-
-      // 尝试所有可能的内容字段
-      const content = item.c || item.m || item.content || item.text || item.msg || item.message || '';
-      
-      if (!content || content.trim() === '') {
-        return null;
-      }
-
-      const color = self.parseColor(item); // 使用 self
-      const vtime = parseFloat(item.v || item.time || 0);
-      const timestamp = parseInt(item.created || item.timestamp || Date.now() / 1000);
-      const uid = item.uid || item.user_id || '';
-      const danmuId = item.i || item.id || '';
-
-      return {
-        timepoint: vtime,
-        ct: 1,
-        size: 25,
-        color: color,
-        unixtime: timestamp,
-        uid: uid,
-        content: content,
-        cid: String(danmuId)
-      };
-    } catch (error) {
-      log("warn", `[Sohu] 格式化单条弹幕失败: ${error.message}`);
-      return null;
-    }
-  }).filter(item => item !== null);
-}
 }
