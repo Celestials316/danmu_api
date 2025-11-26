@@ -457,12 +457,20 @@ async getDanmuSegment(vid, aid, start, end) {
 
     const data = typeof response.data === "string" ? JSON.parse(response.data) : response.data;
     
-    // 打印第一次调用的响应结构以便调试
+    // 🔥 打印完整 API 响应以便调试
     if (start === 0) {
-      log("debug", `[Sohu] API 完整响应: ${JSON.stringify(data)}`);
+      log("info", `[Sohu] API 完整响应: ${JSON.stringify(data).substring(0, 1000)}`);
     }
     
     const comments = data?.info?.comments || data?.comments || [];
+
+    // 🔥 打印前3条弹幕的完整结构
+    if (comments.length > 0 && start === 0) {
+      log("info", `[Sohu] 前3条弹幕数据:`);
+      comments.slice(0, 3).forEach((c, i) => {
+        log("info", `  弹幕${i + 1}: ${JSON.stringify(c)}`);
+      });
+    }
 
     return comments;
 
@@ -473,16 +481,23 @@ async getDanmuSegment(vid, aid, start, end) {
 }
 
 formatComments(comments) {
+  const self = this; // 保存 this 上下文
+  
   return comments.map(item => {
     try {
-      // 尝试多个可能的弹幕内容字段
-      const content = item.c || item.m || item.content || item.text || item.msg || '';
-      
-      if (!content || content.trim() === '') {
-        return null; // 跳过空弹幕
+      // 打印第一条数据用于调试
+      if (comments.indexOf(item) === 0) {
+        log("debug", `[Sohu] 弹幕原始数据示例: ${JSON.stringify(item)}`);
       }
 
-      const color = this.parseColor(item);
+      // 尝试所有可能的内容字段
+      const content = item.c || item.m || item.content || item.text || item.msg || item.message || '';
+      
+      if (!content || content.trim() === '') {
+        return null;
+      }
+
+      const color = self.parseColor(item); // 使用 self
       const vtime = parseFloat(item.v || item.time || 0);
       const timestamp = parseInt(item.created || item.timestamp || Date.now() / 1000);
       const uid = item.uid || item.user_id || '';
@@ -499,7 +514,7 @@ formatComments(comments) {
         cid: String(danmuId)
       };
     } catch (error) {
-      log("warn", `[Sohu] 格式化弹幕失败: ${error.message}`);
+      log("warn", `[Sohu] 格式化单条弹幕失败: ${error.message}`);
       return null;
     }
   }).filter(item => item !== null);
