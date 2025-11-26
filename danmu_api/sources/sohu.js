@@ -388,36 +388,66 @@ export default class SohuSource extends BaseSource {
 
       log("info", `[Sohu] 解析得到 vid=${vid}, aid=${aid}`);
 
-      // 获取弹幕 - 优化：动态调整最大时长
+      // 优化：并发请求弹幕
       const maxTime = 7200; // 最大2小时
-      const allComments = [];
       const segmentDuration = 60;
+      const allComments = [];
       let consecutiveEmptySegments = 0; // 连续空分段计数
+      
+      // 并发度设置：每次并发请求 6 个分段（6分钟）
+      const concurrency = 6; 
+      
+      log("info", `[Sohu] 开始并发获取弹幕 (并发数: ${concurrency})`);
 
-      for (let start = 0; start < maxTime; start += segmentDuration) {
-        const end = start + segmentDuration;
-        const comments = await this.getDanmuSegment(vid, aid, start, end);
+      for (let batchStart = 0; batchStart < maxTime; batchStart += (segmentDuration * concurrency)) {
+        const promises = [];
+        
+        // 构建当前批次的请求 Promise
+        for (let i = 0; i < concurrency; i++) {
+            const currentStart = batchStart + (i * segmentDuration);
+            if (currentStart >= maxTime) break;
+            const currentEnd = currentStart + segmentDuration;
 
-        if (comments && comments.length > 0) {
-          allComments.push(...comments);
-          consecutiveEmptySegments = 0; // 重置计数器
-          
-          // 只在第一个和每10分钟输出一次日志
-          if (start === 0 || (start / 60) % 10 === 0) {
-            log("info", `[Sohu] 已获取 ${start / 60 + 1} 分钟弹幕: 累计 ${allComments.length} 条`);
-          }
-        } else {
-          consecutiveEmptySegments++;
-          
-          // 优化：连续3个空分段(3分钟)后提前终止
-          if (consecutiveEmptySegments >= 3 && start >= 600) {
-            log("info", `[Sohu] 连续3分钟无弹幕，提前终止 (已获取 ${start / 60} 分钟)`);
-            break;
-          }
+            // 使用 then/catch 确保 Promise.all 不会因为单个失败而全部 reject
+            // 同时传递 start 时间以便排序或判断
+            const p = this.getDanmuSegment(vid, aid, currentStart, currentEnd)
+                .then(items => ({ start: currentStart, items: items || [] }))
+                .catch(err => {
+                    log("warn", `[Sohu] 获取片段 ${currentStart}s 失败: ${err.message}`);
+                    return { start: currentStart, items: [] };
+                });
+            
+            promises.push(p);
         }
 
-        // 减少延迟以提高速度（从100ms改为50ms）
-        await new Promise(resolve => setTimeout(resolve, 50));
+        // 等待当前批次完成
+        const batchResults = await Promise.all(promises);
+        
+        // 按时间顺序处理结果
+        // 这里的排序是必要的，虽然 batchResults 通常按 promise 数组顺序返回
+        batchResults.sort((a, b) => a.start - b.start);
+
+        let stopFetching = false;
+
+        for (const result of batchResults) {
+            if (result.items.length > 0) {
+                allComments.push(...result.items);
+                consecutiveEmptySegments = 0;
+            } else {
+                consecutiveEmptySegments++;
+                // 连续3个空分段(3分钟)后提前终止，但确保至少尝试了前10分钟
+                if (consecutiveEmptySegments >= 3 && result.start >= 600) {
+                    stopFetching = true;
+                }
+            }
+        }
+        
+        log("info", `[Sohu] 已扫描至 ${Math.min(batchStart + (segmentDuration * concurrency), maxTime) / 60} 分钟, 累计弹幕: ${allComments.length}`);
+
+        if (stopFetching) {
+            log("info", `[Sohu] 连续无弹幕，提前结束获取 (位置: ${(batchStart / 60).toFixed(1)} 分钟)`);
+            break;
+        }
       }
 
       if (allComments.length === 0) {
@@ -470,20 +500,16 @@ export default class SohuSource extends BaseSource {
 
       // 只在第一次调用时打印API响应（减少日志输出）
       if (start === 0) {
-        log("debug", `[Sohu] API 响应结构: ${JSON.stringify(data).substring(0, 500)}...`);
+        log("debug", `[Sohu] API 响应结构: ${JSON.stringify(data).substring(0, 200)}...`);
       }
 
       const comments = data?.info?.comments || data?.comments || [];
 
-      // 只在第一次调用时打印弹幕数据结构
-      if (comments.length > 0 && start === 0) {
-        log("debug", `[Sohu] 弹幕数据示例: ${JSON.stringify(comments[0])}`);
-      }
-
       return comments;
 
     } catch (error) {
-      log("error", `[Sohu] 获取弹幕段失败 (vid=${vid}, ${start}-${end}s):`, error.message);
+      // 降低日志级别为 debug 或 warning，避免并发请求时刷屏
+      log("debug", `[Sohu] 获取弹幕段失败 (vid=${vid}, ${start}-${end}s): ${error.message}`);
       return [];
     }
   }
@@ -497,7 +523,7 @@ export default class SohuSource extends BaseSource {
     try {
       // 搜狐弹幕可能的颜色字段：color, cl, c
       const colorStr = item.color || item.cl || item.c || '';
-      
+
       if (!colorStr) {
         return 16777215; // 默认白色
       }
@@ -521,68 +547,58 @@ export default class SohuSource extends BaseSource {
     }
   }
 
-formatComments(comments) {
-  if (!comments || !Array.isArray(comments)) {
-    log("warn", "[Sohu] formatComments 接收到无效的 comments 参数");
-    return [];
-  }
+  formatComments(comments) {
+    if (!comments || !Array.isArray(comments)) {
+      log("warn", "[Sohu] formatComments 接收到无效的 comments 参数");
+      return [];
+    }
 
-  const formatted = [];
-  let errorCount = 0;
+    const formatted = [];
+    let errorCount = 0;
 
-  for (let i = 0; i < comments.length; i++) {
-    try {
-      const item = comments[i];
+    for (let i = 0; i < comments.length; i++) {
+      try {
+        const item = comments[i];
 
-      // 打印第一条数据用于调试
-      if (i === 0) {
-        log("debug", `[Sohu] 弹幕原始数据示例: ${JSON.stringify(item)}`);
-      }
+        // 尝试所有可能的内容字段
+        const content = item.c || item.m || item.content || item.text || item.msg || item.message || '';
 
-      // 尝试所有可能的内容字段
-      const content = item.c || item.m || item.content || item.text || item.msg || item.message || '';
+        if (!content || content.trim() === '') {
+          continue;
+        }
 
-      if (!content || content.trim() === '') {
-        continue;
-      }
+        // 解析参数
+        const color = this.parseColor(item);
+        const vtime = parseFloat(item.v || item.time || 0);
+        const timestamp = parseInt(item.created || item.timestamp || Date.now() / 1000);
+        const uid = String(item.uid || item.user_id || '');
+        const danmuId = String(item.i || item.id || '');
 
-      // 解析参数
-      const color = this.parseColor(item);
-      const vtime = parseFloat(item.v || item.time || 0);
-      const timestamp = parseInt(item.created || item.timestamp || Date.now() / 1000);
-      const uid = String(item.uid || item.user_id || '');
-      const danmuId = String(item.i || item.id || '');
+        // 🔥 关键修复：使用弹弹Play标准格式
+        // 格式：时间,模式,颜色,时间戳,用户ID,弹幕ID,0,0
+        // 模式：1=滚动 4=底部 5=顶部
+        const mode = 1; // 搜狐视频默认都是滚动弹幕
 
-      // 🔥 关键修复：使用弹弹Play标准格式
-      // 格式：时间,模式,颜色,时间戳,用户ID,弹幕ID,0,0
-      // 模式：1=滚动 4=底部 5=顶部
-      const mode = 1; // 搜狐视频默认都是滚动弹幕
-      
-      formatted.push({
-        p: `${vtime},${mode},${color},${timestamp},${uid},${danmuId},0,0`,
-        m: content
-      });
-    } catch (error) {
-      errorCount++;
-      // 只输出前3个错误，避免日志过多
-      if (errorCount <= 3) {
-        log("warn", `[Sohu] 格式化单条弹幕失败: ${error.message}`);
+        formatted.push({
+          p: `${vtime},${mode},${color},${timestamp},${uid},${danmuId},0,0`,
+          m: content
+        });
+      } catch (error) {
+        errorCount++;
+        // 只输出前3个错误，避免日志过多
+        if (errorCount <= 3) {
+          log("warn", `[Sohu] 格式化单条弹幕失败: ${error.message}`);
+        }
       }
     }
-  }
 
-  // 如果有大量错误，输出汇总信息
-  if (errorCount > 3) {
-    log("warn", `[Sohu] 共有 ${errorCount} 条弹幕格式化失败（仅显示前3条错误）`);
-  }
+    // 如果有大量错误，输出汇总信息
+    if (errorCount > 3) {
+      log("warn", `[Sohu] 共有 ${errorCount} 条弹幕格式化失败（仅显示前3条错误）`);
+    }
 
-  log("info", `[Sohu] 格式化完成，有效弹幕 ${formatted.length} 条`);
-  
-  // 打印前3条格式化后的弹幕用于验证
-  if (formatted.length > 0) {
-    log("debug", `[Sohu] 格式化后示例: ${JSON.stringify(formatted.slice(0, 3))}`);
-  }
+    log("info", `[Sohu] 格式化完成，有效弹幕 ${formatted.length} 条`);
 
-  return formatted;
-}
+    return formatted;
+  }
 }
