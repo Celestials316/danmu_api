@@ -990,27 +990,42 @@ try {
       penguin: '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/><circle cx="8" cy="11" r="2"/><circle cx="16" cy="11" r="2"/><path d="M12 17c2.21 0 4-1.12 4-2.5h-8c0 1.38 1.79 2.5 4 2.5z"/>',
       box: '<path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l6.59-6.59L20 9l-8 8z"/>',
       smile: '<path d="M15 12c0 1.66-1.34 3-3 3s-3-1.34-3-3 1.34-3 3-3 3 1.34 3 3zm-3-9C6.48 3 2 7.48 2 13c0 4.42 2.87 8.17 6.84 9.49.5.09.68-.22.68-.48 0-.24-.01-.87-.01-1.71-2.78.6-3.37-1.34-3.37-1.34-.45-1.15-1.11-1.46-1.11-1.46 1 .07 1.53 1.03 1.53 1.03.89 1.52 2.34 1.08 2.91.83.09-.65.35-1.08.63-1.33-2.22-.25-4.56-1.11-4.56-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02.85 0 1.7.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85 0 1.34-.01 2.42-.01 2.75 0 .27.18.58.69.48C19.14 21.16 22 17.42 22 13c0-5.52-4.48-10-10-10z"/>',
-      file: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm2 14h-3l-2-4H9l2 4H7L5 4h2l2 4 2-4h2l-2 4 2 4z"/>'
+      file: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm2 14h-3l-2-4H9l2 4H7L5 4h2l2 4 2-4h2l-2 4 2 4z"/>',
+      shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>' // For 360
     };
 
     const getSourceTheme = (key) => {
+      // 颜色调整为更素雅的莫兰迪色系或低饱和度颜色
       const map = {
-        'dandan':   { name: '弹弹Play', color: '#A78BFA', icon: ICONS.play },
-        'bilibili': { name: 'Bilibili', color: '#60A5FA', icon: ICONS.tv },
+        'dandan':    { name: '弹弹Play', color: '#9CA3AF', icon: ICONS.play }, // 灰色
+        'bilibili':  { name: 'Bilibili', color: '#60A5FA', icon: ICONS.tv },   // 柔和蓝
         'bilibili1': { name: 'Bilibili', color: '#60A5FA', icon: ICONS.tv },
-        'iqiyi':    { name: '爱奇艺',   color: '#34D399', icon: ICONS.triangle },
-        'qiyi':     { name: '爱奇艺',   color: '#34D399', icon: ICONS.triangle },
-        'youku':    { name: '优酷',     color: '#22D3EE', icon: ICONS.circle },
-        'tencent':  { name: '腾讯视频', color: '#FBBF24', icon: ICONS.penguin },
-        'qq':       { name: '腾讯视频', color: '#FBBF24', icon: ICONS.penguin },
-        'mgtv':     { name: '芒果TV',   color: '#FB923C', icon: ICONS.box },
-        'imgo':     { name: '芒果TV',   color: '#FB923C', icon: ICONS.box },
-        'bahamut':  { name: '巴哈姆特', color: '#F472B6', icon: ICONS.smile },
-        'hanjutv':  { name: '韩剧TV', color: '#818CF8', icon: ICONS.file },
-        'default':  { name: '其他', color: '#818CF8', icon: ICONS.file }
+        'iqiyi':     { name: '爱奇艺',   color: '#34D399', icon: ICONS.triangle }, // 柔和绿
+        'qiyi':      { name: '爱奇艺',   color: '#34D399', icon: ICONS.triangle },
+        'youku':     { name: '优酷',     color: '#22D3EE', icon: ICONS.circle },   // 柔和青
+        'tencent':   { name: '腾讯视频', color: '#FBBF24', icon: ICONS.penguin },  // 柔和黄
+        'qq':        { name: '腾讯视频', color: '#FBBF24', icon: ICONS.penguin },
+        'mgtv':      { name: '芒果TV',   color: '#FB923C', icon: ICONS.box },      // 柔和橙
+        'imgo':      { name: '芒果TV',   color: '#FB923C', icon: ICONS.box },
+        'bahamut':   { name: '巴哈姆特', color: '#F472B6', icon: ICONS.smile },    // 柔和粉
+        'hanjutv':   { name: '韩剧TV',   color: '#818CF8', icon: ICONS.file },     // 柔和紫
+        // 新增源
+        '360':       { name: '360影视',  color: '#4ADE80', icon: ICONS.shield },   // 亮绿
+        'vod':       { name: 'VOD采集',  color: '#A78BFA', icon: ICONS.file },     // 淡紫
+        'letv':      { name: '乐视视频', color: '#F87171', icon: ICONS.tv },       // 柔和红
+        'le':        { name: '乐视视频', color: '#F87171', icon: ICONS.tv },
+        'sohu':      { name: '搜狐视频', color: '#FACC15', icon: ICONS.play },     // 亮黄
+        'default':   { name: '其他',     color: '#94A3B8', icon: ICONS.file }      // 蓝灰
       };
       const k = String(key).toLowerCase();
+      // 模糊匹配处理
       if (k.includes('bilibili')) return map.bilibili;
+      if (k.includes('iqiyi') || k.includes('qiyi')) return map.iqiyi;
+      if (k.includes('youku')) return map.youku;
+      if (k.includes('tencent') || k.includes('qq')) return map.tencent;
+      if (k.includes('mgtv') || k.includes('imgo')) return map.mgtv;
+      if (k.includes('letv') || k.includes('le')) return map.letv;
+      
       return map[k] || map.default;
     };
 
