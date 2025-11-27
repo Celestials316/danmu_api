@@ -4065,9 +4065,10 @@ try {
    /* 动漫网格列表 */
    .anime-grid {
      display: grid;
-     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
      gap: 16px;
      padding-bottom: 20px;
+     align-items: start;
    }
 
    .anime-card {
@@ -4080,12 +4081,14 @@ try {
      display: flex;
      flex-direction: column;
      box-shadow: var(--shadow-sm);
+     height: 100%;
+     position: relative;
    }
 
    .anime-card:hover {
      transform: translateY(-4px);
      border-color: var(--primary-500);
-     box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.2);
+     box-shadow: 0 12px 24px -8px rgba(99, 102, 241, 0.3);
    }
 
    .anime-cover-wrapper {
@@ -4104,66 +4107,66 @@ try {
    }
 
    .anime-card:hover .anime-cover {
-     transform: scale(1.05);
+     transform: scale(1.08);
    }
 
-   .anime-overlay {
+   /* 类型角标 */
+   .anime-badge {
      position: absolute;
-     inset: 0;
-     background: rgba(0,0,0,0.3);
-     opacity: 0;
-     transition: opacity 0.3s;
-     display: flex;
-     align-items: center;
-     justify-content: center;
-   }
-
-   .anime-card:hover .anime-overlay {
-     opacity: 1;
-   }
-
-   .anime-select-btn {
-     background: var(--primary-500);
+     top: 6px;
+     right: 6px;
+     background: rgba(0, 0, 0, 0.65);
+     backdrop-filter: blur(4px);
      color: white;
-     padding: 8px 16px;
-     border-radius: 20px;
-     font-size: 12px;
+     font-size: 10px;
+     padding: 2px 6px;
+     border-radius: 4px;
      font-weight: 600;
-     transform: translateY(10px);
-     transition: transform 0.3s;
-     box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
-   }
-
-   .anime-card:hover .anime-select-btn {
-     transform: translateY(0);
+     z-index: 2;
+     border: 0.5px solid rgba(255,255,255,0.2);
    }
 
    .anime-info {
-     padding: 12px;
+     padding: 10px;
      flex: 1;
      display: flex;
      flex-direction: column;
+     gap: 6px;
    }
 
    .anime-title {
      font-size: 14px;
      font-weight: 600;
      color: var(--text-primary);
-     margin-bottom: 6px;
      display: -webkit-box;
      -webkit-line-clamp: 2;
      -webkit-box-orient: vertical;
      overflow: hidden;
      line-height: 1.4;
+     margin-bottom: auto;
    }
 
-   .anime-meta {
-     font-size: 11px;
-     color: var(--text-tertiary);
-     margin-top: auto;
+   .anime-tags {
      display: flex;
-     align-items: center;
+     flex-wrap: wrap;
      gap: 4px;
+     margin-top: 4px;
+   }
+
+   .anime-tag {
+     font-size: 10px;
+     padding: 2px 6px;
+     border-radius: 4px;
+     background: var(--bg-secondary);
+     color: var(--text-secondary);
+     border: 1px solid var(--border-color);
+     white-space: nowrap;
+   }
+
+   .anime-tag.highlight {
+     background: rgba(99, 102, 241, 0.1);
+     color: var(--primary-400);
+     border-color: rgba(99, 102, 241, 0.2);
    }
 
    /* 剧集列表视图样式 */
@@ -4174,6 +4177,12 @@ try {
      margin-bottom: 24px;
      padding-bottom: 16px;
      border-bottom: 1px solid var(--border-color);
+     position: sticky;
+     top: 0;
+     background: var(--bg-tertiary);
+     z-index: 10;
+     padding-top: 10px;
+     margin-top: -10px;
    }
 
    .back-btn {
@@ -4189,6 +4198,7 @@ try {
      font-weight: 600;
      cursor: pointer;
      transition: all 0.2s;
+     flex-shrink: 0;
    }
 
    .back-btn:hover {
@@ -4214,18 +4224,19 @@ try {
 
    .episode-grid {
      display: grid;
-     grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+     grid-template-columns: repeat(auto-fill, minmax(75px, 1fr));
      gap: 10px;
-     max-height: 500px;
+     max-height: 550px;
      overflow-y: auto;
      padding-right: 4px;
+     padding-bottom: 20px;
    }
 
    .episode-btn {
-     padding: 12px 6px;
+     padding: 12px 4px;
      background: var(--bg-primary);
      border: 1px solid var(--border-color);
-     border-radius: 10px;
+     border-radius: 8px;
      color: var(--text-primary);
      font-size: 14px;
      font-weight: 600;
@@ -4243,60 +4254,78 @@ try {
      background: var(--bg-hover);
      border-color: var(--primary-500);
      transform: translateY(-2px);
-     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+     box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
      color: var(--primary-500);
    }
 
-   .episode-btn:active {
-     transform: translateY(0);
+   .episode-btn.active {
+     background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+     border-color: var(--primary-500);
+     color: white;
+     box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
    }
 
-   /* 移动端适配 */
+   /* 移动端适配优化 */
    @media (max-width: 768px) {
      .manual-search-container {
        border: none;
        background: transparent;
        border-radius: 0;
+       min-height: auto;
      }
 
      .search-view {
        padding: 0;
      }
      
+     /* 移动端网格更紧凑 */
      .anime-grid {
-       grid-template-columns: repeat(auto-fill, minmax(105px, 1fr));
-       gap: 12px;
+       grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+       gap: 10px;
      }
      
      .anime-title {
-       font-size: 13px;
+       font-size: 12px;
+       line-height: 1.3;
+       -webkit-line-clamp: 2;
+     }
+
+     .anime-tag {
+       font-size: 9px;
+       padding: 1px 4px;
      }
 
      .episode-view-header {
-       gap: 12px;
-       margin-bottom: 16px;
-       padding-bottom: 12px;
-       position: sticky;
-       top: 0;
-       background: var(--bg-tertiary);
-       z-index: 10;
-       margin-top: -10px;
-       padding-top: 10px;
+       gap: 10px;
+       margin-bottom: 12px;
+       padding-bottom: 10px;
+       background: var(--bg-primary); /* 移动端背景适配 */
+       border-bottom: 1px solid var(--border-color);
+       margin-left: -16px;
+       margin-right: -16px;
+       padding-left: 16px;
+       padding-right: 16px;
      }
 
      .selected-anime-title {
-       font-size: 16px;
+       font-size: 15px;
+     }
+     
+     .back-btn {
+       padding: 6px 10px;
+       font-size: 12px;
      }
      
      .episode-grid {
        grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
        max-height: none;
-       padding-bottom: 40px;
+       gap: 8px;
      }
 
      .episode-btn {
-        padding: 10px 4px;
-        font-size: 13px;
+        padding: 10px 2px;
+        font-size: 12px;
+        border-radius: 6px;
      }
    }
 
@@ -5610,6 +5639,17 @@ try {
              </button>
            </div>
          </div>
+         
+         <div id="danmuChartWrapper" style="display: none; margin-bottom: 16px; padding: 16px; background: var(--bg-primary); border-radius: 12px; border: 1px solid var(--border-color);">
+            <div style="font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"><path d="M3 3v18h18M18.4 8.1l1.6 1.6-6 6-4-4-6 6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              弹幕密度分布
+            </div>
+            <div style="height: 140px; width: 100%;">
+              <canvas id="danmuTimeChart"></canvas>
+            </div>
+         </div>
+
          <div id="danmuPreviewContainer" style="min-height: 320px; max-height: 520px; overflow-y: auto; background: var(--bg-primary); border-radius: 12px; padding: 16px;">
            <div style="text-align: center; padding: 80px 20px; color: var(--text-tertiary);">
              <div style="font-size: 56px; margin-bottom: 20px; opacity: 0.6;">💬</div>
@@ -7566,11 +7606,27 @@ try {
      }
    }
 
-   // 渲染动漫列表 (优化的卡片样式)
+   // 渲染动漫列表 (优化的卡片样式，包含更多信息)
    function renderAnimeList(animes) {
      const container = document.getElementById('animeListContainer');
      
-     const html = animes.map(anime => \`
+     const typeMap = {
+       'tvseries': 'TV剧', 'tv': 'TV动画', 'movie': '剧场版', 'ova': 'OVA', 
+       'jpmovie': '电影', 'web': 'Web', 'music': 'MV'
+     };
+
+     const html = animes.map(anime => {
+       // 格式化类型/平台显示
+       const rawType = anime.type ? anime.type.toLowerCase() : '';
+       const typeLabel = typeMap[rawType] || anime.typeDescription || '动漫';
+       
+       // 格式化集数
+       const episodeCount = anime.episodeCount ? \`\${anime.episodeCount}集\` : (anime.episodes ? \`\${anime.episodes.length}集\` : '未知集数');
+       
+       // 评分 (如果有)
+       const rating = anime.rating ? \`<span class="anime-tag highlight" style="background:rgba(245, 158, 11, 0.1);color:#f59e0b;border-color:rgba(245, 158, 11, 0.2);">★ \${anime.rating}</span>\` : '';
+
+       return \`
        <div class="anime-card" onclick="loadEpisodes('\${anime.animeId}', '\${escapeHtml(anime.animeTitle)}', this)">
          <div class="anime-cover-wrapper">
            <img src="\${anime.imageUrl || ''}" class="anime-cover" loading="lazy" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTUwIiB2aWV3Qm94PSIwIDAgMTAwIDE1MCI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxNTAiIGZpbGw9IiMzMzMiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzY2NiIgZm9udC1zaXplPSIxNCI+Tm8gSW1hZ2U8L3RleHQ+PC9zdmc+'">
@@ -7580,13 +7636,14 @@ try {
          </div>
          <div class="anime-info">
            <div class="anime-title" title="\${anime.animeTitle}">\${anime.animeTitle}</div>
-           <div class="anime-meta">
-             <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor"><path d="M7 7h.01M7 3v18k6 6l12-12"/></svg>
-             \${anime.typeDescription || '动漫'}
+           <div class="anime-tags">
+             <span class="anime-tag" style="background:rgba(99, 102, 241, 0.1);color:#818cf8;border-color:rgba(99, 102, 241, 0.2);">\${typeLabel}</span>
+             <span class="anime-tag">\${episodeCount}</span>
+             \${rating}
            </div>
          </div>
        </div>
-     \`).join('');
+     \`}).join('');
      
      container.innerHTML = html;
    }
@@ -7919,62 +7976,108 @@ try {
    }
 
    function updateDanmuTimeChart() {
-     const ctx = document.getElementById('danmuTimeChart');
-     if (!ctx) return;
+     const ctxCanvas = document.getElementById('danmuTimeChart');
+     const wrapper = document.getElementById('danmuChartWrapper');
+     
+     if (!ctxCanvas || !wrapper) return;
+     
+     // 显示容器
+     wrapper.style.display = 'block';
+     const ctx = ctxCanvas.getContext('2d');
 
      // 按分钟统计弹幕数量
      const timeSlots = {};
+     let maxMinute = 0;
      filteredDanmuData.forEach(danmu => {
        const time = parseFloat(danmu.p?.split(',')[0] || danmu.time || 0);
        const minute = Math.floor(time / 60);
        timeSlots[minute] = (timeSlots[minute] || 0) + 1;
+       if (minute > maxMinute) maxMinute = minute;
      });
 
-     const sortedMinutes = Object.keys(timeSlots).sort((a, b) => parseInt(a) - parseInt(b));
-     const labels = sortedMinutes.map(m => \`\${m}分\`);
-     const data = sortedMinutes.map(m => timeSlots[m]);
+     // 补全缺失的分钟，让波形连续
+     const labels = [];
+     const data = [];
+     // 限制最大显示时长（例如180分钟），避免异常数据拉长图表
+     const displayMax = Math.min(maxMinute, 180); 
+     
+     for (let i = 0; i <= displayMax; i++) {
+       labels.push(\`\${i}分\`);
+       data.push(timeSlots[i] || 0);
+     }
 
      if (danmuTimeChart) {
        danmuTimeChart.destroy();
      }
+
+     // 创建漂亮的渐变色
+     const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+     gradient.addColorStop(0, 'rgba(99, 102, 241, 0.7)'); // 顶部紫色
+     gradient.addColorStop(1, 'rgba(99, 102, 241, 0.0)'); // 底部透明
 
      danmuTimeChart = new Chart(ctx, {
        type: 'line',
        data: {
          labels: labels,
          datasets: [{
-           label: '弹幕数量',
+           label: '热度',
            data: data,
-           borderColor: 'rgb(99, 102, 241)',
-           backgroundColor: 'rgba(99, 102, 241, 0.1)',
-           tension: 0.4,
-           fill: true
+           borderColor: '#6366f1',
+           borderWidth: 2,
+           backgroundColor: gradient,
+           tension: 0.4, // 贝塞尔曲线，让波纹平滑
+           fill: true,   // 填充区域
+           pointRadius: 0, // 隐藏普通点，保持波纹整洁
+           pointHoverRadius: 6,
+           pointHitRadius: 20
          }]
        },
        options: {
          responsive: true,
          maintainAspectRatio: false,
+         interaction: {
+           mode: 'index',
+           intersect: false,
+         },
          plugins: {
-           legend: { display: false }
+           legend: { display: false },
+           tooltip: {
+             backgroundColor: 'rgba(15, 23, 42, 0.9)',
+             titleColor: '#e2e8f0',
+             bodyColor: '#e2e8f0',
+             borderColor: 'rgba(255,255,255,0.1)',
+             borderWidth: 1,
+             padding: 8,
+             displayColors: false,
+             callbacks: {
+               label: function(context) {
+                 return \`🔥 弹幕量: \${context.parsed.y}\`;
+               }
+             }
+           }
          },
          scales: {
            y: {
              beginAtZero: true,
-             grid: { color: 'rgba(255, 255, 255, 0.1)' },
-             ticks: { color: '#9ca3af' }
+             display: false, // 隐藏Y轴，只看波形
            },
            x: {
-             grid: { color: 'rgba(255, 255, 255, 0.1)' },
+             grid: { 
+               color: 'rgba(255, 255, 255, 0.03)',
+               drawBorder: false
+             },
              ticks: { 
-               color: '#9ca3af',
-               maxRotation: 45,
-               minRotation: 45
+               color: '#64748b',
+               font: { size: 10 },
+               maxTicksLimit: 10
              }
            }
          }
        }
      });
    }
+
+
 
    function updateDanmuWordCloud() {
      const container = document.getElementById('danmuWordCloud');
@@ -8024,28 +8127,40 @@ try {
      document.getElementById('danmuTestPlatform').value = '';
      
      // 清空列表
-     document.getElementById('animeListContainer').innerHTML = '<div style="text-align: center; padding: 40px 0; color: var(--text-tertiary);">请先搜索关键词</div>';
-     document.getElementById('episodeListContainer').innerHTML = '<div style="text-align: center; padding: 60px 0; color: var(--text-tertiary);">请在左侧选择一部动漫/电影</div>';
-     document.getElementById('selectedAnimeTitle').textContent = '未选择动漫';
+     const animeContainer = document.getElementById('animeListContainer');
+     if (animeContainer) {
+       animeContainer.innerHTML = '<div style="text-align: center; padding: 40px 0; color: var(--text-tertiary);">请先搜索关键词</div>';
+     }
+     
+     const epContainer = document.getElementById('episodeListContainer');
+     if (epContainer) {
+       epContainer.innerHTML = '<div style="text-align: center; padding: 60px 0; color: var(--text-tertiary);">请在左侧选择一部动漫/电影</div>';
+     }
+     
+     const animeTitle = document.getElementById('selectedAnimeTitle');
+     if (animeTitle) animeTitle.textContent = '未选择动漫';
      
      // 清空结果区域
      const matchResultCard = document.getElementById('matchResultCard');
-     matchResultCard.style.display = 'none';
+     if (matchResultCard) matchResultCard.style.display = 'none';
      clearDanmuPreview();
      
-     // 清空过滤
-     const filterStats = document.getElementById('filterStats');
-     if (filterStats) filterStats.style.display = 'none';
-     const wordCloud = document.getElementById('danmuWordCloud');
-     if (wordCloud) wordCloud.innerHTML = '<div style="color: var(--text-tertiary); font-size: 14px; text-align: center;">暂无数据<br>获取弹幕后自动生成词云</div>';
+     // 隐藏并销毁波纹图
+     const chartWrapper = document.getElementById('danmuChartWrapper');
+     if (chartWrapper) chartWrapper.style.display = 'none';
      
      if (danmuTimeChart) {
        danmuTimeChart.destroy();
        danmuTimeChart = null;
      }
      
+     // 清空过滤统计等
+     const filterStats = document.getElementById('filterStats');
+     if (filterStats) filterStats.style.display = 'none';
+     
      showToast('✨ 已重置测试状态', 'info');
    }
+
 
 
 // ========== 弹幕导出功能 ==========
