@@ -7615,27 +7615,70 @@ try {
        'jpmovie': '电影', 'web': 'Web', 'music': 'MV'
      };
 
+     // 平台名称映射
+     const sourceMap = {
+       'dandan': '弹弹Play', '360': '360影视', 'vod': 'VOD',
+       'bilibili': 'B站', 'iqiyi': '爱奇艺', 'youku': '优酷',
+       'tencent': '腾讯', 'qq': '腾讯', 'mgtv': '芒果', 
+       'bahamut': '巴哈', 'tmdb': 'TMDB', 'douban': '豆瓣'
+     };
+
      const html = animes.map(anime => {
        // 格式化类型/平台显示
        const rawType = anime.type ? anime.type.toLowerCase() : '';
        const typeLabel = typeMap[rawType] || anime.typeDescription || '动漫';
        
+       // 获取平台标签
+       const sourceKey = (anime.source || 'dandan').toLowerCase();
+       const platformLabel = sourceMap[sourceKey] || sourceKey.toUpperCase();
+
+       // --- 标题清洗逻辑 (修复版) ---
+       let displayTitle = anime.animeTitle || '';
+       
+       // 1. 去除 【xxx】 和 [xxx] (分步替换更稳定)
+       displayTitle = displayTitle.replace(/【.*?】/g, '');
+       displayTitle = displayTitle.replace(/\\[.*?\\]/g, ''); 
+       
+       // 2. 去除 "from xxx" 
+       // 注意：这里使用了 \\s 来匹配空格，防止反斜杠被转义吃掉
+       // 逻辑：匹配 (任意空格)from(至少一个空格)(后面所有内容)
+       displayTitle = displayTitle.replace(/\\s*from\\s+.*$/i, '');
+       
+       // 3. 去除首尾多余空格
+       displayTitle = displayTitle.trim();
+
+       // 4. 智能补充年份
+       // 如果清洗后的标题里不包含这个年份，才加上去
+       let year = '';
+       if (anime.year) {
+         year = anime.year;
+       } else if (anime.startDate && anime.startDate.length >= 4) {
+         year = anime.startDate.substring(0, 4);
+       }
+       
+       if (year && !isNaN(year)) {
+         if (displayTitle.indexOf(year) === -1) {
+            displayTitle = \`\${displayTitle} (\${year})\`;
+         }
+       }
+       
        // 格式化集数
        const episodeCount = anime.episodeCount ? \`\${anime.episodeCount}集\` : (anime.episodes ? \`\${anime.episodes.length}集\` : '未知集数');
        
-       // 评分 (如果有)
+       // 评分
        const rating = anime.rating ? \`<span class="anime-tag highlight" style="background:rgba(245, 158, 11, 0.1);color:#f59e0b;border-color:rgba(245, 158, 11, 0.2);">★ \${anime.rating}</span>\` : '';
 
        return \`
        <div class="anime-card" onclick="loadEpisodes('\${anime.animeId}', '\${escapeHtml(anime.animeTitle)}', this)">
          <div class="anime-cover-wrapper">
            <img src="\${anime.imageUrl || ''}" class="anime-cover" loading="lazy" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTUwIiB2aWV3Qm94PSIwIDAgMTAwIDE1MCI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxNTAiIGZpbGw9IiMzMzMiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzY2NiIgZm9udC1zaXplPSIxNCI+Tm8gSW1hZ2U8L3RleHQ+PC9zdmc+'">
+           <div class="anime-badge">\${platformLabel}</div>
            <div class="anime-overlay">
              <span class="anime-select-btn">选择此番</span>
            </div>
          </div>
          <div class="anime-info">
-           <div class="anime-title" title="\${anime.animeTitle}">\${anime.animeTitle}</div>
+           <div class="anime-title" title="\${anime.animeTitle}">\${displayTitle}</div>
            <div class="anime-tags">
              <span class="anime-tag" style="background:rgba(99, 102, 241, 0.1);color:#818cf8;border-color:rgba(99, 102, 241, 0.2);">\${typeLabel}</span>
              <span class="anime-tag">\${episodeCount}</span>
@@ -7647,6 +7690,7 @@ try {
      
      container.innerHTML = html;
    }
+
 
    // 加载剧集列表 (切换视图逻辑)
    async function loadEpisodes(animeId, animeTitle, cardElement) {
