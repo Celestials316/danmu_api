@@ -929,7 +929,7 @@ async function handleHomepage(req) {
       'bahamut': 'BH'
     };
     
-// 生成最近匹配列表HTML - 紧凑卡片设计（带图标） - 优化版
+// 生成最近匹配列表HTML - 现代化卡片设计（带图标+统计） - 移动端优化版
 let recentMatchesHtml = '';
 try {
   // 1. 获取 Map 数据
@@ -944,7 +944,7 @@ try {
   mapEntries.sort((a, b) => {
     const tA = a[1]?.timestamp || a[1]?.time || a[1]?.date || a[1]?.createdAt || 0;
     const tB = b[1]?.timestamp || b[1]?.time || b[1]?.date || b[1]?.createdAt || 0;
-    return tB - tA; // 时间戳大的（最新的）排前面
+    return tB - tA;
   });
 
   // 2. 严格过滤与去重逻辑
@@ -981,9 +981,9 @@ try {
 
   // 3. 渲染逻辑 - 极简卡片设计
   if (uniqueEntries.length > 0) {
-    // 定义图标常量
+    // 定义精简图标常量（优化SVG路径）
     const ICONS = {
-      play: '<path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5zm0 18c-3.86-.98-7-4.95-7-9V8.3l7-3.11 7 3.11V11c0 4.05-3.14 8.02-7 9z"/><circle cx="9" cy="11" r="1.5"/><circle cx="15" cy="11" r="1.5"/><path d="M12 17.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/>',
+      play: '<circle cx="12" cy="12" r="10"/><path d="M10 8l6 4-6 4V8z" fill="currentColor"/>',
       tv: '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M7 4l2 3M17 4l-2 3"/><path d="M8 12h.01M16 12h.01M8 16h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
       triangle: '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M10 8l6 4-6 4V8z" fill="rgba(255,255,255,0.9)"/>',
       circle: '<circle cx="12" cy="12" r="10"/><path d="M10 8l6 4-6 4V8z" fill="rgba(255,255,255,0.9)"/>',
@@ -1034,7 +1034,38 @@ try {
       month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false
     });
 
-    recentMatchesHtml = uniqueEntries.map(([key, value]) => {
+    // 📊 统计数据
+    const totalMatches = uniqueEntries.length;
+    const sourceStats = {};
+    uniqueEntries.forEach(([, value]) => {
+      const src = (value.source || 'auto').toLowerCase();
+      sourceStats[src] = (sourceStats[src] || 0) + 1;
+    });
+
+    recentMatchesHtml = `
+      <!-- 统计信息卡片 -->
+      <div style="
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.05));
+        border: 1px solid rgba(99, 102, 241, 0.2);
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 12px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+        gap: 12px;
+      ">
+        <div style="text-align: center;">
+          <div style="font-size: 24px; font-weight: 800; color: var(--primary-400); margin-bottom: 4px;">${totalMatches}</div>
+          <div style="font-size: 11px; color: var(--text-tertiary); font-weight: 600;">总匹配数</div>
+        </div>
+        ${Object.entries(sourceStats).slice(0, 3).map(([src, count]) => `
+          <div style="text-align: center;">
+            <div style="font-size: 20px; font-weight: 700; color: ${getSourceTheme(src).color}; margin-bottom: 4px;">${count}</div>
+            <div style="font-size: 10px; color: var(--text-tertiary);">${getSourceTheme(src).name}</div>
+          </div>
+        `).join('')}
+      </div>
+    ` + uniqueEntries.map(([key, value]) => {
       const targetId = value.id || value.animeId || value.episodeId || '未知ID';
       const rawSource = value.source || value.type || 'auto';
       const theme = getSourceTheme(rawSource);
@@ -1075,11 +1106,11 @@ try {
       return `
         <div style="
           position: relative;
-          background: linear-gradient(to right, var(--bg-tertiary), rgba(255,255,255,0.02));
+          background: var(--bg-tertiary);
           border: 1px solid var(--border-color);
           border-radius: 12px;
-          padding: 10px;
-          margin-bottom: 8px;
+          padding: 12px;
+          margin-bottom: 10px;
           transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
           cursor: pointer;
           display: flex;
@@ -1101,17 +1132,18 @@ try {
 
           <div style="
             flex-shrink: 0;
-            width: 44px;
-            height: 44px;
-            background: ${theme.color}15;
-            border-radius: 10px;
+            width: 48px;
+            height: 48px;
+            background: ${theme.color}12;
+            border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
             color: ${theme.color};
-            box-shadow: inset 0 0 10px ${theme.color}05;
+            border: 2px solid ${theme.color}25;
+            transition: all 0.3s;
           ">
-            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">${theme.icon}</svg>
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2">${theme.icon}</svg>
           </div>
 
           <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px;">
@@ -1132,16 +1164,22 @@ try {
               ${subTitle}
             </div>
 
-            <div style="display: flex; align-items: center; gap: 6px; margin-top: 2px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px; flex-wrap: wrap;">
               <div style="
-                font-size: 10px; 
-                padding: 1px 6px; 
-                border-radius: 4px; 
-                background: ${theme.color}15; 
+                font-size: 11px; 
+                padding: 3px 8px; 
+                border-radius: 6px; 
+                background: ${theme.color}18; 
                 color: ${theme.color}; 
-                font-weight: bold;
-                border: 1px solid ${theme.color}20;
-              ">${theme.name}</div>
+                font-weight: 700;
+                border: 1.5px solid ${theme.color}30;
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+              ">
+                <span style="width: 6px; height: 6px; border-radius: 50%; background: ${theme.color};"></span>
+                ${theme.name}
+              </div>
               
               ${typeTag ? `
                 <div style="
@@ -4442,6 +4480,26 @@ try {
      color: var(--primary-500);
      background: rgba(99, 102, 241, 0.05);
    }
+/* 最近匹配卡片移动端优化 */
+@media (max-width: 768px) {
+  .server-grid > div[style*="position: relative"] {
+    padding: 10px !important;
+    gap: 10px !important;
+  }
+  
+  .server-grid > div[style*="width: 48px"] {
+    width: 40px !important;
+    height: 40px !important;
+  }
+  
+  .server-grid > div[style*="font-size: 14px"] {
+    font-size: 13px !important;
+  }
+  
+  .server-grid > div[style*="font-size: 12px"] {
+    font-size: 11px !important;
+  }
+}
  </style>
 </head>
 <body>
