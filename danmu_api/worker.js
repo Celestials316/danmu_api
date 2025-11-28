@@ -10752,9 +10752,13 @@ if (path === "/api/logout" && method === "POST") {
   // GET /api/version/check - 检查版本更新
   if (path === "/api/version/check" && method === "GET") {
     try {
+      // 🔥 修改：增加 3000ms (3秒) 超时限制，防止因网络问题阻塞导致网页无法加载
       const response = await fetch(
         'https://raw.githubusercontent.com/huangxd-/danmu_api/refs/heads/main/danmu_api/configs/globals.js',
-        { cache: 'no-cache' }
+        { 
+          cache: 'no-cache',
+          signal: AbortSignal.timeout(3000) 
+        }
       );
       
       if (!response.ok) {
@@ -10780,13 +10784,15 @@ if (path === "/api/logout" && method === "POST") {
         canAutoUpdate: isDocker
       });
     } catch (error) {
-      log("error", `[version] 版本检查失败: ${error.message}`);
+      // 超时或失败时仅记录日志，不影响主程序运行
+      log("warn", `[version] 版本检查跳过: ${error.message}`);
       return jsonResponse({
         success: false,
         error: error.message
       }, 500);
     }
   }
+
 
   // POST /api/version/update - 执行 Docker 容器更新
   if (path === "/api/version/update" && method === "POST") {
