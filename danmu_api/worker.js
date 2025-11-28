@@ -5574,28 +5574,27 @@ try {
              弹幕获取测试
            </h3>
            <div class="tabs" style="border-bottom: none; margin-bottom: 0;">
-             <button class="tab-item active" onclick="switchDanmuMode('match')" id="tab-match">自动匹配模式</button>
-             <button class="tab-item" onclick="switchDanmuMode('search')" id="tab-search">手动搜索模式</button>
+             <button class="tab-item active" onclick="switchDanmuMode('match')" id="tab-match">自动匹配</button>
+             <button class="tab-item" onclick="switchDanmuMode('search')" id="tab-search">手动搜索</button>
            </div>
          </div>
 
          <div style="padding: 0 8px;">
            <div class="form-group" style="margin-bottom: 12px;">
-             <label class="form-label" id="danmuInputLabel">🎬 文件名 / 标题 / 视频链接</label>
-             <div style="display: flex; gap: 10px;">
+             <label class="form-label" id="danmuInputLabel" style="font-size: 14px; margin-bottom: 6px; display: block;">🎬 文件名 / 标题 / 视频链接</label>
+             <div style="display: flex; gap: 8px; align-items: stretch;">
                <input type="text" class="form-input" id="danmuTestInput" 
-                      placeholder="例如：藏海传 S01E01、https://youku.com/..." 
-                      style="font-size: 15px; padding: 14px 16px; flex: 1;">
-               <button class="btn btn-primary" onclick="performDanmuAction()" id="danmuActionBtn" style="padding: 0 24px; flex-shrink: 0;">
+                      placeholder="请输入..." 
+                      style="font-size: 15px; padding: 12px 14px; flex: 1; min-width: 0;">
+               <button class="btn btn-primary" onclick="performDanmuAction()" id="danmuActionBtn" style="padding: 0 16px; flex-shrink: 0; white-space: nowrap; display: flex; align-items: center; justify-content: center;">
                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width: 20px; height: 20px;">
                    <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-width="2"/>
                  </svg>
                  <span id="danmuActionText" class="desktop-only" style="margin-left: 6px;">自动匹配</span>
-                 <span class="mobile-only">匹配</span>
                </button>
              </div>
-             <div class="form-hint" id="danmuInputHint" style="margin-top: 8px; font-size: 12px; color: var(--text-tertiary);">
-               💡 自动解析文件名或链接，智能匹配剧集信息
+             <div class="form-hint" id="danmuInputHint" style="margin-top: 8px; font-size: 12px; color: var(--text-tertiary); line-height: 1.4;">
+               💡 自动解析文件名 (如: 藏海传 S01E01) 或粘贴视频链接
              </div>
            </div>
 
@@ -5683,10 +5682,7 @@ try {
            </h3>
            <div class="card-actions">
              <button class="btn btn-outline" onclick="viewRawData('json')" style="padding: 6px 12px; font-size: 12px;">
-               <span style="font-family: monospace; font-weight: 700;">{}</span> JSON
-             </button>
-             <button class="btn btn-outline" onclick="viewRawData('xml')" style="padding: 6px 12px; font-size: 12px;">
-               <span style="font-family: monospace; font-weight: 700;"><></span> XML
+               <span style="font-family: monospace; font-weight: 700;">{}</span> 原始 JSON
              </button>
            </div>
          </div>
@@ -5732,14 +5728,41 @@ try {
            <div class="card-actions" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
              <span id="danmuTestCount" class="badge badge-info" style="font-size: 13px; padding: 6px 12px;">0 条</span>
              
-             <button class="btn btn-outline" id="btnViewJson" onclick="viewRawData('json')" 
-                     style="display: none; padding: 6px 14px; font-size: 13px;">
-               📄 JSON
-             </button>
-             <button class="btn btn-outline" id="btnViewXml" onclick="viewRawData('xml')" 
-                     style="display: none; padding: 6px 14px; font-size: 13px;">
-               📄 XML
-             </button>
+             <div id="danmuExportGroup" style="display: none; gap: 10px; flex-wrap: wrap;">
+               <details style="position: relative; display: inline-block;">
+                 <summary class="btn btn-outline" style="padding: 8px 16px; font-size: 13px; list-style: none; cursor: pointer; display: flex; align-items: center;">
+                   <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" style="margin-right: 6px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                   导出下载
+                   <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" style="margin-left: 4px; opacity: 0.7;"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                 </summary>
+                 <div style="position: absolute; top: calc(100% + 5px); left: 0; min-width: 110px; background: var(--bg-card, #fff); border: 1px solid var(--border-color, #eee); box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 6px; z-index: 100; padding: 4px; display: flex; flex-direction: column; gap: 2px;">
+                   <button onclick="exportDanmu('json')" class="btn-ghost" style="text-align: left; padding: 8px 12px; font-size: 13px; width: 100%; border: none; background: transparent; cursor: pointer; border-radius: 4px;">📥 JSON 文件</button>
+                   <button onclick="exportDanmu('xml')" class="btn-ghost" style="text-align: left; padding: 8px 12px; font-size: 13px; width: 100%; border: none; background: transparent; cursor: pointer; border-radius: 4px;">📥 XML 文件</button>
+                 </div>
+               </details>
+
+               <details style="position: relative; display: inline-block;">
+                 <summary class="btn btn-outline" style="padding: 8px 16px; font-size: 13px; list-style: none; cursor: pointer; display: flex; align-items: center;">
+                   <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" style="margin-right: 6px;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                   在线查看
+                   <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" style="margin-left: 4px; opacity: 0.7;"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                 </summary>
+                 <div style="position: absolute; top: calc(100% + 5px); left: 0; min-width: 110px; background: var(--bg-card, #fff); border: 1px solid var(--border-color, #eee); box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 6px; z-index: 100; padding: 4px; display: flex; flex-direction: column; gap: 2px;">
+                   <button onclick="viewRawData('json')" class="btn-ghost" style="text-align: left; padding: 8px 12px; font-size: 13px; width: 100%; border: none; background: transparent; cursor: pointer; border-radius: 4px;">📄 查看 JSON</button>
+                   <button onclick="viewRawData('xml')" class="btn-ghost" style="text-align: left; padding: 8px 12px; font-size: 13px; width: 100%; border: none; background: transparent; cursor: pointer; border-radius: 4px;">📄 查看 XML</button>
+                 </div>
+               </details>
+             </div>
+             
+             <script>
+               document.addEventListener('click', function(e) {
+                 document.querySelectorAll('details').forEach(function(details) {
+                   if (!details.contains(e.target)) {
+                     details.removeAttribute('open');
+                   }
+                 });
+               });
+             </script>
              
              <button class="btn btn-secondary" onclick="clearDanmuTest()" style="padding: 7px 14px; font-size: 13px;">
                <span>清空</span>
@@ -7610,8 +7633,8 @@ try {
        }
        actionText.textContent = '自动匹配';
        inputLabel.textContent = '🎬 文件名 / 标题 / 视频链接';
-       input.placeholder = '例如：藏海传 S01E01、https://youku.com/...';
-       inputHint.textContent = '💡 自动解析文件名或链接，智能匹配剧集信息';
+       input.placeholder = '请输入...';
+       inputHint.textContent = '💡 自动解析文件名 (如: 藏海传 S01E01) 或粘贴视频链接 (如: https://youku.com/...)';
      } else {
        advancedToggle.style.display = 'none';
        matchOptions.classList.remove('show'); // 搜索模式下强制隐藏
@@ -7619,8 +7642,8 @@ try {
        matchResultCard.style.display = 'none';
        actionText.textContent = '搜索动漫';
        inputLabel.textContent = '🔍 动漫/电影名称';
-       input.placeholder = '例如：进击的巨人、流浪地球...';
-       inputHint.textContent = '💡 搜索并手动选择番剧和集数来获取弹幕';
+       input.placeholder = '请输入...';
+       inputHint.textContent = '💡 搜索动漫数据库 (如: 进击的巨人、流浪地球)，并手动选择集数';
      }
    }
 
@@ -7940,13 +7963,13 @@ try {
        updateDanmuStats();
        showToast(\`🎉 成功获取 \${currentDanmuData.length} 条弹幕\`, 'success');
        
-       // 显示功能按钮
-       document.getElementById('btnViewJson').style.display = 'inline-flex';
-       document.getElementById('btnViewXml').style.display = 'inline-flex';
+       // 显示导出按钮组
+       const exportGroup = document.getElementById('danmuExportGroup');
+       if (exportGroup) exportGroup.style.display = 'flex';
      }
    }
    
-   // 🔥 新增：在新标签页查看原始数据 (Webpage)
+   // 🔥 查看原始数据 (Webpage)
    function viewRawData(format) {
      if (!currentApiUrl) {
        showToast('暂无数据链接', 'warning');
@@ -7961,15 +7984,102 @@ try {
      showToast(\`已打开 \${format.toUpperCase()} 弹幕页面\`, 'success');
    }
 
-   // UI 辅助函数
+   // UI 辅助函数：清空预览时隐藏导出按钮
    function clearDanmuPreview() {
      const container = document.getElementById('danmuPreviewContainer');
      container.innerHTML = '';
      document.getElementById('danmuTestCount').textContent = '0 条';
-     // 隐藏按钮
-     document.getElementById('btnViewJson').style.display = 'none';
-     document.getElementById('btnViewXml').style.display = 'none';
+     
+     // 隐藏导出按钮组
+     const exportGroup = document.getElementById('danmuExportGroup');
+     if (exportGroup) exportGroup.style.display = 'none';
+     
      currentApiUrl = ''; 
+   }
+
+   // ========== 弹幕导出功能 ==========
+   function exportDanmu(format) {
+     if (!filteredDanmuData || filteredDanmuData.length === 0) {
+       showToast('暂无弹幕数据可导出', 'warning');
+       return;
+     }
+
+     try {
+       let content = '';
+       let filename = '';
+       let mimeType = '';
+
+       if (format === 'json') {
+         // JSON 格式导出
+         const exportData = {
+           count: filteredDanmuData.length,
+           comments: filteredDanmuData.map(danmu => ({
+             p: danmu.p || (danmu.time || 0) + ',' + (danmu.mode || 1) + ',' + (danmu.color || 16777215) + ',' + Date.now() + ',0,0,0,0',
+             m: danmu.m || danmu.text || ''
+           })),
+           source: 'Danmu API',
+           exportTime: new Date().toISOString()
+         };
+         content = JSON.stringify(exportData, null, 2);
+         filename = 'danmu-export-' + Date.now() + '.json';
+         mimeType = 'application/json';
+
+       } else if (format === 'xml') {
+         // XML 格式导出（Bilibili 兼容格式）
+         const xmlLines = ['<?xml version="1.0" encoding="UTF-8"?>'];
+         xmlLines.push('<i>');
+         xmlLines.push('  <chatserver>chat.bilibili.com</chatserver>');
+         xmlLines.push('  <chatid>0</chatid>');
+         xmlLines.push('  <mission>0</mission>');
+         xmlLines.push('  <maxlimit>' + filteredDanmuData.length + '</maxlimit>');
+         xmlLines.push('  <state>0</state>');
+         xmlLines.push('  <real_name>0</real_name>');
+         xmlLines.push('  <source>Danmu API Export</source>');
+
+         filteredDanmuData.forEach(danmu => {
+           // 尝试解析 p 属性，如果不存在则构造默认值
+           let p = danmu.p;
+           if (!p) {
+             const time = danmu.time || 0;
+             const mode = danmu.mode || 1;
+             const color = danmu.color || 16777215;
+             p = \`\${time},\${mode},25,\${color},\${Date.now()},0,0,0\`;
+           }
+           
+           // XML 特殊字符转义
+           const text = (danmu.m || danmu.text || '')
+             .replace(/&/g, '&amp;')
+             .replace(/</g, '&lt;')
+             .replace(/>/g, '&gt;')
+             .replace(/"/g, '&quot;')
+             .replace(/'/g, '&apos;');
+             
+           xmlLines.push(\`  <d p="\${p}">\${text}</d>\`);
+         });
+
+         xmlLines.push('</i>');
+         content = xmlLines.join('\\n');
+         filename = 'danmu-export-' + Date.now() + '.xml';
+         mimeType = 'application/xml';
+       }
+
+       // 创建下载链接并触发下载
+       const blob = new Blob([content], { type: mimeType + ';charset=utf-8' });
+       const url = URL.createObjectURL(blob);
+       const a = document.createElement('a');
+       a.href = url;
+       a.download = filename;
+       document.body.appendChild(a); // 兼容性修复
+       a.click();
+       document.body.removeChild(a); // 清理
+       URL.revokeObjectURL(url);
+
+       showToast(\`弹幕已导出为 \${format.toUpperCase()} 格式\`, 'success');
+
+     } catch (error) {
+       console.error('导出失败:', error);
+       showToast('导出失败: ' + error.message, 'error');
+     }
    }
 
    function showLoading(title, subtitle) {
