@@ -111,55 +111,29 @@ export function limitDanmusEvenly(danmus, limit) {
 
   // ===== 第二步: 计算理论最优密度 =====
   const targetDensity = limit / totalBuckets; // 每秒理论应保留的弹幕数
+  const targetDensityFloor = Math.floor(targetDensity); // 向下取整的密度
+  const targetDensityCeil = Math.ceil(targetDensity); // 向上取整的密度
 
-  // ===== 第三步: 两阶段分配策略 =====
+  // ===== 第三步: 分配策略 =====
   const allocation = {}; // 记录每秒应保留的数量
   let allocated = 0;
 
-  // 阶段1: 基础分配（每秒至少分配 floor(targetDensity)）
-  const baseQuota = Math.floor(targetDensity);
+  // 初步分配：首先给每个秒钟分配最接近的理论密度
+  const totalCeilBuckets = Math.round(limit - targetDensityFloor * totalBuckets); // 需要使用上限的桶数
+  let ceilCount = 0;
+
   for (let i = 0; i < totalBuckets; i++) {
     const second = sortedSeconds[i];
     const bucketSize = secondBuckets[second].length;
-    allocation[second] = Math.min(bucketSize, baseQuota);
-    allocated += allocation[second];
-  }
-
-  // 阶段2: 分配剩余配额（优先给弹幕多的桶，但保持均匀）
-  let remaining = limit - allocated;
-  
-  if (remaining > 0) {
-    // 计算每个桶还能接受多少弹幕
-    const bucketsWithRoom = sortedSeconds
-      .map(second => ({
-        second,
-        current: allocation[second],
-        total: secondBuckets[second].length,
-        room: secondBuckets[second].length - allocation[second]
-      }))
-      .filter(b => b.room > 0)
-      .sort((a, b) => b.room - a.room); // 按剩余空间排序
-
-    // 均匀分配剩余配额
-    let index = 0;
-    while (remaining > 0 && bucketsWithRoom.length > 0) {
-      const bucket = bucketsWithRoom[index % bucketsWithRoom.length];
-      
-      if (bucket.room > 0) {
-        allocation[bucket.second]++;
-        bucket.room--;
-        remaining--;
-        allocated++;
-      }
-
-      // 如果当前桶已满，移除
-      if (bucket.room === 0) {
-        bucketsWithRoom.splice(index % bucketsWithRoom.length, 1);
-        if (bucketsWithRoom.length === 0) break;
-      } else {
-        index++;
-      }
+    
+    if (ceilCount < totalCeilBuckets) {
+      allocation[second] = Math.min(bucketSize, targetDensityCeil);
+      ceilCount++;
+    } else {
+      allocation[second] = Math.min(bucketSize, targetDensityFloor);
     }
+    
+    allocated += allocation[second];
   }
 
   // ===== 第四步: 根据分配结果采样弹幕 =====
