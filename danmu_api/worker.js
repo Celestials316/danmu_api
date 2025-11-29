@@ -938,10 +938,10 @@ async function handleHomepage(req, deployPlatform = 'unknown') {
       'bahamut': 'BH'
     };
     
-// 生成最近匹配列表HTML - 旗舰级流光玻璃态设计
+// 生成最近匹配列表HTML - 旗舰级全息玻璃态设计 (Aurora Glass UI)
 let recentMatchesHtml = '';
 try {
-  // 1. 获取并排序数据
+  // 1. 数据准备与排序
   let mapEntries = [];
   if (globals.lastSelectMap) {
     mapEntries = globals.lastSelectMap instanceof Map 
@@ -956,18 +956,28 @@ try {
     return tB - tA;
   });
 
-  // 2. 去重与筛选
+  // 2. 智能去重与元数据提取
   const uniqueEntries = [];
+  const sourceStats = {};
+  let totalMatches = 0;
+  
   if (mapEntries.length > 0) {
     const displayedKeys = new Set();
     for (const [key, value] of mapEntries) {
-      if (uniqueEntries.length >= 5) break;
+      if (uniqueEntries.length >= 5) break; // 仅显示前5条
+      
       if (!value || typeof value !== 'object') continue;
       const targetId = value.id || value.animeId || value.episodeId;
       if (!targetId || ['未匹配', '无数据', 'null', 'undefined'].includes(String(targetId))) continue;
       
+      // 提取核心标题用于去重
       const cleanKeyName = String(key).replace(/\s*from\s+.*$/i, '').trim();
       const uniqueKey = value.animeTitle || cleanKeyName;
+
+      // 统计源
+      const src = (value.source || 'auto').toLowerCase();
+      sourceStats[src] = (sourceStats[src] || 0) + 1;
+      totalMatches++;
 
       if (!displayedKeys.has(uniqueKey)) {
         displayedKeys.add(uniqueKey);
@@ -978,185 +988,218 @@ try {
 
   // 3. 渲染逻辑
   if (uniqueEntries.length > 0) {
-    // 现代化 SVG 图标集
-    const ICONS = {
-      play: '<path d="M5 3l14 9-14 9V3z" fill="currentColor"/>',
-      tv: '<rect x="2" y="7" width="20" height="15" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/>',
-      triangle: '<path d="M3 20h18L12 4z"/>',
-      circle: '<circle cx="12" cy="12" r="10"/>',
-      penguin: '<path d="M12 2a5 5 0 0 0-5 5v2a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V7a5 5 0 0 0-5-5z"/><path d="M16 11a4 4 0 0 1 3 3.5V19a3 3 0 0 1-6 0v-2.5a1 1 0 0 0-2 0V19a3 3 0 0 1-6 0v-4.5A4 4 0 0 1 8 11z"/>',
-      box: '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>',
-      smile: '<circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>',
-      shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
-      file: '<path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/>'
+    // 品牌色系定义 (Brand Colors)
+    const THEMES = {
+      'dandan':    { color: '#9CA3AF', bg: 'linear-gradient(135deg, #4b5563, #374151)', shadow: 'rgba(156, 163, 175, 0.4)', icon: 'DD' },
+      'bilibili':  { color: '#23ADE5', bg: 'linear-gradient(135deg, #00aeec, #0077aa)', shadow: 'rgba(35, 173, 229, 0.4)', icon: 'Bili' },
+      'iqiyi':     { color: '#00CC4C', bg: 'linear-gradient(135deg, #00cc36, #009929)', shadow: 'rgba(0, 204, 76, 0.4)', icon: 'Qiyi' },
+      'youku':     { color: '#00A0E9', bg: 'linear-gradient(135deg, #0bafff, #2979ff)', shadow: 'rgba(0, 160, 233, 0.4)', icon: 'Youku' },
+      'tencent':   { color: '#FF7F00', bg: 'linear-gradient(135deg, #ff7f00, #ff5f00)', shadow: 'rgba(255, 127, 0, 0.4)', icon: 'QQ' },
+      'mgtv':      { color: '#FF5F00', bg: 'linear-gradient(135deg, #ff5f00, #e65100)', shadow: 'rgba(255, 95, 0, 0.4)', icon: 'MG' },
+      'bahamut':   { color: '#1CB4D3', bg: 'linear-gradient(135deg, #00b4d8, #0077b6)', shadow: 'rgba(28, 180, 211, 0.4)', icon: 'Baha' },
+      '360':       { color: '#22C55E', bg: 'linear-gradient(135deg, #4ade80, #22c55e)', shadow: 'rgba(34, 197, 94, 0.4)', icon: '360' },
+      'default':   { color: '#818CF8', bg: 'linear-gradient(135deg, #6366f1, #4f46e5)', shadow: 'rgba(129, 140, 248, 0.4)', icon: 'API' }
     };
 
-    // 增强配色方案 - 赛博朋克玻璃态
-    const getSourceTheme = (key) => {
-      const map = {
-        'dandan':    { name: '弹弹Play', bg: 'linear-gradient(135deg, #475569, #334155)', text: '#94a3b8', icon: ICONS.play },
-        'bilibili':  { name: 'Bilibili', bg: 'linear-gradient(135deg, #00aeec, #0077aa)', text: '#00aeec', icon: ICONS.tv },
-        'bilibili1': { name: 'Bilibili', bg: 'linear-gradient(135deg, #00aeec, #0077aa)', text: '#00aeec', icon: ICONS.tv },
-        'iqiyi':     { name: '爱奇艺',   bg: 'linear-gradient(135deg, #00cc36, #009929)', text: '#00cc36', icon: ICONS.triangle },
-        'qiyi':      { name: '爱奇艺',   bg: 'linear-gradient(135deg, #00cc36, #009929)', text: '#00cc36', icon: ICONS.triangle },
-        'youku':     { name: '优酷',     bg: 'linear-gradient(135deg, #0bafff, #2979ff)', text: '#0bafff', icon: ICONS.circle },
-        'tencent':   { name: '腾讯视频', bg: 'linear-gradient(135deg, #ff7f00, #ff5f00)', text: '#ff7f00', icon: ICONS.penguin },
-        'qq':        { name: '腾讯视频', bg: 'linear-gradient(135deg, #ff7f00, #ff5f00)', text: '#ff7f00', icon: ICONS.penguin },
-        'mgtv':      { name: '芒果TV',   bg: 'linear-gradient(135deg, #ff5f00, #e65100)', text: '#ff5f00', icon: ICONS.box },
-        'imgo':      { name: '芒果TV',   bg: 'linear-gradient(135deg, #ff5f00, #e65100)', text: '#ff5f00', icon: ICONS.box },
-        'bahamut':   { name: '巴哈姆特', bg: 'linear-gradient(135deg, #00b4d8, #0077b6)', text: '#00b4d8', icon: ICONS.smile },
-        '360':       { name: '360影视',  bg: 'linear-gradient(135deg, #4ade80, #22c55e)', text: '#4ade80', icon: ICONS.shield },
-        'default':   { name: '其他来源', bg: 'linear-gradient(135deg, #6366f1, #4f46e5)', text: '#818cf8', icon: ICONS.file }
-      };
-      
+    const getTheme = (key) => {
       const k = String(key).toLowerCase();
-      if (k.includes('bilibili')) return map.bilibili;
-      if (k.includes('iqiyi') || k.includes('qiyi')) return map.iqiyi;
-      if (k.includes('youku')) return map.youku;
-      if (k.includes('tencent') || k.includes('qq')) return map.tencent;
-      if (k.includes('mgtv') || k.includes('imgo')) return map.mgtv;
-      
-      return map[k] || map.default;
+      if (k.includes('bilibili')) return THEMES.bilibili;
+      if (k.includes('iqiyi') || k.includes('qiyi')) return THEMES.iqiyi;
+      if (k.includes('youku')) return THEMES.youku;
+      if (k.includes('tencent') || k.includes('qq')) return THEMES.tencent;
+      if (k.includes('mgtv') || k.includes('imgo')) return THEMES.mgtv;
+      if (k.includes('bahamut')) return THEMES.bahamut;
+      if (k.includes('360')) return THEMES['360'];
+      return THEMES.default;
     };
 
-    const timeAgo = (date) => {
-      const seconds = Math.floor((new Date() - new Date(date)) / 1000);
-      let interval = seconds / 31536000;
-      if (interval > 1) return Math.floor(interval) + " 年前";
-      interval = seconds / 2592000;
-      if (interval > 1) return Math.floor(interval) + " 月前";
-      interval = seconds / 86400;
-      if (interval > 1) return Math.floor(interval) + " 天前";
-      interval = seconds / 3600;
-      if (interval > 1) return Math.floor(interval) + " 小时前";
-      interval = seconds / 60;
-      if (interval > 1) return Math.floor(interval) + " 分钟前";
-      return "刚刚";
+    const timeAgo = (ts) => {
+      if (!ts) return '';
+      const seconds = Math.floor((Date.now() - ts) / 1000);
+      if (seconds < 60) return '刚刚';
+      if (seconds < 3600) return Math.floor(seconds / 60) + ' 分钟前';
+      if (seconds < 86400) return Math.floor(seconds / 3600) + ' 小时前';
+      return Math.floor(seconds / 86400) + ' 天前';
     };
 
-    // 统计数据
-    const totalMatches = uniqueEntries.length;
-    let topSource = '-';
-    let topCount = 0;
-    const sourceStats = {};
-    uniqueEntries.forEach(([, value]) => {
-      const src = (value.source || 'auto').toLowerCase();
-      sourceStats[src] = (sourceStats[src] || 0) + 1;
-      if (sourceStats[src] > topCount) {
-        topCount = sourceStats[src];
-        topSource = getSourceTheme(src).name;
-      }
-    });
+    // 顶部统计栏 HTML
+    const topSourceEntry = Object.entries(sourceStats).sort((a, b) => b[1] - a[1])[0];
+    const topSourceName = topSourceEntry ? (getTheme(topSourceEntry[0]).name || topSourceEntry[0].toUpperCase()) : '无';
+    const topSourceTheme = topSourceEntry ? getTheme(topSourceEntry[0]) : THEMES.default;
 
     recentMatchesHtml = `
       <div style="
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 12px;
-        margin-bottom: 16px;
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid rgba(255, 255, 255, 0.05);
+        display: grid; 
+        grid-template-columns: 1.2fr 1fr 1fr; 
+        gap: 12px; 
+        margin-bottom: 20px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%);
+        border: 1px solid rgba(255,255,255,0.08);
         border-radius: 16px;
         padding: 16px;
-        backdrop-filter: blur(10px);
+        backdrop-filter: blur(12px);
+        box-shadow: 0 8px 32px rgba(0,0,0,0.2);
       ">
-        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative;">
-          <div style="font-size: 28px; font-weight: 800; background: linear-gradient(135deg, #fff, #94a3b8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">${totalMatches}</div>
-          <div style="font-size: 10px; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px;">最近匹配</div>
-          <div style="position: absolute; right: 0; top: 10%; bottom: 10%; width: 1px; background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.1), transparent);"></div>
+        <div style="display: flex; flex-direction: column; justify-content: center; padding-right: 12px; border-right: 1px solid rgba(255,255,255,0.05);">
+          <div style="font-size: 11px; color: var(--text-tertiary); font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase;">系统状态</div>
+          <div style="display: flex; align-items: center; gap: 6px; margin-top: 4px;">
+            <span style="position: relative; display: flex; height: 8px; width: 8px;">
+              <span style="position: absolute; display: inline-flex; height: 100%; width: 100%; border-radius: 50%; background-color: var(--success); opacity: 0.75; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></span>
+              <span style="position: relative; display: inline-flex; border-radius: 50%; height: 8px; width: 8px; background-color: var(--success);"></span>
+            </span>
+            <span style="font-size: 13px; font-weight: 600; color: var(--success);">运行正常</span>
+          </div>
         </div>
+        
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; border-right: 1px solid rgba(255,255,255,0.05);">
+          <div style="font-size: 24px; font-weight: 800; color: var(--text-primary); line-height: 1;">${uniqueEntries.length}</div>
+          <div style="font-size: 10px; color: var(--text-tertiary); margin-top: 4px;">最近记录</div>
+        </div>
+
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
-          <div style="font-size: 16px; font-weight: 700; color: var(--text-primary); white-space: nowrap;">${topSource}</div>
-          <div style="font-size: 10px; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px;">最热来源</div>
+          <div style="font-size: 13px; font-weight: 700; color: ${topSourceTheme.color};">${topSourceName}</div>
+          <div style="font-size: 10px; color: var(--text-tertiary); margin-top: 4px;">最热来源</div>
         </div>
       </div>
 
-      <div style="display: flex; flex-direction: column; gap: 10px;">
-    ` + uniqueEntries.map(([key, value]) => {
-      const rawSource = value.source || value.type || 'auto';
-      const theme = getSourceTheme(rawSource);
-      
-      // 标题处理
-      let mainTitle = (value.animeTitle || value.episodeTitle || String(key)).replace(/\s*from\s+.*$/i, '');
-      const typeMatch = mainTitle.match(/【(电视剧|电影|综艺|动漫|动画|纪录片|韩剧|日剧|美剧|英剧|泰剧|港剧|台剧|国产剧)】/);
-      const typeTag = typeMatch ? typeMatch[1] : null;
-      mainTitle = mainTitle.replace(/【.*?】/g, '').trim();
-      
-      let subTitle = value.animeTitle ? value.episodeTitle : `ID: ${value.id || value.episodeId}`;
-      subTitle = (subTitle || '').replace(/\s*from\s+.*$/i, '').replace(/^(【.*?】|\[.*?\])\s*/, '').trim();
-      if (!subTitle || subTitle === mainTitle) subTitle = value.episodeId ? `Episode ${value.episodeId}` : '未知集数';
+      <style>
+        @keyframes ping {
+          75%, 100% { transform: scale(2); opacity: 0; }
+        }
+        .match-card:hover .card-glow { opacity: 1 !important; }
+        .match-card:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.15) !important; }
+      </style>
 
-      const ts = value.timestamp || value.time || value.date || value.createdAt;
-      const timeStr = ts ? timeAgo(ts) : '';
-      const count = (value.count !== undefined) ? value.count : null;
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+    ` + uniqueEntries.map(([key, value]) => {
+      const src = (value.source || value.type || 'auto').toLowerCase();
+      const theme = getTheme(src);
+      
+      // --- 智能标题解析 ---
+      let rawTitle = (value.animeTitle || value.episodeTitle || String(key)).replace(/\s*from\s+.*$/i, '');
+      
+      // 1. 提取年份
+      const yearMatch = rawTitle.match(/[(（](\d{4})[)）]/);
+      const year = yearMatch ? yearMatch[1] : null;
+      
+      // 2. 提取集数 (S01E02 或 第N集)
+      let episode = null;
+      const epMatch = rawTitle.match(/S(\d+)E(\d+)/i) || rawTitle.match(/第(\d+)[集话]/);
+      if (epMatch) {
+        episode = epMatch[0];
+      } else if (value.episodeId && !isNaN(value.episodeId)) {
+        // 如果标题没提取到，且ID是数字，可能ID就是集数ID(不一定准确，仅作参考)
+      }
+
+      // 3. 清洗标题
+      let mainTitle = rawTitle
+        .replace(/【.*?】/g, '')
+        .replace(/\[.*?\]/g, '')
+        .replace(/[(（]\d{4}[)）]/g, '') // 移除年份
+        .trim();
+
+      // 4. 副标题与ID
+      const displayId = value.id || value.animeId || value.episodeId || 'N/A';
+      const timestamp = value.timestamp || value.time || value.date || value.createdAt;
+      const timeDisplay = timeAgo(timestamp);
+
+      // 标签生成
+      const tagsHtml = [];
+      // 来源标签
+      tagsHtml.push(`
+        <span style="
+          padding: 2px 6px; 
+          border-radius: 4px; 
+          background: ${theme.color}15; 
+          color: ${theme.color}; 
+          font-size: 10px; 
+          font-weight: 700; 
+          border: 1px solid ${theme.color}30;
+          display: flex; align-items: center; gap: 3px;
+        ">
+          <span style="width: 4px; height: 4px; border-radius: 50%; background: ${theme.color};"></span>
+          ${src.toUpperCase()}
+        </span>
+      `);
+      
+      // 年份标签
+      if (year) {
+        tagsHtml.push(`
+          <span style="padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.05); color: var(--text-secondary); font-size: 10px; border: 1px solid rgba(255,255,255,0.05);">
+            ${year}
+          </span>
+        `);
+      }
+
+      // 集数高亮
+      if (episode) {
+        tagsHtml.push(`
+          <span style="padding: 2px 6px; border-radius: 4px; background: linear-gradient(90deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05)); color: var(--text-primary); font-size: 10px; font-weight: 600; border: 1px solid rgba(255,255,255,0.1);">
+            ${episode}
+          </span>
+        `);
+      }
 
       return `
-        <div style="
+        <div class="match-card" style="
           position: relative;
-          background: linear-gradient(145deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%);
-          border: 1px solid rgba(255, 255, 255, 0.05);
-          border-radius: 12px;
-          padding: 12px 14px;
+          background: var(--bg-tertiary);
+          border: 1px solid var(--border-color);
+          border-radius: 14px;
+          padding: 14px;
           transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          gap: 14px;
           overflow: hidden;
-          group: 'match-item';
-        " onmouseenter="
-          this.style.transform = 'translateY(-2px) scale(1.01)';
-          this.style.background = 'linear-gradient(145deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 100%)';
-          this.style.border = '1px solid rgba(255,255,255,0.1)';
-          this.style.boxShadow = '0 10px 20px -5px rgba(0,0,0,0.3)';
-          this.querySelector('.glow-bar').style.opacity = '1';
-          this.querySelector('.glow-bar').style.boxShadow = '0 0 10px ${theme.text}';
-        " onmouseleave="
-          this.style.transform = 'none';
-          this.style.background = 'linear-gradient(145deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%)';
-          this.style.border = '1px solid rgba(255, 255, 255, 0.05)';
-          this.style.boxShadow = 'none';
-          this.querySelector('.glow-bar').style.opacity = '0.7';
-          this.querySelector('.glow-bar').style.boxShadow = 'none';
+          cursor: pointer;
         ">
-          <div class="glow-bar" style="
-            position: absolute; left: 0; top: 12px; bottom: 12px; width: 4px;
-            background: ${theme.text};
-            border-radius: 0 4px 4px 0;
-            opacity: 0.7;
-            transition: all 0.3s ease;
+          <div class="card-glow" style="
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: radial-gradient(circle at 100% 0%, ${theme.color}15 0%, transparent 50%);
+            opacity: 0; transition: opacity 0.4s ease; pointer-events: none;
           "></div>
 
-          <div style="
-            width: 42px; height: 42px;
-            border-radius: 12px;
-            background: ${theme.bg};
-            display: flex; align-items: center; justify-content: center;
-            color: #fff;
-            flex-shrink: 0;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-            font-size: 14px;
-          ">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${theme.icon}</svg>
-          </div>
-
-          <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;">
-            <div style="display: flex; align-items: center; justify-content: space-between;">
-              <div style="font-size: 14px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 10px;">
-                ${mainTitle}
-              </div>
-              ${timeStr ? `<div style="font-size: 10px; color: var(--text-tertiary); white-space: nowrap; background: rgba(0,0,0,0.2); padding: 2px 6px; border-radius: 4px;">${timeStr}</div>` : ''}
+          <div style="position: relative; display: flex; align-items: flex-start; gap: 14px;">
+            <div style="
+              width: 48px; height: 48px; 
+              border-radius: 12px; 
+              background: ${theme.bg}; 
+              box-shadow: 0 4px 12px ${theme.shadow};
+              display: flex; align-items: center; justify-content: center;
+              font-size: 16px; font-weight: 800; color: #fff;
+              text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+              flex-shrink: 0;
+            ">
+              ${theme.icon}
             </div>
-            
-            <div style="display: flex; align-items: center; gap: 8px;">
-              ${typeTag ? `<div style="font-size: 9px; padding: 1px 5px; border-radius: 4px; background: rgba(255,255,255,0.1); color: var(--text-secondary); border: 1px solid rgba(255,255,255,0.05);">${typeTag}</div>` : ''}
-              <div style="font-size: 12px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1;">${subTitle}</div>
-              ${count !== null ? `
-                <div style="display: flex; align-items: center; gap: 4px; font-size: 10px; color: ${theme.text}; font-weight: 600; background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 100px;">
-                  <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-                  ${count}
+
+            <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px;">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div style="font-size: 15px; font-weight: 700; color: var(--text-primary); line-height: 1.3; margin-top: -2px;">
+                  ${mainTitle}
                 </div>
-              ` : ''}
+                <div style="font-size: 11px; color: var(--text-tertiary); white-space: nowrap; margin-left: 8px; font-family: monospace;">
+                  ${timeDisplay}
+                </div>
+              </div>
+
+              <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
+                ${tagsHtml.join('')}
+              </div>
+
+              <div style="
+                display: flex; align-items: center; justify-content: space-between; margin-top: 4px;
+                padding-top: 8px; border-top: 1px dashed rgba(255,255,255,0.08);
+              ">
+                <div style="display: flex; align-items: center; gap: 6px; opacity: 0.8;">
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="var(--text-tertiary)" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                  <code style="font-size: 11px; color: var(--text-secondary); font-family: 'Monaco', monospace;">${displayId}</code>
+                </div>
+                ${value.count !== undefined ? `
+                  <div style="font-size: 11px; font-weight: 600; color: ${theme.color}; display: flex; align-items: center; gap: 4px;">
+                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                    ${value.count}
+                  </div>
+                ` : ''}
+              </div>
             </div>
           </div>
         </div>
@@ -1164,47 +1207,43 @@ try {
     }).join('') + `</div>`;
 
   } else {
-    // 空状态设计 - 科技感
+    // 空状态 - 赛博风格
     recentMatchesHtml = `
       <div style="
-        padding: 48px 20px;
+        padding: 60px 20px;
         text-align: center;
         background: rgba(255,255,255,0.01);
         border: 1px dashed rgba(255,255,255,0.1);
         border-radius: 16px;
-        display: flex;
-        flex-direction: column;
+        display: flex; 
+        flex-direction: column; 
         align-items: center;
-        justify-content: center;
-        min-height: 200px;
       ">
         <div style="
-          width: 64px; height: 64px;
-          background: radial-gradient(circle, rgba(99,102,241,0.15) 0%, transparent 70%);
+          width: 80px; height: 80px;
+          background: radial-gradient(circle, rgba(99,102,241,0.1) 0%, transparent 70%);
           border-radius: 50%;
           display: flex; align-items: center; justify-content: center;
           margin-bottom: 16px;
-          color: var(--primary-400);
+          border: 1px solid rgba(99,102,241,0.1);
         ">
-          <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5">
+          <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--primary-400)" stroke-width="1.5" style="opacity: 0.8;">
             <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"/>
             <path d="M12 6v6l4 2"/>
           </svg>
         </div>
-        <div style="font-size: 14px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px;">暂无匹配记录</div>
-        <div style="font-size: 12px; color: var(--text-tertiary);">系统正在等待第一次匹配请求...</div>
+        <div style="font-size: 15px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px;">系统就绪，等待数据</div>
+        <div style="font-size: 12px; color: var(--text-tertiary); max-width: 200px; line-height: 1.5;">暂无匹配记录。当您开始播放视频时，记录将在此处以全息卡片形式展示。</div>
       </div>
     `;
   }
 } catch (e) {
   console.error("渲染匹配列表失败", e);
   recentMatchesHtml = `
-    <div style="padding: 16px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 12px; color: #f87171; font-size: 13px; display: flex; align-items: center; gap: 12px;">
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-      <div>
-        <div style="font-weight: 600; margin-bottom: 2px;">渲染组件错误</div>
-        <div style="opacity: 0.8;">${e.message}</div>
-      </div>
+    <div style="padding: 20px; background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 12px; color: #f87171; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center;">
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+      <div style="font-weight: 600; font-size: 14px;">界面渲染异常</div>
+      <div style="font-size: 12px; opacity: 0.8; font-family: monospace;">${e.message}</div>
     </div>
   `;
 }
