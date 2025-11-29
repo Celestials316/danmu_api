@@ -7,6 +7,9 @@ export class Envs {
 
   // 记录获取过的环境变量
   static accessedEnvVars = new Map();
+  
+  // 🔥 新增：记录敏感字段（用于前端显示时脱敏）
+  static sensitiveKeys = new Set();
 
   static VOD_ALLOWED_PLATFORMS = ['qiyi', 'bilibili1', 'imgo', 'youku', 'qq']; // vod允许的播放平台
   static ALLOWED_PLATFORMS = ['qiyi', 'bilibili1', 'imgo', 'youku', 'qq', 'renren', 'hanjutv', 'bahamut', 'dandan', "sohu", "letv"]; // 全部源允许的播放平台
@@ -46,8 +49,14 @@ export class Envs {
         break;
     }
 
-    const finalValue = encrypt ? this.encryptStr(parsedValue) : parsedValue;
-    this.accessedEnvVars.set(key, finalValue);
+    // 🔥 关键修复：存储真实值，但标记为敏感
+    this.accessedEnvVars.set(key, parsedValue);
+    
+    // 🔥 如果是敏感字段，额外标记（用于前端显示时脱敏）
+    if (encrypt) {
+      if (!this.sensitiveKeys) this.sensitiveKeys = new Set();
+      this.sensitiveKeys.add(key);
+    }
 
     return parsedValue;
   }
@@ -72,7 +81,33 @@ export class Envs {
   static encryptStr(str) {
     return '*'.repeat(str.length);
   }
+/**
+   * 基础加密函数 - 将字符串转换为星号
+   * @param {string} str 输入字符串
+   * @returns {string} 星号字符串
+   */
+  static encryptStr(str) {
+    return '*'.repeat(str.length);
+  }
 
+  /**
+   * 🔥 新增：获取用于前端显示的脱敏值
+   * @param {string} key 环境变量键
+   * @returns {any} 脱敏后的值
+   */
+  static getMaskedValue(key) {
+    const value = this.accessedEnvVars.get(key);
+    if (!value) return value;
+    
+    // 如果是敏感字段，返回脱敏值
+    if (this.sensitiveKeys && this.sensitiveKeys.has(key)) {
+      if (typeof value === 'string') {
+        return this.encryptStr(value);
+      }
+    }
+    
+    return value;
+  }
   /**
    * 解析 VOD 服务器配置
    * @param {Object} env 环境对象
