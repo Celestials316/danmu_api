@@ -4677,16 +4677,30 @@ try {
          </div>
        </div>
 
-       <div class="card">
-         <div class="card-header">
-           <h3 class="card-title">
-             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 20V10M12 20V4M6 20v-6" stroke-width="2"/></svg>
-             流量趋势 (24小时)
-           </h3>
-           <button class="btn btn-secondary" onclick="refreshStats()" style="padding: 6px 12px; font-size: 12px;">刷新数据</button>
+       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 24px; margin-bottom: 24px;">
+         <div class="card">
+           <div class="card-header">
+             <h3 class="card-title">
+               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 20V10M12 20V4M6 20v-6" stroke-width="2"/></svg>
+               流量趋势 (24小时)
+             </h3>
+             <button class="btn btn-secondary" onclick="refreshStats()" style="padding: 6px 12px; font-size: 12px;">刷新数据</button>
+           </div>
+           <div class="chart-container" style="height: 300px;">
+             <canvas id="trafficChart"></canvas>
+           </div>
          </div>
-         <div class="chart-container" style="height: 300px;">
-           <canvas id="trafficChart"></canvas>
+
+         <div class="card">
+           <div class="card-header">
+             <h3 class="card-title">
+               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21.21 15.89A10 10 0 1 1 8 2.83" stroke-width="2"/><path d="M22 12A10 10 0 0 0 12 2v10z" stroke-width="2"/></svg>
+               调用源分布
+             </h3>
+           </div>
+           <div class="chart-container" style="height: 300px; display: flex; align-items: center; justify-content: center;">
+             <canvas id="sourceChart"></canvas>
+           </div>
          </div>
        </div>
 
@@ -10262,6 +10276,7 @@ try {
    // ========== 数据统计与分析功能 ==========
    let trafficChartInstance = null;
    let cachePieChartInstance = null;
+   let sourceChartInstance = null;
 
    async function initStatsPage() {
      console.log('初始化统计页面');
@@ -10300,6 +10315,9 @@ try {
 
      // 渲染流量图表
      renderTrafficChart(stats.hourly);
+     
+     // 渲染源分布图表 (新增)
+     renderSourceChart(stats.sources || {});
      
      // 渲染缓存饼图
      renderCachePieChart(stats.cacheSize);
@@ -10343,6 +10361,52 @@ try {
            },
            x: {
              grid: { display: false }
+           }
+         }
+       }
+     });
+   }
+
+   function renderSourceChart(sources) {
+     const ctx = document.getElementById('sourceChart');
+     if (!ctx) return;
+
+     if (sourceChartInstance) {
+       sourceChartInstance.destroy();
+     }
+
+     // 准备数据
+     const labels = Object.keys(sources);
+     const data = Object.values(sources);
+     
+     // 如果没有数据，显示空状态
+     if (labels.length === 0) {
+        labels.push('暂无数据');
+        data.push(1); // 占位
+     }
+
+     const colors = [
+       '#60A5FA', '#34D399', '#FBBF24', '#F87171', '#818CF8', '#F472B6', '#A78BFA', '#22D3EE'
+     ];
+
+     sourceChartInstance = new Chart(ctx, {
+       type: 'pie',
+       data: {
+         labels: labels,
+         datasets: [{
+           data: data,
+           backgroundColor: colors.slice(0, labels.length),
+           borderWidth: 2,
+           borderColor: 'rgba(255, 255, 255, 0.1)'
+         }]
+       },
+       options: {
+         responsive: true,
+         maintainAspectRatio: false,
+         plugins: {
+           legend: { 
+             position: 'right',
+             labels: { color: '#9ca3af' }
            }
          }
        }
@@ -11240,11 +11304,33 @@ docker-compose pull danmu-api && docker-compose up -d danmu-api`;
     });
   }
 
-  // ⚡ 拦截器：简单的请求计数中间件逻辑 (放在路由判断之前)
+  // ⚡ 拦截器：增强的请求计数与源统计逻辑 (放在路由判断之前)
   if (path.startsWith('/api/')) {
     globals.apiStats.totalRequests++;
     const hour = new Date().getHours();
     globals.apiStats.hourly[hour] = (globals.apiStats.hourly[hour] || 0) + 1;
+
+    // 尝试识别并统计调用源 (基于 url 参数或路径)
+    const queryUrl = url.searchParams.get('url');
+    let source = 'unknown';
+    
+    if (queryUrl) {
+      if (queryUrl.includes('iqiyi.com') || queryUrl.includes('iq.com')) source = 'iqiyi';
+      else if (queryUrl.includes('bilibili.com')) source = 'bilibili';
+      else if (queryUrl.includes('youku.com')) source = 'youku';
+      else if (queryUrl.includes('qq.com') || queryUrl.includes('v.qq.com')) source = 'tencent';
+      else if (queryUrl.includes('mgtv.com')) source = 'mgtv';
+      else if (queryUrl.includes('bahamut') || queryUrl.includes('gamer.com.tw')) source = 'bahamut';
+      else if (queryUrl.includes('le.com')) source = 'letv';
+      else if (queryUrl.includes('sohu.com')) source = 'sohu';
+      else source = 'other';
+    } else if (path.includes('/bangumi/')) {
+      source = 'dandan'; // 此时通常是获取弹弹play数据
+    }
+
+    if (source !== 'unknown') {
+      globals.apiStats.sources[source] = (globals.apiStats.sources[source] || 0) + 1;
+    }
   }
 
   // GET /api/cache/stats - 获取缓存统计信息
