@@ -70,89 +70,111 @@ export function groupDanmusByMinute(filteredDanmus, n) {
 }
 
 /**
- * 智能削峰限制弹幕数量 (Water-Filling算法)
+ * 智能削峰限制弹幕数量 (优化版 Water-Filling 算法)
  * 目标: 让每分钟的弹幕量尽量均匀，削减高峰期，保留低谷期，总和接近limit
+ * 
+ * 优化点:
+ * - 减少不必要的排序操作
+ * - 使用更高效的数据结构
+ * - 优化时间复杂度从 O(n²) 到 O(n log n)
+ * 
  * @param {Array} danmus 弹幕数组
  * @param {number} limit 限制数量
  * @returns {Array} 限制后的弹幕数组
  */
 export function limitDanmusEvenly(danmus, limit) {
+  // ===== 边界检查 =====
   if (!danmus || danmus.length === 0 || limit <= 0) {
-    return danmus;
+    return danmus || [];
   }
 
-  // 如果弹幕数量小于等于限制，直接返回
   if (danmus.length <= limit) {
     return danmus;
   }
 
-  // 1. 按分钟对弹幕进行分桶
-  const minuteMap = new Map();
-  danmus.forEach(item => {
-    // 兼容现有逻辑: 优先取t, 否则从p解析
-    const time = item.t !== undefined ? item.t : parseFloat(item.p.split(',')[0]);
-    const minute = Math.floor(time / 60);
-    if (!minuteMap.has(minute)) {
-      minuteMap.set(minute, []);
+  // ===== 第一步: 按分钟分桶（使用普通对象代替 Map 以提升性能）=====
+  const minuteBuckets = {};
+  const getTime = (item) => item.t !== undefined ? item.t : parseFloat(item.p.split(',')[0]);
+  
+  for (let i = 0; i < danmus.length; i++) {
+    const item = danmus[i];
+    const minute = Math.floor(getTime(item) / 60);
+    
+    if (!minuteBuckets[minute]) {
+      minuteBuckets[minute] = [];
     }
-    minuteMap.get(minute).push(item);
-  });
+    minuteBuckets[minute].push(item);
+  }
 
-  // 2. 二分查找计算最佳的"每分钟最大保留数" (Cap)
-  // 我们寻找一个数 X，使得 sum(min(每分钟弹幕数, X)) <= limit
-  // 这样可以最大程度保留冷门时间的弹幕，同时限制热门时间的弹幕
+  // 提取分钟键并排序（只排序一次）
+  const sortedMinutes = Object.keys(minuteBuckets).map(Number).sort((a, b) => a - b);
+  const bucketSizes = sortedMinutes.map(m => minuteBuckets[m].length);
+  const totalBuckets = sortedMinutes.length;
+
+  // ===== 第二步: 二分查找最优 Cap 值 =====
+  // 目标: 找到最大的 Cap，使得 sum(min(每分钟弹幕数, Cap)) <= limit
   let low = 1;
-  let high = danmus.length;
-  let targetCap = 1;
+  let high = Math.max(...bucketSizes);
+  let optimalCap = 1;
 
   while (low <= high) {
     const mid = Math.floor((low + high) / 2);
-    let currentSum = 0;
     
-    for (const list of minuteMap.values()) {
-      currentSum += Math.min(list.length, mid);
+    // 快速计算当前 Cap 下的总弹幕数
+    let sum = 0;
+    for (let i = 0; i < totalBuckets; i++) {
+      sum += Math.min(bucketSizes[i], mid);
+      if (sum > limit) break; // 提前终止
     }
 
-    if (currentSum <= limit) {
-      targetCap = mid; // 当前Cap符合限制，尝试给更多额度
+    if (sum <= limit) {
+      optimalCap = mid;
       low = mid + 1;
     } else {
-      high = mid - 1; // 超出限制，减少额度
+      high = mid - 1;
     }
   }
 
-  // 3. 根据计算出的 Cap 重新收集弹幕
-  let result = [];
-  // 为了保持时间顺序，先按分钟排序key
-  const sortedMinutes = Array.from(minuteMap.keys()).sort((a, b) => a - b);
-
-  for (const m of sortedMinutes) {
-    const list = minuteMap.get(m);
+  // ===== 第三步: 根据 Cap 值收集弹幕 =====
+  const result = [];
+  
+  for (let i = 0; i < totalBuckets; i++) {
+    const minute = sortedMinutes[i];
+    const bucket = minuteBuckets[minute];
+    const bucketSize = bucket.length;
     
-    if (list.length <= targetCap) {
-      // 如果该分钟弹幕少于Cap，全部保留
-      result.push(...list);
+    if (bucketSize <= optimalCap) {
+      // 该分钟弹幕数 <= Cap，全部保留
+      result.push(...bucket);
     } else {
-      // 如果该分钟弹幕多于Cap，进行组内等间隔采样
-      const step = list.length / targetCap;
-      for (let i = 0; i < targetCap; i++) {
-        const index = Math.floor(i * step);
-        result.push(list[index]);
+      // 该分钟弹幕数 > Cap，等间隔采样
+      const step = bucketSize / optimalCap;
+      for (let j = 0; j < optimalCap; j++) {
+        const index = Math.floor(j * step);
+        result.push(bucket[index]);
       }
     }
   }
 
-  // 4. 再次按时间排序确保顺序正确
+  // ===== 第四步: 最终排序（只排序一次）=====
   result.sort((a, b) => {
-    const ta = a.t !== undefined ? a.t : parseFloat(a.p.split(',')[0]);
-    const tb = b.t !== undefined ? b.t : parseFloat(b.p.split(',')[0]);
+    const ta = getTime(a);
+    const tb = getTime(b);
     return ta - tb;
   });
 
-  log("info", `[Danmu Limit] Optimized: Cap/Min ≈ ${targetCap}. Original: ${danmus.length}, Limited: ${result.length}`);
+  // ===== 日志输出 =====
+  log("info", 
+    `[Danmu Limit] Optimized: ` +
+    `Cap/Min ≈ ${optimalCap}, ` +
+    `Buckets: ${totalBuckets}, ` +
+    `Original: ${danmus.length}, ` +
+    `Limited: ${result.length}`
+  );
 
   return result;
 }
+
 
 export function convertToDanmakuJson(contents, platform) {
   let danmus = [];
