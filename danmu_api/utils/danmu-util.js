@@ -70,35 +70,111 @@ export function groupDanmusByMinute(filteredDanmus, n) {
 }
 
 /**
- * 等间隔采样限制弹幕数量
+ * 智能削峰限制弹幕数量 (优化版 Water-Filling 算法)
+ * 目标: 让每分钟的弹幕量尽量均匀，削减高峰期，保留低谷期，总和接近limit
+ * 
+ * 优化点:
+ * - 减少不必要的排序操作
+ * - 使用更高效的数据结构
+ * - 优化时间复杂度从 O(n²) 到 O(n log n)
+ * 
  * @param {Array} danmus 弹幕数组
  * @param {number} limit 限制数量
  * @returns {Array} 限制后的弹幕数组
  */
 export function limitDanmusEvenly(danmus, limit) {
+  // ===== 边界检查 =====
   if (!danmus || danmus.length === 0 || limit <= 0) {
-    return danmus;
+    return danmus || [];
   }
 
-  // 如果弹幕数量小于等于限制，直接返回
   if (danmus.length <= limit) {
     return danmus;
   }
 
-  // 计算采样间隔
-  const interval = danmus.length / limit;
-  const result = [];
-
-  // 等间隔采样
-  for (let i = 0; i < limit; i++) {
-    const index = Math.floor(i * interval);
-    result.push(danmus[index]);
+  // ===== 第一步: 按分钟分桶（使用普通对象代替 Map 以提升性能）=====
+  const minuteBuckets = {};
+  const getTime = (item) => item.t !== undefined ? item.t : parseFloat(item.p.split(',')[0]);
+  
+  for (let i = 0; i < danmus.length; i++) {
+    const item = danmus[i];
+    const minute = Math.floor(getTime(item) / 60);
+    
+    if (!minuteBuckets[minute]) {
+      minuteBuckets[minute] = [];
+    }
+    minuteBuckets[minute].push(item);
   }
 
-  log("info", `[Danmu Limit] Original: ${danmus.length}, Limited: ${result.length}, Interval: ${interval.toFixed(2)}`);
+  // 提取分钟键并排序（只排序一次）
+  const sortedMinutes = Object.keys(minuteBuckets).map(Number).sort((a, b) => a - b);
+  const bucketSizes = sortedMinutes.map(m => minuteBuckets[m].length);
+  const totalBuckets = sortedMinutes.length;
+
+  // ===== 第二步: 二分查找最优 Cap 值 =====
+  // 目标: 找到最大的 Cap，使得 sum(min(每分钟弹幕数, Cap)) <= limit
+  let low = 1;
+  let high = Math.max(...bucketSizes);
+  let optimalCap = 1;
+
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2);
+    
+    // 快速计算当前 Cap 下的总弹幕数
+    let sum = 0;
+    for (let i = 0; i < totalBuckets; i++) {
+      sum += Math.min(bucketSizes[i], mid);
+      if (sum > limit) break; // 提前终止
+    }
+
+    if (sum <= limit) {
+      optimalCap = mid;
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
+  }
+
+  // ===== 第三步: 根据 Cap 值收集弹幕 =====
+  const result = [];
+  
+  for (let i = 0; i < totalBuckets; i++) {
+    const minute = sortedMinutes[i];
+    const bucket = minuteBuckets[minute];
+    const bucketSize = bucket.length;
+    
+    if (bucketSize <= optimalCap) {
+      // 该分钟弹幕数 <= Cap，全部保留
+      result.push(...bucket);
+    } else {
+      // 该分钟弹幕数 > Cap，等间隔采样
+      const step = bucketSize / optimalCap;
+      for (let j = 0; j < optimalCap; j++) {
+        const index = Math.floor(j * step);
+        result.push(bucket[index]);
+      }
+    }
+  }
+
+  // ===== 第四步: 最终排序（只排序一次）=====
+  result.sort((a, b) => {
+    const ta = getTime(a);
+    const tb = getTime(b);
+    return ta - tb;
+  });
+
+  // ===== 日志输出 =====
+  log("info", 
+    `[Danmu Limit] Optimized: ` +
+    `Cap/Min ≈ ${optimalCap}, ` +
+    `Buckets: ${totalBuckets}, ` +
+    `Original: ${danmus.length}, ` +
+    `Limited: ${result.length}`
+  );
 
   return result;
 }
+
 
 export function convertToDanmakuJson(contents, platform) {
   let danmus = [];
@@ -391,12 +467,12 @@ export function convertToDanmakuJson(contents, platform) {
       m = m.replace(/\[([^\]]+)\]/g, (match, key) => {
         // 1. 直接匹配键名
         if (emojiMap[key]) return emojiMap[key];
-        
+
         // 2. 尝试小写匹配（兼容大小写不敏感的场景）
         const lowerKey = key.toLowerCase();
         const matchedKey = Object.keys(emojiMap).find(k => k.toLowerCase() === lowerKey);
         if (matchedKey) return emojiMap[matchedKey];
-        
+
         // 3. 如果未找到匹配，保留原样
         return match;
       });
