@@ -70,13 +70,13 @@ export function groupDanmusByMinute(filteredDanmus, n) {
 }
 
 /**
- * 智能削峰限制弹幕数量 (优化版 Water-Filling 算法)
- * 目标: 让每分钟的弹幕量尽量均匀，削减高峰期，保留低谷期，总和接近limit
+ * 智能削峰限制弹幕数量 (精确版 - 密度均匀 + 数量精确)
+ * 目标: 密度尽量均匀，总数精确不超限，性能优化
  * 
- * 优化点:
- * - 减少不必要的排序操作
- * - 使用更高效的数据结构
- * - 优化时间复杂度从 O(n²) 到 O(n log n)
+ * 核心策略:
+ * 1. 先计算理论最优密度（limit/总时长）
+ * 2. 使用贪心算法逐秒分配，保证不超限
+ * 3. 剩余配额按弹幕密度均匀分配
  * 
  * @param {Array} danmus 弹幕数组
  * @param {number} limit 限制数量
@@ -92,89 +92,119 @@ export function limitDanmusEvenly(danmus, limit) {
     return danmus;
   }
 
-  // ===== 第一步: 按分钟分桶（使用普通对象代替 Map 以提升性能）=====
-  const minuteBuckets = {};
+  // ===== 第一步: 按秒分桶 =====
+  const secondBuckets = {};
   const getTime = (item) => item.t !== undefined ? item.t : parseFloat(item.p.split(',')[0]);
   
   for (let i = 0; i < danmus.length; i++) {
     const item = danmus[i];
-    const minute = Math.floor(getTime(item) / 60);
+    const second = Math.floor(getTime(item));
     
-    if (!minuteBuckets[minute]) {
-      minuteBuckets[minute] = [];
+    if (!secondBuckets[second]) {
+      secondBuckets[second] = [];
     }
-    minuteBuckets[minute].push(item);
+    secondBuckets[second].push(item);
   }
 
-  // 提取分钟键并排序（只排序一次）
-  const sortedMinutes = Object.keys(minuteBuckets).map(Number).sort((a, b) => a - b);
-  const bucketSizes = sortedMinutes.map(m => minuteBuckets[m].length);
-  const totalBuckets = sortedMinutes.length;
+  const sortedSeconds = Object.keys(secondBuckets).map(Number).sort((a, b) => a - b);
+  const totalBuckets = sortedSeconds.length;
 
-  // ===== 第二步: 二分查找最优 Cap 值 =====
-  // 目标: 找到最大的 Cap，使得 sum(min(每分钟弹幕数, Cap)) <= limit
-  let low = 1;
-  let high = Math.max(...bucketSizes);
-  let optimalCap = 1;
+  // ===== 第二步: 计算理论最优密度 =====
+  const targetDensity = limit / totalBuckets; // 每秒理论应保留的弹幕数
+  
+  // ===== 第三步: 两阶段分配策略 =====
+  const allocation = {}; // 记录每秒应保留的数量
+  let allocated = 0;
 
-  while (low <= high) {
-    const mid = Math.floor((low + high) / 2);
-    
-    // 快速计算当前 Cap 下的总弹幕数
-    let sum = 0;
-    for (let i = 0; i < totalBuckets; i++) {
-      sum += Math.min(bucketSizes[i], mid);
-      if (sum > limit) break; // 提前终止
-    }
+  // 阶段1: 基础分配（每秒至少分配 floor(targetDensity)）
+  const baseQuota = Math.floor(targetDensity);
+  for (let i = 0; i < totalBuckets; i++) {
+    const second = sortedSeconds[i];
+    const bucketSize = secondBuckets[second].length;
+    allocation[second] = Math.min(bucketSize, baseQuota);
+    allocated += allocation[second];
+  }
 
-    if (sum <= limit) {
-      optimalCap = mid;
-      low = mid + 1;
-    } else {
-      high = mid - 1;
+  // 阶段2: 分配剩余配额（优先给弹幕多的桶，但保持均匀）
+  let remaining = limit - allocated;
+  
+  if (remaining > 0) {
+    // 计算每个桶还能接受多少弹幕
+    const bucketsWithRoom = sortedSeconds
+      .map(second => ({
+        second,
+        current: allocation[second],
+        total: secondBuckets[second].length,
+        room: secondBuckets[second].length - allocation[second]
+      }))
+      .filter(b => b.room > 0)
+      .sort((a, b) => b.room - a.room); // 按剩余空间排序
+
+    // 均匀分配剩余配额
+    let index = 0;
+    while (remaining > 0 && bucketsWithRoom.length > 0) {
+      const bucket = bucketsWithRoom[index % bucketsWithRoom.length];
+      
+      if (bucket.room > 0) {
+        allocation[bucket.second]++;
+        bucket.room--;
+        remaining--;
+        allocated++;
+      }
+
+      // 如果当前桶已满，移除
+      if (bucket.room === 0) {
+        bucketsWithRoom.splice(index % bucketsWithRoom.length, 1);
+        if (bucketsWithRoom.length === 0) break;
+      } else {
+        index++;
+      }
     }
   }
 
-  // ===== 第三步: 根据 Cap 值收集弹幕 =====
+  // ===== 第四步: 根据分配结果采样弹幕 =====
   const result = [];
   
   for (let i = 0; i < totalBuckets; i++) {
-    const minute = sortedMinutes[i];
-    const bucket = minuteBuckets[minute];
-    const bucketSize = bucket.length;
+    const second = sortedSeconds[i];
+    const bucket = secondBuckets[second];
+    const takeCount = allocation[second];
     
-    if (bucketSize <= optimalCap) {
-      // 该分钟弹幕数 <= Cap，全部保留
+    if (takeCount === 0) continue;
+    
+    if (bucket.length <= takeCount) {
+      // 全部保留
       result.push(...bucket);
     } else {
-      // 该分钟弹幕数 > Cap，等间隔采样
-      const step = bucketSize / optimalCap;
-      for (let j = 0; j < optimalCap; j++) {
+      // 等间隔采样（保证分布均匀）
+      const step = bucket.length / takeCount;
+      for (let j = 0; j < takeCount; j++) {
         const index = Math.floor(j * step);
         result.push(bucket[index]);
       }
     }
   }
 
-  // ===== 第四步: 最终排序（只排序一次）=====
-  result.sort((a, b) => {
-    const ta = getTime(a);
-    const tb = getTime(b);
-    return ta - tb;
-  });
+  // ===== 第五步: 最终排序 =====
+  result.sort((a, b) => getTime(a) - getTime(b));
 
-  // ===== 日志输出 =====
-  log("info", 
-    `[Danmu Limit] Optimized: ` +
-    `Cap/Min ≈ ${optimalCap}, ` +
+  // ===== 统计密度分布 =====
+  const densityStats = sortedSeconds.map(s => allocation[s]);
+  const avgDensity = allocated / totalBuckets;
+  const maxDensity = Math.max(...densityStats);
+  const minDensity = Math.min(...densityStats);
+
+  console.log(
+    `[Danmu Limit] Precise & Even: ` +
+    `Target: ${limit}, ` +
+    `Actual: ${result.length}, ` +
     `Buckets: ${totalBuckets}, ` +
-    `Original: ${danmus.length}, ` +
-    `Limited: ${result.length}`
+    `Density: ${minDensity}~${maxDensity} (avg: ${avgDensity.toFixed(2)}), ` +
+    `Variance: ${(maxDensity - minDensity).toFixed(1)}`
   );
 
   return result;
 }
-
 
 export function convertToDanmakuJson(contents, platform) {
   let danmus = [];
