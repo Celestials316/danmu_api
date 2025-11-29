@@ -70,7 +70,8 @@ export function groupDanmusByMinute(filteredDanmus, n) {
 }
 
 /**
- * 等间隔采样限制弹幕数量
+ * 智能削峰限制弹幕数量 (Water-Filling算法)
+ * 目标: 让每分钟的弹幕量尽量均匀，削减高峰期，保留低谷期，总和接近limit
  * @param {Array} danmus 弹幕数组
  * @param {number} limit 限制数量
  * @returns {Array} 限制后的弹幕数组
@@ -85,17 +86,70 @@ export function limitDanmusEvenly(danmus, limit) {
     return danmus;
   }
 
-  // 计算采样间隔
-  const interval = danmus.length / limit;
-  const result = [];
+  // 1. 按分钟对弹幕进行分桶
+  const minuteMap = new Map();
+  danmus.forEach(item => {
+    // 兼容现有逻辑: 优先取t, 否则从p解析
+    const time = item.t !== undefined ? item.t : parseFloat(item.p.split(',')[0]);
+    const minute = Math.floor(time / 60);
+    if (!minuteMap.has(minute)) {
+      minuteMap.set(minute, []);
+    }
+    minuteMap.get(minute).push(item);
+  });
 
-  // 等间隔采样
-  for (let i = 0; i < limit; i++) {
-    const index = Math.floor(i * interval);
-    result.push(danmus[index]);
+  // 2. 二分查找计算最佳的"每分钟最大保留数" (Cap)
+  // 我们寻找一个数 X，使得 sum(min(每分钟弹幕数, X)) <= limit
+  // 这样可以最大程度保留冷门时间的弹幕，同时限制热门时间的弹幕
+  let low = 1;
+  let high = danmus.length;
+  let targetCap = 1;
+
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2);
+    let currentSum = 0;
+    
+    for (const list of minuteMap.values()) {
+      currentSum += Math.min(list.length, mid);
+    }
+
+    if (currentSum <= limit) {
+      targetCap = mid; // 当前Cap符合限制，尝试给更多额度
+      low = mid + 1;
+    } else {
+      high = mid - 1; // 超出限制，减少额度
+    }
   }
 
-  log("info", `[Danmu Limit] Original: ${danmus.length}, Limited: ${result.length}, Interval: ${interval.toFixed(2)}`);
+  // 3. 根据计算出的 Cap 重新收集弹幕
+  let result = [];
+  // 为了保持时间顺序，先按分钟排序key
+  const sortedMinutes = Array.from(minuteMap.keys()).sort((a, b) => a - b);
+
+  for (const m of sortedMinutes) {
+    const list = minuteMap.get(m);
+    
+    if (list.length <= targetCap) {
+      // 如果该分钟弹幕少于Cap，全部保留
+      result.push(...list);
+    } else {
+      // 如果该分钟弹幕多于Cap，进行组内等间隔采样
+      const step = list.length / targetCap;
+      for (let i = 0; i < targetCap; i++) {
+        const index = Math.floor(i * step);
+        result.push(list[index]);
+      }
+    }
+  }
+
+  // 4. 再次按时间排序确保顺序正确
+  result.sort((a, b) => {
+    const ta = a.t !== undefined ? a.t : parseFloat(a.p.split(',')[0]);
+    const tb = b.t !== undefined ? b.t : parseFloat(b.p.split(',')[0]);
+    return ta - tb;
+  });
+
+  log("info", `[Danmu Limit] Optimized: Cap/Min ≈ ${targetCap}. Original: ${danmus.length}, Limited: ${result.length}`);
 
   return result;
 }
@@ -391,12 +445,12 @@ export function convertToDanmakuJson(contents, platform) {
       m = m.replace(/\[([^\]]+)\]/g, (match, key) => {
         // 1. 直接匹配键名
         if (emojiMap[key]) return emojiMap[key];
-        
+
         // 2. 尝试小写匹配（兼容大小写不敏感的场景）
         const lowerKey = key.toLowerCase();
         const matchedKey = Object.keys(emojiMap).find(k => k.toLowerCase() === lowerKey);
         if (matchedKey) return emojiMap[matchedKey];
-        
+
         // 3. 如果未找到匹配，保留原样
         return match;
       });
