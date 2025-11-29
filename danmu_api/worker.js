@@ -1051,7 +1051,6 @@ try {
       let rawTitle = (value.animeTitle || value.episodeTitle || String(key)).replace(/\s*from\s+.*$/i, '');
       
       // --- 标题与集数解析开始 ---
-      // 1. 提取年份
       const yearMatch = rawTitle.match(/[(（](\d{4})[)）]/);
       const year = yearMatch ? yearMatch[1] : null;
       
@@ -1060,32 +1059,48 @@ try {
         .replace(/【.*?】/g, '')
         .replace(/\[.*?\]/g, '')
         .replace(/[(（]\d{4}[)）]/g, '')
-        .replace(/S\d+E\d+/i, '') // 移除标题里的 S01E01
-        .replace(/第\s*\d+\s*[集话]/, '') // 移除标题里的 第xx集
+        .replace(/S\d+E\d+/i, '')
+        .replace(/第\s*\d+\s*[集话]/, '')
         .trim();
 
       // 3. 解析集数信息 (新逻辑)
-      let epBadgeStr = ''; // 用于高亮显示的集数短语 (如: S01E05)
-      let epSubtitleStr = ''; // 用于显示的副标题 (如: 决战篇)
+      let epBadgeStr = '';
+      let epSubtitleStr = '';
 
-      // 尝试正则提取短语
+      // 尝试正则提取标准短语
       const epRegexMatch = rawTitle.match(/S(\d+)E(\d+)/i) || rawTitle.match(/第\s*(\d+)\s*[集话]/);
       if (epRegexMatch) {
           epBadgeStr = epRegexMatch[0];
-      } else if (value.episodeId && !isNaN(value.episodeId) && String(value.episodeId).length < 5) {
-          // 如果没匹配到，且ID是短数字，用ID兜底
-          epBadgeStr = `EP ${value.episodeId}`;
+      }
+      
+      // 核心优化点：处理腾讯视频常见的数字或 ID 格式
+      const rawEpId = value.episodeId;
+      if (!epBadgeStr && rawEpId) {
+          let cleanedId = String(rawEpId);
+          
+          // 移除常见的ID前缀或分隔符，包括腾讯视频常见的 'vid_' 或 'v'
+          cleanedId = cleanedId.replace(/[\-\_\.p\=id]/gi, '').replace(/^(vid|v)/i, '').trim();
+
+          // 如果清理后只剩下数字，且长度适中，则格式化为 EP XX
+          if (/^\d{1,4}$/.test(cleanedId)) {
+              // 统一格式化为两位数
+              const formattedNum = cleanedId.padStart(2, '0');
+              epBadgeStr = `EP ${formattedNum}`;
+          } else if (String(rawEpId).toLowerCase().includes('_')) {
+             // 如果 ID 包含下划线（例如：movie_09），尝试提取数字
+             const numMatch = String(rawEpId).match(/\d{1,4}$/);
+             if (numMatch) {
+                 epBadgeStr = `EP ${numMatch[0].padStart(2, '0')}`;
+             }
+          }
       }
 
       // 尝试提取副标题
       if (value.episodeTitle && value.episodeTitle !== mainTitle) {
-          // 移除主标题部分，剩下副标题
           let tempSub = value.episodeTitle.replace(mainTitle, '').replace(/【.*?】|\[.*?\]/g, '').trim();
-          // 移除开头可能的连接符
           tempSub = tempSub.replace(/^[\s\-\:：\.]+/g, '');
-          // 如果副标题里包含了徽章文字，则去掉重复部分
-          if (epBadgeStr && tempSub.includes(epBadgeStr)) {
-              tempSub = tempSub.replace(epBadgeStr, '').trim();
+          if (epBadgeStr && tempSub.includes(epBadgeStr.replace(/\s/g, ''))) {
+              tempSub = tempSub.replace(epBadgeStr.replace(/\s/g, ''), '').trim();
           }
           epSubtitleStr = tempSub;
       }
@@ -1095,18 +1110,17 @@ try {
       const timestamp = value.timestamp || value.time || value.date || value.createdAt;
       const timeDisplay = timeAgo(timestamp);
 
-      // 标签生成 (移除了原来的集数标签)
       const tagsHtml = [];
       // 来源标签
       tagsHtml.push(`
         <span style="padding: 2px 6px; border-radius: 4px; background: ${theme.color}15; color: ${theme.color}; font-size: 10px; font-weight: 700; border: 1px solid ${theme.color}30; display: flex; align-items: center; gap: 3px;">
           <span style="width: 4px; height: 4px; border-radius: 50%; background: ${theme.color};"></span>
-          ${src.toUpperCase()}
+          ${theme.name}
         </span>
       `);
       // 年份标签
       if (year) {
-        tagsHtml.push(`<span style="padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.05); color: var(--text-secondary); font-size: 10px; border: 1px solid rgba(255,255,255,0.05);">${year}</span>`);
+        tagsHtml.push(`<span style="padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.05); color: var(--text-secondary); font-size: 10px; border: 1px solid rgba(255,255,255,0.05);">年份: ${year}</span>`);
       }
 
       return `
