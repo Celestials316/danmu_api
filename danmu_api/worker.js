@@ -978,7 +978,7 @@ try {
 
   // 3. 渲染逻辑
   if (uniqueEntries.length > 0) {
-    // 现代化图标集
+    // 现代化 SVG 图标集
     const ICONS = {
       play: '<path d="M5 3l14 9-14 9V3z" fill="currentColor"/>',
       tv: '<rect x="2" y="7" width="20" height="15" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/>',
@@ -1082,9 +1082,9 @@ try {
       const typeTag = typeMatch ? typeMatch[1] : null;
       mainTitle = mainTitle.replace(/【.*?】/g, '').trim();
       
-      let subTitle = value.animeTitle ? value.episodeTitle : \`ID: \${value.id || value.episodeId}\`;
+      let subTitle = value.animeTitle ? value.episodeTitle : `ID: ${value.id || value.episodeId}`;
       subTitle = (subTitle || '').replace(/\s*from\s+.*$/i, '').replace(/^(【.*?】|\[.*?\])\s*/, '').trim();
-      if (!subTitle || subTitle === mainTitle) subTitle = value.episodeId ? \`Episode \${value.episodeId}\` : '未知集数';
+      if (!subTitle || subTitle === mainTitle) subTitle = value.episodeId ? `Episode ${value.episodeId}` : '未知集数';
 
       const ts = value.timestamp || value.time || value.date || value.createdAt;
       const timeStr = ts ? timeAgo(ts) : '';
@@ -1208,6 +1208,7 @@ try {
     </div>
   `;
 }
+
 
 
     const sourcesHtml = globals.sourceOrderArr.length > 0 
