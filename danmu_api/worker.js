@@ -663,17 +663,26 @@ async function handleRequest(req, env, deployPlatform, clientIp) {
   log("info", `request path: ${path}`);
   log("info", `client ip: ${clientIp}`);
 
-async function handleHomepage(req) {
+async function handleHomepage(req, deployPlatform = 'unknown') {
   log("info", "Accessed homepage");
 
-  // 检查登录状态
-  const cookies = req.headers.get('cookie') || '';
-  const sessionMatch = cookies.match(/session=([^;]+)/);
-  const sessionId = sessionMatch ? sessionMatch[1] : null;
+  // 🔥 Netlify 部署时跳过登录验证
+  const isNetlify = deployPlatform === 'netlify' || 
+                    process.env.NETLIFY === 'true' || 
+                    process.env.CONTEXT === 'production';
+  
+  if (!isNetlify) {
+    // 检查登录状态
+    const cookies = req.headers.get('cookie') || '';
+    const sessionMatch = cookies.match(/session=([^;]+)/);
+    const sessionId = sessionMatch ? sessionMatch[1] : null;
 
-  const isValid = await validateSession(sessionId);
-  if (!isValid) {
-    return getLoginPage();
+    const isValid = await validateSession(sessionId);
+    if (!isValid) {
+      return getLoginPage();
+    }
+  } else {
+    log("info", "[Netlify] 跳过登录验证，直接进入主页");
   }
 
 
@@ -10178,11 +10187,11 @@ try {
  }
 
  // GET /
- if (path === "/" && method === "GET") {
-   return handleHomepage(req);
- }
+if (path === "/" && method === "GET") {
+  return await handleHomepage(req, deployPlatform);
+}
 
- if (path === "/favicon.ico" || path === "/robots.txt" || method === "OPTIONS") {
+if (path === "/favicon.ico" || path === "/robots.txt" || method === "OPTIONS") {
    return new Response(null, {
        status: 204,
        headers: {
@@ -10465,7 +10474,7 @@ if (currentToken === "87654321") {
 
 // GET / - 首页（需要登录）
 if (path === "/" && method === "GET") {
-  return await handleHomepage(req);
+  return await handleHomepage(req, deployPlatform);
 }
 
 // POST /api/login - 登录
