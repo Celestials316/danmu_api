@@ -1035,7 +1035,7 @@ try {
         </div>
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
           <div style="font-size: 16px; font-weight: 700; color: ${topSourceTheme.color};">${topSourceName}</div>
-          <div style="font-size: 10px; color: var(--text-tertiary);">最热来源</div>
+          <div style="font-size: 10px; color: var(--text-tertiary);">最近来源</div>
         </div>
       </div>
 
