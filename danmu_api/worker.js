@@ -938,10 +938,18 @@ async function handleHomepage(req, deployPlatform = 'unknown') {
       'bahamut': 'BH'
     };
     
-// 生成最近匹配列表HTML - 旗舰级全息玻璃态设计 (Aurora Glass UI)
+// 生成最近匹配列表HTML - 旗舰级全息玻璃态设计 (Aurora Glass UI v2.0)
+// 特性：增强型集数解析引擎 + 动态流光效果
 let recentMatchesHtml = '';
 try {
-  // 1. 数据准备与排序
+  // --- 核心配置 ---
+  const CONFIG = {
+    maxItems: 5,
+    blurStrength: '16px',
+    animDuration: '0.4s'
+  };
+
+  // --- 1. 数据准备与清洗 ---
   let mapEntries = [];
   if (globals.lastSelectMap) {
     mapEntries = globals.lastSelectMap instanceof Map 
@@ -956,250 +964,252 @@ try {
     return tB - tA;
   });
 
-  // 2. 智能去重与元数据提取
+  // --- 2. 智能去重与高级解析引擎 ---
   const uniqueEntries = [];
   const sourceStats = {};
-  let totalMatches = 0;
   
+  // 辅助：智能集数提取器
+  const extractEpisodeInfo = (title, val) => {
+    let ep = null;
+    let type = 'TV'; // TV, OVA, MOVIE, SP
+
+    // 优先使用源数据中的精确字段
+    if (val.episodeId && !isNaN(val.episodeId)) ep = String(val.episodeId).padStart(2, '0');
+    if (val.episodeLabel) ep = val.episodeLabel;
+
+    // 如果源数据缺失，进行正则深度挖掘
+    if (!ep && title) {
+      // 匹配 S01E02 格式
+      const sMatch = title.match(/S(\d+)E(\d+)/i);
+      if (sMatch) {
+        return { text: `S${sMatch[1]} E${sMatch[2]}`, isHighlight: true };
+      }
+      
+      // 匹配 "第xx集" / "第xx话"
+      const chMatch = title.match(/第\s*(\d+(\.\d+)?)\s*[集话]/);
+      if (chMatch) ep = chMatch[1];
+      
+      // 匹配 "EPxx" / "ep.xx" / "xx" (数字结尾)
+      if (!ep) {
+        const epMatch = title.match(/(?:EP|Vol|Episode)\.?\s*(\d+(\.\d+)?)/i) || 
+                        title.match(/[\s\[](\d+(\.\d+)?)(?:v\d)?[\s\]]*(?=$|\.[a-z])/); // 匹配末尾数字
+        if (epMatch) ep = epMatch[1];
+      }
+    }
+
+    // 类型推断
+    if (title && /OVA|OAD/.test(title.toUpperCase())) type = 'OVA';
+    if (title && /剧场版|Movie/.test(title)) type = 'MOVIE';
+    if (title && /SP|Special/.test(title)) type = 'SP';
+
+    // 格式化输出
+    if (!ep) return type === 'TV' ? null : { text: type, isHighlight: false };
+    
+    const prefix = (type === 'TV') ? 'EP' : type;
+    return { text: `${prefix} ${ep}`, isHighlight: true };
+  };
+
   if (mapEntries.length > 0) {
     const displayedKeys = new Set();
     for (const [key, value] of mapEntries) {
-      if (uniqueEntries.length >= 5) break; // 仅显示前5条
+      if (uniqueEntries.length >= CONFIG.maxItems) break;
       
       if (!value || typeof value !== 'object') continue;
       const targetId = value.id || value.animeId || value.episodeId;
       if (!targetId || ['未匹配', '无数据', 'null', 'undefined'].includes(String(targetId))) continue;
       
-      // 提取核心标题用于去重
+      // 核心标题去重
       const cleanKeyName = String(key).replace(/\s*from\s+.*$/i, '').trim();
       const uniqueKey = value.animeTitle || cleanKeyName;
 
-      // 统计源
+      // 统计
       const src = (value.source || 'auto').toLowerCase();
       sourceStats[src] = (sourceStats[src] || 0) + 1;
-      totalMatches++;
 
       if (!displayedKeys.has(uniqueKey)) {
         displayedKeys.add(uniqueKey);
+        // 预处理集数信息并注入
+        value._derivedEp = extractEpisodeInfo(uniqueKey + ' ' + (value.episodeTitle || ''), value);
         uniqueEntries.push([key, value]);
       }
     }
   }
 
-  // 3. 渲染逻辑
+  // --- 3. 视觉渲染逻辑 ---
   if (uniqueEntries.length > 0) {
-    // 品牌色系定义 (Brand Colors)
+    // 品牌色系 (Brand Colors with Gradients)
     const THEMES = {
-      'dandan':    { color: '#9CA3AF', bg: 'linear-gradient(135deg, #4b5563, #374151)', shadow: 'rgba(156, 163, 175, 0.4)', icon: 'DD' },
-      'bilibili':  { color: '#23ADE5', bg: 'linear-gradient(135deg, #00aeec, #0077aa)', shadow: 'rgba(35, 173, 229, 0.4)', icon: 'Bili' },
-      'iqiyi':     { color: '#00CC4C', bg: 'linear-gradient(135deg, #00cc36, #009929)', shadow: 'rgba(0, 204, 76, 0.4)', icon: 'Qiyi' },
-      'youku':     { color: '#00A0E9', bg: 'linear-gradient(135deg, #0bafff, #2979ff)', shadow: 'rgba(0, 160, 233, 0.4)', icon: 'Youku' },
-      'tencent':   { color: '#FF7F00', bg: 'linear-gradient(135deg, #ff7f00, #ff5f00)', shadow: 'rgba(255, 127, 0, 0.4)', icon: 'QQ' },
-      'mgtv':      { color: '#FF5F00', bg: 'linear-gradient(135deg, #ff5f00, #e65100)', shadow: 'rgba(255, 95, 0, 0.4)', icon: 'MG' },
-      'bahamut':   { color: '#1CB4D3', bg: 'linear-gradient(135deg, #00b4d8, #0077b6)', shadow: 'rgba(28, 180, 211, 0.4)', icon: 'Baha' },
-      '360':       { color: '#22C55E', bg: 'linear-gradient(135deg, #4ade80, #22c55e)', shadow: 'rgba(34, 197, 94, 0.4)', icon: '360' },
-      'default':   { color: '#818CF8', bg: 'linear-gradient(135deg, #6366f1, #4f46e5)', shadow: 'rgba(129, 140, 248, 0.4)', icon: 'API' }
+      'dandan':    { base: '#9CA3AF', grad: 'linear-gradient(135deg, #6B7280 0%, #374151 100%)', shadow: 'rgba(107, 114, 128, 0.3)', label: 'DD' },
+      'bilibili':  { base: '#00AEEC', grad: 'linear-gradient(135deg, #00C3FF 0%, #0077AA 100%)', shadow: 'rgba(0, 174, 236, 0.3)', label: 'BILI' },
+      'iqiyi':     { base: '#00CC4C', grad: 'linear-gradient(135deg, #00E650 0%, #009929 100%)', shadow: 'rgba(0, 204, 76, 0.3)', label: 'QIYI' },
+      'youku':     { base: '#00A0E9', grad: 'linear-gradient(135deg, #33BFFF 0%, #0060A0 100%)', shadow: 'rgba(0, 160, 233, 0.3)', label: 'YOU' },
+      'tencent':   { base: '#FF7F00', grad: 'linear-gradient(135deg, #FFA033 0%, #E65100 100%)', shadow: 'rgba(255, 127, 0, 0.3)', label: 'QQ' },
+      'mgtv':      { base: '#F44336', grad: 'linear-gradient(135deg, #FF7961 0%, #D32F2F 100%)', shadow: 'rgba(244, 67, 54, 0.3)', label: 'MG' },
+      'bahamut':   { base: '#00B4D8', grad: 'linear-gradient(135deg, #48CAE4 0%, #0077B6 100%)', shadow: 'rgba(0, 180, 216, 0.3)', label: 'BAHA' },
+      'default':   { base: '#818CF8', grad: 'linear-gradient(135deg, #A5B4FC 0%, #4338CA 100%)', shadow: 'rgba(129, 140, 248, 0.3)', label: 'API' }
     };
 
-    const getTheme = (key) => {
-      const k = String(key).toLowerCase();
-      if (k.includes('bilibili')) return THEMES.bilibili;
-      if (k.includes('iqiyi') || k.includes('qiyi')) return THEMES.iqiyi;
-      if (k.includes('youku')) return THEMES.youku;
-      if (k.includes('tencent') || k.includes('qq')) return THEMES.tencent;
-      if (k.includes('mgtv') || k.includes('imgo')) return THEMES.mgtv;
-      if (k.includes('bahamut')) return THEMES.bahamut;
-      if (k.includes('360')) return THEMES['360'];
+    const getTheme = (k) => {
+      const keyStr = String(k).toLowerCase();
+      if (keyStr.includes('bili')) return THEMES.bilibili;
+      if (keyStr.includes('iqiyi') || keyStr.includes('qiyi')) return THEMES.iqiyi;
+      if (keyStr.includes('youku')) return THEMES.youku;
+      if (keyStr.includes('tencent') || keyStr.includes('qq')) return THEMES.tencent;
+      if (keyStr.includes('mgtv')) return THEMES.mgtv;
+      if (keyStr.includes('bahamut')) return THEMES.bahamut;
       return THEMES.default;
     };
 
     const timeAgo = (ts) => {
       if (!ts) return '';
-      const seconds = Math.floor((Date.now() - ts) / 1000);
-      if (seconds < 60) return '刚刚';
-      if (seconds < 3600) return Math.floor(seconds / 60) + ' 分钟前';
-      if (seconds < 86400) return Math.floor(seconds / 3600) + ' 小时前';
-      return Math.floor(seconds / 86400) + ' 天前';
+      const diff = (Date.now() - ts) / 1000;
+      if (diff < 60) return 'Just now';
+      if (diff < 3600) return Math.floor(diff/60) + 'm ago';
+      if (diff < 86400) return Math.floor(diff/3600) + 'h ago';
+      return Math.floor(diff/86400) + 'd ago';
     };
 
-    // 顶部统计栏 HTML
+    // 顶部仪表盘
     const topSourceEntry = Object.entries(sourceStats).sort((a, b) => b[1] - a[1])[0];
-    const topSourceName = topSourceEntry ? (getTheme(topSourceEntry[0]).name || topSourceEntry[0].toUpperCase()) : '无';
     const topSourceTheme = topSourceEntry ? getTheme(topSourceEntry[0]) : THEMES.default;
 
     recentMatchesHtml = `
-      <div style="
-        display: grid; 
-        grid-template-columns: 1.2fr 1fr 1fr; 
-        gap: 12px; 
-        margin-bottom: 20px;
-        background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%);
-        border: 1px solid rgba(255,255,255,0.08);
-        border-radius: 16px;
-        padding: 16px;
-        backdrop-filter: blur(12px);
-        box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-      ">
-        <div style="display: flex; flex-direction: column; justify-content: center; padding-right: 12px; border-right: 1px solid rgba(255,255,255,0.05);">
-          <div style="font-size: 11px; color: var(--text-tertiary); font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase;">系统状态</div>
-          <div style="display: flex; align-items: center; gap: 6px; margin-top: 4px;">
-            <span style="position: relative; display: flex; height: 8px; width: 8px;">
-              <span style="position: absolute; display: inline-flex; height: 100%; width: 100%; border-radius: 50%; background-color: var(--success); opacity: 0.75; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></span>
-              <span style="position: relative; display: inline-flex; border-radius: 50%; height: 8px; width: 8px; background-color: var(--success);"></span>
-            </span>
-            <span style="font-size: 13px; font-weight: 600; color: var(--success);">运行正常</span>
-          </div>
-        </div>
-        
-        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; border-right: 1px solid rgba(255,255,255,0.05);">
-          <div style="font-size: 24px; font-weight: 800; color: var(--text-primary); line-height: 1;">${uniqueEntries.length}</div>
-          <div style="font-size: 10px; color: var(--text-tertiary); margin-top: 4px;">最近记录</div>
-        </div>
+      <style>
+        .aurora-card {
+          position: relative;
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 12px;
+          padding: 12px;
+          transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+          overflow: hidden;
+        }
+        .aurora-card:hover {
+          background: rgba(255, 255, 255, 0.06);
+          border-color: rgba(255, 255, 255, 0.15);
+          transform: translateY(-2px);
+          box-shadow: 0 10px 30px -10px rgba(0,0,0,0.5);
+        }
+        .aurora-card::before {
+          content: '';
+          position: absolute; top: 0; left: 0; width: 4px; height: 100%;
+          background: var(--accent-color);
+          opacity: 0; transition: opacity 0.3s;
+        }
+        .aurora-card:hover::before { opacity: 1; }
+        .ep-badge-glow {
+          box-shadow: 0 0 8px var(--glow-color);
+          animation: pulse-glow 3s infinite;
+        }
+        @keyframes pulse-glow {
+          0%, 100% { opacity: 0.8; }
+          50% { opacity: 1; box-shadow: 0 0 12px var(--glow-color); }
+        }
+      </style>
 
-        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
-          <div style="font-size: 13px; font-weight: 700; color: ${topSourceTheme.color};">${topSourceName}</div>
-          <div style="font-size: 10px; color: var(--text-tertiary); margin-top: 4px;">最热来源</div>
+      <div style="
+        display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px;
+        background: rgba(0,0,0,0.2); border-radius: 12px; padding: 12px; border: 1px solid rgba(255,255,255,0.05);
+      ">
+        <div style="text-align: center; border-right: 1px solid rgba(255,255,255,0.05);">
+          <div style="font-size: 10px; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 1px;">Status</div>
+          <div style="color: #4ade80; font-weight: 700; font-size: 13px; margin-top: 2px; text-shadow: 0 0 10px rgba(74,222,128,0.3);">ACTIVE</div>
+        </div>
+        <div style="text-align: center; border-right: 1px solid rgba(255,255,255,0.05);">
+          <div style="font-size: 10px; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 1px;">Cached</div>
+          <div style="color: var(--text-primary); font-weight: 700; font-size: 13px; margin-top: 2px;">${uniqueEntries.length}</div>
+        </div>
+        <div style="text-align: center;">
+          <div style="font-size: 10px; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 1px;">Top Src</div>
+          <div style="color: ${topSourceTheme.base}; font-weight: 700; font-size: 13px; margin-top: 2px;">${topSourceEntry ? topSourceEntry[0].toUpperCase() : '-'}</div>
         </div>
       </div>
 
-      <style>
-        @keyframes ping {
-          75%, 100% { transform: scale(2); opacity: 0; }
-        }
-        .match-card:hover .card-glow { opacity: 1 !important; }
-        .match-card:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.15) !important; }
-      </style>
-
-      <div style="display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; flex-direction: column; gap: 10px;">
     ` + uniqueEntries.map(([key, value]) => {
-      const src = (value.source || value.type || 'auto').toLowerCase();
+      const src = (value.source || 'auto').toLowerCase();
       const theme = getTheme(src);
       
-      // --- 智能标题解析 ---
-      let rawTitle = (value.animeTitle || value.episodeTitle || String(key)).replace(/\s*from\s+.*$/i, '');
+      // 标题处理
+      let title = (value.animeTitle || String(key)).replace(/\s*from\s+.*$/i, '');
+      const yearMatch = title.match(/[(（](\d{4})[)）]/);
+      const year = yearMatch ? yearMatch[1] : '';
+      title = title.replace(/[(（]\d{4}[)）]/g, '').replace(/【.*?】/g, '').trim();
+
+      // 时间处理
+      const ts = value.timestamp || value.time || value.createdAt;
       
-      // 1. 提取年份
-      const yearMatch = rawTitle.match(/[(（](\d{4})[)）]/);
-      const year = yearMatch ? yearMatch[1] : null;
+      // 集数信息 (重点)
+      const epInfo = value._derivedEp; 
+      let epHtml = '';
       
-      // 2. 提取集数 (S01E02 或 第N集)
-      let episode = null;
-      const epMatch = rawTitle.match(/S(\d+)E(\d+)/i) || rawTitle.match(/第(\d+)[集话]/);
-      if (epMatch) {
-        episode = epMatch[0];
-      } else if (value.episodeId && !isNaN(value.episodeId)) {
-        // 如果标题没提取到，且ID是数字，可能ID就是集数ID(不一定准确，仅作参考)
-      }
-
-      // 3. 清洗标题
-      let mainTitle = rawTitle
-        .replace(/【.*?】/g, '')
-        .replace(/\[.*?\]/g, '')
-        .replace(/[(（]\d{4}[)）]/g, '') // 移除年份
-        .trim();
-
-      // 4. 副标题与ID
-      const displayId = value.id || value.animeId || value.episodeId || 'N/A';
-      const timestamp = value.timestamp || value.time || value.date || value.createdAt;
-      const timeDisplay = timeAgo(timestamp);
-
-      // 标签生成
-      const tagsHtml = [];
-      // 来源标签
-      tagsHtml.push(`
-        <span style="
-          padding: 2px 6px; 
-          border-radius: 4px; 
-          background: ${theme.color}15; 
-          color: ${theme.color}; 
-          font-size: 10px; 
-          font-weight: 700; 
-          border: 1px solid ${theme.color}30;
-          display: flex; align-items: center; gap: 3px;
-        ">
-          <span style="width: 4px; height: 4px; border-radius: 50%; background: ${theme.color};"></span>
-          ${src.toUpperCase()}
-        </span>
-      `);
-      
-      // 年份标签
-      if (year) {
-        tagsHtml.push(`
-          <span style="padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.05); color: var(--text-secondary); font-size: 10px; border: 1px solid rgba(255,255,255,0.05);">
-            ${year}
-          </span>
-        `);
-      }
-
-      // 集数高亮
-      if (episode) {
-        tagsHtml.push(`
-          <span style="padding: 2px 6px; border-radius: 4px; background: linear-gradient(90deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05)); color: var(--text-primary); font-size: 10px; font-weight: 600; border: 1px solid rgba(255,255,255,0.1);">
-            ${episode}
-          </span>
-        `);
+      if (epInfo) {
+        // 高级集数徽章
+        const bgStyle = epInfo.isHighlight 
+          ? `background: linear-gradient(90deg, ${theme.base}20, ${theme.base}10); border: 1px solid ${theme.base}40; color: ${theme.base};` 
+          : `background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--text-secondary);`;
+        
+        epHtml = `
+          <div class="${epInfo.isHighlight ? 'ep-badge-glow' : ''}" style="
+            display: inline-flex; align-items: center; justify-content: center;
+            padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700;
+            ${bgStyle} --glow-color: ${theme.base}40; letter-spacing: 0.5px;
+          ">
+            ${epInfo.text}
+          </div>
+        `;
       }
 
       return `
-        <div class="match-card" style="
-          position: relative;
-          background: var(--bg-tertiary);
-          border: 1px solid var(--border-color);
-          border-radius: 14px;
-          padding: 14px;
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          overflow: hidden;
-          cursor: pointer;
-        ">
-          <div class="card-glow" style="
-            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-            background: radial-gradient(circle at 100% 0%, ${theme.color}15 0%, transparent 50%);
-            opacity: 0; transition: opacity 0.4s ease; pointer-events: none;
-          "></div>
-
-          <div style="position: relative; display: flex; align-items: flex-start; gap: 14px;">
+        <div class="aurora-card" style="--accent-color: ${theme.base}; cursor: pointer;">
+          <div style="display: flex; gap: 12px; align-items: center;">
+            
             <div style="
-              width: 48px; height: 48px; 
-              border-radius: 12px; 
-              background: ${theme.bg}; 
+              width: 42px; height: 42px; flex-shrink: 0;
+              background: ${theme.grad};
+              border-radius: 10px;
               box-shadow: 0 4px 12px ${theme.shadow};
               display: flex; align-items: center; justify-content: center;
-              font-size: 16px; font-weight: 800; color: #fff;
-              text-shadow: 0 2px 4px rgba(0,0,0,0.2);
-              flex-shrink: 0;
+              font-weight: 800; font-size: 12px; color: white;
+              text-shadow: 0 1px 2px rgba(0,0,0,0.2);
             ">
-              ${theme.icon}
+              ${theme.label}
             </div>
 
-            <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px;">
+            <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;">
+              
               <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                <div style="font-size: 15px; font-weight: 700; color: var(--text-primary); line-height: 1.3; margin-top: -2px;">
-                  ${mainTitle}
+                <div style="
+                  font-size: 14px; font-weight: 600; color: var(--text-primary); 
+                  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+                  max-width: 180px;
+                " title="${title}">
+                  ${title}
                 </div>
-                <div style="font-size: 11px; color: var(--text-tertiary); white-space: nowrap; margin-left: 8px; font-family: monospace;">
-                  ${timeDisplay}
+                <div style="font-size: 10px; color: var(--text-tertiary); font-family: monospace; white-space: nowrap;">
+                  ${timeAgo(ts)}
                 </div>
               </div>
 
-              <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
-                ${tagsHtml.join('')}
+              <div style="display: flex; align-items: center; gap: 8px;">
+                ${epHtml}
+                
+                ${year ? `
+                  <span style="font-size: 10px; color: var(--text-tertiary); background: rgba(255,255,255,0.03); padding: 2px 6px; border-radius: 4px;">
+                    ${year}
+                  </span>` : ''
+                }
+                
+                <div style="flex: 1;"></div>
+                
+                <div style="
+                  font-size: 9px; color: var(--text-tertiary); font-family: 'Menlo', 'Monaco', monospace;
+                  opacity: 0.6; display: flex; align-items: center; gap: 3px;
+                ">
+                  ID: ${value.id || value.animeId || 'N/A'}
+                </div>
               </div>
 
-              <div style="
-                display: flex; align-items: center; justify-content: space-between; margin-top: 4px;
-                padding-top: 8px; border-top: 1px dashed rgba(255,255,255,0.08);
-              ">
-                <div style="display: flex; align-items: center; gap: 6px; opacity: 0.8;">
-                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="var(--text-tertiary)" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-                  <code style="font-size: 11px; color: var(--text-secondary); font-family: 'Monaco', monospace;">${displayId}</code>
-                </div>
-                ${value.count !== undefined ? `
-                  <div style="font-size: 11px; font-weight: 600; color: ${theme.color}; display: flex; align-items: center; gap: 4px;">
-                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                    ${value.count}
-                  </div>
-                ` : ''}
-              </div>
             </div>
           </div>
         </div>
@@ -1207,45 +1217,30 @@ try {
     }).join('') + `</div>`;
 
   } else {
-    // 空状态 - 赛博风格
+    // 空状态：全息投影风格
     recentMatchesHtml = `
       <div style="
-        padding: 60px 20px;
-        text-align: center;
-        background: rgba(255,255,255,0.01);
-        border: 1px dashed rgba(255,255,255,0.1);
-        border-radius: 16px;
-        display: flex; 
-        flex-direction: column; 
-        align-items: center;
+        padding: 40px 20px; text-align: center;
+        background: linear-gradient(180deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.005) 100%);
+        border: 1px dashed rgba(255,255,255,0.1); border-radius: 12px;
       ">
         <div style="
-          width: 80px; height: 80px;
-          background: radial-gradient(circle, rgba(99,102,241,0.1) 0%, transparent 70%);
-          border-radius: 50%;
+          width: 60px; height: 60px; margin: 0 auto 12px; border-radius: 50%;
+          background: radial-gradient(circle, rgba(99,102,241,0.15) 0%, transparent 70%);
           display: flex; align-items: center; justify-content: center;
-          margin-bottom: 16px;
           border: 1px solid rgba(99,102,241,0.1);
+          box-shadow: 0 0 20px rgba(99,102,241,0.1);
         ">
-          <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--primary-400)" stroke-width="1.5" style="opacity: 0.8;">
-            <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"/>
-            <path d="M12 6v6l4 2"/>
-          </svg>
+          <svg viewBox="0 0 24 24" width="24" height="24" stroke="rgba(129, 140, 248, 0.8)" fill="none" stroke-width="1.5"><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/><path d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/></svg>
         </div>
-        <div style="font-size: 15px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px;">系统就绪，等待数据</div>
-        <div style="font-size: 12px; color: var(--text-tertiary); max-width: 200px; line-height: 1.5;">暂无匹配记录。当您开始播放视频时，记录将在此处以全息卡片形式展示。</div>
+        <div style="font-size: 13px; color: var(--text-secondary); font-weight: 500;">No Recent Data</div>
+        <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 4px;">Waiting for media stream...</div>
       </div>
     `;
   }
 } catch (e) {
-  console.error("渲染匹配列表失败", e);
-  recentMatchesHtml = `
-    <div style="padding: 20px; background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 12px; color: #f87171; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center;">
-      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-      <div style="font-weight: 600; font-size: 14px;">界面渲染异常</div>
-      <div style="font-size: 12px; opacity: 0.8; font-family: monospace;">${e.message}</div>
-    </div>
-  `;
+  console.error("Renderer Error", e);
+  recentMatchesHtml = `<div style="padding:15px; color:#ef4444; border:1px solid #ef444430; border-radius:8px; font-size:12px;">Render Error: ${e.message}</div>`;
 }
 
 
