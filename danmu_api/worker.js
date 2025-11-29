@@ -10391,7 +10391,7 @@ log("info", `[Token Check] 当前 TOKEN: ${currentToken.substring(0, 3)}***`);
 
 // 如果 token 是默认值 87654321
 if (currentToken === "87654321") {
-  const knownApiPaths = ["api", "v1", "v2"];
+  const knownApiPaths = ["api", "v1", "v2", "search", "match", "bangumi", "comment"];
 
   if (parts.length > 0) {
     if (parts[0] === "87654321") {
