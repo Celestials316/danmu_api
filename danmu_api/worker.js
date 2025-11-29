@@ -938,10 +938,10 @@ async function handleHomepage(req, deployPlatform = 'unknown') {
       'bahamut': 'BH'
     };
     
-// 生成最近匹配列表HTML - 旗舰级全息玻璃态设计 (Aurora Glass UI)
+// 生成最近匹配列表HTML - 现代化卡片设计（带独立集数行优化版）
 let recentMatchesHtml = '';
 try {
-  // 1. 数据准备与排序
+  // 1. 获取 Map 数据
   let mapEntries = [];
   if (globals.lastSelectMap) {
     mapEntries = globals.lastSelectMap instanceof Map 
@@ -949,33 +949,34 @@ try {
       : Object.entries(globals.lastSelectMap);
   }
 
-  // 按时间倒序
+  // 🔥 核心优化：按时间戳倒序排序（最新的排在最前面）
   mapEntries.sort((a, b) => {
     const tA = a[1]?.timestamp || a[1]?.time || a[1]?.date || a[1]?.createdAt || 0;
     const tB = b[1]?.timestamp || b[1]?.time || b[1]?.date || b[1]?.createdAt || 0;
     return tB - tA;
   });
 
-  // 2. 智能去重与元数据提取
+  // 2. 严格过滤与去重逻辑
   const uniqueEntries = [];
   const sourceStats = {};
   let totalMatches = 0;
-  
+
   if (mapEntries.length > 0) {
     const displayedKeys = new Set();
     for (const [key, value] of mapEntries) {
-      if (uniqueEntries.length >= 5) break; // 仅显示前5条
-      
+      if (uniqueEntries.length >= 5) break;
+
       if (!value || typeof value !== 'object') continue;
+
       const targetId = value.id || value.animeId || value.episodeId;
       if (!targetId || ['未匹配', '无数据', 'null', 'undefined'].includes(String(targetId))) continue;
-      
-      // 提取核心标题用于去重
-      const cleanKeyName = String(key).replace(/\s*from\s+.*$/i, '').trim();
-      const uniqueKey = value.animeTitle || cleanKeyName;
 
-      // 统计源
-      const src = (value.source || 'auto').toLowerCase();
+      const cleanKeyName = String(key).replace(/\s*from\s+.*$/i, '').trim();
+      // 使用组合键，确保同一部剧的不同集数也能显示（如果需要只显示最新，去掉后面的部分）
+      const uniqueKey = value.animeTitle ? `${value.animeTitle}-${value.episodeTitle}` : cleanKeyName;
+
+      // 统计
+      const src = (value.source || value.type || 'auto').toLowerCase();
       sourceStats[src] = (sourceStats[src] || 0) + 1;
       totalMatches++;
 
@@ -988,17 +989,16 @@ try {
 
   // 3. 渲染逻辑
   if (uniqueEntries.length > 0) {
-    // 品牌色系定义 (Brand Colors)
-    const THEMES = {
-      'dandan':    { color: '#9CA3AF', bg: 'linear-gradient(135deg, #4b5563, #374151)', shadow: 'rgba(156, 163, 175, 0.4)', icon: 'DD' },
-      'bilibili':  { color: '#23ADE5', bg: 'linear-gradient(135deg, #00aeec, #0077aa)', shadow: 'rgba(35, 173, 229, 0.4)', icon: 'Bili' },
-      'iqiyi':     { color: '#00CC4C', bg: 'linear-gradient(135deg, #00cc36, #009929)', shadow: 'rgba(0, 204, 76, 0.4)', icon: 'Qiyi' },
-      'youku':     { color: '#00A0E9', bg: 'linear-gradient(135deg, #0bafff, #2979ff)', shadow: 'rgba(0, 160, 233, 0.4)', icon: 'Youku' },
-      'tencent':   { color: '#FF7F00', bg: 'linear-gradient(135deg, #ff7f00, #ff5f00)', shadow: 'rgba(255, 127, 0, 0.4)', icon: 'QQ' },
-      'mgtv':      { color: '#FF5F00', bg: 'linear-gradient(135deg, #ff5f00, #e65100)', shadow: 'rgba(255, 95, 0, 0.4)', icon: 'MG' },
-      'bahamut':   { color: '#1CB4D3', bg: 'linear-gradient(135deg, #00b4d8, #0077b6)', shadow: 'rgba(28, 180, 211, 0.4)', icon: 'Baha' },
-      '360':       { color: '#22C55E', bg: 'linear-gradient(135deg, #4ade80, #22c55e)', shadow: 'rgba(34, 197, 94, 0.4)', icon: '360' },
-      'default':   { color: '#818CF8', bg: 'linear-gradient(135deg, #6366f1, #4f46e5)', shadow: 'rgba(129, 140, 248, 0.4)', icon: 'API' }
+     const THEMES = {
+      'dandan':    { name: '弹弹Play', color: '#9CA3AF', bg: 'linear-gradient(135deg, #4b5563, #374151)', shadow: 'rgba(156, 163, 175, 0.4)', icon: 'DD' },
+      'bilibili':  { name: 'Bilibili', color: '#23ADE5', bg: 'linear-gradient(135deg, #00aeec, #0077aa)', shadow: 'rgba(35, 173, 229, 0.4)', icon: 'Bili' },
+      'iqiyi':     { name: '爱奇艺', color: '#00CC4C', bg: 'linear-gradient(135deg, #00cc36, #009929)', shadow: 'rgba(0, 204, 76, 0.4)', icon: 'Qiyi' },
+      'youku':     { name: '优酷', color: '#00A0E9', bg: 'linear-gradient(135deg, #0bafff, #2979ff)', shadow: 'rgba(0, 160, 233, 0.4)', icon: 'Youku' },
+      'tencent':   { name: '腾讯视频', color: '#FF7F00', bg: 'linear-gradient(135deg, #ff7f00, #ff5f00)', shadow: 'rgba(255, 127, 0, 0.4)', icon: 'QQ' },
+      'mgtv':      { name: '芒果TV', color: '#FF5F00', bg: 'linear-gradient(135deg, #ff5f00, #e65100)', shadow: 'rgba(255, 95, 0, 0.4)', icon: 'MG' },
+      'bahamut':   { name: '巴哈姆特', color: '#1CB4D3', bg: 'linear-gradient(135deg, #00b4d8, #0077b6)', shadow: 'rgba(28, 180, 211, 0.4)', icon: 'Baha' },
+      '360':       { name: '360影视', color: '#22C55E', bg: 'linear-gradient(135deg, #4ade80, #22c55e)', shadow: 'rgba(34, 197, 94, 0.4)', icon: '360' },
+      'default':   { name: '其他', color: '#818CF8', bg: 'linear-gradient(135deg, #6366f1, #4f46e5)', shadow: 'rgba(129, 140, 248, 0.4)', icon: 'API' }
     };
 
     const getTheme = (key) => {
@@ -1017,127 +1017,96 @@ try {
       if (!ts) return '';
       const seconds = Math.floor((Date.now() - ts) / 1000);
       if (seconds < 60) return '刚刚';
-      if (seconds < 3600) return Math.floor(seconds / 60) + ' 分钟前';
-      if (seconds < 86400) return Math.floor(seconds / 3600) + ' 小时前';
-      return Math.floor(seconds / 86400) + ' 天前';
+      if (seconds < 3600) return Math.floor(seconds / 60) + '分钟前';
+      if (seconds < 86400) return Math.floor(seconds / 3600) + '小时前';
+      return Math.floor(seconds / 86400) + '天前';
     };
 
-    // 顶部统计栏 HTML
+    // 顶部统计栏 (沿用原版风格)
     const topSourceEntry = Object.entries(sourceStats).sort((a, b) => b[1] - a[1])[0];
     const topSourceName = topSourceEntry ? (getTheme(topSourceEntry[0]).name || topSourceEntry[0].toUpperCase()) : '无';
     const topSourceTheme = topSourceEntry ? getTheme(topSourceEntry[0]) : THEMES.default;
 
     recentMatchesHtml = `
-      <div style="
-        display: grid; 
-        grid-template-columns: 1.2fr 1fr 1fr; 
-        gap: 12px; 
-        margin-bottom: 20px;
-        background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%);
-        border: 1px solid rgba(255,255,255,0.08);
-        border-radius: 16px;
-        padding: 16px;
-        backdrop-filter: blur(12px);
-        box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-      ">
-        <div style="display: flex; flex-direction: column; justify-content: center; padding-right: 12px; border-right: 1px solid rgba(255,255,255,0.05);">
-          <div style="font-size: 11px; color: var(--text-tertiary); font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase;">系统状态</div>
-          <div style="display: flex; align-items: center; gap: 6px; margin-top: 4px;">
-            <span style="position: relative; display: flex; height: 8px; width: 8px;">
-              <span style="position: absolute; display: inline-flex; height: 100%; width: 100%; border-radius: 50%; background-color: var(--success); opacity: 0.75; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></span>
-              <span style="position: relative; display: inline-flex; border-radius: 50%; height: 8px; width: 8px; background-color: var(--success);"></span>
-            </span>
-            <span style="font-size: 13px; font-weight: 600; color: var(--success);">运行正常</span>
-          </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 12px; padding: 12px;">
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; border-right: 1px solid var(--border-color);">
+          <div style="font-size: 20px; font-weight: 800; color: var(--text-primary);">${totalMatches}</div>
+          <div style="font-size: 10px; color: var(--text-tertiary);">总匹配</div>
         </div>
-        
-        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; border-right: 1px solid rgba(255,255,255,0.05);">
-          <div style="font-size: 24px; font-weight: 800; color: var(--text-primary); line-height: 1;">${uniqueEntries.length}</div>
-          <div style="font-size: 10px; color: var(--text-tertiary); margin-top: 4px;">最近记录</div>
-        </div>
-
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
-          <div style="font-size: 13px; font-weight: 700; color: ${topSourceTheme.color};">${topSourceName}</div>
-          <div style="font-size: 10px; color: var(--text-tertiary); margin-top: 4px;">最热来源</div>
+          <div style="font-size: 16px; font-weight: 700; color: ${topSourceTheme.color};">${topSourceName}</div>
+          <div style="font-size: 10px; color: var(--text-tertiary);">最热来源</div>
         </div>
       </div>
 
       <style>
-        @keyframes ping {
-          75%, 100% { transform: scale(2); opacity: 0; }
-        }
         .match-card:hover .card-glow { opacity: 1 !important; }
-        .match-card:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.15) !important; }
+        .match-card:hover { transform: translateY(-2px); border-color: var(--primary-500) !important; }
       </style>
 
-      <div style="display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; flex-direction: column; gap: 10px;">
     ` + uniqueEntries.map(([key, value]) => {
       const src = (value.source || value.type || 'auto').toLowerCase();
       const theme = getTheme(src);
-      
-      // --- 智能标题解析 ---
       let rawTitle = (value.animeTitle || value.episodeTitle || String(key)).replace(/\s*from\s+.*$/i, '');
       
+      // --- 标题与集数解析开始 ---
       // 1. 提取年份
       const yearMatch = rawTitle.match(/[(（](\d{4})[)）]/);
       const year = yearMatch ? yearMatch[1] : null;
       
-      // 2. 提取集数 (S01E02 或 第N集)
-      let episode = null;
-      const epMatch = rawTitle.match(/S(\d+)E(\d+)/i) || rawTitle.match(/第(\d+)[集话]/);
-      if (epMatch) {
-        episode = epMatch[0];
-      } else if (value.episodeId && !isNaN(value.episodeId)) {
-        // 如果标题没提取到，且ID是数字，可能ID就是集数ID(不一定准确，仅作参考)
-      }
-
-      // 3. 清洗标题
+      // 2. 清洗主标题
       let mainTitle = rawTitle
         .replace(/【.*?】/g, '')
         .replace(/\[.*?\]/g, '')
-        .replace(/[(（]\d{4}[)）]/g, '') // 移除年份
+        .replace(/[(（]\d{4}[)）]/g, '')
+        .replace(/S\d+E\d+/i, '') // 移除标题里的 S01E01
+        .replace(/第\s*\d+\s*[集话]/, '') // 移除标题里的 第xx集
         .trim();
 
-      // 4. 副标题与ID
+      // 3. 解析集数信息 (新逻辑)
+      let epBadgeStr = ''; // 用于高亮显示的集数短语 (如: S01E05)
+      let epSubtitleStr = ''; // 用于显示的副标题 (如: 决战篇)
+
+      // 尝试正则提取短语
+      const epRegexMatch = rawTitle.match(/S(\d+)E(\d+)/i) || rawTitle.match(/第\s*(\d+)\s*[集话]/);
+      if (epRegexMatch) {
+          epBadgeStr = epRegexMatch[0];
+      } else if (value.episodeId && !isNaN(value.episodeId) && String(value.episodeId).length < 5) {
+          // 如果没匹配到，且ID是短数字，用ID兜底
+          epBadgeStr = `EP ${value.episodeId}`;
+      }
+
+      // 尝试提取副标题
+      if (value.episodeTitle && value.episodeTitle !== mainTitle) {
+          // 移除主标题部分，剩下副标题
+          let tempSub = value.episodeTitle.replace(mainTitle, '').replace(/【.*?】|\[.*?\]/g, '').trim();
+          // 移除开头可能的连接符
+          tempSub = tempSub.replace(/^[\s\-\:：\.]+/g, '');
+          // 如果副标题里包含了徽章文字，则去掉重复部分
+          if (epBadgeStr && tempSub.includes(epBadgeStr)) {
+              tempSub = tempSub.replace(epBadgeStr, '').trim();
+          }
+          epSubtitleStr = tempSub;
+      }
+      // --- 标题与集数解析结束 ---
+
       const displayId = value.id || value.animeId || value.episodeId || 'N/A';
       const timestamp = value.timestamp || value.time || value.date || value.createdAt;
       const timeDisplay = timeAgo(timestamp);
 
-      // 标签生成
+      // 标签生成 (移除了原来的集数标签)
       const tagsHtml = [];
       // 来源标签
       tagsHtml.push(`
-        <span style="
-          padding: 2px 6px; 
-          border-radius: 4px; 
-          background: ${theme.color}15; 
-          color: ${theme.color}; 
-          font-size: 10px; 
-          font-weight: 700; 
-          border: 1px solid ${theme.color}30;
-          display: flex; align-items: center; gap: 3px;
-        ">
+        <span style="padding: 2px 6px; border-radius: 4px; background: ${theme.color}15; color: ${theme.color}; font-size: 10px; font-weight: 700; border: 1px solid ${theme.color}30; display: flex; align-items: center; gap: 3px;">
           <span style="width: 4px; height: 4px; border-radius: 50%; background: ${theme.color};"></span>
           ${src.toUpperCase()}
         </span>
       `);
-      
       // 年份标签
       if (year) {
-        tagsHtml.push(`
-          <span style="padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.05); color: var(--text-secondary); font-size: 10px; border: 1px solid rgba(255,255,255,0.05);">
-            ${year}
-          </span>
-        `);
-      }
-
-      // 集数高亮
-      if (episode) {
-        tagsHtml.push(`
-          <span style="padding: 2px 6px; border-radius: 4px; background: linear-gradient(90deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05)); color: var(--text-primary); font-size: 10px; font-weight: 600; border: 1px solid rgba(255,255,255,0.1);">
-            ${episode}
-          </span>
-        `);
+        tagsHtml.push(`<span style="padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.05); color: var(--text-secondary); font-size: 10px; border: 1px solid rgba(255,255,255,0.05);">${year}</span>`);
       }
 
       return `
@@ -1146,50 +1115,73 @@ try {
           background: var(--bg-tertiary);
           border: 1px solid var(--border-color);
           border-radius: 14px;
-          padding: 14px;
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          padding: 12px;
+          transition: all 0.3s ease;
           overflow: hidden;
           cursor: pointer;
         ">
           <div class="card-glow" style="
             position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-            background: radial-gradient(circle at 100% 0%, ${theme.color}15 0%, transparent 50%);
+            background: radial-gradient(circle at 90% 10%, ${theme.color}10 0%, transparent 50%);
             opacity: 0; transition: opacity 0.4s ease; pointer-events: none;
           "></div>
 
-          <div style="position: relative; display: flex; align-items: flex-start; gap: 14px;">
+          <div style="position: relative; display: flex; align-items: flex-start; gap: 12px;">
             <div style="
-              width: 48px; height: 48px; 
+              width: 44px; height: 44px; 
               border-radius: 12px; 
               background: ${theme.bg}; 
               box-shadow: 0 4px 12px ${theme.shadow};
               display: flex; align-items: center; justify-content: center;
-              font-size: 16px; font-weight: 800; color: #fff;
-              text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+              font-size: 14px; font-weight: 800; color: #fff;
               flex-shrink: 0;
             ">
               ${theme.icon}
             </div>
 
-            <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px;">
-              <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                <div style="font-size: 15px; font-weight: 700; color: var(--text-primary); line-height: 1.3; margin-top: -2px;">
+            <div style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
+              
+              <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">
+                <div style="font-size: 15px; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 10px;" title="${mainTitle}">
                   ${mainTitle}
                 </div>
-                <div style="font-size: 11px; color: var(--text-tertiary); white-space: nowrap; margin-left: 8px; font-family: monospace;">
-                  ${timeDisplay}
-                </div>
+                <div style="font-size: 11px; color: var(--text-tertiary); white-space: nowrap; font-family: monospace;">${timeDisplay}</div>
               </div>
 
-              <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
+              ${(epBadgeStr || epSubtitleStr) ? `
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                ${epBadgeStr ? `
+                <div style="
+                    display: flex; align-items: center;
+                    padding: 2px 8px;
+                    background: ${theme.color}15;
+                    color: ${theme.color};
+                    font-size: 11px; font-weight: 800;
+                    border-radius: 6px;
+                    border: 1px solid ${theme.color}25;
+                    letter-spacing: 0.5px;
+                ">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="10" height="10" style="margin-right: 3px; opacity: 0.8;"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" /></svg>
+                    ${epBadgeStr}
+                </div>
+                ` : ''}
+                ${epSubtitleStr ? `
+                <div style="font-size: 12px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0.9;" title="${epSubtitleStr}">
+                    ${epSubtitleStr}
+                </div>
+                ` : ''}
+              </div>
+              ` : ''}
+
+              <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px;">
                 ${tagsHtml.join('')}
               </div>
 
               <div style="
-                display: flex; align-items: center; justify-content: space-between; margin-top: 4px;
-                padding-top: 8px; border-top: 1px dashed rgba(255,255,255,0.08);
+                display: flex; align-items: center; justify-content: space-between;
+                padding-top: 8px; border-top: 1px dashed var(--border-color);
               ">
-                <div style="display: flex; align-items: center; gap: 6px; opacity: 0.8;">
+                <div style="display: flex; align-items: center; gap: 6px; opacity: 0.7;">
                   <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="var(--text-tertiary)" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
                   <code style="font-size: 11px; color: var(--text-secondary); font-family: 'Monaco', monospace;">${displayId}</code>
                 </div>
@@ -1207,47 +1199,24 @@ try {
     }).join('') + `</div>`;
 
   } else {
-    // 空状态 - 赛博风格
+    // 空状态 (沿用原版)
     recentMatchesHtml = `
-      <div style="
-        padding: 60px 20px;
-        text-align: center;
-        background: rgba(255,255,255,0.01);
-        border: 1px dashed rgba(255,255,255,0.1);
-        border-radius: 16px;
-        display: flex; 
-        flex-direction: column; 
-        align-items: center;
-      ">
-        <div style="
-          width: 80px; height: 80px;
-          background: radial-gradient(circle, rgba(99,102,241,0.1) 0%, transparent 70%);
-          border-radius: 50%;
-          display: flex; align-items: center; justify-content: center;
-          margin-bottom: 16px;
-          border: 1px solid rgba(99,102,241,0.1);
-        ">
-          <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--primary-400)" stroke-width="1.5" style="opacity: 0.8;">
+      <div style="padding: 40px 20px; text-align: center; background: var(--bg-tertiary); border: 1px dashed var(--border-color); border-radius: 16px; display: flex; flex-direction: column; align-items: center;">
+        <div style="width: 60px; height: 60px; background: var(--bg-secondary); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; border: 1px solid var(--border-color);">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="var(--text-tertiary)" stroke-width="1.5">
             <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"/>
             <path d="M12 6v6l4 2"/>
           </svg>
         </div>
-        <div style="font-size: 15px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px;">系统就绪，等待数据</div>
-        <div style="font-size: 12px; color: var(--text-tertiary); max-width: 200px; line-height: 1.5;">暂无匹配记录。当您开始播放视频时，记录将在此处以全息卡片形式展示。</div>
+        <div style="font-size: 14px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px;">暂无匹配记录</div>
+        <div style="font-size: 12px; color: var(--text-tertiary);">最近播放的视频将显示在此处</div>
       </div>
     `;
   }
 } catch (e) {
   console.error("渲染匹配列表失败", e);
-  recentMatchesHtml = `
-    <div style="padding: 20px; background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 12px; color: #f87171; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center;">
-      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-      <div style="font-weight: 600; font-size: 14px;">界面渲染异常</div>
-      <div style="font-size: 12px; opacity: 0.8; font-family: monospace;">${e.message}</div>
-    </div>
-  `;
+  recentMatchesHtml = `<div style="padding: 20px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 12px; color: #f87171; text-align: center;">渲染异常: ${e.message}</div>`;
 }
-
 
 
     const sourcesHtml = globals.sourceOrderArr.length > 0 
