@@ -74,10 +74,10 @@ export function groupDanmusByMinute(filteredDanmus, n) {
  * 目标: 让每秒的弹幕量尽量均匀，削减高峰期，保留低谷期，总和接近limit
  * 
  * 优化点:
- * - 减少不必要的排序操作
- * - 使用更高效的数据结构
- * - 优化时间复杂度从 O(n²) 到 O(n log n)
- * - 改用秒级分桶以提高精度
+ * - 修复了达不到限制数的问题
+ * - 使用更精确的容量分配策略
+ * - 优化时间复杂度为 O(n log n)
+ * - 秒级分桶提高精度
  * 
  * @param {Array} danmus 弹幕数组
  * @param {number} limit 限制数量
@@ -93,7 +93,7 @@ export function limitDanmusEvenly(danmus, limit) {
     return danmus;
   }
 
-  // ===== 第一步: 按秒分桶（使用普通对象代替 Map 以提升性能）=====
+  // ===== 第一步: 按秒分桶 =====
   const secondBuckets = {};
   const getTime = (item) => item.t !== undefined ? item.t : parseFloat(item.p.split(',')[0]);
   
@@ -107,57 +107,104 @@ export function limitDanmusEvenly(danmus, limit) {
     secondBuckets[second].push(item);
   }
 
-  // 提取秒键并排序（只排序一次）
+  // 提取秒键并排序
   const sortedSeconds = Object.keys(secondBuckets).map(Number).sort((a, b) => a - b);
   const bucketSizes = sortedSeconds.map(s => secondBuckets[s].length);
   const totalBuckets = sortedSeconds.length;
 
-  // ===== 第二步: 二分查找最优 Cap 值 =====
-  // 目标: 找到最大的 Cap，使得 sum(min(每秒弹幕数, Cap)) <= limit
-  let low = 1;
-  let high = Math.max(...bucketSizes);
-  let optimalCap = 1;
+  // ===== 第二步: 计算最优 Cap（使用改进的水位填充算法）=====
+  // 创建桶大小的副本用于排序
+  const sortedSizes = [...bucketSizes].sort((a, b) => a - b);
+  
+  let optimalCap = 0;
+  let remainingLimit = limit;
+  let remainingBuckets = totalBuckets;
 
-  while (low <= high) {
-    const mid = Math.floor((low + high) / 2);
+  // 从小到大处理桶，动态计算最优 Cap
+  for (let i = 0; i < totalBuckets; i++) {
+    const currentSize = sortedSizes[i];
+    const avgCap = Math.ceil(remainingLimit / remainingBuckets);
     
-    // 快速计算当前 Cap 下的总弹幕数
-    let sum = 0;
-    for (let i = 0; i < totalBuckets; i++) {
-      sum += Math.min(bucketSizes[i], mid);
-      if (sum > limit) break; // 提前终止
-    }
-
-    if (sum <= limit) {
-      optimalCap = mid;
-      low = mid + 1;
+    if (currentSize <= avgCap) {
+      // 当前桶可以全部保留
+      remainingLimit -= currentSize;
+      remainingBuckets--;
     } else {
-      high = mid - 1;
+      // 剩余的桶都应该使用这个 Cap
+      optimalCap = avgCap;
+      break;
     }
   }
 
-  // ===== 第三步: 根据 Cap 值收集弹幕 =====
+  // 如果所有桶都小于平均值，使用最大桶大小
+  if (optimalCap === 0) {
+    optimalCap = Math.max(...bucketSizes);
+  }
+
+  // ===== 第三步: 根据 Cap 值收集弹幕，并处理剩余名额 =====
   const result = [];
+  let collected = 0;
   
+  // 第一轮: 按 Cap 收集
   for (let i = 0; i < totalBuckets; i++) {
     const second = sortedSeconds[i];
     const bucket = secondBuckets[second];
     const bucketSize = bucket.length;
+    const takeCount = Math.min(bucketSize, optimalCap);
     
-    if (bucketSize <= optimalCap) {
-      // 该秒弹幕数 <= Cap，全部保留
+    if (bucketSize <= takeCount) {
+      // 全部保留
       result.push(...bucket);
     } else {
-      // 该秒弹幕数 > Cap，等间隔采样
-      const step = bucketSize / optimalCap;
-      for (let j = 0; j < optimalCap; j++) {
+      // 等间隔采样
+      const step = bucketSize / takeCount;
+      for (let j = 0; j < takeCount; j++) {
         const index = Math.floor(j * step);
         result.push(bucket[index]);
       }
     }
+    collected += takeCount;
   }
 
-  // ===== 第四步: 最终排序（只排序一次）=====
+  // ===== 第四步: 补充剩余名额（如果还有空间）=====
+  const remaining = limit - collected;
+  if (remaining > 0) {
+    // 找出还有剩余弹幕的桶（桶大小 > Cap 的桶）
+    const bucketsWithExtra = [];
+    for (let i = 0; i < totalBuckets; i++) {
+      const second = sortedSeconds[i];
+      const bucket = secondBuckets[second];
+      if (bucket.length > optimalCap) {
+        bucketsWithExtra.push({
+          second,
+          bucket,
+          extra: bucket.length - optimalCap
+        });
+      }
+    }
+
+    // 按剩余弹幕数排序，优先从弹幕最多的桶补充
+    bucketsWithExtra.sort((a, b) => b.extra - a.extra);
+
+    let supplemented = 0;
+    for (const {bucket} of bucketsWithExtra) {
+      if (supplemented >= remaining) break;
+      
+      const currentTaken = optimalCap;
+      const canTakeMore = Math.min(bucket.length - currentTaken, remaining - supplemented);
+      
+      // 从未取的部分等间隔补充
+      const step = (bucket.length - currentTaken) / canTakeMore;
+      for (let j = 0; j < canTakeMore; j++) {
+        const index = currentTaken + Math.floor(j * step);
+        result.push(bucket[index]);
+      }
+      
+      supplemented += canTakeMore;
+    }
+  }
+
+  // ===== 第五步: 最终排序 =====
   result.sort((a, b) => {
     const ta = getTime(a);
     const tb = getTime(b);
@@ -165,17 +212,18 @@ export function limitDanmusEvenly(danmus, limit) {
   });
 
   // ===== 日志输出 =====
-  log("info", 
+  console.log(
     `[Danmu Limit] Optimized (Second-level): ` +
     `Cap/Sec ≈ ${optimalCap}, ` +
     `Buckets: ${totalBuckets}, ` +
     `Original: ${danmus.length}, ` +
-    `Limited: ${result.length}`
+    `Limited: ${result.length}, ` +
+    `Target: ${limit}, ` +
+    `Utilization: ${((result.length / limit) * 100).toFixed(1)}%`
   );
 
   return result;
 }
-
 
 export function convertToDanmakuJson(contents, platform) {
   let danmus = [];
