@@ -11,19 +11,6 @@ import { formatDanmuResponse } from "./utils/danmu-util.js";
 import { getBangumi, getComment, getCommentByUrl, matchAnime, searchAnime, searchEpisodes } from "./apis/dandan-api.js";
 
 
-// ========== 统计与监控 ==========
-// 初始化 API 统计数据 (内存中)
-if (!globals.apiStats) {
-  globals.apiStats = {
-    totalRequests: 0,
-    successRequests: 0,
-    errorRequests: 0,
-    startTime: Date.now(),
-    sources: {}, // 各源调用次数
-    hourly: new Array(24).fill(0) // 最近24小时请求分布
-  };
-}
-
 // ========== 登录会话管理 (持久化/内存降级方案) ==========
 const sessions = new Map(); // 用于内存会话存储
 const SESSION_TIMEOUT = 24 * 60 * 60 * 1000; // 24小时过期
@@ -4541,13 +4528,6 @@ try {
        </svg>
        <span>概览</span>
      </div>
-       <div class="nav-item" onclick="switchPage('stats')">
-         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-           <path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" stroke-width="2"/> 
-           <path d="M18 20V10M12 20V4M6 20v-6" stroke-width="2" stroke-linecap="round"/>
-         </svg>
-         <span>数据统计</span>
-       </div>
      
      <div class="nav-item" onclick="switchPage('config')">
        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -4647,94 +4627,6 @@ try {
 
    <!-- 内容容器 -->
    <div class="container">
-     <section id="stats-page" class="page-section">
-       <div class="stats-grid">
-         <div class="stat-card">
-           <div class="stat-header">
-             <span class="stat-title">今日请求</span>
-             <div class="stat-icon primary">📊</div>
-           </div>
-           <div class="stat-value" id="statsTotalReq">0</div>
-           <div class="stat-footer">
-             <span class="stat-trend up">实时监控中</span>
-           </div>
-         </div>
-         <div class="stat-card">
-           <div class="stat-header">
-             <span class="stat-title">成功率</span>
-             <div class="stat-icon success">✅</div>
-           </div>
-           <div class="stat-value" id="statsSuccessRate">100%</div>
-           <div class="stat-footer">API 健康状况</div>
-         </div>
-         <div class="stat-card">
-           <div class="stat-header">
-             <span class="stat-title">运行时间</span>
-             <div class="stat-icon info">⏱️</div>
-           </div>
-           <div class="stat-value" id="statsUptime" style="font-size: 24px;">0h 0m</div>
-           <div class="stat-footer">自上次冷启动</div>
-         </div>
-       </div>
-
-       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 24px; margin-bottom: 24px;">
-         <div class="card">
-           <div class="card-header">
-             <h3 class="card-title">
-               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 20V10M12 20V4M6 20v-6" stroke-width="2"/></svg>
-               流量趋势 (24小时)
-             </h3>
-             <button class="btn btn-secondary" onclick="refreshStats()" style="padding: 6px 12px; font-size: 12px;">刷新数据</button>
-           </div>
-           <div class="chart-container" style="height: 300px;">
-             <canvas id="trafficChart"></canvas>
-           </div>
-         </div>
-
-         <div class="card">
-           <div class="card-header">
-             <h3 class="card-title">
-               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21.21 15.89A10 10 0 1 1 8 2.83" stroke-width="2"/><path d="M22 12A10 10 0 0 0 12 2v10z" stroke-width="2"/></svg>
-               调用源分布
-             </h3>
-           </div>
-           <div class="chart-container" style="height: 300px; display: flex; align-items: center; justify-content: center;">
-             <canvas id="sourceChart"></canvas>
-           </div>
-         </div>
-       </div>
-
-       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 24px;">
-         <div class="card">
-           <div class="card-header">
-             <h3 class="card-title">数据管理</h3>
-           </div>
-           <div class="config-grid">
-             <div class="config-item">
-               <div class="config-header">
-                 <span class="config-label">系统备份</span>
-               </div>
-               <div class="config-value" style="background:none; border:none; padding:0;">
-                 <p style="font-size:13px; color:var(--text-secondary); margin-bottom:12px;">导出包含配置、源顺序及用户选择记录的完整备份文件。</p>
-                 <button class="btn btn-primary" onclick="exportBackup()">
-                   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                   下载备份 (.json)
-                 </button>
-               </div>
-             </div>
-           </div>
-         </div>
-         
-         <div class="card">
-           <div class="card-header">
-             <h3 class="card-title">缓存概况</h3>
-           </div>
-           <div class="chart-container" style="height: 200px; display: flex; align-items: center; justify-content: center;">
-             <canvas id="cachePieChart"></canvas>
-           </div>
-         </div>
-       </div>
-     </section>
      <!-- 概览页面 -->
      <section id="overview-page" class="page-section active">
               <div class="stats-grid">
@@ -6784,7 +6676,6 @@ try {
 
      const titles = {
        'overview': '系统概览',
-       'stats': '数据统计', // 新增
        'config': '环境配置',
        'about': '关于系统',
        'sources': '搜索源管理',
@@ -6800,8 +6691,6 @@ try {
        initDanmuTestPage();
      } else if (pageName === 'cache') {
        initCachePage();
-     } else if (pageName === 'stats') {
-       initStatsPage();
      }
      
      closeMobileMenu();
@@ -10273,179 +10162,6 @@ try {
        showToast('配置已保存到浏览器本地（服务器保存失败: ' + error.message + ')', 'warning');
      }
    }
-   // ========== 数据统计与分析功能 ==========
-   let trafficChartInstance = null;
-   let cachePieChartInstance = null;
-   let sourceChartInstance = null;
-
-   async function initStatsPage() {
-     console.log('初始化统计页面');
-     await refreshStats();
-   }
-
-   async function refreshStats() {
-     try {
-       const response = await fetch('/api/admin/stats');
-       const result = await response.json();
-       
-       if (result.success && result.stats) {
-         updateStatsUI(result.stats);
-       }
-     } catch (e) {
-       console.error('获取统计失败', e);
-       showToast('无法获取统计数据', 'error');
-     }
-   }
-
-   function updateStatsUI(stats) {
-     // 更新数字卡片
-     document.getElementById('statsTotalReq').textContent = stats.totalRequests.toLocaleString();
-     
-     const total = stats.totalRequests || 1; // 避免除以0
-     const rate = Math.round(((total - stats.errorRequests) / total) * 100);
-     document.getElementById('statsSuccessRate').textContent = rate + '%';
-     
-     // 格式化运行时间
-     const diff = stats.uptime;
-     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-     const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-     const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-     document.getElementById('statsUptime').textContent = 
-       days > 0 ? \`\${days}天 \${hours}小时\` : \`\${hours}小时 \${mins}分\`;
-
-     // 渲染流量图表
-     renderTrafficChart(stats.hourly);
-     
-     // 渲染源分布图表 (新增)
-     renderSourceChart(stats.sources || {});
-     
-     // 渲染缓存饼图
-     renderCachePieChart(stats.cacheSize);
-   }
-
-   function renderTrafficChart(hourlyData) {
-     const ctx = document.getElementById('trafficChart');
-     if (!ctx) return;
-
-     // 构造 0-23 的标签
-     const labels = Array.from({length: 24}, (_, i) => \`\${i}:00\`);
-     
-     if (trafficChartInstance) {
-       trafficChartInstance.destroy();
-     }
-
-     trafficChartInstance = new Chart(ctx, {
-       type: 'line',
-       data: {
-         labels: labels,
-         datasets: [{
-           label: '请求量',
-           data: hourlyData,
-           borderColor: '#6366f1',
-           backgroundColor: 'rgba(99, 102, 241, 0.1)',
-           borderWidth: 2,
-           fill: true,
-           tension: 0.4
-         }]
-       },
-       options: {
-         responsive: true,
-         maintainAspectRatio: false,
-         plugins: {
-           legend: { display: false }
-         },
-         scales: {
-           y: { 
-             beginAtZero: true,
-             grid: { color: 'rgba(255,255,255,0.05)' }
-           },
-           x: {
-             grid: { display: false }
-           }
-         }
-       }
-     });
-   }
-
-   function renderSourceChart(sources) {
-     const ctx = document.getElementById('sourceChart');
-     if (!ctx) return;
-
-     if (sourceChartInstance) {
-       sourceChartInstance.destroy();
-     }
-
-     // 准备数据
-     const labels = Object.keys(sources);
-     const data = Object.values(sources);
-     
-     // 如果没有数据，显示空状态
-     if (labels.length === 0) {
-        labels.push('暂无数据');
-        data.push(1); // 占位
-     }
-
-     const colors = [
-       '#60A5FA', '#34D399', '#FBBF24', '#F87171', '#818CF8', '#F472B6', '#A78BFA', '#22D3EE'
-     ];
-
-     sourceChartInstance = new Chart(ctx, {
-       type: 'pie',
-       data: {
-         labels: labels,
-         datasets: [{
-           data: data,
-           backgroundColor: colors.slice(0, labels.length),
-           borderWidth: 2,
-           borderColor: 'rgba(255, 255, 255, 0.1)'
-         }]
-       },
-       options: {
-         responsive: true,
-         maintainAspectRatio: false,
-         plugins: {
-           legend: { 
-             position: 'right',
-             labels: { color: '#9ca3af' }
-           }
-         }
-       }
-     });
-   }
-
-   function renderCachePieChart(cacheSize) {
-     const ctx = document.getElementById('cachePieChart');
-     if (!ctx) return;
-
-     if (cachePieChartInstance) {
-       cachePieChartInstance.destroy();
-     }
-
-     cachePieChartInstance = new Chart(ctx, {
-       type: 'doughnut',
-       data: {
-         labels: ['搜索缓存', '弹幕缓存'],
-         datasets: [{
-           data: [cacheSize.search, cacheSize.danmu],
-           backgroundColor: ['#818cf8', '#34d399'],
-           borderWidth: 0
-         }]
-       },
-       options: {
-         responsive: true,
-         maintainAspectRatio: false,
-         plugins: {
-           legend: { position: 'right' }
-         }
-       }
-     });
-   }
-
-   // 导出备份功能
-   function exportBackup() {
-     window.open('/api/admin/export', '_blank');
-     showToast('正在下载备份文件...', 'success');
-   }
 
  </script>
 
@@ -11242,94 +10958,6 @@ docker-compose pull danmu-api && docker-compose up -d danmu-api`;
         success: false,
         error: error.message || '连接失败'
       }, 500);
-    }
-  }
-
-  // GET /api/admin/stats - 获取系统统计数据
-  if (path === "/api/admin/stats" && method === "GET") {
-    // 简单的鉴权
-    const cookies = req.headers.get('cookie') || '';
-    const sessionMatch = cookies.match(/session=([^;]+)/);
-    if (!sessionMatch || !await validateSession(sessionMatch[1])) {
-      return jsonResponse({ success: false, message: 'Unauthorized' }, 401);
-    }
-
-    const uptime = Date.now() - (globals.apiStats.startTime || Date.now());
-    
-    // 计算内存使用 (仅 Node 环境有效，Workers 中可能不准确)
-    let memoryUsage = 0;
-    try {
-      if (typeof process !== 'undefined' && process.memoryUsage) {
-        memoryUsage = process.memoryUsage().heapUsed;
-      }
-    } catch(e) {}
-
-    return jsonResponse({
-      success: true,
-      stats: {
-        ...globals.apiStats,
-        uptime,
-        memoryUsage,
-        cacheSize: {
-          search: globals.animes ? Object.keys(globals.animes).length : 0,
-          danmu: globals.episodeIds ? Object.keys(globals.episodeIds).length : 0
-        }
-      }
-    });
-  }
-
-  // GET /api/admin/export - 导出完整数据备份
-  if (path === "/api/admin/export" && method === "GET") {
-    const cookies = req.headers.get('cookie') || '';
-    if (!cookies.includes('session=')) return jsonResponse({ success: false }, 401);
-
-    const backupData = {
-      version: globals.VERSION,
-      exportDate: new Date().toISOString(),
-      config: globals.accessedEnvVars, // 环境变量
-      vodServers: globals.vodServers, // VOD配置
-      sourceOrder: globals.sourceOrderArr, // 源顺序
-      // 缓存数据 (如果数据量过大可能导致 Workers 内存溢出，这里做个简单保护)
-      caches: {
-        lastSelectMap: globals.lastSelectMap ? Array.from(globals.lastSelectMap.entries()) : [],
-        // 仅导出部分关键缓存，避免过大
-      }
-    };
-
-    return new Response(JSON.stringify(backupData, null, 2), {
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Disposition': `attachment; filename="danmu-api-backup-${Date.now()}.json"`
-      }
-    });
-  }
-
-  // ⚡ 拦截器：增强的请求计数与源统计逻辑 (放在路由判断之前)
-  if (path.startsWith('/api/')) {
-    globals.apiStats.totalRequests++;
-    const hour = new Date().getHours();
-    globals.apiStats.hourly[hour] = (globals.apiStats.hourly[hour] || 0) + 1;
-
-    // 尝试识别并统计调用源 (基于 url 参数或路径)
-    const queryUrl = url.searchParams.get('url');
-    let source = 'unknown';
-    
-    if (queryUrl) {
-      if (queryUrl.includes('iqiyi.com') || queryUrl.includes('iq.com')) source = 'iqiyi';
-      else if (queryUrl.includes('bilibili.com')) source = 'bilibili';
-      else if (queryUrl.includes('youku.com')) source = 'youku';
-      else if (queryUrl.includes('qq.com') || queryUrl.includes('v.qq.com')) source = 'tencent';
-      else if (queryUrl.includes('mgtv.com')) source = 'mgtv';
-      else if (queryUrl.includes('bahamut') || queryUrl.includes('gamer.com.tw')) source = 'bahamut';
-      else if (queryUrl.includes('le.com')) source = 'letv';
-      else if (queryUrl.includes('sohu.com')) source = 'sohu';
-      else source = 'other';
-    } else if (path.includes('/bangumi/')) {
-      source = 'dandan'; // 此时通常是获取弹弹play数据
-    }
-
-    if (source !== 'unknown') {
-      globals.apiStats.sources[source] = (globals.apiStats.sources[source] || 0) + 1;
     }
   }
 
