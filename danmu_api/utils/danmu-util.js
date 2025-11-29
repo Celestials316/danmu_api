@@ -71,11 +71,18 @@ export function groupDanmusByMinute(filteredDanmus, n) {
 
 /**
  * 智能削峰限制弹幕数量 (最终版)
+ *
  * 目标：
- *  - 总数严格不超过 limit，且在总弹幕数 >= limit 时，精确等于 limit
- *  - 每秒保留的弹幕数量尽量一致（在容量允许下最多只差 1）
- *  - 尽量不牺牲性能：整体是 O(弹幕数 + limit)
- * 
+ *  - 总数严格不超过 limit，且在弹幕总数 >= limit 时，精确等于 limit
+ *  - 在每秒原始容量允许的前提下，让各秒保留数量尽量一致（最多相差 1）
+ *  - 尽量不影响弹幕匹配/查找性能
+ *
+ * 思路概述：
+ * 1. 以「整部视频的秒数」为维度建桶（0 ~ maxSecond），没有弹幕的秒容量为 0。
+ * 2. 对每秒只允许保留不超过它原来的数量（容量 cap_i）。
+ * 3. 通过二分「水位线 threshold」，找到一个值，使 sum(min(cap_i, threshold)) >= limit 且尽量小。
+ * 4. 先给每秒分配 min(cap_i, threshold - 1)，再把剩余的配额均匀地撒到那些 cap_i >= threshold 的秒上。
+ *
  * @param {Array} danmus 弹幕数组
  * @param {number} limit 限制数量
  * @returns {Array} 限制后的弹幕数组
@@ -91,87 +98,130 @@ export function limitDanmusEvenly(danmus, limit) {
     return danmus;
   }
 
-  // ===== 第一步: 按秒分桶 =====
-  const secondBuckets = Object.create(null);
   const getTime = (item) =>
-    item.t !== undefined ? item.t : parseFloat(item.p.split(',')[0]);
+    item.t != null ? Number(item.t) : Number(item.p.split(',')[0]);
 
+  // ===== 第一步：找出视频最大秒数，按「整部视频」建桶 =====
+  let maxSecond = 0;
   for (let i = 0; i < danmus.length; i++) {
-    const item = danmus[i];
-    const second = Math.floor(getTime(item));
-
-    if (!secondBuckets[second]) {
-      secondBuckets[second] = [];
-    }
-    secondBuckets[second].push(item);
+    const t = getTime(danmus[i]);
+    if (!Number.isFinite(t) || t < 0) continue;
+    const s = Math.floor(t);
+    if (s > maxSecond) maxSecond = s;
   }
 
-  const sortedSeconds = Object.keys(secondBuckets)
-    .map(Number)
-    .sort((a, b) => a - b);
+  const totalSeconds = maxSecond + 1; // 0 ~ maxSecond 共 totalSeconds 秒
+  const secondBuckets = new Array(totalSeconds);
+  for (let i = 0; i < totalSeconds; i++) {
+    secondBuckets[i] = [];
+  }
 
-  const totalBuckets = sortedSeconds.length;
+  // 按秒分桶
+  for (let i = 0; i < danmus.length; i++) {
+    const item = danmus[i];
+    const t = getTime(item);
+    if (!Number.isFinite(t) || t < 0) continue;
+    const s = Math.floor(t);
+    if (s >= 0 && s < totalSeconds) {
+      secondBuckets[s].push(item);
+    }
+  }
 
-  // 所有有弹幕的秒的“容量”
-  const caps = sortedSeconds.map((s) => secondBuckets[s].length);
+  // 每秒容量（原始弹幕数）
+  const caps = new Array(totalSeconds);
+  let totalCapacity = 0;
+  let maxCap = 0;
+  for (let i = 0; i < totalSeconds; i++) {
+    const c = secondBuckets[i].length;
+    caps[i] = c;
+    totalCapacity += c;
+    if (c > maxCap) maxCap = c;
+  }
 
-  // 保险起见，再检查一下总容量
-  const totalCapacity = caps.reduce((sum, c) => sum + c, 0);
+  // 理论上等于 danmus.length，这里再保险检查一次
   if (totalCapacity <= limit) {
-    // 正常来说不会进入，因为上面 danmus.length > limit 了
+    // 容量本来就不够，还削峰个啥，直接返回
     return danmus;
   }
 
-  // ===== 第二步: 全局均匀分配配额 =====
-  // 目标：在容量允许下，让每秒的 alloc[i] 尽量靠近 base 或 base+1
-  const allocation = new Array(totalBuckets).fill(0);
-
-  const base = Math.floor(limit / totalBuckets); // 每秒基础配额
-  let allocated = 0;
-
-  // 先给每一秒一个基础配额（受容量约束）
-  for (let i = 0; i < totalBuckets; i++) {
-    const baseAlloc = Math.min(caps[i], base);
-    allocation[i] = baseAlloc;
-    allocated += baseAlloc;
-  }
-
-  // 剩余配额，再一轮一轮轮询式地 +1 分配
-  let remaining = limit - allocated;
-
-  while (remaining > 0) {
-    let progressed = false;
-
-    for (let i = 0; i < totalBuckets && remaining > 0; i++) {
-      if (allocation[i] < caps[i]) {
-        allocation[i]++;
-        remaining--;
-        progressed = true;
-      }
+  // ===== 第二步：二分查找「水位线 threshold」 =====
+  // threshold 表示：在容量允许前提下，希望每秒大致保留多少条
+  // 我们找最小的 threshold，使得 sum(min(cap_i, threshold)) >= limit
+  const can = (th) => {
+    let sum = 0;
+    for (let i = 0; i < totalSeconds; i++) {
+      sum += caps[i] < th ? caps[i] : th;
+      if (sum >= limit) return true;
     }
+    return false;
+  };
 
-    // 如果一整轮下来没有任何一个桶能再增加，说明全部都到容量上限了
-    if (!progressed) break;
+  let low = 1;
+  let high = Math.min(maxCap, limit); // 水位线不可能超过这俩
+
+  // 二分：找到最小的 water level
+  while (low < high) {
+    const mid = (low + high) >> 1; // 向下取整
+    if (can(mid)) {
+      high = mid;
+    } else {
+      low = mid + 1;
+    }
+  }
+  const threshold = low;
+
+  // ===== 第三步：先给每秒分配 threshold - 1，再均匀补齐剩余 =====
+  const allocation = new Array(totalSeconds).fill(0);
+  let sumPrev = 0;
+  const candidates = []; // 能再多拿 1 条（cap_i >= threshold）的秒
+
+  const baseValue = threshold - 1;
+
+  for (let i = 0; i < totalSeconds; i++) {
+    let baseAlloc = 0;
+    if (baseValue > 0) {
+      baseAlloc = caps[i] < baseValue ? caps[i] : baseValue;
+    }
+    allocation[i] = baseAlloc;
+    sumPrev += baseAlloc;
+
+    if (caps[i] >= threshold) {
+      // 这一秒还有空间从 threshold-1 拉到 threshold
+      candidates.push(i);
+    }
   }
 
-  // 理论上这里 result.length 一定会等于 limit
-  // （因为 totalCapacity > limit，并且我们只在容量内分配）
+  let remaining = limit - sumPrev;
+  if (remaining > 0 && candidates.length > 0) {
+    // 在 candidates 这些秒里，把 remaining 个 “+1” 尽量均匀铺开
+    const n = candidates.length;
+    // 选出 remaining 个索引：floor(j * n / remaining)，遍布 0 ~ n-1
+    for (let j = 0; j < remaining; j++) {
+      const idx = candidates[Math.floor((j * n) / remaining)];
+      // 这里保证 caps[idx] >= threshold，且 allocation[idx] == threshold - 1
+      allocation[idx] += 1;
+    }
+  }
 
-  // ===== 第三步: 根据 allocation 结果，从每秒等间隔采样弹幕 =====
+  // 理论上 sum(allocation) 一定等于 limit（因为 totalCapacity > limit）
+  // 可以按需加个断言：
+  // const checkSum = allocation.reduce((s, v) => s + v, 0);
+  // console.log('sum = ', checkSum);
+
+  // ===== 第四步：按 allocation 结果，从每秒等间隔采样弹幕 =====
   const result = [];
 
-  for (let idx = 0; idx < totalBuckets; idx++) {
-    const second = sortedSeconds[idx];
-    const bucket = secondBuckets[second];
-    const takeCount = allocation[idx];
+  for (let sec = 0; sec < totalSeconds; sec++) {
+    const bucket = secondBuckets[sec];
+    const takeCount = allocation[sec];
 
-    if (takeCount <= 0) continue;
+    if (takeCount <= 0 || bucket.length === 0) continue;
 
     if (bucket.length <= takeCount) {
-      // 该秒弹幕本来就很少，全保留
+      // 本来就没几条，全保留
       result.push(...bucket);
     } else {
-      // 等间隔采样，尽量保持这一秒内部的分布均匀
+      // 等间隔采样，保证该秒内分布尽量均匀
       const step = bucket.length / takeCount;
       for (let j = 0; j < takeCount; j++) {
         const index = Math.floor(j * step);
@@ -180,22 +230,22 @@ export function limitDanmusEvenly(danmus, limit) {
     }
   }
 
-  // ===== 第四步: 按时间排序，保证播放时匹配正常 =====
+  // ===== 第五步：按时间排序，保证播放时匹配正常 =====
   result.sort((a, b) => getTime(a) - getTime(b));
 
-  // ===== 统计信息（便于调试观察） =====
+  // ===== 调试日志：看看密度是否接近「直线」 =====
   const densities = allocation; // 每秒保留的数量
   const nonZero = densities.filter((d) => d > 0);
   const avgDensity =
-    densities.reduce((sum, d) => sum + d, 0) / totalBuckets;
+    densities.reduce((sum, d) => sum + d, 0) / totalSeconds;
   const maxDensity = nonZero.length ? Math.max(...nonZero) : 0;
   const minDensity = nonZero.length ? Math.min(...nonZero) : 0;
 
   console.log(
-    `[Danmu Limit] Final Even Limit => ` +
+    `[Danmu Limit] Water-Filling Final => ` +
       `Target: ${limit}, ` +
       `Actual: ${result.length}, ` +
-      `Seconds(with danmu): ${totalBuckets}, ` +
+      `Seconds(total): ${totalSeconds}, ` +
       `PerSecond: ${minDensity}~${maxDensity} (avg: ${avgDensity.toFixed(
         2
       )})`
