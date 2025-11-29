@@ -9259,8 +9259,12 @@ try {
          envData = AppState.config;
        }
        
-       // 🔍 直接使用服务器返回的真实值（已经是未脱敏的）
-       const realEnvData = { ...envData };
+       // 🔥 确保返回的是真实值（服务器端已经不再加密存储）
+      const realEnvData = {};
+      for (const [key, value] of Object.entries(envData)) {
+        // 直接使用值，不再二次处理
+        realEnvData[key] = value;
+      }
        
        // 添加元数据
        const fullData = {
