@@ -95,7 +95,7 @@ export function limitDanmusEvenly(danmus, limit) {
   // ===== 第一步: 按秒分桶 =====
   const secondBuckets = {};
   const getTime = (item) => item.t !== undefined ? item.t : parseFloat(item.p.split(',')[0]);
-  
+
   for (let i = 0; i < danmus.length; i++) {
     const item = danmus[i];
     const second = Math.floor(getTime(item));
@@ -111,7 +111,7 @@ export function limitDanmusEvenly(danmus, limit) {
 
   // ===== 第二步: 计算理论最优密度 =====
   const targetDensity = limit / totalBuckets; // 每秒理论应保留的弹幕数
-  
+
   // ===== 第三步: 两阶段分配策略 =====
   const allocation = {}; // 记录每秒应保留的数量
   let allocated = 0;
@@ -205,6 +205,7 @@ export function limitDanmusEvenly(danmus, limit) {
 
   return result;
 }
+
 
 export function convertToDanmakuJson(contents, platform) {
   let danmus = [];
