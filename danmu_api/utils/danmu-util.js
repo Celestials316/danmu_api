@@ -70,186 +70,174 @@ export function groupDanmusByMinute(filteredDanmus, n) {
 }
 
 /**
- * 智能削峰限制弹幕数量 (最终版)
+ * 智能削峰限制弹幕数量 (平滑密度版)
  *
- * 目标：
- *  - 总数严格不超过 limit，且在弹幕总数 >= limit 时，精确等于 limit
- *  - 在每秒原始容量允许的前提下，让各秒保留数量尽量一致（最多相差 1）
- *  - 尽量不影响弹幕匹配/查找性能
- *
- * 思路概述：
- * 1. 以「整部视频的秒数」为维度建桶（0 ~ maxSecond），没有弹幕的秒容量为 0。
- * 2. 对每秒只允许保留不超过它原来的数量（容量 cap_i）。
- * 3. 通过二分「水位线 threshold」，找到一个值，使 sum(min(cap_i, threshold)) >= limit 且尽量小。
- * 4. 先给每秒分配 min(cap_i, threshold - 1)，再把剩余的配额均匀地撒到那些 cap_i >= threshold 的秒上。
+ * 改进点：
+ * 1. 使用「浮点数二分」查找水位线，解决密度锯齿问题。
+ * 2. 引入「误差扩散 (Error Diffusion)」机制，将小数部分的配额平滑分摊到时间轴上，密度最接近直线。
+ * 3. 性能优化：预处理时间，移除中间的复杂分配逻辑，直接一次遍历生成结果。
+ * 4. 严格限制：最终数量绝不会超过 limit，且尽可能接近 limit。
  *
  * @param {Array} danmus 弹幕数组
  * @param {number} limit 限制数量
  * @returns {Array} 限制后的弹幕数组
  */
 export function limitDanmusEvenly(danmus, limit) {
-  // ===== 边界检查 =====
-  if (!danmus || danmus.length === 0 || limit <= 0) {
-    return [];
-  }
+  // ===== 0. 快速边界检查 =====
+  if (!danmus || danmus.length === 0) return [];
+  if (limit <= 0) return [];
+  if (danmus.length <= limit) return danmus; // 没超限，直接返回原数组
 
-  // 原始总数没超过限制，直接返回
-  if (danmus.length <= limit) {
-    return danmus;
-  }
+  // 辅助：快速获取时间（避免重复 split 字符串，提高性能）
+  // 假设弹幕对象要么有 t 属性(number)，要么有 p 属性(string "time,type,color...")
+  const getTime = (item) => {
+    if (item.t !== undefined) return item.t;
+    if (item.p !== undefined) {
+      // 简单的缓存机制可以加在这里，但为了通用性暂且直接解析
+      // 建议数据源头最好直接把 p 解析成 t
+      const pStr = String(item.p);
+      const firstComma = pStr.indexOf(',');
+      return firstComma > -1 ? parseFloat(pStr.slice(0, firstComma)) : parseFloat(pStr);
+    }
+    return 0;
+  };
 
-  const getTime = (item) =>
-    item.t != null ? Number(item.t) : Number(item.p.split(',')[0]);
-
-  // ===== 第一步：找出视频最大秒数，按「整部视频」建桶 =====
+  // ===== 1. 建桶 (Bucketing) =====
+  // 找出最大秒数，建立时间桶。这是 O(N) 操作。
   let maxSecond = 0;
-  for (let i = 0; i < danmus.length; i++) {
-    const t = getTime(danmus[i]);
-    if (!Number.isFinite(t) || t < 0) continue;
-    const s = Math.floor(t);
-    if (s > maxSecond) maxSecond = s;
-  }
-
-  const totalSeconds = maxSecond + 1; // 0 ~ maxSecond 共 totalSeconds 秒
-  const secondBuckets = new Array(totalSeconds);
-  for (let i = 0; i < totalSeconds; i++) {
-    secondBuckets[i] = [];
-  }
-
-  // 按秒分桶
+  // 预处理一遍数据，既为了找 maxSecond，也为了过滤无效数据，顺便存好 parsedTime 避免重复解析
+  const validItems = [];
   for (let i = 0; i < danmus.length; i++) {
     const item = danmus[i];
     const t = getTime(item);
     if (!Number.isFinite(t) || t < 0) continue;
-    const s = Math.floor(t);
-    if (s >= 0 && s < totalSeconds) {
-      secondBuckets[s].push(item);
-    }
+    
+    if (t > maxSecond) maxSecond = t;
+    // 稍微包装一下，避免后续重复 getTime
+    validItems.push({ original: item, time: t });
+  }
+  
+  // 再次检查总数
+  if (validItems.length <= limit) return validItems.map(v => v.original);
+
+  const totalBuckets = Math.floor(maxSecond) + 1;
+  const buckets = new Array(totalBuckets);
+  // 初始化桶
+  for (let i = 0; i < totalBuckets; i++) buckets[i] = [];
+  
+  // 填充桶
+  for (let i = 0; i < validItems.length; i++) {
+    const vItem = validItems[i];
+    const sec = Math.floor(vItem.time);
+    buckets[sec].push(vItem);
+  }
+  
+  // 统计每秒容量 (Capacity)
+  const caps = new Array(totalBuckets);
+  for (let i = 0; i < totalBuckets; i++) {
+    caps[i] = buckets[i].length;
   }
 
-  // 每秒容量（原始弹幕数）
-  const caps = new Array(totalSeconds);
-  let totalCapacity = 0;
-  let maxCap = 0;
-  for (let i = 0; i < totalSeconds; i++) {
-    const c = secondBuckets[i].length;
-    caps[i] = c;
-    totalCapacity += c;
-    if (c > maxCap) maxCap = c;
-  }
-
-  // 理论上等于 danmus.length，这里再保险检查一次
-  if (totalCapacity <= limit) {
-    // 容量本来就不够，还削峰个啥，直接返回
-    return danmus;
-  }
-
-  // ===== 第二步：二分查找「水位线 threshold」 =====
-  // threshold 表示：在容量允许前提下，希望每秒大致保留多少条
-  // 我们找最小的 threshold，使得 sum(min(cap_i, threshold)) >= limit
-  const can = (th) => {
+  // ===== 2. 浮点二分查找 (Floating Binary Search) =====
+  // 目标：找到一个浮点数 threshold，使得 sum(min(cap, threshold)) ≈ limit
+  
+  let left = 0;
+  let right = Math.max(...caps); // 水位线最高就是最拥挤那一秒的数量
+  const epsilon = 0.05; // 精度控制，越小越准，但 0.05 足够了
+  
+  // 计算在给定水位线下的理论总数（带小数）
+  const calcSum = (th) => {
     let sum = 0;
-    for (let i = 0; i < totalSeconds; i++) {
-      sum += caps[i] < th ? caps[i] : th;
-      if (sum >= limit) return true;
+    for (let i = 0; i < totalBuckets; i++) {
+      sum += Math.min(caps[i], th);
     }
-    return false;
+    return sum;
   };
 
-  let low = 1;
-  let high = Math.min(maxCap, limit); // 水位线不可能超过这俩
-
-  // 二分：找到最小的 water level
-  while (low < high) {
-    const mid = (low + high) >> 1; // 向下取整
-    if (can(mid)) {
-      high = mid;
+  // 二分迭代 (固定次数通常比 while (diff > epsilon) 更快且防死循环)
+  for (let i = 0; i < 20; i++) {
+    const mid = (left + right) / 2;
+    if (calcSum(mid) < limit) {
+      left = mid; // 说明水位低了，抬高
     } else {
-      low = mid + 1;
+      right = mid; // 说明水位高了，压低
     }
   }
-  const threshold = low;
+  
+  // 最终的浮点水位线。
+  // 我们稍微偏向 left 一点，宁可少拿不要多拿，后面再通过 accumulator 补齐
+  const threshold = left; 
 
-  // ===== 第三步：先给每秒分配 threshold - 1，再均匀补齐剩余 =====
-  const allocation = new Array(totalSeconds).fill(0);
-  let sumPrev = 0;
-  const candidates = []; // 能再多拿 1 条（cap_i >= threshold）的秒
-
-  const baseValue = threshold - 1;
-
-  for (let i = 0; i < totalSeconds; i++) {
-    let baseAlloc = 0;
-    if (baseValue > 0) {
-      baseAlloc = caps[i] < baseValue ? caps[i] : baseValue;
-    }
-    allocation[i] = baseAlloc;
-    sumPrev += baseAlloc;
-
-    if (caps[i] >= threshold) {
-      // 这一秒还有空间从 threshold-1 拉到 threshold
-      candidates.push(i);
-    }
-  }
-
-  let remaining = limit - sumPrev;
-  if (remaining > 0 && candidates.length > 0) {
-    // 在 candidates 这些秒里，把 remaining 个 “+1” 尽量均匀铺开
-    const n = candidates.length;
-    // 选出 remaining 个索引：floor(j * n / remaining)，遍布 0 ~ n-1
-    for (let j = 0; j < remaining; j++) {
-      const idx = candidates[Math.floor((j * n) / remaining)];
-      // 这里保证 caps[idx] >= threshold，且 allocation[idx] == threshold - 1
-      allocation[idx] += 1;
-    }
-  }
-
-  // 理论上 sum(allocation) 一定等于 limit（因为 totalCapacity > limit）
-  // 可以按需加个断言：
-  // const checkSum = allocation.reduce((s, v) => s + v, 0);
-  // console.log('sum = ', checkSum);
-
-  // ===== 第四步：按 allocation 结果，从每秒等间隔采样弹幕 =====
+  // ===== 3. 误差扩散采样 (Error Diffusion Sampling) =====
   const result = [];
+  let accumulator = 0; // 累积的小数“欠款”
+  
+  // 这里的关键是：我们按时间顺序遍历，这样误差会平滑地传递到下一秒
+  for (let i = 0; i < totalBuckets; i++) {
+    const bucket = buckets[i];
+    const cap = caps[i];
+    
+    if (cap === 0) {
+      // 这一秒没弹幕，积攒的配额作废吗？
+      // 通常作废，因为不能把配额挪到没有弹幕的时间去。
+      // 但为了保证总数尽量接近 limit，如果 limit 很大而弹幕很稀疏，
+      // accumulator 可以保留，但不要无限累积。这里简单重置或衰减。
+      accumulator = 0; 
+      continue;
+    }
 
-  for (let sec = 0; sec < totalSeconds; sec++) {
-    const bucket = secondBuckets[sec];
-    const takeCount = allocation[sec];
+    // 计算这一秒理论应该拿多少条 (可能是小数，如 5.42)
+    const idealCount = Math.min(cap, threshold);
+    
+    // 加上之前的余额
+    const rawCount = idealCount + accumulator;
+    
+    // 取整：实际能拿的条数
+    let takeCount = Math.floor(rawCount);
+    
+    // 更新余额：把切掉的小数部分留给下一秒
+    accumulator = rawCount - takeCount;
 
-    if (takeCount <= 0 || bucket.length === 0) continue;
+    // 安全检查：不能超过本来有的数量
+    if (takeCount > cap) {
+        // 如果配额比实际有的还多（通常不会发生，因为 min(cap, threshold)），
+        // 多余的 accumulator 实际上没法用掉，只能浪费或者存着。
+        accumulator += (takeCount - cap); 
+        takeCount = cap;
+    }
+    
+    // 双重安全检查：不要拿负数
+    if (takeCount <= 0) continue;
 
-    if (bucket.length <= takeCount) {
-      // 本来就没几条，全保留
-      result.push(...bucket);
+    // 采样逻辑：等间隔抽样 (Step Sampling)
+    // 在 bucket 内部做均匀抽取
+    if (takeCount >= cap) {
+      // 全拿
+      for (let k = 0; k < bucket.length; k++) result.push(bucket[k].original);
     } else {
-      // 等间隔采样，保证该秒内分布尽量均匀
-      const step = bucket.length / takeCount;
+      // 抽样：cap 个里选 takeCount 个
+      // 使用 (i * cap / takeCount) 这种浮点步进，能保证最均匀
+      const step = cap / takeCount;
       for (let j = 0; j < takeCount; j++) {
         const index = Math.floor(j * step);
-        result.push(bucket[index]);
+        // 防止浮点精度问题导致的越界
+        if (index < bucket.length) {
+            result.push(bucket[index].original);
+        }
       }
     }
+    
+    // 紧急熔断：如果因为 accumulator 的累积导致总数已经达到 limit，提前停止
+    // 这种情况极少发生，但在 limit 极其严格时很有用
+    if (result.length >= limit) break;
   }
-
-  // ===== 第五步：按时间排序，保证播放时匹配正常 =====
+  
+  // ===== 4. 排序 (Sorting) =====
+  // 结果通常已经是按秒有序的了（因为遍历 buckets 是有序的），
+  // 只有同一秒内的弹幕可能乱序（如果原始数据乱序）。
+  // 为了保险起见，或者为了合并后绝对有序，进行一次最终排序。
+  // 由于数据量已被削减到 limit，这里的排序开销完全可控。
   result.sort((a, b) => getTime(a) - getTime(b));
-
-  // ===== 调试日志：看看密度是否接近「直线」 =====
-  const densities = allocation; // 每秒保留的数量
-  const nonZero = densities.filter((d) => d > 0);
-  const avgDensity =
-    densities.reduce((sum, d) => sum + d, 0) / totalSeconds;
-  const maxDensity = nonZero.length ? Math.max(...nonZero) : 0;
-  const minDensity = nonZero.length ? Math.min(...nonZero) : 0;
-
-  console.log(
-    `[Danmu Limit] Water-Filling Final => ` +
-      `Target: ${limit}, ` +
-      `Actual: ${result.length}, ` +
-      `Seconds(total): ${totalSeconds}, ` +
-      `PerSecond: ${minDensity}~${maxDensity} (avg: ${avgDensity.toFixed(
-        2
-      )})`
-  );
 
   return result;
 }
