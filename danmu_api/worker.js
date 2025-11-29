@@ -1063,42 +1063,41 @@ try {
         .replace(/第\s*\d+\s*[集话]/, '')
         .trim();
 
-      // 3. 解析集数信息 (新逻辑)
+      // 3. 解析集数信息 (新逻辑 - 针对腾讯视频等平台加强)
       let epBadgeStr = '';
       let epSubtitleStr = '';
 
-      // 尝试正则提取标准短语
-      const epRegexMatch = rawTitle.match(/S(\d+)E(\d+)/i) || rawTitle.match(/第\s*(\d+)\s*[集话]/);
-      if (epRegexMatch) {
-          epBadgeStr = epRegexMatch[0];
-      }
-      
-      // 核心优化点：处理腾讯视频常见的数字或 ID 格式
+      // 1. 优先从 episodeId 中提取数字，解决 '_09' 问题
       const rawEpId = value.episodeId;
-      if (!epBadgeStr && rawEpId) {
-          let cleanedId = String(rawEpId);
+      if (rawEpId) {
+          const epIdStr = String(rawEpId);
           
-          // 移除常见的ID前缀或分隔符，包括腾讯视频常见的 'vid_' 或 'v'
-          cleanedId = cleanedId.replace(/[\-\_\.p\=id]/gi, '').replace(/^(vid|v)/i, '').trim();
-
-          // 如果清理后只剩下数字，且长度适中，则格式化为 EP XX
-          if (/^\d{1,4}$/.test(cleanedId)) {
-              // 统一格式化为两位数
-              const formattedNum = cleanedId.padStart(2, '0');
-              epBadgeStr = `EP ${formattedNum}`;
-          } else if (String(rawEpId).toLowerCase().includes('_')) {
-             // 如果 ID 包含下划线（例如：movie_09），尝试提取数字
-             const numMatch = String(rawEpId).match(/\d{1,4}$/);
-             if (numMatch) {
-                 epBadgeStr = `EP ${numMatch[0].padStart(2, '0')}`;
-             }
+          // 尝试匹配以 '_' 或 '-' 结尾的数字，且数字长度不超过4位
+          // 目标：匹配 '_09', 'id-105', 'p=20'
+          const numMatch = epIdStr.match(/[\_\-\=\/](\d{1,4})$/) || epIdStr.match(/^(\d{1,4})$/);
+          
+          if (numMatch) {
+              // 提取捕获组中的数字 (numMatch[1])
+              const episodeNumber = numMatch[1];
+              // 格式化为两位数 EP XX
+              epBadgeStr = `EP ${episodeNumber.padStart(2, '0')}`;
           }
       }
 
-      // 尝试提取副标题
+
+      // 2. 如果 ID 提取失败，再尝试从 rawTitle 中提取标准格式
+      if (!epBadgeStr) {
+          const epRegexMatch = rawTitle.match(/S(\d+)E(\d+)/i) || rawTitle.match(/第\s*(\d+)\s*[集话]/);
+          if (epRegexMatch) {
+              epBadgeStr = epRegexMatch[0];
+          }
+      }
+
+      // 3. 尝试提取副标题 (逻辑不变)
       if (value.episodeTitle && value.episodeTitle !== mainTitle) {
           let tempSub = value.episodeTitle.replace(mainTitle, '').replace(/【.*?】|\[.*?\]/g, '').trim();
           tempSub = tempSub.replace(/^[\s\-\:：\.]+/g, '');
+          // 清理副标题中可能重复的集数
           if (epBadgeStr && tempSub.includes(epBadgeStr.replace(/\s/g, ''))) {
               tempSub = tempSub.replace(epBadgeStr.replace(/\s/g, ''), '').trim();
           }
