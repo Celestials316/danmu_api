@@ -70,13 +70,14 @@ export function groupDanmusByMinute(filteredDanmus, n) {
 }
 
 /**
- * 智能削峰限制弹幕数量 (优化版 Water-Filling 算法)
- * 目标: 让每分钟的弹幕量尽量均匀，削减高峰期，保留低谷期，总和接近limit
+ * 智能削峰限制弹幕数量 (优化版 Water-Filling 算法 - 秒级精度)
+ * 目标: 让每秒的弹幕量尽量均匀，削减高峰期，保留低谷期，总和接近limit
  * 
  * 优化点:
  * - 减少不必要的排序操作
  * - 使用更高效的数据结构
  * - 优化时间复杂度从 O(n²) 到 O(n log n)
+ * - 改用秒级分桶以提高精度
  * 
  * @param {Array} danmus 弹幕数组
  * @param {number} limit 限制数量
@@ -92,27 +93,27 @@ export function limitDanmusEvenly(danmus, limit) {
     return danmus;
   }
 
-  // ===== 第一步: 按分钟分桶（使用普通对象代替 Map 以提升性能）=====
-  const minuteBuckets = {};
+  // ===== 第一步: 按秒分桶（使用普通对象代替 Map 以提升性能）=====
+  const secondBuckets = {};
   const getTime = (item) => item.t !== undefined ? item.t : parseFloat(item.p.split(',')[0]);
   
   for (let i = 0; i < danmus.length; i++) {
     const item = danmus[i];
-    const minute = Math.floor(getTime(item) / 60);
+    const second = Math.floor(getTime(item));
     
-    if (!minuteBuckets[minute]) {
-      minuteBuckets[minute] = [];
+    if (!secondBuckets[second]) {
+      secondBuckets[second] = [];
     }
-    minuteBuckets[minute].push(item);
+    secondBuckets[second].push(item);
   }
 
-  // 提取分钟键并排序（只排序一次）
-  const sortedMinutes = Object.keys(minuteBuckets).map(Number).sort((a, b) => a - b);
-  const bucketSizes = sortedMinutes.map(m => minuteBuckets[m].length);
-  const totalBuckets = sortedMinutes.length;
+  // 提取秒键并排序（只排序一次）
+  const sortedSeconds = Object.keys(secondBuckets).map(Number).sort((a, b) => a - b);
+  const bucketSizes = sortedSeconds.map(s => secondBuckets[s].length);
+  const totalBuckets = sortedSeconds.length;
 
   // ===== 第二步: 二分查找最优 Cap 值 =====
-  // 目标: 找到最大的 Cap，使得 sum(min(每分钟弹幕数, Cap)) <= limit
+  // 目标: 找到最大的 Cap，使得 sum(min(每秒弹幕数, Cap)) <= limit
   let low = 1;
   let high = Math.max(...bucketSizes);
   let optimalCap = 1;
@@ -139,15 +140,15 @@ export function limitDanmusEvenly(danmus, limit) {
   const result = [];
   
   for (let i = 0; i < totalBuckets; i++) {
-    const minute = sortedMinutes[i];
-    const bucket = minuteBuckets[minute];
+    const second = sortedSeconds[i];
+    const bucket = secondBuckets[second];
     const bucketSize = bucket.length;
     
     if (bucketSize <= optimalCap) {
-      // 该分钟弹幕数 <= Cap，全部保留
+      // 该秒弹幕数 <= Cap，全部保留
       result.push(...bucket);
     } else {
-      // 该分钟弹幕数 > Cap，等间隔采样
+      // 该秒弹幕数 > Cap，等间隔采样
       const step = bucketSize / optimalCap;
       for (let j = 0; j < optimalCap; j++) {
         const index = Math.floor(j * step);
@@ -165,8 +166,8 @@ export function limitDanmusEvenly(danmus, limit) {
 
   // ===== 日志输出 =====
   log("info", 
-    `[Danmu Limit] Optimized: ` +
-    `Cap/Min ≈ ${optimalCap}, ` +
+    `[Danmu Limit] Optimized (Second-level): ` +
+    `Cap/Sec ≈ ${optimalCap}, ` +
     `Buckets: ${totalBuckets}, ` +
     `Original: ${danmus.length}, ` +
     `Limited: ${result.length}`
