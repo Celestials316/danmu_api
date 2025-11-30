@@ -1106,22 +1106,22 @@ async function handleHomepage(req, deployPlatform = 'unknown') {
           let epBadgeStr = '';
           let epSubtitleStr = '';
 
-          // 优先尝试从 ID 中解析 (_01)
-          const rawEpId = value.episodeId;
-          if (rawEpId) {
-            const epIdStr = String(rawEpId);
-            const numMatch = epIdStr.match(/[\_\-\=\/](\d{1,4})$/) || epIdStr.match(/^(\d{1,4})$/);
-            if (numMatch) {
-              const episodeNumber = numMatch[1];
-              epBadgeStr = `EP ${episodeNumber.padStart(2, '0')}`;
-            }
+          const rawEpId = String(value.episodeId || '');
+          // 增强版提取：匹配末尾的数字，专门解决腾讯/爱奇艺的 _01, id_12 等格式
+          // 逻辑：匹配字符串末尾的 1-4 位数字，该数字前必须是非数字字符（如 _ - /）或字符串开头
+          const idMatch = rawEpId.match(/(?:^|[^0-9])(\d{1,4})$/);
+          
+          if (idMatch) {
+             const episodeNumber = idMatch[1];
+             epBadgeStr = `EP ${episodeNumber.padStart(2, '0')}`;
           }
 
-          // 其次尝试从标题解析 (S01E01)
+          // 如果 ID 提取失败，尝试从标题解析 (S01E01)
           if (!epBadgeStr) {
             const epRegexMatch = rawTitle.match(/S(\d+)E(\d+)/i) || rawTitle.match(/第\s*(\d+)\s*[集话]/);
             if (epRegexMatch) {
-              epBadgeStr = epRegexMatch[0];
+              // 这里的正则可能捕获多个组，取最后一个捕获组通常是集数
+              epBadgeStr = `EP ${epRegexMatch[epRegexMatch.length - 1].padStart(2, '0')}`;
             }
           }
 
@@ -1129,15 +1129,24 @@ async function handleHomepage(req, deployPlatform = 'unknown') {
           if (value.episodeTitle && value.episodeTitle !== mainTitle) {
             let tempSub = value.episodeTitle.replace(mainTitle, '').replace(/【.*?】|\[.*?\]/g, '').trim();
             tempSub = tempSub.replace(/^[\s\-\:：\.]+/g, '');
-            if (epBadgeStr && tempSub.includes(epBadgeStr.replace(/\s/g, ''))) {
-              tempSub = tempSub.replace(epBadgeStr.replace(/\s/g, ''), '').trim();
+            // 清理副标题中可能重复的集数
+            if (epBadgeStr) {
+               // 移除 "EP 01", "01", "第1集" 等变体
+               const num = epBadgeStr.replace('EP ', '');
+               const numInt = parseInt(num);
+               const patterns = [epBadgeStr, num, `第${numInt}集`, `第${num}集`, `_${num}`];
+               patterns.forEach(p => tempSub = tempSub.replace(p, ''));
             }
-            if (tempSub.length > 0) epSubtitleStr = tempSub;
+            if (tempSub.trim().length > 0) epSubtitleStr = tempSub.trim();
           }
 
           const displayId = value.id || value.animeId || value.episodeId || 'N/A';
           const timestamp = value.timestamp || value.time || value.date || value.createdAt;
           const timeDisplay = timeAgo(timestamp);
+          
+          // 获取弹幕数量
+          const danmuCount = value.count !== undefined ? value.count : 0;
+          const danmuCountStr = danmuCount > 9999 ? (danmuCount/10000).toFixed(1) + 'w' : danmuCount;
 
           return `
             <div class="match-card">
@@ -1196,15 +1205,21 @@ async function handleHomepage(req, deployPlatform = 'unknown') {
                   </div>
 
                   <div style="display: flex; align-items: center; justify-content: space-between; border-top: 1px dashed var(--border-color); padding-top: 8px; margin-top: auto;">
-                    <div style="display: flex; gap: 6px; align-items: center;">
-                      <span style="font-size: 10px; color: ${theme.color}; font-weight: 600;">${theme.name}</span>
-                      ${year ? `<span style="width: 1px; height: 10px; background: var(--border-color);"></span><span style="font-size: 10px; color: var(--text-tertiary);">${year}</span>` : ''}
+                    <div style="display: flex; gap: 6px; align-items: center; flex: 1; min-width: 0; padding-right: 10px;">
+                      <span style="font-size: 10px; color: ${theme.color}; font-weight: 600; flex-shrink: 0;">${theme.name}</span>
+                      <div style="display: flex; align-items: center; gap: 4px; opacity: 0.6; cursor: pointer; max-width: 100%;" title="ID: ${displayId}" onclick="navigator.clipboard.writeText('${displayId}');showToast('ID已复制')">
+                        <span style="width: 1px; height: 10px; background: var(--border-color); flex-shrink: 0;"></span>
+                        <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink: 0;"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                        <code style="font-size: 10px; font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${String(displayId).replace(/^.*?_/, '')}</code>
+                      </div>
                     </div>
                     
-                    <div style="display: flex; align-items: center; gap: 6px; opacity: 0.6; cursor: pointer;" title="ID: ${displayId}" onclick="navigator.clipboard.writeText('${displayId}');showToast('ID已复制')">
-                      <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                      <code style="font-size: 10px; font-family: monospace;">${String(displayId).substring(0, 12)}${String(displayId).length > 12 ? '...' : ''}</code>
+                    ${danmuCount > 0 ? `
+                    <div style="display: flex; align-items: center; gap: 4px; color: ${theme.color}; font-weight: 700; font-size: 11px;">
+                      <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+                      ${danmuCountStr}
                     </div>
+                    ` : ''}
                   </div>
                 </div>
               </div>
