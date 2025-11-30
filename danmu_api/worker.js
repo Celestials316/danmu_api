@@ -939,297 +939,299 @@ async function handleHomepage(req, deployPlatform = 'unknown') {
     };
     
 // 生成最近匹配列表HTML - 现代化卡片设计（带独立集数行优化版）
-let recentMatchesHtml = '';
-try {
-  // 1. 获取 Map 数据
-  let mapEntries = [];
-  if (globals.lastSelectMap) {
-    mapEntries = globals.lastSelectMap instanceof Map 
-      ? Array.from(globals.lastSelectMap.entries()) 
-      : Object.entries(globals.lastSelectMap);
-  }
-
-  // 🔥 核心优化：按时间戳倒序排序（最新的排在最前面）
-  mapEntries.sort((a, b) => {
-    const tA = a[1]?.timestamp || a[1]?.time || a[1]?.date || a[1]?.createdAt || 0;
-    const tB = b[1]?.timestamp || b[1]?.time || b[1]?.date || b[1]?.createdAt || 0;
-    return tB - tA;
-  });
-
-  // 2. 严格过滤与去重逻辑
-  const uniqueEntries = [];
-  const sourceStats = {};
-  let totalMatches = 0;
-
-  if (mapEntries.length > 0) {
-    const displayedKeys = new Set();
-    for (const [key, value] of mapEntries) {
-      if (uniqueEntries.length >= 5) break;
-
-      if (!value || typeof value !== 'object') continue;
-
-      const targetId = value.id || value.animeId || value.episodeId;
-      if (!targetId || ['未匹配', '无数据', 'null', 'undefined'].includes(String(targetId))) continue;
-
-      const cleanKeyName = String(key).replace(/\s*from\s+.*$/i, '').trim();
-      // 使用组合键，确保同一部剧的不同集数也能显示（如果需要只显示最新，去掉后面的部分）
-      const uniqueKey = value.animeTitle ? `${value.animeTitle}-${value.episodeTitle}` : cleanKeyName;
-
-      // 统计
-      const src = (value.source || value.type || 'auto').toLowerCase();
-      sourceStats[src] = (sourceStats[src] || 0) + 1;
-      totalMatches++;
-
-      if (!displayedKeys.has(uniqueKey)) {
-        displayedKeys.add(uniqueKey);
-        uniqueEntries.push([key, value]);
+    let recentMatchesHtml = '';
+    try {
+      // 1. 获取 Map 数据
+      let mapEntries = [];
+      if (globals.lastSelectMap) {
+        mapEntries = globals.lastSelectMap instanceof Map
+          ? Array.from(globals.lastSelectMap.entries())
+          : Object.entries(globals.lastSelectMap);
       }
-    }
-  }
 
-  // 3. 渲染逻辑
-  if (uniqueEntries.length > 0) {
-     const THEMES = {
-      'dandan':    { name: '弹弹Play', color: '#9CA3AF', bg: 'linear-gradient(135deg, #4b5563, #374151)', shadow: 'rgba(156, 163, 175, 0.4)', icon: 'DD' },
-      'bilibili':  { name: 'Bilibili', color: '#23ADE5', bg: 'linear-gradient(135deg, #00aeec, #0077aa)', shadow: 'rgba(35, 173, 229, 0.4)', icon: 'Bili' },
-      'iqiyi':     { name: '爱奇艺', color: '#00CC4C', bg: 'linear-gradient(135deg, #00cc36, #009929)', shadow: 'rgba(0, 204, 76, 0.4)', icon: 'Qiyi' },
-      'youku':     { name: '优酷', color: '#00A0E9', bg: 'linear-gradient(135deg, #0bafff, #2979ff)', shadow: 'rgba(0, 160, 233, 0.4)', icon: 'Youku' },
-      'tencent':   { name: '腾讯视频', color: '#FF7F00', bg: 'linear-gradient(135deg, #ff7f00, #ff5f00)', shadow: 'rgba(255, 127, 0, 0.4)', icon: 'QQ' },
-      'mgtv':      { name: '芒果TV', color: '#FF5F00', bg: 'linear-gradient(135deg, #ff5f00, #e65100)', shadow: 'rgba(255, 95, 0, 0.4)', icon: 'MG' },
-      'bahamut':   { name: '巴哈姆特', color: '#1CB4D3', bg: 'linear-gradient(135deg, #00b4d8, #0077b6)', shadow: 'rgba(28, 180, 211, 0.4)', icon: 'Baha' },
-      '360':       { name: '360影视', color: '#22C55E', bg: 'linear-gradient(135deg, #4ade80, #22c55e)', shadow: 'rgba(34, 197, 94, 0.4)', icon: '360' },
-      'default':   { name: '其他', color: '#818CF8', bg: 'linear-gradient(135deg, #6366f1, #4f46e5)', shadow: 'rgba(129, 140, 248, 0.4)', icon: 'API' }
-    };
+      // 🔥 核心优化：按时间戳倒序排序（最新的排在最前面）
+      mapEntries.sort((a, b) => {
+        const tA = a[1]?.timestamp || a[1]?.time || a[1]?.date || a[1]?.createdAt || 0;
+        const tB = b[1]?.timestamp || b[1]?.time || b[1]?.date || b[1]?.createdAt || 0;
+        return tB - tA;
+      });
 
-    const getTheme = (key) => {
-      const k = String(key).toLowerCase();
-      if (k.includes('bilibili')) return THEMES.bilibili;
-      if (k.includes('iqiyi') || k.includes('qiyi')) return THEMES.iqiyi;
-      if (k.includes('youku')) return THEMES.youku;
-      if (k.includes('tencent') || k.includes('qq')) return THEMES.tencent;
-      if (k.includes('mgtv') || k.includes('imgo')) return THEMES.mgtv;
-      if (k.includes('bahamut')) return THEMES.bahamut;
-      if (k.includes('360')) return THEMES['360'];
-      return THEMES.default;
-    };
+      // 2. 严格过滤与去重逻辑
+      const uniqueEntries = [];
+      const sourceStats = {};
+      let totalMatches = 0;
 
-    const timeAgo = (ts) => {
-      if (!ts) return '';
-      const seconds = Math.floor((Date.now() - ts) / 1000);
-      if (seconds < 60) return '刚刚';
-      if (seconds < 3600) return Math.floor(seconds / 60) + '分钟前';
-      if (seconds < 86400) return Math.floor(seconds / 3600) + '小时前';
-      return Math.floor(seconds / 86400) + '天前';
-    };
+      if (mapEntries.length > 0) {
+        const displayedKeys = new Set();
+        for (const [key, value] of mapEntries) {
+          if (uniqueEntries.length >= 5) break; // 只显示前5条
 
-    // 顶部统计栏 (沿用原版风格)
-    const topSourceEntry = Object.entries(sourceStats).sort((a, b) => b[1] - a[1])[0];
-    const topSourceName = topSourceEntry ? (getTheme(topSourceEntry[0]).name || topSourceEntry[0].toUpperCase()) : '无';
-    const topSourceTheme = topSourceEntry ? getTheme(topSourceEntry[0]) : THEMES.default;
+          if (!value || typeof value !== 'object') continue;
 
-    recentMatchesHtml = `
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 12px; padding: 12px;">
-        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; border-right: 1px solid var(--border-color);">
-          <div style="font-size: 20px; font-weight: 800; color: var(--text-primary);">${totalMatches}</div>
-          <div style="font-size: 10px; color: var(--text-tertiary);">总匹配</div>
-        </div>
-        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
-          <div style="font-size: 16px; font-weight: 700; color: ${topSourceTheme.color};">${topSourceName}</div>
-          <div style="font-size: 10px; color: var(--text-tertiary);">最近来源</div>
-        </div>
-      </div>
+          const targetId = value.id || value.animeId || value.episodeId;
+          if (!targetId || ['未匹配', '无数据', 'null', 'undefined'].includes(String(targetId))) continue;
 
-      <style>
-        .match-card:hover .card-glow { opacity: 1 !important; }
-        .match-card:hover { transform: translateY(-2px); border-color: var(--primary-500) !important; }
-      </style>
+          const cleanKeyName = String(key).replace(/\s*from\s+.*$/i, '').trim();
+          // 使用组合键，确保同一部剧的不同集数也能显示
+          const uniqueKey = value.animeTitle ? `${value.animeTitle}-${value.episodeTitle}` : cleanKeyName;
 
-      <div style="display: flex; flex-direction: column; gap: 10px;">
-    ` + uniqueEntries.map(([key, value]) => {
-      const src = (value.source || value.type || 'auto').toLowerCase();
-      const theme = getTheme(src);
-      let rawTitle = (value.animeTitle || value.episodeTitle || String(key)).replace(/\s*from\s+.*$/i, '');
-      
-      // --- 标题与集数解析开始 ---
-      const yearMatch = rawTitle.match(/[(（](\d{4})[)）]/);
-      const year = yearMatch ? yearMatch[1] : null;
-      
-      // 2. 清洗主标题
-      let mainTitle = rawTitle
-        .replace(/【.*?】/g, '')
-        .replace(/\[.*?\]/g, '')
-        .replace(/[(（]\d{4}[)）]/g, '')
-        .replace(/S\d+E\d+/i, '')
-        .replace(/第\s*\d+\s*[集话]/, '')
-        .trim();
+          // 统计
+          const src = (value.source || value.type || 'auto').toLowerCase();
+          sourceStats[src] = (sourceStats[src] || 0) + 1;
+          totalMatches++;
 
-      // 3. 解析集数信息 (新逻辑 - 针对腾讯视频等平台加强)
-      let epBadgeStr = '';
-      let epSubtitleStr = '';
-
-      // 1. 优先从 episodeId 中提取数字，解决 '_09' 问题
-      const rawEpId = value.episodeId;
-      if (rawEpId) {
-          const epIdStr = String(rawEpId);
-          
-          // 尝试匹配以 '_' 或 '-' 结尾的数字，且数字长度不超过4位
-          // 目标：匹配 '_09', 'id-105', 'p=20'
-          const numMatch = epIdStr.match(/[\_\-\=\/](\d{1,4})$/) || epIdStr.match(/^(\d{1,4})$/);
-          
-          if (numMatch) {
-              // 提取捕获组中的数字 (numMatch[1])
-              const episodeNumber = numMatch[1];
-              // 格式化为两位数 EP XX
-              epBadgeStr = `EP ${episodeNumber.padStart(2, '0')}`;
+          if (!displayedKeys.has(uniqueKey)) {
+            displayedKeys.add(uniqueKey);
+            uniqueEntries.push([key, value]);
           }
+        }
       }
 
+      // 3. 渲染逻辑
+      if (uniqueEntries.length > 0) {
+        // 定义主题色系
+        const THEMES = {
+          'dandan':    { name: '弹弹Play', color: '#F472B6', bg: 'linear-gradient(135deg, #EC4899, #DB2777)', shadow: 'rgba(236, 72, 153, 0.4)', icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>' },
+          'bilibili':  { name: 'Bilibili', color: '#23ADE5', bg: 'linear-gradient(135deg, #00aeec, #0077aa)', shadow: 'rgba(35, 173, 229, 0.4)', icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M17.813 4.653h.854c1.51.054 2.769.746 3.76 2.092 1.079 1.492 1.607 3.356 1.573 5.56v1.373c.067 2.373-.556 4.316-1.85 5.827-1.127 1.32-2.585 2.005-4.32 2.022H6.26c-1.745-.02-3.21-.707-4.346-2.022C.62 17.994-.003 16.05 0 13.678v-1.373c.007-2.193.53-4.067 1.597-5.56.992-1.346 2.251-2.038 3.76-2.092h.854l-1.82-4.144a.69.69 0 0 1 .15-.815.69.69 0 0 1 .83-.097l4.996 2.628h3.33l4.997-2.628a.69.69 0 0 1 .83.097.691.691 0 0 1 .15.815l-1.86 4.144zM7.5 13.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm9 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/></svg>' },
+          'iqiyi':     { name: '爱奇艺', color: '#00CC4C', bg: 'linear-gradient(135deg, #00cc36, #009929)', shadow: 'rgba(0, 204, 76, 0.4)', icon: 'QIYI' },
+          'youku':     { name: '优酷', color: '#00A0E9', bg: 'linear-gradient(135deg, #0bafff, #2979ff)', shadow: 'rgba(0, 160, 233, 0.4)', icon: 'YOU' },
+          'tencent':   { name: '腾讯视频', color: '#FF7F00', bg: 'linear-gradient(135deg, #ff7f00, #ff5f00)', shadow: 'rgba(255, 127, 0, 0.4)', icon: 'QQ' },
+          'mgtv':      { name: '芒果TV', color: '#FF5F00', bg: 'linear-gradient(135deg, #ff5f00, #e65100)', shadow: 'rgba(255, 95, 0, 0.4)', icon: 'MG' },
+          'bahamut':   { name: '巴哈姆特', color: '#1CB4D3', bg: 'linear-gradient(135deg, #00b4d8, #0077b6)', shadow: 'rgba(28, 180, 211, 0.4)', icon: 'BAHA' },
+          '360':       { name: '360影视', color: '#22C55E', bg: 'linear-gradient(135deg, #4ade80, #22c55e)', shadow: 'rgba(34, 197, 94, 0.4)', icon: '360' },
+          'default':   { name: '其他', color: '#818CF8', bg: 'linear-gradient(135deg, #6366f1, #4f46e5)', shadow: 'rgba(129, 140, 248, 0.4)', icon: 'API' }
+        };
 
-      // 2. 如果 ID 提取失败，再尝试从 rawTitle 中提取标准格式
-      if (!epBadgeStr) {
-          const epRegexMatch = rawTitle.match(/S(\d+)E(\d+)/i) || rawTitle.match(/第\s*(\d+)\s*[集话]/);
-          if (epRegexMatch) {
-              epBadgeStr = epRegexMatch[0];
-          }
-      }
+        const getTheme = (key) => {
+          const k = String(key).toLowerCase();
+          if (k.includes('bilibili')) return THEMES.bilibili;
+          if (k.includes('iqiyi') || k.includes('qiyi')) return THEMES.iqiyi;
+          if (k.includes('youku')) return THEMES.youku;
+          if (k.includes('tencent') || k.includes('qq')) return THEMES.tencent;
+          if (k.includes('mgtv') || k.includes('imgo')) return THEMES.mgtv;
+          if (k.includes('bahamut')) return THEMES.bahamut;
+          if (k.includes('360')) return THEMES['360'];
+          if (k.includes('dandan')) return THEMES.dandan;
+          return THEMES.default;
+        };
 
-      // 3. 尝试提取副标题 (逻辑不变)
-      if (value.episodeTitle && value.episodeTitle !== mainTitle) {
-          let tempSub = value.episodeTitle.replace(mainTitle, '').replace(/【.*?】|\[.*?\]/g, '').trim();
-          tempSub = tempSub.replace(/^[\s\-\:：\.]+/g, '');
-          // 清理副标题中可能重复的集数
-          if (epBadgeStr && tempSub.includes(epBadgeStr.replace(/\s/g, ''))) {
-              tempSub = tempSub.replace(epBadgeStr.replace(/\s/g, ''), '').trim();
-          }
-          epSubtitleStr = tempSub;
-      }
-      // --- 标题与集数解析结束 ---
+        const timeAgo = (ts) => {
+          if (!ts) return '';
+          const diff = Date.now() - ts;
+          const seconds = Math.floor(diff / 1000);
+          if (seconds < 60) return '刚刚';
+          if (seconds < 3600) return Math.floor(seconds / 60) + ' 分钟前';
+          if (seconds < 86400) return Math.floor(seconds / 3600) + ' 小时前';
+          return Math.floor(seconds / 86400) + ' 天前';
+        };
 
-      const displayId = value.id || value.animeId || value.episodeId || 'N/A';
-      const timestamp = value.timestamp || value.time || value.date || value.createdAt;
-      const timeDisplay = timeAgo(timestamp);
+        // 顶部仪表盘
+        const topSourceEntry = Object.entries(sourceStats).sort((a, b) => b[1] - a[1])[0];
+        const topSourceName = topSourceEntry ? (getTheme(topSourceEntry[0]).name || topSourceEntry[0].toUpperCase()) : '无';
+        const topSourceTheme = topSourceEntry ? getTheme(topSourceEntry[0]) : THEMES.default;
 
-      const tagsHtml = [];
-      // 来源标签
-      tagsHtml.push(`
-        <span style="padding: 2px 6px; border-radius: 4px; background: ${theme.color}15; color: ${theme.color}; font-size: 10px; font-weight: 700; border: 1px solid ${theme.color}30; display: flex; align-items: center; gap: 3px;">
-          <span style="width: 4px; height: 4px; border-radius: 50%; background: ${theme.color};"></span>
-          ${theme.name}
-        </span>
-      `);
-      // 年份标签
-      if (year) {
-        tagsHtml.push(`<span style="padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.05); color: var(--text-secondary); font-size: 10px; border: 1px solid rgba(255,255,255,0.05);">年份: ${year}</span>`);
-      }
-
-      return `
-        <div class="match-card" style="
-          position: relative;
-          background: var(--bg-tertiary);
-          border: 1px solid var(--border-color);
-          border-radius: 14px;
-          padding: 12px;
-          transition: all 0.3s ease;
-          overflow: hidden;
-          cursor: pointer;
-        ">
-          <div class="card-glow" style="
-            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-            background: radial-gradient(circle at 90% 10%, ${theme.color}10 0%, transparent 50%);
-            opacity: 0; transition: opacity 0.4s ease; pointer-events: none;
-          "></div>
-
-          <div style="position: relative; display: flex; align-items: flex-start; gap: 12px;">
-            <div style="
-              width: 44px; height: 44px; 
-              border-radius: 12px; 
-              background: ${theme.bg}; 
-              box-shadow: 0 4px 12px ${theme.shadow};
-              display: flex; align-items: center; justify-content: center;
-              font-size: 14px; font-weight: 800; color: #fff;
-              flex-shrink: 0;
-            ">
-              ${theme.icon}
+        recentMatchesHtml = `
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+            <div style="background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 12px; padding: 12px; display: flex; align-items: center; justify-content: space-between;">
+              <div style="display: flex; flex-direction: column;">
+                <span style="font-size: 11px; color: var(--text-tertiary); text-transform: uppercase; font-weight: 600;">总匹配</span>
+                <span style="font-size: 20px; font-weight: 800; color: var(--text-primary); line-height: 1.2;">${totalMatches}</span>
+              </div>
+              <div style="width: 36px; height: 36px; border-radius: 10px; background: var(--bg-hover); display: flex; align-items: center; justify-content: center; color: var(--primary-500);">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+              </div>
             </div>
-
-            <div style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
-              
-              <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">
-                <div style="font-size: 15px; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 10px;" title="${mainTitle}">
-                  ${mainTitle}
-                </div>
-                <div style="font-size: 11px; color: var(--text-tertiary); white-space: nowrap; font-family: monospace;">${timeDisplay}</div>
+            <div style="background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 12px; padding: 12px; display: flex; align-items: center; justify-content: space-between;">
+              <div style="display: flex; flex-direction: column;">
+                <span style="font-size: 11px; color: var(--text-tertiary); text-transform: uppercase; font-weight: 600;">主要来源</span>
+                <span style="font-size: 16px; font-weight: 700; color: ${topSourceTheme.color}; line-height: 1.2;">${topSourceName}</span>
               </div>
-
-              ${(epBadgeStr || epSubtitleStr) ? `
-              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-                ${epBadgeStr ? `
-                <div style="
-                    display: flex; align-items: center;
-                    padding: 2px 8px;
-                    background: ${theme.color}15;
-                    color: ${theme.color};
-                    font-size: 11px; font-weight: 800;
-                    border-radius: 6px;
-                    border: 1px solid ${theme.color}25;
-                    letter-spacing: 0.5px;
-                ">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="10" height="10" style="margin-right: 3px; opacity: 0.8;"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" /></svg>
-                    ${epBadgeStr}
-                </div>
-                ` : ''}
-                ${epSubtitleStr ? `
-                <div style="font-size: 12px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0.9;" title="${epSubtitleStr}">
-                    ${epSubtitleStr}
-                </div>
-                ` : ''}
-              </div>
-              ` : ''}
-
-              <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px;">
-                ${tagsHtml.join('')}
-              </div>
-
-              <div style="
-                display: flex; align-items: center; justify-content: space-between;
-                padding-top: 8px; border-top: 1px dashed var(--border-color);
-              ">
-                <div style="display: flex; align-items: center; gap: 6px; opacity: 0.7;">
-                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="var(--text-tertiary)" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-                  <code style="font-size: 11px; color: var(--text-secondary); font-family: 'Monaco', monospace;">${displayId}</code>
-                </div>
-                ${value.count !== undefined ? `
-                  <div style="font-size: 11px; font-weight: 600; color: ${theme.color}; display: flex; align-items: center; gap: 4px;">
-                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                    ${value.count}
-                  </div>
-                ` : ''}
+              <div style="width: 36px; height: 36px; border-radius: 10px; background: ${topSourceTheme.bg}; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 10px; box-shadow: 0 4px 10px ${topSourceTheme.shadow};">
+                TOP
               </div>
             </div>
           </div>
-        </div>
-      `;
-    }).join('') + `</div>`;
 
-  } else {
-    // 空状态 (沿用原版)
-    recentMatchesHtml = `
-      <div style="padding: 40px 20px; text-align: center; background: var(--bg-tertiary); border: 1px dashed var(--border-color); border-radius: 16px; display: flex; flex-direction: column; align-items: center;">
-        <div style="width: 60px; height: 60px; background: var(--bg-secondary); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; border: 1px solid var(--border-color);">
-          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="var(--text-tertiary)" stroke-width="1.5">
-            <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"/>
-            <path d="M12 6v6l4 2"/>
-          </svg>
-        </div>
-        <div style="font-size: 14px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px;">暂无匹配记录</div>
-        <div style="font-size: 12px; color: var(--text-tertiary);">最近播放的视频将显示在此处</div>
-      </div>
-    `;
-  }
-} catch (e) {
-  console.error("渲染匹配列表失败", e);
-  recentMatchesHtml = `<div style="padding: 20px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 12px; color: #f87171; text-align: center;">渲染异常: ${e.message}</div>`;
-}
+          <style>
+            .match-card {
+              position: relative;
+              background: var(--bg-tertiary);
+              border: 1px solid var(--border-color);
+              border-radius: 16px;
+              padding: 16px;
+              transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+              overflow: hidden;
+              cursor: default;
+            }
+            .match-card:hover {
+              transform: translateY(-2px);
+              border-color: var(--primary-500);
+              box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+            }
+            .match-card .card-glow {
+              opacity: 0;
+              transition: opacity 0.4s ease;
+            }
+            .match-card:hover .card-glow {
+              opacity: 1;
+            }
+            /* 移动端优化 */
+            @media (max-width: 640px) {
+              .match-card { padding: 12px; }
+              .match-content { gap: 8px; }
+              .match-icon { width: 40px !important; height: 40px !important; font-size: 12px !important; }
+            }
+          </style>
+
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+        ` + uniqueEntries.map(([key, value]) => {
+          const src = (value.source || value.type || 'auto').toLowerCase();
+          const theme = getTheme(src);
+          let rawTitle = (value.animeTitle || value.episodeTitle || String(key)).replace(/\s*from\s+.*$/i, '');
+
+          // --- 标题与集数解析逻辑 ---
+          const yearMatch = rawTitle.match(/[(（](\d{4})[)）]/);
+          const year = yearMatch ? yearMatch[1] : null;
+
+          // 1. 清洗主标题
+          let mainTitle = rawTitle
+            .replace(/【.*?】/g, '')
+            .replace(/\[.*?\]/g, '')
+            .replace(/[(（]\d{4}[)）]/g, '')
+            .replace(/S\d+E\d+/i, '')
+            .replace(/第\s*\d+\s*[集话]/, '')
+            .trim();
+
+          // 2. 解析集数徽章 (EP XX)
+          let epBadgeStr = '';
+          let epSubtitleStr = '';
+
+          // 优先尝试从 ID 中解析 (_01)
+          const rawEpId = value.episodeId;
+          if (rawEpId) {
+            const epIdStr = String(rawEpId);
+            const numMatch = epIdStr.match(/[\_\-\=\/](\d{1,4})$/) || epIdStr.match(/^(\d{1,4})$/);
+            if (numMatch) {
+              const episodeNumber = numMatch[1];
+              epBadgeStr = `EP ${episodeNumber.padStart(2, '0')}`;
+            }
+          }
+
+          // 其次尝试从标题解析 (S01E01)
+          if (!epBadgeStr) {
+            const epRegexMatch = rawTitle.match(/S(\d+)E(\d+)/i) || rawTitle.match(/第\s*(\d+)\s*[集话]/);
+            if (epRegexMatch) {
+              epBadgeStr = epRegexMatch[0];
+            }
+          }
+
+          // 3. 解析副标题
+          if (value.episodeTitle && value.episodeTitle !== mainTitle) {
+            let tempSub = value.episodeTitle.replace(mainTitle, '').replace(/【.*?】|\[.*?\]/g, '').trim();
+            tempSub = tempSub.replace(/^[\s\-\:：\.]+/g, '');
+            if (epBadgeStr && tempSub.includes(epBadgeStr.replace(/\s/g, ''))) {
+              tempSub = tempSub.replace(epBadgeStr.replace(/\s/g, ''), '').trim();
+            }
+            if (tempSub.length > 0) epSubtitleStr = tempSub;
+          }
+
+          const displayId = value.id || value.animeId || value.episodeId || 'N/A';
+          const timestamp = value.timestamp || value.time || value.date || value.createdAt;
+          const timeDisplay = timeAgo(timestamp);
+
+          return `
+            <div class="match-card">
+              <div class="card-glow" style="
+                position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+                background: radial-gradient(circle at 95% 10%, ${theme.color}15 0%, transparent 60%);
+                pointer-events: none;
+              "></div>
+
+              <div class="match-content" style="position: relative; display: flex; align-items: flex-start; gap: 14px;">
+                <div class="match-icon" style="
+                  width: 48px; height: 48px;
+                  border-radius: 12px;
+                  background: ${theme.bg};
+                  box-shadow: 0 4px 12px ${theme.shadow};
+                  display: flex; align-items: center; justify-content: center;
+                  font-size: 14px; font-weight: 800; color: #fff;
+                  flex-shrink: 0;
+                ">
+                  ${theme.icon.includes('<svg') ? theme.icon : theme.icon}
+                </div>
+
+                <div style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
+                  
+                  <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">
+                    <div style="font-size: 15px; font-weight: 700; color: var(--text-primary); line-height: 1.4; padding-right: 8px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;" title="${mainTitle}">
+                      ${mainTitle}
+                    </div>
+                    <div style="font-size: 11px; color: var(--text-tertiary); white-space: nowrap; background: var(--bg-primary); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color); flex-shrink: 0;">
+                      ${timeDisplay}
+                    </div>
+                  </div>
+
+                  <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap;">
+                    ${epBadgeStr ? `
+                    <div style="
+                        display: inline-flex; align-items: center;
+                        padding: 2px 8px;
+                        background: ${theme.color}15;
+                        color: ${theme.color};
+                        font-size: 11px; font-weight: 800;
+                        border-radius: 6px;
+                        border: 1px solid ${theme.color}30;
+                        letter-spacing: 0.5px;
+                    ">
+                        <svg viewBox="0 0 20 20" fill="currentColor" width="10" height="10" style="margin-right: 4px;"><path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z"/></svg>
+                        ${epBadgeStr}
+                    </div>
+                    ` : ''}
+                    
+                    ${epSubtitleStr ? `
+                    <div style="font-size: 12px; color: var(--text-secondary); opacity: 0.9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">
+                        ${epSubtitleStr}
+                    </div>
+                    ` : ''}
+                  </div>
+
+                  <div style="display: flex; align-items: center; justify-content: space-between; border-top: 1px dashed var(--border-color); padding-top: 8px; margin-top: auto;">
+                    <div style="display: flex; gap: 6px; align-items: center;">
+                      <span style="font-size: 10px; color: ${theme.color}; font-weight: 600;">${theme.name}</span>
+                      ${year ? `<span style="width: 1px; height: 10px; background: var(--border-color);"></span><span style="font-size: 10px; color: var(--text-tertiary);">${year}</span>` : ''}
+                    </div>
+                    
+                    <div style="display: flex; align-items: center; gap: 6px; opacity: 0.6; cursor: pointer;" title="ID: ${displayId}" onclick="navigator.clipboard.writeText('${displayId}');showToast('ID已复制')">
+                      <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                      <code style="font-size: 10px; font-family: monospace;">${String(displayId).substring(0, 12)}${String(displayId).length > 12 ? '...' : ''}</code>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('') + `</div>`;
+
+      } else {
+        // 空状态
+        recentMatchesHtml = `
+          <div style="padding: 48px 24px; text-align: center; background: var(--bg-tertiary); border: 1px dashed var(--border-color); border-radius: 16px; display: flex; flex-direction: column; align-items: center; transition: all 0.3s;">
+            <div style="width: 72px; height: 72px; background: var(--bg-secondary); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; border: 1px solid var(--border-color); color: var(--text-tertiary);">
+              <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"/>
+                <path d="M12 6v6l4 2"/>
+              </svg>
+            </div>
+            <div style="font-size: 15px; font-weight: 700; color: var(--text-secondary); margin-bottom: 8px;">暂无匹配记录</div>
+            <div style="font-size: 13px; color: var(--text-tertiary); max-width: 200px; line-height: 1.5;">当您请求弹幕 API 时，最近的匹配结果将显示在这里</div>
+          </div>
+        `;
+      }
+    } catch (e) {
+      console.error("渲染匹配列表失败", e);
+      recentMatchesHtml = `<div style="padding: 24px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 12px; color: #f87171; text-align: center; font-size: 13px;">渲染异常: ${e.message}</div>`;
+    }
+
 
 
     const sourcesHtml = globals.sourceOrderArr.length > 0 
