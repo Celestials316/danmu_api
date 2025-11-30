@@ -956,22 +956,31 @@ try {
     return tB - tA;
   });
 
-  // 2. 过滤与统计
+  // 2. 过滤与统计 (优化：获取10条，用于展开显示)
   const uniqueEntries = [];
   const sourceStats = {};
   let totalMatches = 0;
 
+  // 辅助函数：转义HTML属性值
+  const escapeAttr = (str) => {
+    return String(str || '')
+      .replace(/\\/g, '\\\\')
+      .replace(/'/g, "\\'")
+      .replace(/"/g, '&quot;')
+      .replace(/\n/g, ' ');
+  };
+
   if (mapEntries.length > 0) {
     const displayedKeys = new Set();
     for (const [key, value] of mapEntries) {
-      if (uniqueEntries.length >= 5) break;
+      // 🔥 优化：上限改为 10 条
+      if (uniqueEntries.length >= 10) break;
 
       if (!value || typeof value !== 'object') continue;
       const targetId = value.id || value.animeId || value.episodeId;
       if (!targetId || ['未匹配', '无数据', 'null', 'undefined'].includes(String(targetId))) continue;
 
       const cleanKeyName = String(key).replace(/\s*from\s+.*$/i, '').trim();
-      // 组合键去重，保留同剧不同集
       const uniqueKey = value.animeTitle ? `${value.animeTitle}-${value.episodeTitle}` : cleanKeyName;
 
       const src = (value.source || value.type || 'auto').toLowerCase();
@@ -985,9 +994,8 @@ try {
     }
   }
 
-  // 3. 渲染逻辑
+  // 3. 渲染逻辑 (含展开/折叠、智能重配、防过期)
   if (uniqueEntries.length > 0) {
-    // 扩展主题库 (新增搜狐、人人等)
     const THEMES = {
       'dandan':    { name: '弹弹Play', color: '#F472B6', bg: 'linear-gradient(135deg, #EC4899, #DB2777)', shadow: 'rgba(236, 72, 153, 0.4)', icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>' },
       'bilibili':  { name: 'B站', color: '#23ADE5', bg: 'linear-gradient(135deg, #00aeec, #0077aa)', shadow: 'rgba(35, 173, 229, 0.4)', icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M17.813 4.653h.854c1.51.054 2.769.746 3.76 2.092 1.079 1.492 1.607 3.356 1.573 5.56v1.373c.067 2.373-.556 4.316-1.85 5.827-1.127 1.32-2.585 2.005-4.32 2.022H6.26c-1.745-.02-3.21-.707-4.346-2.022C.62 17.994-.003 16.05 0 13.678v-1.373c.007-2.193.53-4.067 1.597-5.56.992-1.346 2.251-2.038 3.76-2.092h.854l-1.82-4.144a.69.69 0 0 1 .15-.815.69.69 0 0 1 .83-.097l4.996 2.628h3.33l4.997-2.628a.69.69 0 0 1 .83.097.691.691 0 0 1 .15.815l-1.86 4.144zM7.5 13.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm9 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/></svg>' },
@@ -1032,11 +1040,229 @@ try {
       return Math.floor(seconds / 86400) + ' 天前';
     };
 
-    // 顶部统计
     const topSourceEntry = Object.entries(sourceStats).sort((a, b) => b[1] - a[1])[0];
     const topSourceTheme = topSourceEntry ? getTheme(topSourceEntry[0]) : THEMES.default;
 
+    // 🔥 生成列表 HTML，区分前3个和后面的隐藏项
+    const listHtml = uniqueEntries.map(([key, value], index) => {
+      const src = (value.source || value.type || 'auto').toLowerCase();
+      const theme = getTheme(src);
+      
+      const rawId = String(value.id || value.animeId || value.episodeId || '');
+      const rawEpTitle = String(value.episodeTitle || '');
+      const rawAnimeTitle = (value.animeTitle || String(key)).replace(/\s*from\s+.*$/i, '');
+
+      const yearMatch = rawAnimeTitle.match(/[(（](\d{4})[)）]/);
+      const year = yearMatch ? yearMatch[1] : null;
+
+      let mainTitle = rawAnimeTitle
+        .replace(/【.*?】|\[.*?\]/g, '')
+        .replace(/[(（]\d{4}[)）]/g, '')
+        .replace(/S\d+E\d+/i, '')
+        .replace(/第\s*\d+\s*[集话]/, '')
+        .trim();
+
+      // 智能集数与季数提取
+      let epNumber = 1; // 默认为1
+      let seasonNumber = 1; // 默认为1
+
+      // 尝试提取季数 (S01, 第1季)
+      const seasonMatch = rawAnimeTitle.match(/S(\d+)/i) || rawAnimeTitle.match(/第(\d+)季/);
+      if (seasonMatch) {
+        seasonNumber = parseInt(seasonMatch[1], 10);
+      }
+
+      // 尝试提取集数
+      const titleEpMatch = rawEpTitle.match(/(?:^|\s|\[)(?:EP|第)?(\d+)(?:[集话]|\s|\]|$)/i) || 
+                           rawAnimeTitle.match(/S\d+E(\d+)/i);
+      
+      if (titleEpMatch) {
+        epNumber = parseInt(titleEpMatch[1], 10);
+      } else {
+        const idEpMatch = rawId.match(/[_\-](\d{1,4})$/);
+        if (idEpMatch) {
+          epNumber = parseInt(idEpMatch[1], 10);
+        } else if (/^\d+$/.test(rawEpTitle)) {
+           epNumber = parseInt(rawEpTitle, 10);
+        } else if (rawEpTitle.startsWith('_')) {
+           const subMatch = rawEpTitle.match(/_(\d+)/);
+           if (subMatch) epNumber = parseInt(subMatch[1], 10);
+        }
+      }
+
+      const epBadgeStr = `第${epNumber}集`;
+
+      let displaySub = rawEpTitle;
+      if (displaySub === mainTitle) displaySub = '';
+      displaySub = displaySub.replace(mainTitle, '').replace(/【.*?】|\[.*?\]/g, '').replace(/\s*from\s+.*$/i, '');
+      if (epNumber) {
+        const patternsToRemove = [`第${epNumber}集`, `第 ${epNumber} 集`, `EP${epNumber}`, `ep${epNumber}`, `_${String(epNumber).padStart(2, '0')}`, `_${epNumber}`, `^${String(epNumber).padStart(2, '0')}$`];
+        patternsToRemove.forEach(p => { try { displaySub = displaySub.replace(new RegExp(p, 'gi'), ''); } catch(e){} });
+      }
+      displaySub = displaySub.replace(/^[\s\-\._:：]+|[\s\-\._:：]+$/g, '').trim();
+
+      const timeDisplay = timeAgo(value.timestamp || value.time || value.date || value.createdAt);
+      const danmuCount = value.count !== undefined ? value.count : 0;
+      const danmuCountStr = danmuCount > 9999 ? (danmuCount/10000).toFixed(1) + 'w' : danmuCount;
+
+      // 隐藏类：超过3个的隐藏
+      const hideClass = index >= 3 ? 'match-item-hidden' : '';
+      const displayStyle = index >= 3 ? 'display: none;' : '';
+
+      // 🔥 安全处理数据，防止JS中断
+      const safeId = escapeAttr(rawId);
+      const safeTitle = escapeAttr(mainTitle);
+      const safeSrc = escapeAttr(src);
+
+      return `
+        <div class="match-card ${hideClass}" style="${displayStyle}">
+          <div class="card-glow" style="background: radial-gradient(circle at 95% 10%, ${theme.color}15 0%, transparent 60%);"></div>
+          <div class="match-content" style="position: relative; display: flex; align-items: flex-start; gap: 14px;">
+            <div class="match-icon" style="background: ${theme.bg}; box-shadow: 0 4px 12px ${theme.shadow};">
+              ${theme.icon.includes('<svg') ? theme.icon : theme.icon}
+            </div>
+
+            <div style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">
+                <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; padding-right: 8px;">
+                  <div class="match-title" title="${safeTitle}">${mainTitle}</div>
+                  ${year ? `<div class="match-year">${year}</div>` : ''}
+                </div>
+                <div class="match-time">${timeDisplay}</div>
+              </div>
+
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; min-height: 20px;">
+                <div class="ep-badge" style="color: ${theme.color}; background: ${theme.color}15; border-color: ${theme.color}30;">${epBadgeStr}</div>
+                ${displaySub ? `<div class="ep-sub">${displaySub}</div>` : ''}
+              </div>
+
+              <div style="display: flex; align-items: center; justify-content: space-between; border-top: 1px dashed var(--border-color); padding-top: 8px; margin-top: auto;">
+                <div style="display: flex; gap: 6px; align-items: center; flex: 1; min-width: 0; padding-right: 10px;">
+                  <span style="font-size: 10px; color: ${theme.color}; font-weight: 600; flex-shrink: 0;">${theme.name}</span>
+                  <div class="match-id-box" title="点击复制 ID: ${rawId}" onclick="navigator.clipboard.writeText('${safeId}');try{showToast('ID已复制')}catch(e){}">
+                    <code>${rawId.replace(/^.*?[_\-](?=\d+$)/, '')}</code>
+                  </div>
+                </div>
+                
+                ${danmuCount > 0 ? `
+                <div class="danmu-action-btn" onclick="toggleDanmuMenu(event, '${safeId}', '${safeTitle}', ${seasonNumber}, ${epNumber}, '${safeSrc}')" title="智能查看 (自动防过期)">
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+                  <span>${danmuCountStr}</span>
+                  <div class="danmu-arrow">›</div>
+                </div>
+                ` : ''}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // 🔥 统计面板与列表组合
     recentMatchesHtml = `
+      <style>
+        .match-card {
+          position: relative;
+          background: var(--bg-tertiary);
+          border: 1px solid var(--border-color);
+          border-radius: 16px;
+          padding: 16px;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          overflow: hidden;
+          cursor: default;
+          animation: slideInUp 0.3s ease-out;
+        }
+        .match-card:hover {
+          transform: translateY(-2px);
+          border-color: var(--primary-500);
+          box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+          z-index: 2;
+        }
+        .card-glow { pointer-events: none; position: absolute; inset: 0; opacity: 0; transition: opacity 0.4s ease; }
+        .match-card:hover .card-glow { opacity: 1; }
+        
+        .match-icon {
+          width: 48px; height: 48px; border-radius: 12px;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 14px; font-weight: 800; color: #fff; flex-shrink: 0;
+        }
+        .match-title {
+          font-size: 15px; font-weight: 700; color: var(--text-primary);
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.4;
+        }
+        .match-year {
+          padding: 1px 5px; background: var(--bg-secondary); color: var(--text-tertiary);
+          font-size: 10px; border-radius: 4px; border: 1px solid var(--border-color); flex-shrink: 0;
+        }
+        .match-time { font-size: 11px; color: var(--text-tertiary); white-space: nowrap; flex-shrink: 0; }
+        .ep-badge {
+          display: inline-flex; align-items: center; padding: 2px 8px;
+          font-size: 12px; font-weight: 800; border-radius: 6px; border: 1px solid transparent;
+        }
+        .ep-sub {
+          font-size: 12px; color: var(--text-secondary); opacity: 0.8;
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .match-id-box {
+          display: flex; align-items: center; gap: 4px; opacity: 0.6; cursor: pointer; max-width: 100%;
+          border-left: 1px solid var(--border-color); padding-left: 6px; transition: opacity 0.2s;
+        }
+        .match-id-box:hover { opacity: 1; color: var(--primary-500); }
+        .match-id-box code { font-size: 10px; font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        
+        .danmu-action-btn {
+          display: flex; align-items: center; gap: 4px; 
+          color: var(--text-primary); font-weight: 700; font-size: 11px;
+          background: var(--bg-hover); padding: 4px 10px; border-radius: 20px;
+          cursor: pointer; transition: all 0.2s; border: 1px solid transparent;
+        }
+        .danmu-action-btn:hover {
+          background: var(--primary-500); color: white; border-color: var(--primary-600);
+          transform: scale(1.05); box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+        .danmu-arrow { width: 0; overflow: hidden; transition: width 0.2s; opacity: 0; }
+        .danmu-action-btn:hover .danmu-arrow { width: auto; opacity: 1; margin-left: 2px; }
+
+        .show-more-btn {
+          width: 100%; padding: 12px; margin-top: 8px;
+          background: var(--bg-tertiary); border: 1px dashed var(--border-color);
+          border-radius: 12px; color: var(--text-secondary); font-size: 13px; font-weight: 600;
+          cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px;
+        }
+        .show-more-btn:hover {
+          background: var(--bg-hover); color: var(--primary-500); border-color: var(--primary-500);
+        }
+        
+        .popover-menu {
+          position: fixed; background: var(--bg-secondary); border: 1px solid var(--border-color);
+          border-radius: 12px; padding: 6px; display: none; flex-direction: column; gap: 2px;
+          box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 10000; animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+          min-width: 160px;
+        }
+        .popover-menu.active { display: flex; }
+        
+        /* 智能加载样式 */
+        .popover-item {
+          padding: 10px 12px; font-size: 13px; color: var(--text-primary); cursor: pointer;
+          border-radius: 8px; display: flex; align-items: center; gap: 10px; transition: background 0.2s;
+          text-decoration: none; position: relative; overflow: hidden;
+        }
+        .popover-item:hover { background: var(--bg-hover); color: var(--primary-500); }
+        .popover-header {
+          padding: 8px 12px; font-size: 11px; color: var(--text-tertiary); font-weight: 700;
+          border-bottom: 1px solid var(--border-color); margin-bottom: 4px; text-transform: uppercase;
+        }
+        
+        .popover-spinner {
+          width: 14px; height: 14px; border: 2px solid currentColor; border-top-color: transparent;
+          border-radius: 50%; animation: spin 0.8s linear infinite; display: none;
+        }
+        .popover-item.loading .popover-spinner { display: block; }
+        .popover-item.loading .item-icon { display: none; }
+        
+        @keyframes popIn { from { opacity: 0; transform: scale(0.9) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+      </style>
+
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
         <div style="background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 12px; padding: 12px; display: flex; align-items: center; justify-content: space-between;">
           <div style="display: flex; flex-direction: column;">
@@ -1058,188 +1284,205 @@ try {
         </div>
       </div>
 
-      <style>
-        .match-card {
-          position: relative;
-          background: var(--bg-tertiary);
-          border: 1px solid var(--border-color);
-          border-radius: 16px;
-          padding: 16px;
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          overflow: hidden;
-          cursor: default;
-        }
-        .match-card:hover {
-          transform: translateY(-2px);
-          border-color: var(--primary-500);
-          box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
-        }
-        .match-card .card-glow { opacity: 0; transition: opacity 0.4s ease; }
-        .match-card:hover .card-glow { opacity: 1; }
-        @media (max-width: 640px) {
-          .match-card { padding: 12px; }
-          .match-icon { width: 40px !important; height: 40px !important; font-size: 12px !important; }
-        }
-      </style>
+      <div id="recentMatchList" style="display: flex; flex-direction: column; gap: 12px;">
+        ${listHtml}
+      </div>
 
-      <div style="display: flex; flex-direction: column; gap: 12px;">
-    ` + uniqueEntries.map(([key, value]) => {
-      const src = (value.source || value.type || 'auto').toLowerCase();
-      const theme = getTheme(src);
-      
-      // 原始数据
-      const rawId = String(value.id || value.animeId || value.episodeId || '');
-      const rawEpTitle = String(value.episodeTitle || '');
-      const rawAnimeTitle = (value.animeTitle || String(key)).replace(/\s*from\s+.*$/i, '');
+      ${uniqueEntries.length > 3 ? `
+        <button id="expandMatchesBtn" class="show-more-btn" onclick="toggleMoreMatches()">
+          <span>显示更多 (${uniqueEntries.length - 3})</span>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+      ` : ''}
 
-      // --- 1. 标题清洗 ---
-      const yearMatch = rawAnimeTitle.match(/[(（](\d{4})[)）]/);
-      const year = yearMatch ? yearMatch[1] : null;
-
-      let mainTitle = rawAnimeTitle
-        .replace(/【.*?】|\[.*?\]/g, '')
-        .replace(/[(（]\d{4}[)）]/g, '')
-        .replace(/S\d+E\d+/i, '')
-        .replace(/第\s*\d+\s*[集话]/, '')
-        .trim();
-
-      // --- 2. 智能集数提取 (修复腾讯显示 01 问题) ---
-      let epNumber = null;
-
-      // 策略A: 优先从标题提取标准格式
-      const titleEpMatch = rawEpTitle.match(/(?:^|\s|\[)(?:EP|第)?(\d+)(?:[集话]|\s|\]|$)/i) || 
-                           rawAnimeTitle.match(/S\d+E(\d+)/i);
-      
-      if (titleEpMatch) {
-        epNumber = parseInt(titleEpMatch[1], 10);
-      } else {
-        // 策略B: 针对腾讯/爱奇艺等 ID 格式 (xxx_01, xxx-1)
-        // 强制 parseInt 去除前导0 (01 -> 1)
-        const idEpMatch = rawId.match(/[_\-](\d{1,4})$/);
-        if (idEpMatch) {
-          epNumber = parseInt(idEpMatch[1], 10);
-        } else if (/^\d+$/.test(rawEpTitle)) {
-           // 策略C: 如果副标题纯数字 '01'
-           epNumber = parseInt(rawEpTitle, 10);
-        } else if (rawEpTitle.startsWith('_')) {
-           // 策略D: 腾讯特例 '_01'
-           const subMatch = rawEpTitle.match(/_(\d+)/);
-           if (subMatch) epNumber = parseInt(subMatch[1], 10);
-        }
-      }
-
-      // 最终集数徽章 (第1集, 这里的 1 已经去除了前导0)
-      const epBadgeStr = epNumber ? `第${epNumber}集` : '';
-
-      // --- 3. 副标题清洗 (彻底移除重复的 01) ---
-      let displaySub = rawEpTitle;
-      
-      if (displaySub === mainTitle) displaySub = '';
-
-      displaySub = displaySub
-        .replace(mainTitle, '')
-        .replace(/【.*?】|\[.*?\]/g, '')
-        .replace(/\s*from\s+.*$/i, '');
-
-      if (epNumber) {
-        // 强力清除各种形式的集数，包括 "01", "_01"
-        const patternsToRemove = [
-          `第${epNumber}集`, `第 ${epNumber} 集`,
-          `EP${epNumber}`, `ep${epNumber}`,
-          `_${String(epNumber).padStart(2, '0')}`, // 移除 _01
-          `_${epNumber}`,
-          `^${String(epNumber).padStart(2, '0')}$` // 只有 "01" 的情况
-        ];
-        patternsToRemove.forEach(p => {
-          try { displaySub = displaySub.replace(new RegExp(p, 'gi'), ''); } catch(e){}
-        });
-      }
-      
-      displaySub = displaySub.replace(/^[\s\-\._:：]+|[\s\-\._:：]+$/g, '').trim();
-
-      // --- 4. 其他数据 ---
-      const timeDisplay = timeAgo(value.timestamp || value.time || value.date || value.createdAt);
-      const danmuCount = value.count !== undefined ? value.count : 0;
-      const danmuCountStr = danmuCount > 9999 ? (danmuCount/10000).toFixed(1) + 'w' : danmuCount;
-
-      return `
-        <div class="match-card">
-          <div class="card-glow" style="
-            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-            background: radial-gradient(circle at 95% 10%, ${theme.color}15 0%, transparent 60%);
-            pointer-events: none;
-          "></div>
-
-          <div class="match-content" style="position: relative; display: flex; align-items: flex-start; gap: 14px;">
-            <div class="match-icon" style="
-              width: 48px; height: 48px;
-              border-radius: 12px;
-              background: ${theme.bg};
-              box-shadow: 0 4px 12px ${theme.shadow};
-              display: flex; align-items: center; justify-content: center;
-              font-size: 14px; font-weight: 800; color: #fff;
-              flex-shrink: 0;
-            ">
-              ${theme.icon.includes('<svg') ? theme.icon : theme.icon}
-            </div>
-
-            <div style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
-              
-              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">
-                <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; padding-right: 8px;">
-                  <div style="font-size: 15px; font-weight: 700; color: var(--text-primary); line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${mainTitle}">
-                    ${mainTitle}
-                  </div>
-                  ${year ? `<div style="padding: 1px 5px; background: var(--bg-secondary); color: var(--text-tertiary); font-size: 10px; border-radius: 4px; border: 1px solid var(--border-color); flex-shrink: 0;">${year}</div>` : ''}
-                </div>
-                <div style="font-size: 11px; color: var(--text-tertiary); white-space: nowrap; flex-shrink: 0;">
-                  ${timeDisplay}
-                </div>
-              </div>
-
-              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; min-height: 20px;">
-                ${epBadgeStr ? `
-                <div style="
-                    display: inline-flex; align-items: center;
-                    padding: 2px 8px;
-                    background: ${theme.color}15;
-                    color: ${theme.color};
-                    font-size: 12px; font-weight: 800;
-                    border-radius: 6px;
-                    border: 1px solid ${theme.color}30;
-                ">
-                    ${epBadgeStr}
-                </div>
-                ` : ''}
-                
-                ${displaySub ? `
-                <div style="font-size: 12px; color: var(--text-secondary); opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                    ${displaySub}
-                </div>
-                ` : ''}
-              </div>
-
-              <div style="display: flex; align-items: center; justify-content: space-between; border-top: 1px dashed var(--border-color); padding-top: 8px; margin-top: auto;">
-                <div style="display: flex; gap: 6px; align-items: center; flex: 1; min-width: 0; padding-right: 10px;">
-                  <span style="font-size: 10px; color: ${theme.color}; font-weight: 600; flex-shrink: 0;">${theme.name}</span>
-                  <div style="display: flex; align-items: center; gap: 4px; opacity: 0.6; cursor: pointer; max-width: 100%;" title="ID: ${rawId}" onclick="navigator.clipboard.writeText('${rawId}');try{showToast('ID已复制')}catch(e){}">
-                    <span style="width: 1px; height: 10px; background: var(--border-color); flex-shrink: 0;"></span>
-                    <code style="font-size: 10px; font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${rawId.replace(/^.*?[_\-](?=\d+$)/, '')}</code>
-                  </div>
-                </div>
-                
-                ${danmuCount > 0 ? `
-                <div style="display: flex; align-items: center; gap: 3px; color: ${theme.color}; font-weight: 700; font-size: 11px;">
-                  <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
-                  ${danmuCountStr}
-                </div>
-                ` : ''}
-              </div>
-            </div>
+      <div id="danmuPopover" class="popover-menu" onmouseleave="this.classList.remove('active')">
+        <div class="popover-header">智能查看 (自动防过期)</div>
+        <div class="popover-item" id="btnSmartJson" onclick="">
+          <span class="item-icon" style="color:#F59E0B">{}</span> 
+          <span class="popover-spinner"></span>
+          <div>
+            <div style="font-weight:600">JSON 格式</div>
+            <div class="status-text" style="font-size:10px; opacity:0.6">过期自动重连</div>
           </div>
         </div>
-      `;
-    }).join('') + `</div>`;
+        <div class="popover-item" id="btnSmartXml" onclick="">
+          <span class="item-icon" style="color:#3B82F6">&lt;/&gt;</span>
+          <span class="popover-spinner"></span>
+          <div>
+            <div style="font-weight:600">XML 格式</div>
+            <div class="status-text" style="font-size:10px; opacity:0.6">兼容播放器</div>
+          </div>
+        </div>
+      </div>
+
+      <script>
+        function toggleMoreMatches() {
+          const hiddenItems = document.querySelectorAll('.match-item-hidden');
+          const btn = document.getElementById('expandMatchesBtn');
+          const isExpanded = btn.classList.contains('expanded');
+          
+          hiddenItems.forEach(item => {
+            item.style.display = isExpanded ? 'none' : 'block';
+            if (!isExpanded) {
+              item.style.animation = 'slideInUp 0.3s ease-out';
+            }
+          });
+          
+          if (isExpanded) {
+            btn.innerHTML = '<span>显示更多 (${uniqueEntries.length - 3})</span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>';
+            btn.classList.remove('expanded');
+            document.getElementById('recentMatchList').scrollIntoView({behavior: 'smooth', block: 'start'});
+          } else {
+            btn.innerHTML = '<span>收起列表</span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 15l-6-6-6 6"/></svg>';
+            btn.classList.add('expanded');
+          }
+        }
+
+        // 存储当前操作的弹幕信息
+        let currentDanmuTarget = {};
+
+        function toggleDanmuMenu(event, id, title, season, episode, source) {
+          event.stopPropagation();
+          event.preventDefault();
+          
+          const popover = document.getElementById('danmuPopover');
+          // 关键修复：确保 popover 在 body 中，避免被父级 overflow 截断
+          if (popover.parentNode !== document.body) {
+            document.body.appendChild(popover);
+          }
+
+          const btn = event.currentTarget;
+          const rect = btn.getBoundingClientRect();
+          
+          // 更新当前目标数据
+          currentDanmuTarget = { id, title, season, episode, source };
+          
+          // 绑定点击事件，使用 handleSmartView 函数
+          const btnJson = document.getElementById('btnSmartJson');
+          const btnXml = document.getElementById('btnSmartXml');
+          
+          // 重置 UI 状态
+          resetSmartBtn(btnJson);
+          resetSmartBtn(btnXml);
+          
+          btnJson.onclick = () => handleSmartView('json', btnJson);
+          btnXml.onclick = () => handleSmartView('xml', btnXml);
+          
+          // 智能定位 (Fixed positioning)
+          popover.style.top = (rect.bottom + 8) + 'px';
+          // 确保不溢出屏幕右侧
+          if (rect.left + 180 > window.innerWidth) {
+             popover.style.left = 'auto';
+             popover.style.right = '16px';
+          } else {
+             popover.style.left = (rect.left - 20) + 'px';
+          }
+          
+          popover.classList.add('active');
+          
+          // 点击外部关闭
+          const closeHandler = (e) => {
+            if (!popover.contains(e.target) && !btn.contains(e.target)) {
+              popover.classList.remove('active');
+              document.removeEventListener('click', closeHandler);
+            }
+          };
+          setTimeout(() => document.addEventListener('click', closeHandler), 10);
+        }
+
+        function resetSmartBtn(btn) {
+          btn.classList.remove('loading');
+          btn.querySelector('.status-text').textContent = btn.id.includes('Json') ? '过期自动重连' : '兼容播放器';
+          btn.style.opacity = '1';
+          btn.style.pointerEvents = 'auto';
+        }
+
+        // 🔥 核心智能函数：检测有效性 -> 自动重配 -> 打开页面
+        async function handleSmartView(format, btnElement) {
+          const { id, title, season, episode, source } = currentDanmuTarget;
+          const statusText = btnElement.querySelector('.status-text');
+          
+          // 1. UI 进入 Loading 状态
+          btnElement.classList.add('loading');
+          statusText.textContent = '正在检测有效性...';
+          
+          try {
+            // 2. 构造当前 ID 的检查链接
+            const isUrl = id.toString().startsWith('http');
+            const checkUrl = '/api/v2/comment' + (isUrl ? '?url=' + encodeURIComponent(id) : '/' + id) + '?format=json&limit=1'; // 限制1条以加快速度
+            
+            // 3. 尝试获取（检测是否过期）
+            let finalId = id;
+            let finalIsUrl = isUrl;
+            let needRematch = false;
+
+            // 只有 VOD 链接（http开头）或明确的 VOD 源才强校验，纯数字ID一般不过期但也可以校验
+            try {
+              const res = await fetch(checkUrl);
+              const data = await res.json();
+              // 如果返回失败或数据为空，标记为需要重配
+              if (!data.success || (data.count === 0 && !data.comments)) {
+                needRematch = true;
+              }
+            } catch (e) {
+              needRematch = true;
+            }
+
+            // 4. 如果过期，执行自动重配 (Match 接口)
+            if (needRematch) {
+              statusText.textContent = '资源过期，正在重配...';
+              
+              // 构造标准搜索文件名: 标题.S01E01
+              const seasonStr = season.toString().padStart(2, '0');
+              const episodeStr = episode.toString().padStart(2, '0');
+              const matchQuery = \`\${title}.S\${seasonStr}E\${episodeStr}\`;
+              
+              console.log('自动重配:', matchQuery);
+              
+              const matchRes = await fetch('/api/v2/match', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fileName: matchQuery })
+              });
+              
+              const matchData = await matchRes.json();
+              
+              if (matchData.success && matchData.isMatched && matchData.matches.length > 0) {
+                // 获取到了新 ID
+                finalId = matchData.matches[0].episodeId;
+                finalIsUrl = false; // match 接口返回的一般是 ID
+                statusText.textContent = '重配成功，正在打开...';
+                if(window.showToast) window.showToast('✅ 自动修复成功，正在打开...', 'success');
+              } else {
+                throw new Error('无法重新匹配该资源');
+              }
+            } else {
+              statusText.textContent = '链接有效，正在打开...';
+            }
+
+            // 5. 打开最终页面
+            const baseUrl = '/api/v2/comment' + (finalIsUrl ? '?url=' + encodeURIComponent(finalId) : '/' + finalId);
+            const sep = finalIsUrl ? '&' : '?';
+            const targetUrl = baseUrl + sep + 'format=' + format;
+            
+            window.open(targetUrl, '_blank');
+            
+            // 恢复 UI
+            setTimeout(() => {
+               document.getElementById('danmuPopover').classList.remove('active');
+               resetSmartBtn(btnElement);
+            }, 1000);
+
+          } catch (error) {
+            console.error(error);
+            statusText.textContent = '获取失败: ' + error.message;
+            statusText.style.color = '#EF4444';
+            btnElement.classList.remove('loading');
+            if(window.showToast) window.showToast('❌ ' + error.message, 'error');
+          }
+        }
+      </script>
+    `;
 
   } else {
     // 空状态
