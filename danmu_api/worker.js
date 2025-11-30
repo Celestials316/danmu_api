@@ -938,7 +938,7 @@ async function handleHomepage(req, deployPlatform = 'unknown') {
       'bahamut': 'BH'
     };
     
-// 生成最近匹配列表HTML - 最终优化版 (修复腾讯集数显示)
+// 生成最近匹配列表HTML - 最终优化版 (含搜狐/人人/VOD/乐视及腾讯集数修复)
 let recentMatchesHtml = '';
 try {
   // 1. 获取 Map 数据
@@ -987,7 +987,7 @@ try {
 
   // 3. 渲染逻辑
   if (uniqueEntries.length > 0) {
-    // 扩展主题库
+    // 扩展主题库 (新增搜狐、人人等)
     const THEMES = {
       'dandan':    { name: '弹弹Play', color: '#F472B6', bg: 'linear-gradient(135deg, #EC4899, #DB2777)', shadow: 'rgba(236, 72, 153, 0.4)', icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>' },
       'bilibili':  { name: 'B站', color: '#23ADE5', bg: 'linear-gradient(135deg, #00aeec, #0077aa)', shadow: 'rgba(35, 173, 229, 0.4)', icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M17.813 4.653h.854c1.51.054 2.769.746 3.76 2.092 1.079 1.492 1.607 3.356 1.573 5.56v1.373c.067 2.373-.556 4.316-1.85 5.827-1.127 1.32-2.585 2.005-4.32 2.022H6.26c-1.745-.02-3.21-.707-4.346-2.022C.62 17.994-.003 16.05 0 13.678v-1.373c.007-2.193.53-4.067 1.597-5.56.992-1.346 2.251-2.038 3.76-2.092h.854l-1.82-4.144a.69.69 0 0 1 .15-.815.69.69 0 0 1 .83-.097l4.996 2.628h3.33l4.997-2.628a.69.69 0 0 1 .83.097.691.691 0 0 1 .15.815l-1.86 4.144zM7.5 13.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm9 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/></svg>' },
@@ -995,11 +995,13 @@ try {
       'youku':     { name: '优酷', color: '#00A0E9', bg: 'linear-gradient(135deg, #0bafff, #2979ff)', shadow: 'rgba(0, 160, 233, 0.4)', icon: 'YOU' },
       'tencent':   { name: '腾讯视频', color: '#FF7F00', bg: 'linear-gradient(135deg, #ff7f00, #ff5f00)', shadow: 'rgba(255, 127, 0, 0.4)', icon: 'QQ' },
       'mgtv':      { name: '芒果TV', color: '#FF5F00', bg: 'linear-gradient(135deg, #ff5f00, #e65100)', shadow: 'rgba(255, 95, 0, 0.4)', icon: 'MG' },
+      'sohu':      { name: '搜狐视频', color: '#FFD100', bg: 'linear-gradient(135deg, #ffd100, #ffb300)', shadow: 'rgba(255, 209, 0, 0.4)', icon: 'SOHU' },
+      'letv':      { name: '乐视', color: '#E41F2B', bg: 'linear-gradient(135deg, #e41f2b, #c60b17)', shadow: 'rgba(228, 31, 43, 0.4)', icon: 'LE' },
+      'renren':    { name: '人人影视', color: '#00A1D6', bg: 'linear-gradient(135deg, #29b6f6, #0288d1)', shadow: 'rgba(41, 182, 246, 0.4)', icon: 'RR' },
       'bahamut':   { name: '巴哈姆特', color: '#1CB4D3', bg: 'linear-gradient(135deg, #00b4d8, #0077b6)', shadow: 'rgba(28, 180, 211, 0.4)', icon: 'BAHA' },
       '360':       { name: '360影视', color: '#22C55E', bg: 'linear-gradient(135deg, #4ade80, #22c55e)', shadow: 'rgba(34, 197, 94, 0.4)', icon: '360' },
       'vod':       { name: '点播资源', color: '#8B5CF6', bg: 'linear-gradient(135deg, #8b5cf6, #7c3aed)', shadow: 'rgba(139, 92, 246, 0.4)', icon: 'VOD' },
       'douban':    { name: '豆瓣', color: '#00B51D', bg: 'linear-gradient(135deg, #00b51d, #009417)', shadow: 'rgba(0, 181, 29, 0.4)', icon: '豆瓣' },
-      'letv':      { name: '乐视', color: '#FF9500', bg: 'linear-gradient(135deg, #ff9500, #ff8000)', shadow: 'rgba(255, 149, 0, 0.4)', icon: 'LETV' },
       'default':   { name: '其他', color: '#818CF8', bg: 'linear-gradient(135deg, #6366f1, #4f46e5)', shadow: 'rgba(129, 140, 248, 0.4)', icon: 'API' }
     };
 
@@ -1010,11 +1012,13 @@ try {
       if (k.includes('youku')) return THEMES.youku;
       if (k.includes('tencent') || k.includes('qq')) return THEMES.tencent;
       if (k.includes('mgtv')) return THEMES.mgtv;
+      if (k.includes('sohu')) return THEMES.sohu;
+      if (k.includes('letv') || k.includes('le.com')) return THEMES.letv;
+      if (k.includes('renren') || k.includes('yyets')) return THEMES.renren;
       if (k.includes('bahamut')) return THEMES.bahamut;
       if (k.includes('360')) return THEMES['360'];
       if (k.includes('dandan')) return THEMES.dandan;
       if (k.includes('vod')) return THEMES.vod;
-      if (k.includes('letv')) return THEMES.letv;
       return THEMES.default;
     };
 
@@ -1089,11 +1093,9 @@ try {
       const rawAnimeTitle = (value.animeTitle || String(key)).replace(/\s*from\s+.*$/i, '');
 
       // --- 1. 标题清洗 ---
-      // 提取年份
       const yearMatch = rawAnimeTitle.match(/[(（](\d{4})[)）]/);
       const year = yearMatch ? yearMatch[1] : null;
 
-      // 清洗主标题 (移除年份、集数、修饰词)
       let mainTitle = rawAnimeTitle
         .replace(/【.*?】|\[.*?\]/g, '')
         .replace(/[(（]\d{4}[)）]/g, '')
@@ -1101,10 +1103,10 @@ try {
         .replace(/第\s*\d+\s*[集话]/, '')
         .trim();
 
-      // --- 2. 智能集数提取 (修复腾讯显示 _01 问题) ---
+      // --- 2. 智能集数提取 (修复腾讯显示 01 问题) ---
       let epNumber = null;
 
-      // 策略A: 优先从标题提取标准格式 (第x集, EP01, S01E01)
+      // 策略A: 优先从标题提取标准格式
       const titleEpMatch = rawEpTitle.match(/(?:^|\s|\[)(?:EP|第)?(\d+)(?:[集话]|\s|\]|$)/i) || 
                            rawAnimeTitle.match(/S\d+E(\d+)/i);
       
@@ -1112,7 +1114,7 @@ try {
         epNumber = parseInt(titleEpMatch[1], 10);
       } else {
         // 策略B: 针对腾讯/爱奇艺等 ID 格式 (xxx_01, xxx-1)
-        // 专门处理 _01 结尾的情况
+        // 强制 parseInt 去除前导0 (01 -> 1)
         const idEpMatch = rawId.match(/[_\-](\d{1,4})$/);
         if (idEpMatch) {
           epNumber = parseInt(idEpMatch[1], 10);
@@ -1120,42 +1122,39 @@ try {
            // 策略C: 如果副标题纯数字 '01'
            epNumber = parseInt(rawEpTitle, 10);
         } else if (rawEpTitle.startsWith('_')) {
-           // 策略D: 如果副标题是 '_01' (腾讯特例)
+           // 策略D: 腾讯特例 '_01'
            const subMatch = rawEpTitle.match(/_(\d+)/);
            if (subMatch) epNumber = parseInt(subMatch[1], 10);
         }
       }
 
-      // 生成显示用的集数文字
+      // 最终集数徽章 (第1集, 这里的 1 已经去除了前导0)
       const epBadgeStr = epNumber ? `第${epNumber}集` : '';
 
-      // --- 3. 副标题清洗 (避免重复显示 "第1集 第1集") ---
+      // --- 3. 副标题清洗 (彻底移除重复的 01) ---
       let displaySub = rawEpTitle;
       
-      // 如果副标题和主标题完全一样，就不显示副标题了
       if (displaySub === mainTitle) displaySub = '';
 
-      // 清除多余修饰
       displaySub = displaySub
         .replace(mainTitle, '')
         .replace(/【.*?】|\[.*?\]/g, '')
         .replace(/\s*from\s+.*$/i, '');
 
-      // 如果我们已经有了 epBadgeStr (比如"第1集")，就在副标题里把这个信息删掉，保持清爽
       if (epNumber) {
+        // 强力清除各种形式的集数，包括 "01", "_01"
         const patternsToRemove = [
           `第${epNumber}集`, `第 ${epNumber} 集`,
           `EP${epNumber}`, `ep${epNumber}`,
           `_${String(epNumber).padStart(2, '0')}`, // 移除 _01
           `_${epNumber}`,
-          `^${String(epNumber).padStart(2, '0')}$` // 如果副标题只是 "01"
+          `^${String(epNumber).padStart(2, '0')}$` // 只有 "01" 的情况
         ];
         patternsToRemove.forEach(p => {
           try { displaySub = displaySub.replace(new RegExp(p, 'gi'), ''); } catch(e){}
         });
       }
       
-      // 去除开头结尾的符号
       displaySub = displaySub.replace(/^[\s\-\._:：]+|[\s\-\._:：]+$/g, '').trim();
 
       // --- 4. 其他数据 ---
