@@ -938,7 +938,7 @@ async function handleHomepage(req, deployPlatform = 'unknown') {
       'bahamut': 'BH'
     };
     
-// 生成最近匹配列表HTML - 最终优化版 (含搜狐/人人/VOD/乐视及腾讯集数修复)
+// 生成最近匹配列表HTML - 完美版 (修复集数识别+智能显示)
 let recentMatchesHtml = '';
 try {
   // 1. 获取 Map 数据
@@ -956,7 +956,7 @@ try {
     return tB - tA;
   });
 
-  // 2. 过滤与统计 (优化：获取10条，用于展开显示)
+  // 2. 过滤与统计
   const uniqueEntries = [];
   const sourceStats = {};
   let totalMatches = 0;
@@ -970,10 +970,66 @@ try {
       .replace(/\n/g, ' ');
   };
 
+  // 🔥 核心：智能集数提取函数
+  const extractEpisodeNumber = (episodeTitle, animeTitle, episodeId) => {
+    let epNum = null;
+    
+    // 优先级1: 从 episodeTitle 提取
+    if (episodeTitle) {
+      const patterns = [
+        /第(\d+)[集话]/,           // 第5集、第5话
+        /EP?[\s._-]?(\d+)/i,      // EP05、E05、ep5
+        /^(\d+)$/,                 // 纯数字 "05"
+        /[\[【](\d+)[\]】]/,       // [05]、【05】
+        /_(\d+)/,                  // _05
+        /(\d+)\s*-/,               // 05 -
+      ];
+      
+      for (const pattern of patterns) {
+        const match = String(episodeTitle).match(pattern);
+        if (match) {
+          epNum = parseInt(match[1], 10);
+          break;
+        }
+      }
+    }
+    
+    // 优先级2: 从 episodeId 提取（末尾数字）
+    if (!epNum && episodeId) {
+      const idMatch = String(episodeId).match(/[_\-](\d{1,4})$/);
+      if (idMatch) {
+        epNum = parseInt(idMatch[1], 10);
+      }
+    }
+    
+    // 优先级3: 从 animeTitle 提取 (S01E05 格式)
+    if (!epNum && animeTitle) {
+      const seasonEpMatch = String(animeTitle).match(/S\d+E(\d+)/i);
+      if (seasonEpMatch) {
+        epNum = parseInt(seasonEpMatch[1], 10);
+      }
+    }
+    
+    return epNum || 1; // 默认返回1
+  };
+
+  // 🔥 核心：智能季数提取函数
+  const extractSeasonNumber = (animeTitle) => {
+    if (!animeTitle) return 1;
+    const seasonMatch = String(animeTitle).match(/S(\d+)/i) || 
+                       String(animeTitle).match(/第(\d+)季/);
+    return seasonMatch ? parseInt(seasonMatch[1], 10) : 1;
+  };
+
+  // 🔥 核心：判断副标题是否已包含完整集数信息
+  const hasEpisodeInSubtitle = (subtitle) => {
+    if (!subtitle) return false;
+    return /第\d+[集话]|EP?\d+|^(\d{1,3})$|[\[【]\d+[\]】]/i.test(String(subtitle));
+  };
+
   if (mapEntries.length > 0) {
     const displayedKeys = new Set();
     for (const [key, value] of mapEntries) {
-      // 🔥 优化：上限改为 10 条
       if (uniqueEntries.length >= 10) break;
 
       if (!value || typeof value !== 'object') continue;
@@ -994,7 +1050,7 @@ try {
     }
   }
 
-  // 3. 渲染逻辑 (含展开/折叠、智能重配、防过期)
+  // 3. 渲染逻辑
   if (uniqueEntries.length > 0) {
     const THEMES = {
       'dandan':    { name: '弹弹Play', color: '#F472B6', bg: 'linear-gradient(135deg, #EC4899, #DB2777)', shadow: 'rgba(236, 72, 153, 0.4)', icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>' },
@@ -1043,7 +1099,7 @@ try {
     const topSourceEntry = Object.entries(sourceStats).sort((a, b) => b[1] - a[1])[0];
     const topSourceTheme = topSourceEntry ? getTheme(topSourceEntry[0]) : THEMES.default;
 
-    // 🔥 生成列表 HTML，区分前3个和后面的隐藏项
+    // 🔥 生成列表 HTML
     const listHtml = uniqueEntries.map(([key, value], index) => {
       const src = (value.source || value.type || 'auto').toLowerCase();
       const theme = getTheme(src);
@@ -1052,64 +1108,46 @@ try {
       const rawEpTitle = String(value.episodeTitle || '');
       const rawAnimeTitle = (value.animeTitle || String(key)).replace(/\s*from\s+.*$/i, '');
 
+      // 提取年份
       const yearMatch = rawAnimeTitle.match(/[(（](\d{4})[)）]/);
       const year = yearMatch ? yearMatch[1] : null;
 
+      // 清理主标题
       let mainTitle = rawAnimeTitle
         .replace(/【.*?】|\[.*?\]/g, '')
         .replace(/[(（]\d{4}[)）]/g, '')
         .replace(/S\d+E\d+/i, '')
-        .replace(/第\s*\d+\s*[集话]/, '')
+        .replace(/第\s*\d+\s*[集话季]/, '')
         .trim();
 
-      // 智能集数与季数提取
-      let epNumber = 1; // 默认为1
-      let seasonNumber = 1; // 默认为1
+      // 🔥 智能提取集数和季数
+      const epNumber = extractEpisodeNumber(rawEpTitle, rawAnimeTitle, rawId);
+      const seasonNumber = extractSeasonNumber(rawAnimeTitle);
 
-      // 尝试提取季数 (S01, 第1季)
-      const seasonMatch = rawAnimeTitle.match(/S(\d+)/i) || rawAnimeTitle.match(/第(\d+)季/);
-      if (seasonMatch) {
-        seasonNumber = parseInt(seasonMatch[1], 10);
-      }
-
-      // 尝试提取集数
-      const titleEpMatch = rawEpTitle.match(/(?:^|\s|\[)(?:EP|第)?(\d+)(?:[集话]|\s|\]|$)/i) || 
-                           rawAnimeTitle.match(/S\d+E(\d+)/i);
-      
-      if (titleEpMatch) {
-        epNumber = parseInt(titleEpMatch[1], 10);
-      } else {
-        const idEpMatch = rawId.match(/[_\-](\d{1,4})$/);
-        if (idEpMatch) {
-          epNumber = parseInt(idEpMatch[1], 10);
-        } else if (/^\d+$/.test(rawEpTitle)) {
-           epNumber = parseInt(rawEpTitle, 10);
-        } else if (rawEpTitle.startsWith('_')) {
-           const subMatch = rawEpTitle.match(/_(\d+)/);
-           if (subMatch) epNumber = parseInt(subMatch[1], 10);
-        }
-      }
-
-      const epBadgeStr = `第${epNumber}集`;
-
+      // 🔥 智能处理副标题显示
       let displaySub = rawEpTitle;
       if (displaySub === mainTitle) displaySub = '';
-      displaySub = displaySub.replace(mainTitle, '').replace(/【.*?】|\[.*?\]/g, '').replace(/\s*from\s+.*$/i, '');
-      if (epNumber) {
-        const patternsToRemove = [`第${epNumber}集`, `第 ${epNumber} 集`, `EP${epNumber}`, `ep${epNumber}`, `_${String(epNumber).padStart(2, '0')}`, `_${epNumber}`, `^${String(epNumber).padStart(2, '0')}$`];
-        patternsToRemove.forEach(p => { try { displaySub = displaySub.replace(new RegExp(p, 'gi'), ''); } catch(e){} });
-      }
+      
+      // 移除主标题重复内容
+      displaySub = displaySub
+        .replace(mainTitle, '')
+        .replace(/【.*?】|\[.*?\]/g, '')
+        .replace(/\s*from\s+.*$/i, '');
+      
+      // 🔥 关键：不要从副标题中移除集数信息，保持原样
       displaySub = displaySub.replace(/^[\s\-\._:：]+|[\s\-\._:：]+$/g, '').trim();
+
+      // 🔥 智能判断：是否显示集数徽章
+      // 规则：如果副标题已包含完整集数信息，则不显示徽章
+      const showEpisodeBadge = !hasEpisodeInSubtitle(displaySub);
 
       const timeDisplay = timeAgo(value.timestamp || value.time || value.date || value.createdAt);
       const danmuCount = value.count !== undefined ? value.count : 0;
       const danmuCountStr = danmuCount > 9999 ? (danmuCount/10000).toFixed(1) + 'w' : danmuCount;
 
-      // 隐藏类：超过3个的隐藏
       const hideClass = index >= 3 ? 'match-item-hidden' : '';
       const displayStyle = index >= 3 ? 'display: none;' : '';
 
-      // 🔥 安全处理数据，防止JS中断
       const safeId = escapeAttr(rawId);
       const safeTitle = escapeAttr(mainTitle);
       const safeSrc = escapeAttr(src);
@@ -1132,7 +1170,9 @@ try {
               </div>
 
               <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; min-height: 20px;">
-                <div class="ep-badge" style="color: ${theme.color}; background: ${theme.color}15; border-color: ${theme.color}30;">${epBadgeStr}</div>
+                ${showEpisodeBadge ? `
+                  <div class="ep-badge" style="color: ${theme.color}; background: ${theme.color}15; border-color: ${theme.color}30;">第${epNumber}集</div>
+                ` : ''}
                 ${displaySub ? `<div class="ep-sub">${displaySub}</div>` : ''}
               </div>
 
@@ -1158,7 +1198,6 @@ try {
       `;
     }).join('');
 
-    // 🔥 统计面板与列表组合
     recentMatchesHtml = `
       <style>
         .match-card {
@@ -1200,7 +1239,7 @@ try {
           font-size: 12px; font-weight: 800; border-radius: 6px; border: 1px solid transparent;
         }
         .ep-sub {
-          font-size: 12px; color: var(--text-secondary); opacity: 0.8;
+          font-size: 12px; color: var(--text-secondary); font-weight: 600;
           white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
         .match-id-box {
@@ -1241,7 +1280,6 @@ try {
         }
         .popover-menu.active { display: flex; }
         
-        /* 智能加载样式 */
         .popover-item {
           padding: 10px 12px; font-size: 13px; color: var(--text-primary); cursor: pointer;
           border-radius: 8px; display: flex; align-items: center; gap: 10px; transition: background 0.2s;
@@ -1261,6 +1299,7 @@ try {
         .popover-item.loading .item-icon { display: none; }
         
         @keyframes popIn { from { opacity: 0; transform: scale(0.9) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        @keyframes spin { to { transform: rotate(360deg); } }
       </style>
 
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
@@ -1346,7 +1385,6 @@ try {
           event.preventDefault();
           
           const popover = document.getElementById('danmuPopover');
-          // 关键修复：确保 popover 在 body 中，避免被父级 overflow 截断
           if (popover.parentNode !== document.body) {
             document.body.appendChild(popover);
           }
@@ -1354,23 +1392,18 @@ try {
           const btn = event.currentTarget;
           const rect = btn.getBoundingClientRect();
           
-          // 更新当前目标数据
           currentDanmuTarget = { id, title, season, episode, source };
           
-          // 绑定点击事件，使用 handleSmartView 函数
           const btnJson = document.getElementById('btnSmartJson');
           const btnXml = document.getElementById('btnSmartXml');
           
-          // 重置 UI 状态
           resetSmartBtn(btnJson);
           resetSmartBtn(btnXml);
           
           btnJson.onclick = () => handleSmartView('json', btnJson);
           btnXml.onclick = () => handleSmartView('xml', btnXml);
           
-          // 智能定位 (Fixed positioning)
           popover.style.top = (rect.bottom + 8) + 'px';
-          // 确保不溢出屏幕右侧
           if (rect.left + 180 > window.innerWidth) {
              popover.style.left = 'auto';
              popover.style.right = '16px';
@@ -1380,7 +1413,6 @@ try {
           
           popover.classList.add('active');
           
-          // 点击外部关闭
           const closeHandler = (e) => {
             if (!popover.contains(e.target) && !btn.contains(e.target)) {
               popover.classList.remove('active');
@@ -1402,25 +1434,20 @@ try {
           const { id, title, season, episode, source } = currentDanmuTarget;
           const statusText = btnElement.querySelector('.status-text');
           
-          // 1. UI 进入 Loading 状态
           btnElement.classList.add('loading');
           statusText.textContent = '正在检测有效性...';
           
           try {
-            // 2. 构造当前 ID 的检查链接
             const isUrl = id.toString().startsWith('http');
-            const checkUrl = '/api/v2/comment' + (isUrl ? '?url=' + encodeURIComponent(id) : '/' + id) + '?format=json&limit=1'; // 限制1条以加快速度
+            const checkUrl = '/api/v2/comment' + (isUrl ? '?url=' + encodeURIComponent(id) : '/' + id) + '?format=json&limit=1';
             
-            // 3. 尝试获取（检测是否过期）
             let finalId = id;
             let finalIsUrl = isUrl;
             let needRematch = false;
 
-            // 只有 VOD 链接（http开头）或明确的 VOD 源才强校验，纯数字ID一般不过期但也可以校验
             try {
               const res = await fetch(checkUrl);
               const data = await res.json();
-              // 如果返回失败或数据为空，标记为需要重配
               if (!data.success || (data.count === 0 && !data.comments)) {
                 needRematch = true;
               }
@@ -1428,16 +1455,14 @@ try {
               needRematch = true;
             }
 
-            // 4. 如果过期，执行自动重配 (Match 接口)
             if (needRematch) {
               statusText.textContent = '资源过期，正在重配...';
               
-              // 构造标准搜索文件名: 标题.S01E01
               const seasonStr = season.toString().padStart(2, '0');
               const episodeStr = episode.toString().padStart(2, '0');
               const matchQuery = \`\${title}.S\${seasonStr}E\${episodeStr}\`;
               
-              console.log('自动重配:', matchQuery);
+              console.log('🔄 自动重配:', matchQuery);
               
               const matchRes = await fetch('/api/v2/match', {
                 method: 'POST',
@@ -1448,9 +1473,8 @@ try {
               const matchData = await matchRes.json();
               
               if (matchData.success && matchData.isMatched && matchData.matches.length > 0) {
-                // 获取到了新 ID
                 finalId = matchData.matches[0].episodeId;
-                finalIsUrl = false; // match 接口返回的一般是 ID
+                finalIsUrl = false;
                 statusText.textContent = '重配成功，正在打开...';
                 if(window.showToast) window.showToast('✅ 自动修复成功，正在打开...', 'success');
               } else {
@@ -1460,21 +1484,19 @@ try {
               statusText.textContent = '链接有效，正在打开...';
             }
 
-            // 5. 打开最终页面
             const baseUrl = '/api/v2/comment' + (finalIsUrl ? '?url=' + encodeURIComponent(finalId) : '/' + finalId);
             const sep = finalIsUrl ? '&' : '?';
             const targetUrl = baseUrl + sep + 'format=' + format;
             
             window.open(targetUrl, '_blank');
             
-            // 恢复 UI
             setTimeout(() => {
                document.getElementById('danmuPopover').classList.remove('active');
                resetSmartBtn(btnElement);
             }, 1000);
 
           } catch (error) {
-            console.error(error);
+            console.error('❌ 智能加载失败:', error);
             statusText.textContent = '获取失败: ' + error.message;
             statusText.style.color = '#EF4444';
             btnElement.classList.remove('loading');
@@ -1496,9 +1518,11 @@ try {
     `;
   }
 } catch (e) {
-  console.error("渲染匹配列表失败", e);
+  console.error("❌ 渲染匹配列表失败", e);
   recentMatchesHtml = `<div style="padding: 20px; color: #ef4444; font-size: 12px; text-align: center;">渲染异常: ${e.message}</div>`;
 }
+
+
 
 
 
