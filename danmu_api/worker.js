@@ -938,7 +938,7 @@ async function handleHomepage(req, deployPlatform = 'unknown') {
       'bahamut': 'BH'
     };
     
-// 生成最近匹配列表HTML - 现代化卡片设计（带独立集数行优化版）
+// 生成最近匹配列表HTML - 最终优化版 (修复腾讯集数显示)
 let recentMatchesHtml = '';
 try {
   // 1. 获取 Map 数据
@@ -949,14 +949,14 @@ try {
       : Object.entries(globals.lastSelectMap);
   }
 
-  // 🔥 核心优化：按时间戳倒序排序（最新的排在最前面）
+  // 按时间倒序
   mapEntries.sort((a, b) => {
     const tA = a[1]?.timestamp || a[1]?.time || a[1]?.date || a[1]?.createdAt || 0;
     const tB = b[1]?.timestamp || b[1]?.time || b[1]?.date || b[1]?.createdAt || 0;
     return tB - tA;
   });
 
-  // 2. 严格过滤与去重逻辑
+  // 2. 过滤与统计
   const uniqueEntries = [];
   const sourceStats = {};
   let totalMatches = 0;
@@ -964,18 +964,16 @@ try {
   if (mapEntries.length > 0) {
     const displayedKeys = new Set();
     for (const [key, value] of mapEntries) {
-      if (uniqueEntries.length >= 5) break; // 只显示前5条
+      if (uniqueEntries.length >= 5) break;
 
       if (!value || typeof value !== 'object') continue;
-
       const targetId = value.id || value.animeId || value.episodeId;
       if (!targetId || ['未匹配', '无数据', 'null', 'undefined'].includes(String(targetId))) continue;
 
       const cleanKeyName = String(key).replace(/\s*from\s+.*$/i, '').trim();
-      // 使用组合键，确保同一部剧的不同集数也能显示
+      // 组合键去重，保留同剧不同集
       const uniqueKey = value.animeTitle ? `${value.animeTitle}-${value.episodeTitle}` : cleanKeyName;
 
-      // 统计
       const src = (value.source || value.type || 'auto').toLowerCase();
       sourceStats[src] = (sourceStats[src] || 0) + 1;
       totalMatches++;
@@ -989,7 +987,7 @@ try {
 
   // 3. 渲染逻辑
   if (uniqueEntries.length > 0) {
-    // 🆕 扩展后的主题色系 - 包含所有视频源
+    // 扩展主题库
     const THEMES = {
       'dandan':    { name: '弹弹Play', color: '#F472B6', bg: 'linear-gradient(135deg, #EC4899, #DB2777)', shadow: 'rgba(236, 72, 153, 0.4)', icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>' },
       'bilibili':  { name: 'B站', color: '#23ADE5', bg: 'linear-gradient(135deg, #00aeec, #0077aa)', shadow: 'rgba(35, 173, 229, 0.4)', icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M17.813 4.653h.854c1.51.054 2.769.746 3.76 2.092 1.079 1.492 1.607 3.356 1.573 5.56v1.373c.067 2.373-.556 4.316-1.85 5.827-1.127 1.32-2.585 2.005-4.32 2.022H6.26c-1.745-.02-3.21-.707-4.346-2.022C.62 17.994-.003 16.05 0 13.678v-1.373c.007-2.193.53-4.067 1.597-5.56.992-1.346 2.251-2.038 3.76-2.092h.854l-1.82-4.144a.69.69 0 0 1 .15-.815.69.69 0 0 1 .83-.097l4.996 2.628h3.33l4.997-2.628a.69.69 0 0 1 .83.097.691.691 0 0 1 .15.815l-1.86 4.144zM7.5 13.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm9 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/></svg>' },
@@ -999,14 +997,9 @@ try {
       'mgtv':      { name: '芒果TV', color: '#FF5F00', bg: 'linear-gradient(135deg, #ff5f00, #e65100)', shadow: 'rgba(255, 95, 0, 0.4)', icon: 'MG' },
       'bahamut':   { name: '巴哈姆特', color: '#1CB4D3', bg: 'linear-gradient(135deg, #00b4d8, #0077b6)', shadow: 'rgba(28, 180, 211, 0.4)', icon: 'BAHA' },
       '360':       { name: '360影视', color: '#22C55E', bg: 'linear-gradient(135deg, #4ade80, #22c55e)', shadow: 'rgba(34, 197, 94, 0.4)', icon: '360' },
-      'vod':       { name: '点播', color: '#8B5CF6', bg: 'linear-gradient(135deg, #8b5cf6, #7c3aed)', shadow: 'rgba(139, 92, 246, 0.4)', icon: 'VOD' },
-      'tmdb':      { name: 'TMDB', color: '#01D277', bg: 'linear-gradient(135deg, #01d277, #0cb365)', shadow: 'rgba(1, 210, 119, 0.4)', icon: 'TMDB' },
+      'vod':       { name: '点播资源', color: '#8B5CF6', bg: 'linear-gradient(135deg, #8b5cf6, #7c3aed)', shadow: 'rgba(139, 92, 246, 0.4)', icon: 'VOD' },
       'douban':    { name: '豆瓣', color: '#00B51D', bg: 'linear-gradient(135deg, #00b51d, #009417)', shadow: 'rgba(0, 181, 29, 0.4)', icon: '豆瓣' },
-      'imgo':      { name: 'IMGO', color: '#FF5F00', bg: 'linear-gradient(135deg, #ff5f00, #e65100)', shadow: 'rgba(255, 95, 0, 0.4)', icon: 'IMGO' },
-      'renren':    { name: '人人影视', color: '#FF6B6B', bg: 'linear-gradient(135deg, #ff6b6b, #ee5a52)', shadow: 'rgba(255, 107, 107, 0.4)', icon: 'RR' },
-      'hanjutv':   { name: '韩剧TV', color: '#FF69B4', bg: 'linear-gradient(135deg, #ff69b4, #ff1493)', shadow: 'rgba(255, 105, 180, 0.4)', icon: '韩TV' },
       'letv':      { name: '乐视', color: '#FF9500', bg: 'linear-gradient(135deg, #ff9500, #ff8000)', shadow: 'rgba(255, 149, 0, 0.4)', icon: 'LETV' },
-      'sohu':      { name: '搜狐视频', color: '#FF7E00', bg: 'linear-gradient(135deg, #ff7e00, #ff6600)', shadow: 'rgba(255, 126, 0, 0.4)', icon: 'SOHU' },
       'default':   { name: '其他', color: '#818CF8', bg: 'linear-gradient(135deg, #6366f1, #4f46e5)', shadow: 'rgba(129, 140, 248, 0.4)', icon: 'API' }
     };
 
@@ -1021,13 +1014,7 @@ try {
       if (k.includes('360')) return THEMES['360'];
       if (k.includes('dandan')) return THEMES.dandan;
       if (k.includes('vod')) return THEMES.vod;
-      if (k.includes('tmdb')) return THEMES.tmdb;
-      if (k.includes('douban')) return THEMES.douban;
-      if (k.includes('imgo')) return THEMES.imgo;
-      if (k.includes('renren')) return THEMES.renren;
-      if (k.includes('hanju')) return THEMES.hanjutv;
       if (k.includes('letv')) return THEMES.letv;
-      if (k.includes('sohu')) return THEMES.sohu;
       return THEMES.default;
     };
 
@@ -1041,9 +1028,8 @@ try {
       return Math.floor(seconds / 86400) + ' 天前';
     };
 
-    // 顶部仪表盘
+    // 顶部统计
     const topSourceEntry = Object.entries(sourceStats).sort((a, b) => b[1] - a[1])[0];
-    const topSourceName = topSourceEntry ? (getTheme(topSourceEntry[0]).name || topSourceEntry[0].toUpperCase()) : '无';
     const topSourceTheme = topSourceEntry ? getTheme(topSourceEntry[0]) : THEMES.default;
 
     recentMatchesHtml = `
@@ -1060,7 +1046,7 @@ try {
         <div style="background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 12px; padding: 12px; display: flex; align-items: center; justify-content: space-between;">
           <div style="display: flex; flex-direction: column;">
             <span style="font-size: 11px; color: var(--text-tertiary); text-transform: uppercase; font-weight: 600;">主要来源</span>
-            <span style="font-size: 16px; font-weight: 700; color: ${topSourceTheme.color}; line-height: 1.2;">${topSourceName}</span>
+            <span style="font-size: 16px; font-weight: 700; color: ${topSourceTheme.color}; line-height: 1.2;">${topSourceEntry ? (THEMES[topSourceEntry[0]]?.name || topSourceEntry[0]) : '无'}</span>
           </div>
           <div style="width: 36px; height: 36px; border-radius: 10px; background: ${topSourceTheme.bg}; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 10px; box-shadow: 0 4px 10px ${topSourceTheme.shadow};">
             TOP
@@ -1084,17 +1070,10 @@ try {
           border-color: var(--primary-500);
           box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
         }
-        .match-card .card-glow {
-          opacity: 0;
-          transition: opacity 0.4s ease;
-        }
-        .match-card:hover .card-glow {
-          opacity: 1;
-        }
-        /* 移动端优化 */
+        .match-card .card-glow { opacity: 0; transition: opacity 0.4s ease; }
+        .match-card:hover .card-glow { opacity: 1; }
         @media (max-width: 640px) {
           .match-card { padding: 12px; }
-          .match-content { gap: 8px; }
           .match-icon { width: 40px !important; height: 40px !important; font-size: 12px !important; }
         }
       </style>
@@ -1103,68 +1082,84 @@ try {
     ` + uniqueEntries.map(([key, value]) => {
       const src = (value.source || value.type || 'auto').toLowerCase();
       const theme = getTheme(src);
-      let rawTitle = (value.animeTitle || value.episodeTitle || String(key)).replace(/\s*from\s+.*$/i, '');
+      
+      // 原始数据
+      const rawId = String(value.id || value.animeId || value.episodeId || '');
+      const rawEpTitle = String(value.episodeTitle || '');
+      const rawAnimeTitle = (value.animeTitle || String(key)).replace(/\s*from\s+.*$/i, '');
 
-      // --- 🆕 优化后的标题与集数解析逻辑 ---
-      // 1. 提取年份
-      const yearMatch = rawTitle.match(/[(（](\d{4})[)）]/);
+      // --- 1. 标题清洗 ---
+      // 提取年份
+      const yearMatch = rawAnimeTitle.match(/[(（](\d{4})[)）]/);
       const year = yearMatch ? yearMatch[1] : null;
 
-      // 2. 清洗主标题
-      let mainTitle = rawTitle
-        .replace(/【.*?】/g, '')
-        .replace(/\[.*?\]/g, '')
+      // 清洗主标题 (移除年份、集数、修饰词)
+      let mainTitle = rawAnimeTitle
+        .replace(/【.*?】|\[.*?\]/g, '')
         .replace(/[(（]\d{4}[)）]/g, '')
         .replace(/S\d+E\d+/i, '')
         .replace(/第\s*\d+\s*[集话]/, '')
         .trim();
 
-      // 3. 🔥 增强版集数解析（优先级：ID末尾数字 > 标题正则）
-      let episodeNumber = null;
+      // --- 2. 智能集数提取 (修复腾讯显示 _01 问题) ---
+      let epNumber = null;
+
+      // 策略A: 优先从标题提取标准格式 (第x集, EP01, S01E01)
+      const titleEpMatch = rawEpTitle.match(/(?:^|\s|\[)(?:EP|第)?(\d+)(?:[集话]|\s|\]|$)/i) || 
+                           rawAnimeTitle.match(/S\d+E(\d+)/i);
       
-      // 方法1: 从 episodeId 提取（适配腾讯 _01、爱奇艺 id_12 等格式）
-      const rawEpId = String(value.episodeId || '');
-      const idMatch = rawEpId.match(/(?:^|[_\-/])(\d{1,4})$/);
-      if (idMatch) {
-        episodeNumber = parseInt(idMatch[1]);
-      }
-      
-      // 方法2: 从标题提取（S01E01 或 第1集）
-      if (!episodeNumber) {
-        const titleMatch = rawTitle.match(/S\d+E(\d+)/i) || rawTitle.match(/第\s*(\d+)\s*[集话]/);
-        if (titleMatch) {
-          episodeNumber = parseInt(titleMatch[1]);
+      if (titleEpMatch) {
+        epNumber = parseInt(titleEpMatch[1], 10);
+      } else {
+        // 策略B: 针对腾讯/爱奇艺等 ID 格式 (xxx_01, xxx-1)
+        // 专门处理 _01 结尾的情况
+        const idEpMatch = rawId.match(/[_\-](\d{1,4})$/);
+        if (idEpMatch) {
+          epNumber = parseInt(idEpMatch[1], 10);
+        } else if (/^\d+$/.test(rawEpTitle)) {
+           // 策略C: 如果副标题纯数字 '01'
+           epNumber = parseInt(rawEpTitle, 10);
+        } else if (rawEpTitle.startsWith('_')) {
+           // 策略D: 如果副标题是 '_01' (腾讯特例)
+           const subMatch = rawEpTitle.match(/_(\d+)/);
+           if (subMatch) epNumber = parseInt(subMatch[1], 10);
         }
       }
 
-      // 生成集数徽章字符串
-      const epBadgeStr = episodeNumber ? `第${episodeNumber}集` : '';
+      // 生成显示用的集数文字
+      const epBadgeStr = epNumber ? `第${epNumber}集` : '';
 
-      // 4. 解析副标题
-      let epSubtitleStr = '';
-      if (value.episodeTitle && value.episodeTitle !== mainTitle) {
-        let tempSub = value.episodeTitle.replace(mainTitle, '').replace(/【.*?】|\[.*?\]/g, '').trim();
-        tempSub = tempSub.replace(/^[\s\-\:：\.]+/g, '');
-        
-        // 清理副标题中重复的集数信息
-        if (episodeNumber) {
-          const patterns = [
-            `第${episodeNumber}集`,
-            `_${String(episodeNumber).padStart(2, '0')}`,
-            String(episodeNumber).padStart(2, '0'),
-            `EP${String(episodeNumber).padStart(2, '0')}`
-          ];
-          patterns.forEach(p => tempSub = tempSub.replace(new RegExp(p, 'gi'), ''));
-        }
-        
-        if (tempSub.trim().length > 0) epSubtitleStr = tempSub.trim();
-      }
-
-      const displayId = value.id || value.animeId || value.episodeId || 'N/A';
-      const timestamp = value.timestamp || value.time || value.date || value.createdAt;
-      const timeDisplay = timeAgo(timestamp);
+      // --- 3. 副标题清洗 (避免重复显示 "第1集 第1集") ---
+      let displaySub = rawEpTitle;
       
-      // 获取弹幕数量
+      // 如果副标题和主标题完全一样，就不显示副标题了
+      if (displaySub === mainTitle) displaySub = '';
+
+      // 清除多余修饰
+      displaySub = displaySub
+        .replace(mainTitle, '')
+        .replace(/【.*?】|\[.*?\]/g, '')
+        .replace(/\s*from\s+.*$/i, '');
+
+      // 如果我们已经有了 epBadgeStr (比如"第1集")，就在副标题里把这个信息删掉，保持清爽
+      if (epNumber) {
+        const patternsToRemove = [
+          `第${epNumber}集`, `第 ${epNumber} 集`,
+          `EP${epNumber}`, `ep${epNumber}`,
+          `_${String(epNumber).padStart(2, '0')}`, // 移除 _01
+          `_${epNumber}`,
+          `^${String(epNumber).padStart(2, '0')}$` // 如果副标题只是 "01"
+        ];
+        patternsToRemove.forEach(p => {
+          try { displaySub = displaySub.replace(new RegExp(p, 'gi'), ''); } catch(e){}
+        });
+      }
+      
+      // 去除开头结尾的符号
+      displaySub = displaySub.replace(/^[\s\-\._:：]+|[\s\-\._:：]+$/g, '').trim();
+
+      // --- 4. 其他数据 ---
+      const timeDisplay = timeAgo(value.timestamp || value.time || value.date || value.createdAt);
       const danmuCount = value.count !== undefined ? value.count : 0;
       const danmuCountStr = danmuCount > 9999 ? (danmuCount/10000).toFixed(1) + 'w' : danmuCount;
 
@@ -1193,49 +1188,34 @@ try {
               
               <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">
                 <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; padding-right: 8px;">
-                  <div style="font-size: 15px; font-weight: 700; color: var(--text-primary); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;" title="${mainTitle}">
+                  <div style="font-size: 15px; font-weight: 700; color: var(--text-primary); line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${mainTitle}">
                     ${mainTitle}
                   </div>
-                  ${year ? `
-                  <div style="
-                    display: inline-flex; align-items: center;
-                    padding: 2px 6px;
-                    background: var(--bg-secondary);
-                    color: var(--text-tertiary);
-                    font-size: 10px; font-weight: 600;
-                    border-radius: 4px;
-                    border: 1px solid var(--border-color);
-                    flex-shrink: 0;
-                  ">
-                    ${year}
-                  </div>
-                  ` : ''}
+                  ${year ? `<div style="padding: 1px 5px; background: var(--bg-secondary); color: var(--text-tertiary); font-size: 10px; border-radius: 4px; border: 1px solid var(--border-color); flex-shrink: 0;">${year}</div>` : ''}
                 </div>
-                <div style="font-size: 11px; color: var(--text-tertiary); white-space: nowrap; background: var(--bg-primary); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color); flex-shrink: 0;">
+                <div style="font-size: 11px; color: var(--text-tertiary); white-space: nowrap; flex-shrink: 0;">
                   ${timeDisplay}
                 </div>
               </div>
 
-              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap;">
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; min-height: 20px;">
                 ${epBadgeStr ? `
                 <div style="
                     display: inline-flex; align-items: center;
-                    padding: 3px 10px;
+                    padding: 2px 8px;
                     background: ${theme.color}15;
                     color: ${theme.color};
                     font-size: 12px; font-weight: 800;
                     border-radius: 6px;
                     border: 1px solid ${theme.color}30;
-                    letter-spacing: 0.3px;
                 ">
-                    <svg viewBox="0 0 20 20" fill="currentColor" width="11" height="11" style="margin-right: 4px;"><path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z"/></svg>
                     ${epBadgeStr}
                 </div>
                 ` : ''}
                 
-                ${epSubtitleStr ? `
-                <div style="font-size: 12px; color: var(--text-secondary); opacity: 0.9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">
-                    ${epSubtitleStr}
+                ${displaySub ? `
+                <div style="font-size: 12px; color: var(--text-secondary); opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                    ${displaySub}
                 </div>
                 ` : ''}
               </div>
@@ -1243,15 +1223,14 @@ try {
               <div style="display: flex; align-items: center; justify-content: space-between; border-top: 1px dashed var(--border-color); padding-top: 8px; margin-top: auto;">
                 <div style="display: flex; gap: 6px; align-items: center; flex: 1; min-width: 0; padding-right: 10px;">
                   <span style="font-size: 10px; color: ${theme.color}; font-weight: 600; flex-shrink: 0;">${theme.name}</span>
-                  <div style="display: flex; align-items: center; gap: 4px; opacity: 0.6; cursor: pointer; max-width: 100%;" title="ID: ${displayId}" onclick="navigator.clipboard.writeText('${displayId}');showToast('ID已复制')">
+                  <div style="display: flex; align-items: center; gap: 4px; opacity: 0.6; cursor: pointer; max-width: 100%;" title="ID: ${rawId}" onclick="navigator.clipboard.writeText('${rawId}');try{showToast('ID已复制')}catch(e){}">
                     <span style="width: 1px; height: 10px; background: var(--border-color); flex-shrink: 0;"></span>
-                    <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink: 0;"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                    <code style="font-size: 10px; font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${String(displayId).replace(/^.*?_/, '')}</code>
+                    <code style="font-size: 10px; font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${rawId.replace(/^.*?[_\-](?=\d+$)/, '')}</code>
                   </div>
                 </div>
                 
                 ${danmuCount > 0 ? `
-                <div style="display: flex; align-items: center; gap: 4px; color: ${theme.color}; font-weight: 700; font-size: 11px;">
+                <div style="display: flex; align-items: center; gap: 3px; color: ${theme.color}; font-weight: 700; font-size: 11px;">
                   <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
                   ${danmuCountStr}
                 </div>
@@ -1266,22 +1245,19 @@ try {
   } else {
     // 空状态
     recentMatchesHtml = `
-      <div style="padding: 48px 24px; text-align: center; background: var(--bg-tertiary); border: 1px dashed var(--border-color); border-radius: 16px; display: flex; flex-direction: column; align-items: center; transition: all 0.3s;">
-        <div style="width: 72px; height: 72px; background: var(--bg-secondary); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; border: 1px solid var(--border-color); color: var(--text-tertiary);">
-          <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"/>
-            <path d="M12 6v6l4 2"/>
-          </svg>
+      <div style="padding: 48px 24px; text-align: center; background: var(--bg-tertiary); border: 1px dashed var(--border-color); border-radius: 16px; display: flex; flex-direction: column; align-items: center;">
+        <div style="opacity: 0.5; margin-bottom: 16px; color: var(--text-tertiary);">
+          <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1"><path d="M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16z"/><path d="M12 8v4l3 3"/></svg>
         </div>
-        <div style="font-size: 15px; font-weight: 700; color: var(--text-secondary); margin-bottom: 8px;">暂无匹配记录</div>
-        <div style="font-size: 13px; color: var(--text-tertiary); max-width: 200px; line-height: 1.5;">当您请求弹幕 API 时，最近的匹配结果将显示在这里</div>
+        <div style="font-size: 14px; color: var(--text-secondary);">暂无匹配记录</div>
       </div>
     `;
   }
 } catch (e) {
   console.error("渲染匹配列表失败", e);
-  recentMatchesHtml = `<div style="padding: 24px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 12px; color: #f87171; text-align: center; font-size: 13px;">渲染异常: ${e.message}</div>`;
+  recentMatchesHtml = `<div style="padding: 20px; color: #ef4444; font-size: 12px; text-align: center;">渲染异常: ${e.message}</div>`;
 }
+
 
 
 
