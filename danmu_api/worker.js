@@ -934,7 +934,7 @@ async function handleHomepage(req, deployPlatform = 'unknown') {
       'iqiyi': 'I',
       'youku': 'Y',
       'tencent': 'T',
-      'mgtv': 'M',
+      'imgo': 'M',
       'bahamut': 'BH',
       'hanjutv': 'H'  // ✅ 已添加
     };
@@ -1077,7 +1077,7 @@ try {
       if (k.includes('iqiyi') || k.includes('qiyi')) return THEMES.iqiyi;
       if (k.includes('youku')) return THEMES.youku;
       if (k.includes('tencent') || k.includes('qq')) return THEMES.tencent;
-      if (k.includes('mgtv')) return THEMES.mgtv;
+      if (k.includes('imgo')) return THEMES.imgo;
       if (k.includes('sohu')) return THEMES.sohu;
       if (k.includes('letv') || k.includes('le.com')) return THEMES.letv;
       if (k.includes('renren') || k.includes('yyets')) return THEMES.renren;
@@ -8118,7 +8118,7 @@ try {
      const sourceMap = {
        'dandan': '弹弹Play', '360': '360影视', 'vod': 'VOD',
        'bilibili': 'B站', 'iqiyi': '爱奇艺', 'youku': '优酷',
-       'tencent': '腾讯', 'qq': '腾讯', 'mgtv': '芒果', 
+       'tencent': '腾讯', 'qq': '腾讯', 'imgo': '芒果', 
        'bahamut': '巴哈', 'tmdb': 'TMDB', 'douban': '豆瓣'
      };
 
