@@ -935,7 +935,8 @@ async function handleHomepage(req, deployPlatform = 'unknown') {
       'youku': 'Y',
       'tencent': 'T',
       'mgtv': 'M',
-      'bahamut': 'BH'
+      'bahamut': 'BH',
+      'hanjutv': 'H'  // ✅ 已添加
     };
     
 // 生成最近匹配列表HTML - 完美版 (修复集数识别+智能显示)
@@ -1058,12 +1059,13 @@ try {
       'iqiyi':     { name: '爱奇艺', color: '#00CC4C', bg: 'linear-gradient(135deg, #00cc36, #009929)', shadow: 'rgba(0, 204, 76, 0.4)', icon: 'QIYI' },
       'youku':     { name: '优酷', color: '#00A0E9', bg: 'linear-gradient(135deg, #0bafff, #2979ff)', shadow: 'rgba(0, 160, 233, 0.4)', icon: 'YOU' },
       'tencent':   { name: '腾讯视频', color: '#FF7F00', bg: 'linear-gradient(135deg, #ff7f00, #ff5f00)', shadow: 'rgba(255, 127, 0, 0.4)', icon: 'QQ' },
-      'mgtv':      { name: '芒果TV', color: '#FF5F00', bg: 'linear-gradient(135deg, #ff5f00, #e65100)', shadow: 'rgba(255, 95, 0, 0.4)', icon: 'MG' },
+      'imgo':      { name: '芒果TV', color: '#FF5F00', bg: 'linear-gradient(135deg, #ff5f00, #e65100)', shadow: 'rgba(255, 95, 0, 0.4)', icon: 'MG' },
       'sohu':      { name: '搜狐视频', color: '#FFD100', bg: 'linear-gradient(135deg, #ffd100, #ffb300)', shadow: 'rgba(255, 209, 0, 0.4)', icon: 'SOHU' },
       'letv':      { name: '乐视', color: '#E41F2B', bg: 'linear-gradient(135deg, #e41f2b, #c60b17)', shadow: 'rgba(228, 31, 43, 0.4)', icon: 'LE' },
       'renren':    { name: '人人影视', color: '#00A1D6', bg: 'linear-gradient(135deg, #29b6f6, #0288d1)', shadow: 'rgba(41, 182, 246, 0.4)', icon: 'RR' },
       'bahamut':   { name: '巴哈姆特', color: '#1CB4D3', bg: 'linear-gradient(135deg, #00b4d8, #0077b6)', shadow: 'rgba(28, 180, 211, 0.4)', icon: 'BAHA' },
       '360':       { name: '360影视', color: '#22C55E', bg: 'linear-gradient(135deg, #4ade80, #22c55e)', shadow: 'rgba(34, 197, 94, 0.4)', icon: '360' },
+      'hanjutv':   { name: '韩剧TV', color: '#10B981', bg: 'linear-gradient(135deg, #34d399, #059669)', shadow: 'rgba(16, 185, 129, 0.4)', icon: '韩剧' }, // ✅ 已添加
       'vod':       { name: '点播资源', color: '#8B5CF6', bg: 'linear-gradient(135deg, #8b5cf6, #7c3aed)', shadow: 'rgba(139, 92, 246, 0.4)', icon: 'VOD' },
       'douban':    { name: '豆瓣', color: '#00B51D', bg: 'linear-gradient(135deg, #00b51d, #009417)', shadow: 'rgba(0, 181, 29, 0.4)', icon: '豆瓣' },
       'default':   { name: '其他', color: '#818CF8', bg: 'linear-gradient(135deg, #6366f1, #4f46e5)', shadow: 'rgba(129, 140, 248, 0.4)', icon: 'API' }
@@ -1082,6 +1084,7 @@ try {
       if (k.includes('bahamut')) return THEMES.bahamut;
       if (k.includes('360')) return THEMES['360'];
       if (k.includes('dandan')) return THEMES.dandan;
+      if (k.includes('hanjutv')) return THEMES.hanjutv; // ✅ 已添加
       if (k.includes('vod')) return THEMES.vod;
       return THEMES.default;
     };
@@ -1521,11 +1524,6 @@ try {
   console.error("❌ 渲染匹配列表失败", e);
   recentMatchesHtml = `<div style="padding: 20px; color: #ef4444; font-size: 12px; text-align: center;">渲染异常: ${e.message}</div>`;
 }
-
-
-
-
-
 
     const sourcesHtml = globals.sourceOrderArr.length > 0 
       ? globals.sourceOrderArr.map((source, index) => {
