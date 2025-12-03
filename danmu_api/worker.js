@@ -11053,18 +11053,29 @@ if (path === "/api/logout" && method === "POST") {
 
   // GET /api/version/check - 检查版本更新
   if (path === "/api/version/check" && method === "GET") {
+    // 创建一个 AbortController 用于手动控制超时
+    const controller = new AbortController();
+    // 设置 3秒 后强制终止请求，避免 Cloudflare 挂起
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
+
     try {
-      // 🔥 修改1：给 GitHub URL 添加随机时间戳，防止源文件被缓存
-      const response = await fetch(
-        `https://raw.githubusercontent.com/huangxd-/danmu_api/refs/heads/main/danmu_api/configs/globals.js?t=${Date.now()}`,
-        { 
-          cache: 'no-store', // 告诉 fetch 不要使用本地缓存
-          signal: AbortSignal.timeout(5000) // 5秒超时
-        }
-      );
+      // 🔥 修改1：使用 jsDelivr CDN 加速，比 raw.githubusercontent.com 稳定得多
+      // 🔥 修改2：保留 ?t= 时间戳防止 CDN 缓存
+      const targetUrl = `https://cdn.jsdelivr.net/gh/huangxd-/danmu_api@main/danmu_api/configs/globals.js?t=${Date.now()}`;
+      
+      const response = await fetch(targetUrl, { 
+          method: 'GET',
+          headers: {
+            'User-Agent': 'DanmuAPI-UpdateCheck' // 添加 UA 防止被拦截
+          },
+          signal: controller.signal // 绑定超时控制器
+      });
+      
+      // 请求完成，清除定时器
+      clearTimeout(timeoutId);
       
       if (!response.ok) {
-        throw new Error('网络请求失败');
+        throw new Error(`CDN请求失败: ${response.status}`);
       }
       
       const content = await response.text();
@@ -11074,38 +11085,44 @@ if (path === "/api/logout" && method === "POST") {
         throw new Error('无法解析版本号');
       }
       
-      // 检查是否运行在 Docker 容器中
       const isDocker = process.env.DOCKER_ENV === 'true' || 
                       (typeof process !== 'undefined' && process.env?.DOCKER_ENV === 'true');
       
-      const responseData = {
+      // 🔥 修改3：返回头强制禁止 Cloudflare 缓存此 API 的结果
+      return new Response(JSON.stringify({
         success: true,
         latestVersion: versionMatch[1],
         currentVersion: globals.VERSION,
         isDocker: isDocker,
         canAutoUpdate: isDocker
-      };
-
-      // 🔥 修改2：显式添加禁止缓存的响应头，强制 Cloudflare 回源
-      return new Response(JSON.stringify(responseData), {
-        status: 200,
-        headers: {
+      }), {
+        headers: { 
           'Content-Type': 'application/json',
-          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
-          'Pragma': 'no-cache',
-          'Expires': '0',
-          'Surrogate-Control': 'no-store' // 专门针对某些 CDN 的指令
+          'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0', 
+          'CDN-Cache-Control': 'no-store' // 专门针对 CDN 的指令
         }
       });
 
     } catch (error) {
+      clearTimeout(timeoutId); // 确保出错也清除定时器
+      
+      // 即使失败，也返回 200 状态码但在 JSON 里标记 success: false
+      // 这样前端就不会一直转圈，而是显示“服务运行正常”
       log("warn", `[version] 版本检查跳过: ${error.message}`);
-      return jsonResponse({
+      
+      return new Response(JSON.stringify({
         success: false,
-        error: error.message
-      }, 500);
+        error: error.name === 'AbortError' ? '检查超时(网络波动)' : error.message,
+        currentVersion: globals.VERSION // 即使失败也返回当前版本
+      }), {
+        headers: { 
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store'
+        }
+      });
     }
   }
+
 
   // POST /api/version/update - 执行 Docker 容器更新
   if (path === "/api/version/update" && method === "POST") {
