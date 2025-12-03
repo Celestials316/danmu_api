@@ -536,38 +536,29 @@ function getRealEnvValue(key) {
   };
 
   const actualKey = keyMapping[key] || key;
-  let value = '';
 
-  // 1. 尝试从 globals.accessedEnvVars 获取
+  // 优先从 globals.accessedEnvVars 获取（这是真实值）
   if (globals.accessedEnvVars && actualKey in globals.accessedEnvVars) {
-    const val = globals.accessedEnvVars[actualKey];
-    if (val !== null && val !== undefined) {
-      value = typeof val === 'string' ? val : String(val);
+    const value = globals.accessedEnvVars[actualKey];
+    // 🔥 确保返回字符串类型
+    if (value !== null && value !== undefined) {
+      return typeof value === 'string' ? value : String(value);
     }
   }
 
-  // 🔥 核心修复：检测是否获取到了“脏数据”（全是星号）
-  // 场景：Redis/数据库里不小心存入了脱敏后的 '********'
-  const isMasked = value && /^\*+$/.test(value) && value.length > 4;
-
-  // 如果值为空，或者是纯星号，则强制回落到 process.env 获取真实值
-  if (!value || isMasked) {
-    if (typeof process !== 'undefined' && process.env?.[actualKey]) {
-      const envVal = String(process.env[actualKey]);
-      // 只有当环境变量里有值，且不是星号时才覆盖
-      if (envVal && !/^\*+$/.test(envVal)) {
-        value = envVal;
-      }
-    }
+  // 备用方案：从 process.env 获取
+  if (typeof process !== 'undefined' && process.env?.[actualKey]) {
+    return String(process.env[actualKey]);
   }
 
-  // 2. 如果还没获取到，尝试从 Globals 默认值获取
-  if (!value && actualKey in Globals) {
-    const val = Globals[actualKey];
-    value = typeof val === 'string' ? val : String(val);
+  // 最后尝试从 Globals 获取默认值
+  if (actualKey in Globals) {
+    const value = Globals[actualKey];
+    return typeof value === 'string' ? value : String(value);
   }
 
-  return value || '';
+  // 如果都没有，返回空字符串
+  return '';
 }
 
 async function handleRequest(req, env, deployPlatform, clientIp) {
@@ -943,7 +934,7 @@ async function handleHomepage(req, deployPlatform = 'unknown') {
       'iqiyi': 'I',
       'youku': 'Y',
       'tencent': 'T',
-      'mgtv': 'M',
+      'imgo': 'M',
       'bahamut': 'BH',
       'hanjutv': 'H'  // ✅ 已添加
     };
@@ -1086,7 +1077,7 @@ try {
       if (k.includes('iqiyi') || k.includes('qiyi')) return THEMES.iqiyi;
       if (k.includes('youku')) return THEMES.youku;
       if (k.includes('tencent') || k.includes('qq')) return THEMES.tencent;
-      if (k.includes('mgtv')) return THEMES.mgtv;
+      if (k.includes('imgo')) return THEMES.imgo;
       if (k.includes('sohu')) return THEMES.sohu;
       if (k.includes('letv') || k.includes('le.com')) return THEMES.letv;
       if (k.includes('renren') || k.includes('yyets')) return THEMES.renren;
@@ -8127,7 +8118,7 @@ try {
      const sourceMap = {
        'dandan': '弹弹Play', '360': '360影视', 'vod': 'VOD',
        'bilibili': 'B站', 'iqiyi': '爱奇艺', 'youku': '优酷',
-       'tencent': '腾讯', 'qq': '腾讯', 'mgtv': '芒果', 
+       'tencent': '腾讯', 'qq': '腾讯', 'imgo': '芒果', 
        'bahamut': '巴哈', 'tmdb': 'TMDB', 'douban': '豆瓣'
      };
 
@@ -9637,18 +9628,15 @@ try {
        versionStatus.innerHTML = '<span class="loading-spinner" style="display: inline-block; margin-right: 6px;"></span>正在检查更新...';
        if (updateBtn) updateBtn.style.display = 'none';
        
-       // 🔥 修改：添加时间戳参数 (?ts=...) 强制浏览器和 CDN 刷新
-       const response = await fetch('/api/version/check?ts=' + Date.now(), {
-         cache: 'no-store',
-         headers: {
-           'Pragma': 'no-cache',
-           'Cache-Control': 'no-cache'
-         }
+       // 通过后端 API 检查版本
+       const response = await fetch('/api/version/check', {
+         cache: 'no-cache'
        });
 
        if (!response.ok) {
          throw new Error('网络请求失败');
        }
+
        const result = await response.json();
        
        if (!result.success) {
@@ -11053,29 +11041,18 @@ if (path === "/api/logout" && method === "POST") {
 
   // GET /api/version/check - 检查版本更新
   if (path === "/api/version/check" && method === "GET") {
-    // 创建一个 AbortController 用于手动控制超时
-    const controller = new AbortController();
-    // 设置 3秒 后强制终止请求，避免 Cloudflare 挂起
-    const timeoutId = setTimeout(() => controller.abort(), 3000);
-
     try {
-      // 🔥 修改1：使用 jsDelivr CDN 加速，比 raw.githubusercontent.com 稳定得多
-      // 🔥 修改2：保留 ?t= 时间戳防止 CDN 缓存
-      const targetUrl = `https://cdn.jsdelivr.net/gh/huangxd-/danmu_api@main/danmu_api/configs/globals.js?t=${Date.now()}`;
-      
-      const response = await fetch(targetUrl, { 
-          method: 'GET',
-          headers: {
-            'User-Agent': 'DanmuAPI-UpdateCheck' // 添加 UA 防止被拦截
-          },
-          signal: controller.signal // 绑定超时控制器
-      });
-      
-      // 请求完成，清除定时器
-      clearTimeout(timeoutId);
+      // 🔥 修改：增加 3000ms (3秒) 超时限制，防止因网络问题阻塞导致网页无法加载
+      const response = await fetch(
+        'https://raw.githubusercontent.com/huangxd-/danmu_api/refs/heads/main/danmu_api/configs/globals.js',
+        { 
+          cache: 'no-cache',
+          signal: AbortSignal.timeout(3000) 
+        }
+      );
       
       if (!response.ok) {
-        throw new Error(`CDN请求失败: ${response.status}`);
+        throw new Error('网络请求失败');
       }
       
       const content = await response.text();
@@ -11085,41 +11062,24 @@ if (path === "/api/logout" && method === "POST") {
         throw new Error('无法解析版本号');
       }
       
+      // 检查是否运行在 Docker 容器中
       const isDocker = process.env.DOCKER_ENV === 'true' || 
                       (typeof process !== 'undefined' && process.env?.DOCKER_ENV === 'true');
       
-      // 🔥 修改3：返回头强制禁止 Cloudflare 缓存此 API 的结果
-      return new Response(JSON.stringify({
+      return jsonResponse({
         success: true,
         latestVersion: versionMatch[1],
         currentVersion: globals.VERSION,
         isDocker: isDocker,
         canAutoUpdate: isDocker
-      }), {
-        headers: { 
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0', 
-          'CDN-Cache-Control': 'no-store' // 专门针对 CDN 的指令
-        }
       });
-
     } catch (error) {
-      clearTimeout(timeoutId); // 确保出错也清除定时器
-      
-      // 即使失败，也返回 200 状态码但在 JSON 里标记 success: false
-      // 这样前端就不会一直转圈，而是显示“服务运行正常”
+      // 超时或失败时仅记录日志，不影响主程序运行
       log("warn", `[version] 版本检查跳过: ${error.message}`);
-      
-      return new Response(JSON.stringify({
+      return jsonResponse({
         success: false,
-        error: error.name === 'AbortError' ? '检查超时(网络波动)' : error.message,
-        currentVersion: globals.VERSION // 即使失败也返回当前版本
-      }), {
-        headers: { 
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-store'
-        }
-      });
+        error: error.message
+      }, 500);
     }
   }
 
