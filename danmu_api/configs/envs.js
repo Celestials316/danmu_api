@@ -245,6 +245,7 @@ export class Envs {
      whiteRatio: this.get('WHITE_RATIO', -1, 'number'), // 白色弹幕占比配置(-1表示不转换,0-100表示转换比例,默认 -1)
      danmuColors: this.get('DANMU_COLORS', '', 'string'), // 自定义彩色弹幕池(逗号分隔的Hex颜色)
      danmuOutputFormat: this.get('DANMU_OUTPUT_FORMAT', 'json', 'string'), // 弹幕输出格式配置(默认 json,可选值:json, xml)
+     danmuFontSize: this.get('DANMU_FONTSIZE', 25, 'number'), // 弹幕字体大小(默认 25)
      strictTitleMatch: this.get('STRICT_TITLE_MATCH', false, 'boolean'), // 严格标题匹配模式配置(默认 false,宽松模糊匹配)
      titleToChinese: this.get('TITLE_TO_CHINESE', false, 'boolean'), // 外语标题转换中文开关
      rememberLastSelect: this.get('REMEMBER_LAST_SELECT', true, 'boolean'), // 是否记住手动选择结果,用于match自动匹配时优选上次的选择(默认 true,记住)
