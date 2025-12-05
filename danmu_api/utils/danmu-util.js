@@ -623,25 +623,38 @@ export function convertToDanmakuJson(contents, platform) {
     let convertedToWhite = 0;
     let convertedToColor = 0;
 
-    // 定义彩色弹幕的颜色池 (你的柔和色盘)
-    const colorPalette = [
-      16758465,  // 樱花粉 #FFB1C1
-      16764043,  // 奶油黄 #FFC48B
-      11206570,  // 薄荷绿 #AAFFAA
-      10027007,  // 冰霜蓝 #98FFFF
-      11843064,  // 香芋紫 #B4B5F8
-      16755370,  // 蜜桃橘 #FF96AA
-      7530472,   // 抹茶绿 #72E7E8
-      16761035,  // 芝士黄 #FFD2CB
-      13293567,  // 浅藕紫 #CACFFF
-    ];
+    // 定义彩色弹幕的颜色池 (优先使用环境变量配置)
+    let colorPalette = [];
+    
+    if (globals.danmuColors && globals.danmuColors.length > 0) {
+      // 解析配置的 Hex 颜色列表 (#FF0000,#00FF00...)
+      colorPalette = globals.danmuColors.split(',')
+        .map(c => c.trim())
+        .filter(c => /^#?[0-9A-Fa-f]{6}$/.test(c))
+        .map(c => parseInt(c.replace('#', ''), 16));
+    }
+
+    // 如果配置为空或解析无效，使用默认柔和色盘
+    if (colorPalette.length === 0) {
+      colorPalette = [
+        16758465,  // 樱花粉 #FFB1C1
+        16764043,  // 奶油黄 #FFC48B
+        11206570,  // 薄荷绿 #AAFFAA
+        10027007,  // 冰霜蓝 #98FFFF
+        11843064,  // 香芋紫 #B4B5F8
+        16755370,  // 蜜桃橘 #FF96AA
+        7530472,   // 抹茶绿 #72E7E8
+        16761035,  // 芝士黄 #FFD2CB
+        13293567,  // 浅藕紫 #CACFFF
+      ];
+    }
 
     // ==========================================
     // 均匀分布算法 (Error Diffusion / Dithering)
     // 目的：强制每条弹幕通过“配额”系统分配颜色，
     // 确保在时间轴的任意小片段内，白/彩比例都严格符合设定。
     // ==========================================
-    
+
     const targetWhiteRate = whiteRatio / 100;
     // 初始设为 0.5 避免开头总是同一颜色，增加一点随机起始感
     let whiteBalance = 0.5; 
@@ -667,7 +680,7 @@ export function convertToDanmakuJson(contents, platform) {
 
       // 2. 颜色均匀分配逻辑
       // 这里的逻辑是：不管原来是什么颜色，全部重写，以统一画风
-      
+
       // 累加白色的“欠款”
       whiteBalance += targetWhiteRate;
 
