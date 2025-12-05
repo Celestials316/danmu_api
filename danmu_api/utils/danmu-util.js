@@ -627,7 +627,6 @@ export function convertToDanmakuJson(contents, platform) {
 
     // 定义彩色弹幕的颜色池
     const colorPalette = [
-      16777215,  // 象牙白 #FFFFFF
       16758465,  // 樱花粉 #FFB1C1 (超级温柔的粉)
       16764043,  // 奶油黄 #FFC48B
       11206570,  // 薄荷绿 #AAFFAA
