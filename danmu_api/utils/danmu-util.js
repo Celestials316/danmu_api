@@ -680,7 +680,7 @@ export function convertToDanmakuJson(contents, platform) {
       }
 
       let mode = parseInt(pValues[1], 10);
-      let color = parseInt(pValues[2], 10);
+      let color = parseInt(pValues[3], 10); // 🔥 修复：颜色在第4位(索引3)
       const originalColor = color; // 记录原始颜色用于统计
       let modified = false;
 
@@ -694,7 +694,7 @@ export function convertToDanmakuJson(contents, platform) {
       // 2. 颜色均匀分配逻辑
       // 这里的逻辑是：不管原来是什么颜色，全部重写，以统一画风
 
-      // 累加白色的“欠款”
+      // 累加白色的"欠款"
       whiteBalance += targetWhiteRate;
 
       let shouldUseWhite = false;
@@ -725,7 +725,7 @@ export function convertToDanmakuJson(contents, platform) {
       // 如果有修改,重新构建 p 属性
       if (modified) {
         pValues[1] = mode.toString();
-        pValues[2] = color.toString();
+        pValues[3] = color.toString(); // 🔥 修复：颜色在第4位(索引3)
         const newP = pValues.join(',');
         return { ...danmu, p: newP };
       }
