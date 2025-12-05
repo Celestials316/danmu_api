@@ -111,12 +111,12 @@ export function limitDanmusEvenly(danmus, limit) {
     const item = danmus[i];
     const t = getTime(item);
     if (!Number.isFinite(t) || t < 0) continue;
-    
+
     if (t > maxSecond) maxSecond = t;
     // 稍微包装一下，避免后续重复 getTime
     validItems.push({ original: item, time: t });
   }
-  
+
   // 再次检查总数
   if (validItems.length <= limit) return validItems.map(v => v.original);
 
@@ -124,14 +124,14 @@ export function limitDanmusEvenly(danmus, limit) {
   const buckets = new Array(totalBuckets);
   // 初始化桶
   for (let i = 0; i < totalBuckets; i++) buckets[i] = [];
-  
+
   // 填充桶
   for (let i = 0; i < validItems.length; i++) {
     const vItem = validItems[i];
     const sec = Math.floor(vItem.time);
     buckets[sec].push(vItem);
   }
-  
+
   // 统计每秒容量 (Capacity)
   const caps = new Array(totalBuckets);
   for (let i = 0; i < totalBuckets; i++) {
@@ -140,11 +140,11 @@ export function limitDanmusEvenly(danmus, limit) {
 
   // ===== 2. 浮点二分查找 (Floating Binary Search) =====
   // 目标：找到一个浮点数 threshold，使得 sum(min(cap, threshold)) ≈ limit
-  
+
   let left = 0;
   let right = Math.max(...caps); // 水位线最高就是最拥挤那一秒的数量
   const epsilon = 0.05; // 精度控制，越小越准，但 0.05 足够了
-  
+
   // 计算在给定水位线下的理论总数（带小数）
   const calcSum = (th) => {
     let sum = 0;
@@ -163,7 +163,7 @@ export function limitDanmusEvenly(danmus, limit) {
       right = mid; // 说明水位高了，压低
     }
   }
-  
+
   // 最终的浮点水位线。
   // 我们稍微偏向 left 一点，宁可少拿不要多拿，后面再通过 accumulator 补齐
   const threshold = left; 
@@ -171,12 +171,12 @@ export function limitDanmusEvenly(danmus, limit) {
   // ===== 3. 误差扩散采样 (Error Diffusion Sampling) =====
   const result = [];
   let accumulator = 0; // 累积的小数“欠款”
-  
+
   // 这里的关键是：我们按时间顺序遍历，这样误差会平滑地传递到下一秒
   for (let i = 0; i < totalBuckets; i++) {
     const bucket = buckets[i];
     const cap = caps[i];
-    
+
     if (cap === 0) {
       // 这一秒没弹幕，积攒的配额作废吗？
       // 通常作废，因为不能把配额挪到没有弹幕的时间去。
@@ -188,13 +188,13 @@ export function limitDanmusEvenly(danmus, limit) {
 
     // 计算这一秒理论应该拿多少条 (可能是小数，如 5.42)
     const idealCount = Math.min(cap, threshold);
-    
+
     // 加上之前的余额
     const rawCount = idealCount + accumulator;
-    
+
     // 取整：实际能拿的条数
     let takeCount = Math.floor(rawCount);
-    
+
     // 更新余额：把切掉的小数部分留给下一秒
     accumulator = rawCount - takeCount;
 
@@ -205,7 +205,7 @@ export function limitDanmusEvenly(danmus, limit) {
         accumulator += (takeCount - cap); 
         takeCount = cap;
     }
-    
+
     // 双重安全检查：不要拿负数
     if (takeCount <= 0) continue;
 
@@ -226,12 +226,12 @@ export function limitDanmusEvenly(danmus, limit) {
         }
       }
     }
-    
+
     // 紧急熔断：如果因为 accumulator 的累积导致总数已经达到 limit，提前停止
     // 这种情况极少发生，但在 limit 极其严格时很有用
     if (result.length >= limit) break;
   }
-  
+
   // ===== 4. 排序 (Sorting) =====
   // 结果通常已经是按秒有序的了（因为遍历 buckets 是有序的），
   // 只有同一秒内的弹幕可能乱序（如果原始数据乱序）。
@@ -620,14 +620,12 @@ export function convertToDanmakuJson(contents, platform) {
   if (whiteRatio >= 0 && whiteRatio <= 100) {
     // 统计计数器
     let topBottomCount = 0;
-    let colorToWhiteCount = 0;
-    let whiteToColorCount = 0;
-    let colorKeptCount = 0;
-    let whiteKeptCount = 0;
+    let convertedToWhite = 0;
+    let convertedToColor = 0;
 
-    // 定义彩色弹幕的颜色池
+    // 定义彩色弹幕的颜色池 (你的柔和色盘)
     const colorPalette = [
-      16758465,  // 樱花粉 #FFB1C1 (超级温柔的粉)
+      16758465,  // 樱花粉 #FFB1C1
       16764043,  // 奶油黄 #FFC48B
       11206570,  // 薄荷绿 #AAFFAA
       10027007,  // 冰霜蓝 #98FFFF
@@ -638,6 +636,15 @@ export function convertToDanmakuJson(contents, platform) {
       13293567,  // 浅藕紫 #CACFFF
     ];
 
+    // ==========================================
+    // 均匀分布算法 (Error Diffusion / Dithering)
+    // 目的：强制每条弹幕通过“配额”系统分配颜色，
+    // 确保在时间轴的任意小片段内，白/彩比例都严格符合设定。
+    // ==========================================
+    
+    const targetWhiteRate = whiteRatio / 100;
+    // 初始设为 0.5 避免开头总是同一颜色，增加一点随机起始感
+    let whiteBalance = 0.5; 
 
     finalDanmus = limitedDanmus.map(danmu => {
       const pValues = danmu.p.split(',');
@@ -648,6 +655,7 @@ export function convertToDanmakuJson(contents, platform) {
 
       let mode = parseInt(pValues[1], 10);
       let color = parseInt(pValues[2], 10);
+      const originalColor = color; // 记录原始颜色用于统计
       let modified = false;
 
       // 1. 将顶部/底部弹幕转换为滚动弹幕
@@ -657,47 +665,35 @@ export function convertToDanmakuJson(contents, platform) {
         modified = true;
       }
 
-      // 2. 颜色转换逻辑
-      // whiteRatio = 100: 全部转为白色
-      // whiteRatio = 0: 全部转为彩色
-      // whiteRatio = 50: 50%白色,50%彩色
-      if (whiteRatio === 100) {
-        // 全部转为白色
-        if (color !== 16777215) {
-          colorToWhiteCount++;
-          color = 16777215;
-          modified = true;
-        }
-      } else if (whiteRatio === 0) {
-        // 全部转为彩色
-        if (color === 16777215) {
-          whiteToColorCount++;
-          color = colorPalette[Math.floor(Math.random() * colorPalette.length)];
-          modified = true;
-        }
-      } else {
-        // 根据占比进行转换
-        const convertToWhiteProb = whiteRatio / 100;
+      // 2. 颜色均匀分配逻辑
+      // 这里的逻辑是：不管原来是什么颜色，全部重写，以统一画风
+      
+      // 累加白色的“欠款”
+      whiteBalance += targetWhiteRate;
 
-        if (color !== 16777215) {
-          // 彩色弹幕:按概率转为白色
-          if (Math.random() < convertToWhiteProb) {
-            colorToWhiteCount++;
-            color = 16777215;
-            modified = true;
-          } else {
-            colorKeptCount++;
-          }
-        } else {
-          // 白色弹幕:按概率转为彩色
-          if (Math.random() < (1 - convertToWhiteProb)) {
-            whiteToColorCount++;
-            color = colorPalette[Math.floor(Math.random() * colorPalette.length)];
-            modified = true;
-          } else {
-            whiteKeptCount++;
-          }
-        }
+      let shouldUseWhite = false;
+      if (whiteBalance >= 1.0) {
+        // 如果攒够了一个白色配额，这张票给白色
+        shouldUseWhite = true;
+        whiteBalance -= 1.0; // 扣除配额
+      } else {
+        // 没攒够，这张票给彩色
+        shouldUseWhite = false;
+      }
+
+      if (shouldUseWhite) {
+        // 设定为白色
+        color = 16777215;
+      } else {
+        // 设定为随机彩色 (从你的色盘中取)
+        color = colorPalette[Math.floor(Math.random() * colorPalette.length)];
+      }
+
+      // 检查颜色是否发生了实际变化，用于设置 modified 标志和统计
+      if (color !== originalColor) {
+        modified = true;
+        if (color === 16777215) convertedToWhite++;
+        else convertedToColor++;
       }
 
       // 如果有修改,重新构建 p 属性
@@ -712,12 +708,10 @@ export function convertToDanmakuJson(contents, platform) {
     });
 
     // 统计输出转换结果
-    log("info", `[Color Conversion Stats]`);
+    log("info", `[Color Conversion Stats - Uniform Distribution]`);
     log("info", `  - Top/Bottom→Scroll: ${topBottomCount}`);
-    log("info", `  - Color→White: ${colorToWhiteCount}`);
-    log("info", `  - White→Color: ${whiteToColorCount}`);
-    log("info", `  - Color kept: ${colorKeptCount}`);
-    log("info", `  - White kept: ${whiteKeptCount}`);
+    log("info", `  - Total converted to White: ${convertedToWhite}`);
+    log("info", `  - Total converted to Palette: ${convertedToColor}`);
   } else {
     log("info", `[Color Conversion] Skipped (whiteRatio=${whiteRatio}, not in 0-100 range)`);
   }
