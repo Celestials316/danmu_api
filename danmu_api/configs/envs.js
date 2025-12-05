@@ -7,7 +7,7 @@ export class Envs {
 
   // 记录获取过的环境变量
   static accessedEnvVars = new Map();
-  
+
   // 🔥 新增：记录敏感字段（用于前端显示时脱敏）
   static sensitiveKeys = new Set();
 
@@ -51,7 +51,7 @@ export class Envs {
 
     // 🔥 关键修复：存储真实值，但标记为敏感
     this.accessedEnvVars.set(key, parsedValue);
-    
+
     // 🔥 如果是敏感字段，额外标记（用于前端显示时脱敏）
     if (encrypt) {
       if (!this.sensitiveKeys) this.sensitiveKeys = new Set();
@@ -98,14 +98,14 @@ export class Envs {
   static getMaskedValue(key) {
     const value = this.accessedEnvVars.get(key);
     if (!value) return value;
-    
+
     // 如果是敏感字段，返回脱敏值
     if (this.sensitiveKeys && this.sensitiveKeys.has(key)) {
       if (typeof value === 'string') {
         return this.encryptStr(value);
       }
     }
-    
+
     return value;
   }
   /**
@@ -243,6 +243,7 @@ export class Envs {
      commentCacheMinutes: this.get('COMMENT_CACHE_MINUTES', 1, 'number'), // 弹幕缓存时间配置(分钟,默认 1)
      danmuLimit: this.get('DANMU_LIMIT', -1, 'number'), // 弹幕数量限制(默认 -1,表示不限制,>0表示限制数量)
      whiteRatio: this.get('WHITE_RATIO', -1, 'number'), // 白色弹幕占比配置(-1表示不转换,0-100表示转换比例,默认 -1)
+     danmuColors: this.get('DANMU_COLORS', '', 'string'), // 自定义彩色弹幕池(逗号分隔的Hex颜色)
      danmuOutputFormat: this.get('DANMU_OUTPUT_FORMAT', 'json', 'string'), // 弹幕输出格式配置(默认 json,可选值:json, xml)
      strictTitleMatch: this.get('STRICT_TITLE_MATCH', false, 'boolean'), // 严格标题匹配模式配置(默认 false,宽松模糊匹配)
      titleToChinese: this.get('TITLE_TO_CHINESE', false, 'boolean'), // 外语标题转换中文开关
