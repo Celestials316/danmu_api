@@ -300,6 +300,12 @@ const Globals = {
       this.envs.danmuOutputFormat = config.DANMU_OUTPUT_FORMAT || 'json';
     }
 
+    // 更新弹幕字体大小
+    if (changedKeys.includes('DANMU_FONTSIZE')) {
+      const fontSize = parseInt(config.DANMU_FONTSIZE) || 25;
+      this.envs.danmuFontSize = fontSize;
+    }
+
     // 更新繁简转换设置
     if (changedKeys.includes('DANMU_SIMPLIFIED')) {
       this.envs.danmuSimplified = String(config.DANMU_SIMPLIFIED).toLowerCase() === 'true';
