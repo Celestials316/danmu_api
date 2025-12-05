@@ -10347,38 +10347,47 @@ try {
        valueDisplay.style.transition = 'transform 0.12s cubic-bezier(0.4, 0, 0.2, 1)';
      }
    }
-   // 快速配置锁定/解锁功能
+   // 快速配置锁定/解锁功能 (修复版)
    function toggleQuickConfigLock(button, inputId) {
      const input = document.getElementById(inputId);
      const lockIcon = button.querySelector('.lock-icon');
      const unlockIcon = button.querySelector('.unlock-icon');
-     const isLocked = input.disabled || input.readOnly;
+     
+     // 判断当前是否处于锁定状态 (通过 class 判断更准确)
+     const isLocked = input.classList.contains('locked');
      
      if (isLocked) {
-       // 解锁
-       if (input.type === 'range') {
-         input.disabled = false;
+       // === 执行解锁 ===
+       
+       // 针对不同元素类型处理 disabled/readOnly
+       if (input.tagName === 'SELECT' || input.type === 'range') {
+         input.disabled = false; // 下拉框和滑块需要移除 disabled
        } else {
-         input.readOnly = false;
+         input.readOnly = false; // 文本框移除 readOnly
        }
+       
+       // 样式更新
        input.classList.remove('locked');
        button.classList.add('unlocked');
        lockIcon.style.display = 'none';
        unlockIcon.style.display = 'block';
        button.title = '点击锁定';
        
-       // 聚焦到输入框（仅输入框类型）
+       // 聚焦到输入框（仅文本框）
        if (input.tagName === 'INPUT' && input.type === 'text') {
          input.focus();
          input.select();
        }
      } else {
-       // 锁定
-       if (input.type === 'range') {
+       // === 执行锁定 ===
+       
+       if (input.tagName === 'SELECT' || input.type === 'range') {
          input.disabled = true;
        } else {
          input.readOnly = true;
        }
+       
+       // 样式更新
        input.classList.add('locked');
        button.classList.remove('unlocked');
        lockIcon.style.display = 'block';
