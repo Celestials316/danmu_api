@@ -44,7 +44,8 @@ export function groupDanmusByMinute(filteredDanmus, n) {
           count: 0,
           earliestT: danmu.t,
           cid: danmu.cid,
-          p: danmu.p
+          p: danmu.p,
+          size: danmu.size // 🔥 修复：保留原始 size 属性
         };
       }
       acc[message].count += 1;
@@ -60,7 +61,8 @@ export function groupDanmusByMinute(filteredDanmus, n) {
         cid: data.cid,
         p: data.p,
         m: data.count > 1 ? `${message} x ${data.count}` : message,
-        t: data.earliestT
+        t: data.earliestT,
+        size: data.size // 🔥 修复：输出 size 属性到最终结果
       };
     });
   });
