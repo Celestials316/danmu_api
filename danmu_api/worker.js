@@ -536,38 +536,29 @@ function getRealEnvValue(key) {
   };
 
   const actualKey = keyMapping[key] || key;
-  let value = '';
 
-  // 1. 尝试从 globals.accessedEnvVars 获取
+  // 优先从 globals.accessedEnvVars 获取（这是真实值）
   if (globals.accessedEnvVars && actualKey in globals.accessedEnvVars) {
-    const val = globals.accessedEnvVars[actualKey];
-    if (val !== null && val !== undefined) {
-      value = typeof val === 'string' ? val : String(val);
+    const value = globals.accessedEnvVars[actualKey];
+    // 🔥 确保返回字符串类型
+    if (value !== null && value !== undefined) {
+      return typeof value === 'string' ? value : String(value);
     }
   }
 
-  // 🔥 核心修复：检测是否获取到了“脏数据”（全是星号）
-  // 场景：Redis/数据库里不小心存入了脱敏后的 '********'
-  const isMasked = value && /^\*+$/.test(value) && value.length > 4;
-
-  // 如果值为空，或者是纯星号，则强制回落到 process.env 获取真实值
-  if (!value || isMasked) {
-    if (typeof process !== 'undefined' && process.env?.[actualKey]) {
-      const envVal = String(process.env[actualKey]);
-      // 只有当环境变量里有值，且不是星号时才覆盖
-      if (envVal && !/^\*+$/.test(envVal)) {
-        value = envVal;
-      }
-    }
+  // 备用方案：从 process.env 获取
+  if (typeof process !== 'undefined' && process.env?.[actualKey]) {
+    return String(process.env[actualKey]);
   }
 
-  // 2. 如果还没获取到，尝试从 Globals 默认值获取
-  if (!value && actualKey in Globals) {
-    const val = Globals[actualKey];
-    value = typeof val === 'string' ? val : String(val);
+  // 最后尝试从 Globals 获取默认值
+  if (actualKey in Globals) {
+    const value = Globals[actualKey];
+    return typeof value === 'string' ? value : String(value);
   }
 
-  return value || '';
+  // 如果都没有，返回空字符串
+  return '';
 }
 
 async function handleRequest(req, env, deployPlatform, clientIp) {
@@ -943,7 +934,7 @@ async function handleHomepage(req, deployPlatform = 'unknown') {
       'iqiyi': 'I',
       'youku': 'Y',
       'tencent': 'T',
-      'mgtv': 'M',
+      'imgo': 'M',
       'bahamut': 'BH',
       'hanjutv': 'H'  // ✅ 已添加
     };
@@ -1086,7 +1077,7 @@ try {
       if (k.includes('iqiyi') || k.includes('qiyi')) return THEMES.iqiyi;
       if (k.includes('youku')) return THEMES.youku;
       if (k.includes('tencent') || k.includes('qq')) return THEMES.tencent;
-      if (k.includes('mgtv')) return THEMES.mgtv;
+      if (k.includes('imgo')) return THEMES.imgo;
       if (k.includes('sohu')) return THEMES.sohu;
       if (k.includes('letv') || k.includes('le.com')) return THEMES.letv;
       if (k.includes('renren') || k.includes('yyets')) return THEMES.renren;
@@ -6884,7 +6875,8 @@ try {
 
      // 尝试从服务器加载配置
      try {
-       const response = await fetch('/api/config/load');
+       // 🔥 添加时间戳防止 CF 缓存
+       const response = await fetch('/api/config/load?_t=' + Date.now());
        const result = await response.json();
        
        if (result.success && result.config) {
@@ -8127,7 +8119,7 @@ try {
      const sourceMap = {
        'dandan': '弹弹Play', '360': '360影视', 'vod': 'VOD',
        'bilibili': 'B站', 'iqiyi': '爱奇艺', 'youku': '优酷',
-       'tencent': '腾讯', 'qq': '腾讯', 'mgtv': '芒果', 
+       'tencent': '腾讯', 'qq': '腾讯', 'imgo': '芒果', 
        'bahamut': '巴哈', 'tmdb': 'TMDB', 'douban': '豆瓣'
      };
 
@@ -8955,7 +8947,8 @@ try {
 
    async function loadCacheData() {
      try {
-       const response = await fetch('/api/cache/stats');
+       // 🔥 添加时间戳防止 CF 缓存
+       const response = await fetch('/api/cache/stats?_t=' + Date.now());
        const result = await response.json();
 
        if (result.success) {
@@ -9532,8 +9525,8 @@ try {
      showModal('allEnvVarsModal');
      
      try {
-       // 📡 从服务器加载最新配置
-       const response = await fetch('/api/config/load');
+       // 📡 从服务器加载最新配置 (防止缓存)
+       const response = await fetch('/api/config/load?_t=' + Date.now());
        const result = await response.json();
        
        let envData = {};
@@ -9637,18 +9630,15 @@ try {
        versionStatus.innerHTML = '<span class="loading-spinner" style="display: inline-block; margin-right: 6px;"></span>正在检查更新...';
        if (updateBtn) updateBtn.style.display = 'none';
        
-       // 🔥 修改：添加时间戳参数 (?ts=...) 强制浏览器和 CDN 刷新
-       const response = await fetch('/api/version/check?ts=' + Date.now(), {
-         cache: 'no-store',
-         headers: {
-           'Pragma': 'no-cache',
-           'Cache-Control': 'no-cache'
-         }
+       // 通过后端 API 检查版本
+       const response = await fetch('/api/version/check?_t=' + Date.now(), {
+         cache: 'no-cache'
        });
 
        if (!response.ok) {
          throw new Error('网络请求失败');
        }
+
        const result = await response.json();
        
        if (!result.success) {
@@ -10673,6 +10663,10 @@ if (path === "/favicon.ico" || path === "/robots.txt" || method === "OPTIONS") {
         success: true,
         config: serializedConfig,  // 🔥 返回序列化后的配置
         loadedFrom
+      }, 200, {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
       });
 
     } catch (error) {
@@ -11054,12 +11048,12 @@ if (path === "/api/logout" && method === "POST") {
   // GET /api/version/check - 检查版本更新
   if (path === "/api/version/check" && method === "GET") {
     try {
-      // 🔥 修改1：给 GitHub URL 添加随机时间戳，防止源文件被缓存
+      // 🔥 修改：增加 3000ms (3秒) 超时限制，防止因网络问题阻塞导致网页无法加载
       const response = await fetch(
-        `https://raw.githubusercontent.com/huangxd-/danmu_api/refs/heads/main/danmu_api/configs/globals.js?t=${Date.now()}`,
+        'https://raw.githubusercontent.com/huangxd-/danmu_api/refs/heads/main/danmu_api/configs/globals.js',
         { 
-          cache: 'no-store', // 告诉 fetch 不要使用本地缓存
-          signal: AbortSignal.timeout(5000) // 5秒超时
+          cache: 'no-cache',
+          signal: AbortSignal.timeout(3000) 
         }
       );
       
@@ -11078,27 +11072,15 @@ if (path === "/api/logout" && method === "POST") {
       const isDocker = process.env.DOCKER_ENV === 'true' || 
                       (typeof process !== 'undefined' && process.env?.DOCKER_ENV === 'true');
       
-      const responseData = {
+      return jsonResponse({
         success: true,
         latestVersion: versionMatch[1],
         currentVersion: globals.VERSION,
         isDocker: isDocker,
         canAutoUpdate: isDocker
-      };
-
-      // 🔥 修改2：显式添加禁止缓存的响应头，强制 Cloudflare 回源
-      return new Response(JSON.stringify(responseData), {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
-          'Pragma': 'no-cache',
-          'Expires': '0',
-          'Surrogate-Control': 'no-store' // 专门针对某些 CDN 的指令
-        }
       });
-
     } catch (error) {
+      // 超时或失败时仅记录日志，不影响主程序运行
       log("warn", `[version] 版本检查跳过: ${error.message}`);
       return jsonResponse({
         success: false,
@@ -11106,6 +11088,7 @@ if (path === "/api/logout" && method === "POST") {
       }, 500);
     }
   }
+
 
   // POST /api/version/update - 执行 Docker 容器更新
   if (path === "/api/version/update" && method === "POST") {
@@ -11365,6 +11348,10 @@ docker-compose pull danmu-api && docker-compose up -d danmu-api`;
         searchCacheSize,
         commentCacheSize,
         cacheDetails
+      }, 200, {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
       });
 
     } catch (error) {
