@@ -319,6 +319,16 @@ async function applyConfigPatch(patch) {
        Envs.env.DANMU_OUTPUT_FORMAT = value || 'json';
        return `${value || 'json'}`;
      },
+     'DANMU_FONTSIZE': (value) => {
+       const size = parseInt(value) || 25;
+       globals.danmuFontSize = size;
+       globals.DANMU_FONTSIZE = size;
+       globals.envs.danmuFontSize = size;
+       globals.envs.DANMU_FONTSIZE = size;
+       Envs.env.danmuFontSize = size;
+       Envs.env.DANMU_FONTSIZE = size;
+       return `${size}px`;
+     },
      'DANMU_COLORS': (value) => {
        globals.danmuColors = value || '';
        globals.DANMU_COLORS = value || '';
@@ -473,6 +483,7 @@ const ENV_DESCRIPTIONS = {
 
   // ========== 弹幕处理配置 ==========
   'DANMU_OUTPUT_FORMAT': '弹幕输出格式：json（JSON格式）/ xml（Bilibili XML格式），默认json',
+  'DANMU_FONTSIZE': '弹幕字体大小，默认25（18=小, 25=标准, 36=大），仅对 XML 格式生效',
   'DANMU_SIMPLIFIED': '是否将繁体弹幕转换为简体中文（主要用于巴哈姆特），默认true',
   'DANMU_LIMIT': '弹幕数量限制，-1表示不限制，其他数字为最大返回条数',
   'BLOCKED_WORDS': '弹幕屏蔽词列表，过滤包含指定关键词的弹幕（多个词用逗号分隔）',
@@ -6637,7 +6648,39 @@ try {
          <div class="form-hint">设置每次请求返回的最大弹幕条数（-1 表示不限制）</div>
        </div>
 
-       <!-- 输出格式和令牌 -->
+       <div class="quick-config-item">
+         <div class="config-item-header">
+           <div class="config-item-title">
+             <span class="config-icon">Aa</span>
+             <span>弹幕字体大小</span>
+           </div>
+           <div style="display: flex; align-items: center; gap: 12px;">
+             <span id="danmuFontSizeValue" class="config-value-display">25</span>
+             <button class="edit-lock-btn" onclick="toggleQuickConfigLock(this, 'quickDanmuFontSize')" title="点击解锁编辑">
+               <svg class="lock-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor">
+                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke-width="2"/>
+                 <path d="M7 11V7a5 5 0 0110 0v4" stroke-width="2"/>
+               </svg>
+               <svg class="unlock-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" style="display: none;">
+                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke-width="2"/>
+                 <path d="M7 11V7a5 5 0 019.9-1" stroke-width="2"/>
+               </svg>
+             </button>
+           </div>
+         </div>
+         <div class="range-wrapper">
+           <div class="range-progress" id="danmuFontSizeProgress" style="width: 0%"></div>
+           <input type="range" class="form-range locked" id="quickDanmuFontSize" min="10" max="50" step="1" value="25" disabled
+                  oninput="updateRangeProgress(this, 'danmuFontSizeProgress', 'danmuFontSizeValue', 10, 50, val => val + 'px')">
+         </div>
+         <div class="range-labels">
+           <span>10px</span>
+           <span>25px (标准)</span>
+           <span>50px</span>
+         </div>
+         <div class="form-hint">调整 XML 输出的弹幕字体大小</div>
+       </div>
+
        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
          <div class="quick-config-item" style="margin-bottom: 0;">
            <div class="config-item-header">
@@ -10350,6 +10393,7 @@ try {
      const whiteRatio = AppState.config.WHITE_RATIO || '-1';
      const danmuColors = AppState.config.DANMU_COLORS || '';
      const danmuLimit = AppState.config.DANMU_LIMIT || '-1';
+     const danmuFontSize = AppState.config.DANMU_FONTSIZE || '25';
      const searchCache = AppState.config.SEARCH_CACHE_MINUTES || '1';
      const commentCache = AppState.config.COMMENT_CACHE_MINUTES || '1';
      
@@ -10357,6 +10401,7 @@ try {
      document.getElementById('quickWhiteRatio').value = whiteRatio;
      document.getElementById('quickDanmuColors').value = danmuColors;
      document.getElementById('quickDanmuLimit').value = danmuLimit;
+     document.getElementById('quickDanmuFontSize').value = danmuFontSize;
      document.getElementById('quickOutputFormat').value = AppState.config.DANMU_OUTPUT_FORMAT || 'json';
      document.getElementById('quickToken').value = AppState.config.TOKEN || '87654321';
      document.getElementById('quickSearchCache').value = searchCache;
@@ -10380,6 +10425,14 @@ try {
          'danmuLimitValue',
          -1, 10000,
          val => val === -1 ? '不限制' : val
+       );
+
+       updateRangeProgress(
+         document.getElementById('quickDanmuFontSize'),
+         'danmuFontSizeProgress',
+         'danmuFontSizeValue',
+         10, 50,
+         val => val + 'px'
        );
        
        updateRangeProgress(
@@ -10430,6 +10483,7 @@ try {
      const whiteRatio = document.getElementById('quickWhiteRatio').value;
      const danmuColors = document.getElementById('quickDanmuColors').value.trim();
      const danmuLimit = document.getElementById('quickDanmuLimit').value;
+     const danmuFontSize = document.getElementById('quickDanmuFontSize').value;
      const outputFormat = document.getElementById('quickOutputFormat').value;
      const token = document.getElementById('quickToken').value;
      const searchCache = document.getElementById('quickSearchCache').value;
@@ -10456,6 +10510,7 @@ try {
        WHITE_RATIO: whiteRatio,
        DANMU_COLORS: danmuColors,
        DANMU_LIMIT: danmuLimit,
+       DANMU_FONTSIZE: danmuFontSize,
        DANMU_OUTPUT_FORMAT: outputFormat,
        TOKEN: token,
        SEARCH_CACHE_MINUTES: searchCache,
