@@ -552,7 +552,13 @@ export function convertToDanmakuJson(contents, platform) {
       `[${platform}]`
     ].join(",");
 
-    danmus.push({ p: attributes, m, cid: cidCounter++ });
+    // 🔥 修改：在 JSON 对象中显式添加 size 字段，使用全局配置的字号
+    danmus.push({ 
+      p: attributes, 
+      m, 
+      cid: cidCounter++,
+      size: globals.danmuFontSize || 25 
+    });
   }
 
   // 🔥 优化：缓存正则表达式对象，避免每次重新编译
