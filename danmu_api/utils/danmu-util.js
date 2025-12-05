@@ -545,16 +545,16 @@ export function convertToDanmakuJson(contents, platform) {
       });
     }
 
-    // 🔥 修改：将字号放入 p 参数的第3位（弹弹play标准格式）
-    // 格式：时间,模式,字号,颜色,时间戳,弹幕池,用户ID,弹幕ID
+// 🔥 修改：弹弹play格式 - 颜色在第3位，字号在第4位
+    // 格式：时间,模式,颜色,字号,时间戳,弹幕池,用户ID,弹幕ID
     const fontSize = globals.danmuFontSize || 25;
     const timestamp = Math.floor(Date.now() / 1000);
     
     attributes = [
       time,
       mode,
-      fontSize,
-      color,
+      color,         // 第3位：颜色
+      fontSize,      // 第4位：字号
       timestamp,
       0,
       `[${platform}]`,
@@ -680,7 +680,7 @@ export function convertToDanmakuJson(contents, platform) {
       }
 
       let mode = parseInt(pValues[1], 10);
-      let color = parseInt(pValues[3], 10); // 🔥 修复：颜色在第4位(索引3)
+      let color = parseInt(pValues[2], 10); // 🔥 弹弹play格式：颜色在第3位(索引2)
       const originalColor = color; // 记录原始颜色用于统计
       let modified = false;
 
@@ -725,7 +725,7 @@ export function convertToDanmakuJson(contents, platform) {
       // 如果有修改,重新构建 p 属性
       if (modified) {
         pValues[1] = mode.toString();
-        pValues[3] = color.toString(); // 🔥 修复：颜色在第4位(索引3)
+        pValues[2] = color.toString(); // 🔥 弹弹play格式：颜色在第3位(索引2)
         const newP = pValues.join(',');
         return { ...danmu, p: newP };
       }
