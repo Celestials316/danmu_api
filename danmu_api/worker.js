@@ -318,6 +318,15 @@ async function applyConfigPatch(patch) {
        Envs.env.danmuOutputFormat = value || 'json';
        Envs.env.DANMU_OUTPUT_FORMAT = value || 'json';
        return `${value || 'json'}`;
+     },
+     'DANMU_COLORS': (value) => {
+       globals.danmuColors = value || '';
+       globals.DANMU_COLORS = value || '';
+       globals.envs.danmuColors = value || '';
+       globals.envs.DANMU_COLORS = value || '';
+       Envs.env.danmuColors = value || '';
+       Envs.env.DANMU_COLORS = value || '';
+       return `${value ? '已更新颜色池' : '使用默认色盘'}`;
      }
    };
 
@@ -470,6 +479,7 @@ const ENV_DESCRIPTIONS = {
   'GROUP_MINUTE': '弹幕合并去重时间窗口（分钟），相同内容在该时间内只保留一条，默认1',
   'CONVERT_TOP_BOTTOM_TO_SCROLL': '是否将顶部/底部弹幕转换为滚动弹幕，默认false',
   'WHITE_RATIO': '白色弹幕占比（0-100），-1表示不转换颜色，其他值表示将指定比例弹幕转为白色',
+  'DANMU_COLORS': '彩色弹幕颜色池，使用英文逗号分隔的Hex颜色值（如 #FF0000,#00FF00），留空则使用默认糖果色',
 
   // ========== 性能优化配置 ==========
   'YOUKU_CONCURRENCY': '优酷弹幕请求并发数，默认8，最高16（并发数越高速度越快但资源消耗越大）',
@@ -934,7 +944,7 @@ async function handleHomepage(req, deployPlatform = 'unknown') {
       'iqiyi': 'I',
       'youku': 'Y',
       'tencent': 'T',
-      'imgo': 'M',
+      'mgtv': 'M',
       'bahamut': 'BH',
       'hanjutv': 'H'  // ✅ 已添加
     };
@@ -1077,7 +1087,7 @@ try {
       if (k.includes('iqiyi') || k.includes('qiyi')) return THEMES.iqiyi;
       if (k.includes('youku')) return THEMES.youku;
       if (k.includes('tencent') || k.includes('qq')) return THEMES.tencent;
-      if (k.includes('imgo')) return THEMES.imgo;
+      if (k.includes('mgtv')) return THEMES.mgtv;
       if (k.includes('sohu')) return THEMES.sohu;
       if (k.includes('letv') || k.includes('le.com')) return THEMES.letv;
       if (k.includes('renren') || k.includes('yyets')) return THEMES.renren;
@@ -6573,6 +6583,26 @@ try {
          <div class="form-hint">-1 = 不转换颜色 | 0-100 = 指定白色弹幕占比百分比</div>
        </div>
 
+       <div class="quick-config-item">
+         <div class="config-item-header">
+           <div class="config-item-title">
+             <span class="config-icon">🌈</span>
+             <span>彩色弹幕配色</span>
+           </div>
+           <button class="edit-lock-btn" onclick="toggleQuickConfigLock(this, 'quickDanmuColors')" title="点击解锁编辑">
+             <svg class="lock-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke-width="2"/><path d="M7 11V7a5 5 0 0110 0v4" stroke-width="2"/></svg>
+             <svg class="unlock-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" style="display: none;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke-width="2"/><path d="M7 11V7a5 5 0 019.9-1" stroke-width="2"/></svg>
+           </button>
+         </div>
+         <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+           <button class="btn btn-secondary" onclick="setDanmuColorPreset('macaron')" style="flex: 1; padding: 6px; font-size: 12px; border-left: 3px solid #FFB1C1;">🍬 糖果柔和</button>
+           <button class="btn btn-secondary" onclick="setDanmuColorPreset('neon')" style="flex: 1; padding: 6px; font-size: 12px; border-left: 3px solid #00FF99;">⚡ 赛博霓虹</button>
+           <button class="btn btn-secondary" onclick="setDanmuColorPreset('bilibili')" style="flex: 1; padding: 6px; font-size: 12px; border-left: 3px solid #23ADE5;">📺 B站经典</button>
+         </div>
+         <input type="text" class="form-input locked" id="quickDanmuColors" placeholder="默认色盘 (留空)" readonly>
+         <div class="form-hint">留空使用默认柔和色盘。非白色弹幕将从该色盘中随机选取颜色。</div>
+       </div>
+
 <!-- 弹幕数量限制 -->
        <div class="quick-config-item">
          <div class="config-item-header">
@@ -8118,7 +8148,7 @@ try {
      const sourceMap = {
        'dandan': '弹弹Play', '360': '360影视', 'vod': 'VOD',
        'bilibili': 'B站', 'iqiyi': '爱奇艺', 'youku': '优酷',
-       'tencent': '腾讯', 'qq': '腾讯', 'imgo': '芒果', 
+       'tencent': '腾讯', 'qq': '腾讯', 'mgtv': '芒果', 
        'bahamut': '巴哈', 'tmdb': 'TMDB', 'douban': '豆瓣'
      };
 
@@ -10318,12 +10348,14 @@ try {
    function showQuickConfig() {
      // 加载当前配置值
      const whiteRatio = AppState.config.WHITE_RATIO || '-1';
+     const danmuColors = AppState.config.DANMU_COLORS || '';
      const danmuLimit = AppState.config.DANMU_LIMIT || '-1';
      const searchCache = AppState.config.SEARCH_CACHE_MINUTES || '1';
      const commentCache = AppState.config.COMMENT_CACHE_MINUTES || '1';
      
      // 设置滑块值
      document.getElementById('quickWhiteRatio').value = whiteRatio;
+     document.getElementById('quickDanmuColors').value = danmuColors;
      document.getElementById('quickDanmuLimit').value = danmuLimit;
      document.getElementById('quickOutputFormat').value = AppState.config.DANMU_OUTPUT_FORMAT || 'json';
      document.getElementById('quickToken').value = AppState.config.TOKEN || '87654321';
@@ -10365,9 +10397,38 @@ try {
        );
      }, 50);
    }
+   // 设置弹幕颜色预设
+   function setDanmuColorPreset(type) {
+     const input = document.getElementById('quickDanmuColors');
+     const lockBtn = input.previousElementSibling.previousElementSibling.querySelector('.edit-lock-btn'); // 获取上面的锁按钮
+     
+     // 如果被锁定，自动解锁
+     if (input.classList.contains('locked')) {
+        toggleQuickConfigLock(lockBtn, 'quickDanmuColors');
+     }
+
+     let colors = '';
+     switch(type) {
+       case 'macaron': // 糖果柔和 (默认)
+         colors = '#FFB1C1,#FFC48B,#AAFFAA,#98FFFF,#B4B5F8,#FF96AA,#72E7E8,#FFD2CB,#CACFFF';
+         break;
+       case 'neon': // 赛博霓虹
+         colors = '#FF0055,#00FF99,#00CCFF,#FFCC00,#CC00FF,#FF3300,#00FF00,#FF0099';
+         break;
+       case 'bilibili': // B站经典
+         colors = '#FE0302,#FF7204,#FFAA02,#FFD302,#FFFF00,#A0EE00,#00CD00,#019899,#4266BE,#89D5FF,#CC0273';
+         break;
+     }
+     
+     input.value = colors;
+     // 添加闪烁效果提示已更改
+     input.style.backgroundColor = 'var(--bg-hover)';
+     setTimeout(() => input.style.backgroundColor = '', 200);
+   }
 
    async function saveQuickConfig() {
      const whiteRatio = document.getElementById('quickWhiteRatio').value;
+     const danmuColors = document.getElementById('quickDanmuColors').value.trim();
      const danmuLimit = document.getElementById('quickDanmuLimit').value;
      const outputFormat = document.getElementById('quickOutputFormat').value;
      const token = document.getElementById('quickToken').value;
@@ -10393,6 +10454,7 @@ try {
      // 构建配置对象
      const config = {
        WHITE_RATIO: whiteRatio,
+       DANMU_COLORS: danmuColors,
        DANMU_LIMIT: danmuLimit,
        DANMU_OUTPUT_FORMAT: outputFormat,
        TOKEN: token,
