@@ -625,7 +625,7 @@ export function convertToDanmakuJson(contents, platform) {
 
     // 定义彩色弹幕的颜色池 (优先使用环境变量配置)
     let colorPalette = [];
-    
+
     if (globals.danmuColors && globals.danmuColors.length > 0) {
       // 解析配置的 Hex 颜色列表 (#FF0000,#00FF00...)
       colorPalette = globals.danmuColors.split(',')
@@ -785,7 +785,8 @@ function buildBilibiliDanmuP(comment) {
   const timeNum = parseFloat(pValues[0]) || 0;
   const time = timeNum.toFixed(1); // 时间（秒，保留1位小数）
   const mode = pValues[1] || '1'; // 类型（1=滚动, 4=底部, 5=顶部）
-  const fontSize = '25'; // 字体大小（25=中, 18=小）
+  // 字体大小（25=中, 18=小），使用全局配置
+  const fontSize = globals.danmuFontSize ? String(globals.danmuFontSize) : '25';
 
   // 颜色字段（输入总是4字段格式：时间,类型,颜色,平台）
   const color = pValues[2] || '16777215'; // 默认白色
