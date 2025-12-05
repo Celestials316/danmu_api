@@ -44,8 +44,7 @@ export function groupDanmusByMinute(filteredDanmus, n) {
           count: 0,
           earliestT: danmu.t,
           cid: danmu.cid,
-          p: danmu.p,
-          size: danmu.size // 🔥 修复：保留原始 size 属性
+          p: danmu.p
         };
       }
       acc[message].count += 1;
@@ -61,8 +60,7 @@ export function groupDanmusByMinute(filteredDanmus, n) {
         cid: data.cid,
         p: data.p,
         m: data.count > 1 ? `${message} x ${data.count}` : message,
-        t: data.earliestT,
-        size: data.size // 🔥 修复：输出 size 属性到最终结果
+        t: data.earliestT
       };
     });
   });
@@ -547,19 +545,26 @@ export function convertToDanmakuJson(contents, platform) {
       });
     }
 
+    // 🔥 修改：将字号放入 p 参数的第3位（弹弹play标准格式）
+    // 格式：时间,模式,字号,颜色,时间戳,弹幕池,用户ID,弹幕ID
+    const fontSize = globals.danmuFontSize || 25;
+    const timestamp = Math.floor(Date.now() / 1000);
+    
     attributes = [
       time,
       mode,
+      fontSize,
       color,
-      `[${platform}]`
+      timestamp,
+      0,
+      `[${platform}]`,
+      cidCounter
     ].join(",");
 
-    // 🔥 修改：在 JSON 对象中显式添加 size 字段，使用全局配置的字号
     danmus.push({ 
       p: attributes, 
       m, 
-      cid: cidCounter++,
-      size: globals.danmuFontSize || 25 
+      cid: cidCounter++
     });
   }
 
