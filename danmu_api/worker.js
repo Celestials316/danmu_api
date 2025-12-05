@@ -10804,10 +10804,15 @@ if (path === "/api/login" && method === "POST") {
         }, 500);
       }
 
+      // 兼容 Cloudflare 等代理环境下的 HTTPS 检测
+      const isHttps = req.url.startsWith('https') || 
+                      req.headers.get('x-forwarded-proto') === 'https' || 
+                      (req.headers.get('cf-visitor') && req.headers.get('cf-visitor').includes('https'));
+
       return new Response(JSON.stringify({ success: true }), {
         headers: {
           'Content-Type': 'application/json',
-          'Set-Cookie': `session=${sessionId}; Path=/; Max-Age=${Math.floor(SESSION_TIMEOUT / 1000)}; HttpOnly; SameSite=Strict${req.url.startsWith('https') ? '; Secure' : ''}`
+          'Set-Cookie': `session=${sessionId}; Path=/; Max-Age=${Math.floor(SESSION_TIMEOUT / 1000)}; HttpOnly; SameSite=Lax${isHttps ? '; Secure' : ''}`
         }
       });
     }
