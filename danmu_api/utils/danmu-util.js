@@ -545,14 +545,27 @@ export function convertToDanmakuJson(contents, platform) {
       });
     }
 
+// 🔥 修改：弹弹play格式 - 颜色在第3位，字号在第4位
+    // 格式：时间,模式,颜色,字号,时间戳,弹幕池,用户ID,弹幕ID
+    const fontSize = globals.danmuFontSize || 25;
+    const timestamp = Math.floor(Date.now() / 1000);
+    
     attributes = [
       time,
       mode,
-      color,
-      `[${platform}]`
+      color,         // 第3位：颜色
+      fontSize,      // 第4位：字号
+      timestamp,
+      0,
+      `[${platform}]`,
+      cidCounter
     ].join(",");
 
-    danmus.push({ p: attributes, m, cid: cidCounter++ });
+    danmus.push({ 
+      p: attributes, 
+      m, 
+      cid: cidCounter++
+    });
   }
 
   // 🔥 优化：缓存正则表达式对象，避免每次重新编译
@@ -625,7 +638,7 @@ export function convertToDanmakuJson(contents, platform) {
 
     // 定义彩色弹幕的颜色池 (优先使用环境变量配置)
     let colorPalette = [];
-    
+
     if (globals.danmuColors && globals.danmuColors.length > 0) {
       // 解析配置的 Hex 颜色列表 (#FF0000,#00FF00...)
       colorPalette = globals.danmuColors.split(',')
@@ -667,7 +680,7 @@ export function convertToDanmakuJson(contents, platform) {
       }
 
       let mode = parseInt(pValues[1], 10);
-      let color = parseInt(pValues[2], 10);
+      let color = parseInt(pValues[2], 10); // 🔥 弹弹play格式：颜色在第3位(索引2)
       const originalColor = color; // 记录原始颜色用于统计
       let modified = false;
 
@@ -681,7 +694,7 @@ export function convertToDanmakuJson(contents, platform) {
       // 2. 颜色均匀分配逻辑
       // 这里的逻辑是：不管原来是什么颜色，全部重写，以统一画风
 
-      // 累加白色的“欠款”
+      // 累加白色的"欠款"
       whiteBalance += targetWhiteRate;
 
       let shouldUseWhite = false;
@@ -712,7 +725,7 @@ export function convertToDanmakuJson(contents, platform) {
       // 如果有修改,重新构建 p 属性
       if (modified) {
         pValues[1] = mode.toString();
-        pValues[2] = color.toString();
+        pValues[2] = color.toString(); // 🔥 弹弹play格式：颜色在第3位(索引2)
         const newP = pValues.join(',');
         return { ...danmu, p: newP };
       }
@@ -785,7 +798,8 @@ function buildBilibiliDanmuP(comment) {
   const timeNum = parseFloat(pValues[0]) || 0;
   const time = timeNum.toFixed(1); // 时间（秒，保留1位小数）
   const mode = pValues[1] || '1'; // 类型（1=滚动, 4=底部, 5=顶部）
-  const fontSize = '25'; // 字体大小（25=中, 18=小）
+  // 字体大小（25=中, 18=小），使用全局配置
+  const fontSize = globals.danmuFontSize ? String(globals.danmuFontSize) : '25';
 
   // 颜色字段（输入总是4字段格式：时间,类型,颜色,平台）
   const color = pValues[2] || '16777215'; // 默认白色
