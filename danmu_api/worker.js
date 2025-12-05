@@ -934,7 +934,7 @@ async function handleHomepage(req, deployPlatform = 'unknown') {
       'iqiyi': 'I',
       'youku': 'Y',
       'tencent': 'T',
-      'imgo': 'M',
+      'mgtv': 'M',
       'bahamut': 'BH',
       'hanjutv': 'H'  // ✅ 已添加
     };
@@ -1077,7 +1077,7 @@ try {
       if (k.includes('iqiyi') || k.includes('qiyi')) return THEMES.iqiyi;
       if (k.includes('youku')) return THEMES.youku;
       if (k.includes('tencent') || k.includes('qq')) return THEMES.tencent;
-      if (k.includes('imgo')) return THEMES.imgo;
+      if (k.includes('mgtv')) return THEMES.mgtv;
       if (k.includes('sohu')) return THEMES.sohu;
       if (k.includes('letv') || k.includes('le.com')) return THEMES.letv;
       if (k.includes('renren') || k.includes('yyets')) return THEMES.renren;
@@ -6875,8 +6875,7 @@ try {
 
      // 尝试从服务器加载配置
      try {
-       // 🔥 添加时间戳防止 CF 缓存
-       const response = await fetch('/api/config/load?_t=' + Date.now());
+       const response = await fetch('/api/config/load');
        const result = await response.json();
        
        if (result.success && result.config) {
@@ -8119,7 +8118,7 @@ try {
      const sourceMap = {
        'dandan': '弹弹Play', '360': '360影视', 'vod': 'VOD',
        'bilibili': 'B站', 'iqiyi': '爱奇艺', 'youku': '优酷',
-       'tencent': '腾讯', 'qq': '腾讯', 'imgo': '芒果', 
+       'tencent': '腾讯', 'qq': '腾讯', 'mgtv': '芒果', 
        'bahamut': '巴哈', 'tmdb': 'TMDB', 'douban': '豆瓣'
      };
 
@@ -8947,8 +8946,7 @@ try {
 
    async function loadCacheData() {
      try {
-       // 🔥 添加时间戳防止 CF 缓存
-       const response = await fetch('/api/cache/stats?_t=' + Date.now());
+       const response = await fetch('/api/cache/stats');
        const result = await response.json();
 
        if (result.success) {
@@ -9525,8 +9523,8 @@ try {
      showModal('allEnvVarsModal');
      
      try {
-       // 📡 从服务器加载最新配置 (防止缓存)
-       const response = await fetch('/api/config/load?_t=' + Date.now());
+       // 📡 从服务器加载最新配置
+       const response = await fetch('/api/config/load');
        const result = await response.json();
        
        let envData = {};
@@ -9631,7 +9629,7 @@ try {
        if (updateBtn) updateBtn.style.display = 'none';
        
        // 通过后端 API 检查版本
-       const response = await fetch('/api/version/check?_t=' + Date.now(), {
+       const response = await fetch('/api/version/check', {
          cache: 'no-cache'
        });
 
@@ -10663,10 +10661,6 @@ if (path === "/favicon.ico" || path === "/robots.txt" || method === "OPTIONS") {
         success: true,
         config: serializedConfig,  // 🔥 返回序列化后的配置
         loadedFrom
-      }, 200, {
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
       });
 
     } catch (error) {
@@ -10804,15 +10798,10 @@ if (path === "/api/login" && method === "POST") {
         }, 500);
       }
 
-      // 兼容 Cloudflare 等代理环境下的 HTTPS 检测
-      const isHttps = req.url.startsWith('https') || 
-                      req.headers.get('x-forwarded-proto') === 'https' || 
-                      (req.headers.get('cf-visitor') && req.headers.get('cf-visitor').includes('https'));
-
       return new Response(JSON.stringify({ success: true }), {
         headers: {
           'Content-Type': 'application/json',
-          'Set-Cookie': `session=${sessionId}; Path=/; Max-Age=${Math.floor(SESSION_TIMEOUT / 1000)}; HttpOnly; SameSite=Lax${isHttps ? '; Secure' : ''}`
+          'Set-Cookie': `session=${sessionId}; Path=/; Max-Age=${Math.floor(SESSION_TIMEOUT / 1000)}; HttpOnly; SameSite=Strict${req.url.startsWith('https') ? '; Secure' : ''}`
         }
       });
     }
@@ -11353,10 +11342,6 @@ docker-compose pull danmu-api && docker-compose up -d danmu-api`;
         searchCacheSize,
         commentCacheSize,
         cacheDetails
-      }, 200, {
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
       });
 
     } catch (error) {
