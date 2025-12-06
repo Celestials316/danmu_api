@@ -125,19 +125,11 @@ function matchSeason(anime, queryTitle, season) {
     }
     return false;
   } 
-  // 🔥 新增：处理源插件强制信任的情况 (例如：韩剧TV搜别名出唯一结果)
+  // 🔥 新增：如果源插件标记了匹配关键词（处理别名/模糊搜索），则放行
   else if (anime.matchedByKeyword && normalizeSpaces(anime.matchedByKeyword) === normalizedQueryTitle) {
-    // 如果文件名解析出是第1季，直接匹配通过
-    if (season === 1) return true;
-    
-    // 如果是多季（如第二季），检查返回的标题里是否包含这个数字（阿拉伯数字或中文数字）
-    // 例如：搜"顶楼 S2"，返回"顶楼2"，虽然标题不包含"顶楼 S2"，但包含"2"
-    if (normalizedAnimeTitle.includes(season.toString())) return true;
-    
-    // 简单的中文数字检查 (如果有需要可以扩展)
-    const cnNums = ['零','一','二','三','四','五','六','七','八','九','十'];
-    if (season <= 10 && normalizedAnimeTitle.includes(cnNums[season])) return true;
-
+    // 既然是信任源，主要检查季数是否匹配
+    if (season === 1) return true; // 默认第一季直接通过
+    if (normalizedAnimeTitle.includes(season.toString())) return true; // 标题包含 "2" 等数字
     return false;
   }
   else {
@@ -419,7 +411,12 @@ async function matchAniAndEp(season, episode, searchData, title, req, platform, 
     for (const anime of animeList) {
       if (globals.rememberLastSelect && preferAnimeId && anime.bangumiId.toString() !== preferAnimeId.toString() &&
           anime.animeId.toString() !== preferAnimeId.toString()) continue;
-      if (normalizeSpaces(anime.animeTitle).includes(normalizedTitle)) {
+      
+      // 🔥 优化：如果标题包含关键词 OR 是源插件认证的模糊匹配(matchedByKeyword)，则进入检查
+      const isTitleMatch = normalizeSpaces(anime.animeTitle).includes(normalizedTitle);
+      const isFuzzyMatch = anime.matchedByKeyword && normalizeSpaces(anime.matchedByKeyword) === normalizedTitle;
+
+      if (isTitleMatch || isFuzzyMatch) {
         let originBangumiUrl = new URL(req.url.replace("/match", `bangumi/${anime.bangumiId}`));
         const bangumiRes = await getBangumi(originBangumiUrl.pathname);
         const bangumiData = await bangumiRes.json();
@@ -463,8 +460,13 @@ async function matchAniAndEp(season, episode, searchData, title, req, platform, 
     const animeList = Array.isArray(searchData.animes) ? searchData.animes : [];
     for (const anime of animeList) {
       if (globals.rememberLastSelect && preferAnimeId && anime.bangumiId.toString() !== preferAnimeId.toString()) continue;
+      
       const animeTitle = anime.animeTitle.split("(")[0].trim();
-      if (animeTitle === title) {
+      // 🔥 优化：电影同样支持 matchedByKeyword
+      const isExactMatch = animeTitle === title;
+      const isFuzzyMatch = anime.matchedByKeyword && normalizeSpaces(anime.matchedByKeyword) === normalizeSpaces(title);
+
+      if (isExactMatch || isFuzzyMatch) {
         let originBangumiUrl = new URL(req.url.replace("/match", `bangumi/${anime.bangumiId}`));
         const bangumiRes = await getBangumi(originBangumiUrl.pathname);
         const bangumiData = await bangumiRes.json();
