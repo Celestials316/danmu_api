@@ -124,7 +124,23 @@ function matchSeason(anime, queryTitle, season) {
       }
     }
     return false;
-  } else {
+  } 
+  // 🔥 新增：处理源插件强制信任的情况 (例如：韩剧TV搜别名出唯一结果)
+  else if (anime.matchedByKeyword && normalizeSpaces(anime.matchedByKeyword) === normalizedQueryTitle) {
+    // 如果文件名解析出是第1季，直接匹配通过
+    if (season === 1) return true;
+    
+    // 如果是多季（如第二季），检查返回的标题里是否包含这个数字（阿拉伯数字或中文数字）
+    // 例如：搜"顶楼 S2"，返回"顶楼2"，虽然标题不包含"顶楼 S2"，但包含"2"
+    if (normalizedAnimeTitle.includes(season.toString())) return true;
+    
+    // 简单的中文数字检查 (如果有需要可以扩展)
+    const cnNums = ['零','一','二','三','四','五','六','七','八','九','十'];
+    if (season <= 10 && normalizedAnimeTitle.includes(cnNums[season])) return true;
+
+    return false;
+  }
+  else {
     return false;
   }
 }
