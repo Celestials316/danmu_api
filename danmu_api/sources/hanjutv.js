@@ -14,7 +14,7 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 // 获取韩剧TV弹幕 (优化版)
 // =====================
 export default class HanjutvSource extends BaseSource {
-  
+
   // 提取分类映射为类属性或静态属性，避免重复定义
   getCateMap() {
     return { 1: "韩剧", 2: "综艺", 3: "电影", 4: "日剧", 5: "美剧", 6: "泰剧", 7: "国产剧" };
@@ -110,10 +110,13 @@ export default class HanjutvSource extends BaseSource {
 
     // 1. 智能过滤策略
     let targetAnimes = [];
+    let isFuzzyMatch = false; // 🔥 新增标记：是否使用了模糊/信任匹配
+
     if (sourceAnimes.length === 1) {
       // 如果只返回一个结果，大概率是别名匹配（如：搜"不幸的幸会"返回"讨厌的爱情"），直接信任，不过滤
       log("info", `[Hanjutv] Single result found, skipping title check for: ${sourceAnimes[0].name}`);
       targetAnimes = sourceAnimes;
+      isFuzzyMatch = true; // 🔥 标记为真
     } else {
       // 如果有多个结果，进行标题匹配，过滤掉不相关的干扰项
       targetAnimes = sourceAnimes.filter(s => titleMatches(s.name, queryTitle));
@@ -137,7 +140,7 @@ export default class HanjutvSource extends BaseSource {
 
             const detail = fullData.series;
             const episodes = fullData.episodes || [];
-            
+
             // 排序集数
             const sortedEpisodes = episodes.sort((a, b) => a.serialNo - b.serialNo);
 
@@ -147,7 +150,7 @@ export default class HanjutvSource extends BaseSource {
                 const epTitle = ep.title && ep.title.trim() !== "" 
                     ? `第${ep.serialNo}集：${ep.title}` 
                     : `第${ep.serialNo}集`;
-                
+
                 links.push({
                     "name": epTitle,
                     "url": ep.pid, // 使用 pid 作为播放ID
@@ -181,10 +184,11 @@ export default class HanjutvSource extends BaseSource {
                     rating: detail.rank,
                     isFavorited: true,
                     source: "hanjutv",
+                    matchedByKeyword: isFuzzyMatch ? queryTitle : null // 🔥 新增：如果是模糊匹配，记录原始搜索词
                 };
 
                 tmpAnimes.push(transformedAnime);
-                
+
                 // 写入缓存（这一步适配了你的项目结构）
                 addAnime({...transformedAnime, links: links});
 
@@ -201,7 +205,7 @@ export default class HanjutvSource extends BaseSource {
     }
 
     this.sortAndPushAnimesByYear(tmpAnimes, curAnimes);
-    
+
     // 为了保持原有接口一致性，返回处理完的数组
     return tmpAnimes;
   }
@@ -215,7 +219,7 @@ export default class HanjutvSource extends BaseSource {
     try {
       while (fromAxis < maxAxis) {
         const url = `https://hxqapi.zmdcq.com/api/danmu/playItem/list?fromAxis=${fromAxis}&pid=${id}&toAxis=${maxAxis}`;
-        
+
         try {
             const resp = await httpGet(url, {
               headers: {
@@ -224,20 +228,20 @@ export default class HanjutvSource extends BaseSource {
               },
               retries: 1,
             });
-    
+
             // 将当前请求的 danmus 拼接到总数组
             if (resp.data && resp.data.danmus) {
               allDanmus = allDanmus.concat(resp.data.danmus);
             }
-    
+
             // 获取 nextAxis，更新 fromAxis
             const nextAxis = resp.data && resp.data.nextAxis ? resp.data.nextAxis : maxAxis;
-            
+
             if (nextAxis >= maxAxis || nextAxis <= fromAxis) {
               break; // 结束条件
             }
             fromAxis = nextAxis;
-            
+
             // 防止弹幕页数过多导致的请求过快
             await sleep(100);
 

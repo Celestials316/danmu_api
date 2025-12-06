@@ -124,7 +124,15 @@ function matchSeason(anime, queryTitle, season) {
       }
     }
     return false;
-  } else {
+  } 
+  // 🔥 新增：如果源插件标记了匹配关键词（处理别名/模糊搜索），则放行
+  else if (anime.matchedByKeyword && normalizeSpaces(anime.matchedByKeyword) === normalizedQueryTitle) {
+    // 既然是信任源，主要检查季数是否匹配
+    if (season === 1) return true; // 默认第一季直接通过
+    if (normalizedAnimeTitle.includes(season.toString())) return true; // 标题包含 "2" 等数字
+    return false;
+  }
+  else {
     return false;
   }
 }
@@ -403,7 +411,12 @@ async function matchAniAndEp(season, episode, searchData, title, req, platform, 
     for (const anime of animeList) {
       if (globals.rememberLastSelect && preferAnimeId && anime.bangumiId.toString() !== preferAnimeId.toString() &&
           anime.animeId.toString() !== preferAnimeId.toString()) continue;
-      if (normalizeSpaces(anime.animeTitle).includes(normalizedTitle)) {
+      
+      // 🔥 优化：如果标题包含关键词 OR 是源插件认证的模糊匹配(matchedByKeyword)，则进入检查
+      const isTitleMatch = normalizeSpaces(anime.animeTitle).includes(normalizedTitle);
+      const isFuzzyMatch = anime.matchedByKeyword && normalizeSpaces(anime.matchedByKeyword) === normalizedTitle;
+
+      if (isTitleMatch || isFuzzyMatch) {
         let originBangumiUrl = new URL(req.url.replace("/match", `bangumi/${anime.bangumiId}`));
         const bangumiRes = await getBangumi(originBangumiUrl.pathname);
         const bangumiData = await bangumiRes.json();
@@ -447,8 +460,13 @@ async function matchAniAndEp(season, episode, searchData, title, req, platform, 
     const animeList = Array.isArray(searchData.animes) ? searchData.animes : [];
     for (const anime of animeList) {
       if (globals.rememberLastSelect && preferAnimeId && anime.bangumiId.toString() !== preferAnimeId.toString()) continue;
+      
       const animeTitle = anime.animeTitle.split("(")[0].trim();
-      if (animeTitle === title) {
+      // 🔥 优化：电影同样支持 matchedByKeyword
+      const isExactMatch = animeTitle === title;
+      const isFuzzyMatch = anime.matchedByKeyword && normalizeSpaces(anime.matchedByKeyword) === normalizeSpaces(title);
+
+      if (isExactMatch || isFuzzyMatch) {
         let originBangumiUrl = new URL(req.url.replace("/match", `bangumi/${anime.bangumiId}`));
         const bangumiRes = await getBangumi(originBangumiUrl.pathname);
         const bangumiData = await bangumiRes.json();
