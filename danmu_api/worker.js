@@ -4606,39 +4606,53 @@ try {
      justify-content: center;
    }
 
-   /* 列表模式下的按钮样式 */
+   /* 列表模式下的按钮样式 - 优化对齐 */
    .episode-btn.list-mode {
-     padding: 12px 16px;
-     justify-content: space-between;
+     padding: 10px 16px;
+     justify-content: flex-start; /* 改为左对齐 */
      text-align: left;
+     gap: 15px; /* 增加集数和标题的间距 */
    }
 
    .episode-btn .ep-title {
      display: none;
    }
 
+   /* 列表模式 - 集数样式 */
    .episode-btn.list-mode .ep-num {
      font-size: 16px;
      font-weight: 700;
      color: var(--primary-500);
-     min-width: 60px;
+     min-width: 45px; /* 固定宽度确保对齐 */
+     text-align: center;
    }
    
    .episode-btn.list-mode.active .ep-num {
      color: white;
    }
 
+   /* 列表模式 - 标题样式 */
    .episode-btn.list-mode .ep-title {
      display: block;
-     font-size: 13px;
-     color: var(--text-secondary);
+     font-size: 14px;
+     color: var(--text-primary); /* 颜色加深一点 */
      font-weight: normal;
      white-space: nowrap;
      overflow: hidden;
      text-overflow: ellipsis;
      flex: 1;
-     text-align: right;
-     padding-left: 10px;
+     text-align: left; /* 关键：改为左对齐 */
+     opacity: 0.8;
+   }
+   
+   .episode-btn.list-mode:hover .ep-title {
+     opacity: 1;
+     color: var(--primary-500);
+   }
+   
+   .episode-btn.list-mode.active .ep-title {
+     color: rgba(255,255,255,0.9);
+     opacity: 1;
    }
    
    .episode-btn.list-mode.active .ep-title {
@@ -8341,13 +8355,14 @@ try {
      }
    }
 
-   // 渲染动漫列表 (优化的卡片样式，包含更多信息)
+   // 渲染动漫列表 (优化标题和标签显示)
    function renderAnimeList(animes) {
      const container = document.getElementById('animeListContainer');
      
+     // 扩展类型映射
      const typeMap = {
        'tvseries': 'TV剧', 'tv': 'TV动画', 'movie': '剧场版', 'ova': 'OVA', 
-       'jpmovie': '电影', 'web': 'Web', 'music': 'MV'
+       'jpmovie': '电影', 'web': 'Web', 'music': 'MV', 'ona': 'ONA', 'special': '特别篇'
      };
 
      // 平台名称映射
@@ -8355,25 +8370,28 @@ try {
        'dandan': '弹弹Play', '360': '360影视', 'vod': 'VOD',
        'bilibili': 'B站', 'iqiyi': '爱奇艺', 'youku': '优酷',
        'tencent': '腾讯', 'qq': '腾讯', 'mgtv': '芒果', 
-       'bahamut': '巴哈', 'tmdb': 'TMDB', 'douban': '豆瓣'
+       'bahamut': '巴哈', 'tmdb': 'TMDB', 'douban': '豆瓣',
+       'hanjutv': '韩剧TV', 'renren': '人人影视'
      };
 
      const html = animes.map(anime => {
-       // 格式化类型/平台显示
+       // 1. 优化类型显示：优先使用 typeDescription，没有则查表，最后用 rawType
        const rawType = anime.type ? anime.type.toLowerCase() : '';
-       const typeLabel = typeMap[rawType] || anime.typeDescription || '动漫';
+       let typeLabel = anime.typeDescription || typeMap[rawType] || rawType.toUpperCase();
+       if (typeLabel === 'unknown') typeLabel = '动漫';
        
-       // 获取平台标签
+       // 2. 获取平台标签
        const sourceKey = (anime.source || 'dandan').toLowerCase();
        const platformLabel = sourceMap[sourceKey] || sourceKey.toUpperCase();
 
-       // --- 标题清洗逻辑 ---
+       // 3. 标题清洗逻辑 - 更加保守，防止误删标题
        let displayTitle = anime.animeTitle || '';
-       displayTitle = displayTitle.replace(/【.*?】/g, '');
-       displayTitle = displayTitle.replace(/\\[.*?\\]/g, ''); 
-       displayTitle = displayTitle.replace(/\\s*from\\s+.*$/i, '');
+       // 仅移除末尾的 source 标记 (如 "from dandan")
+       displayTitle = displayTitle.replace(/\s*from\s+.*$/i, '');
+       // 移除纯文件后缀，保留括号内容
        displayTitle = displayTitle.trim();
 
+       // 4. 年份处理
        let year = '';
        if (anime.year) {
          year = anime.year;
@@ -8381,37 +8399,43 @@ try {
          year = anime.startDate.substring(0, 4);
        }
        
-       if (year && !isNaN(year)) {
-         if (displayTitle.indexOf(year) === -1) {
-            displayTitle = \`\${displayTitle} (\${year})\`;
-         }
+       // 5. 集数处理
+       let episodeText = '';
+       if (anime.episodeCount && anime.episodeCount > 0) {
+         episodeText = `${anime.episodeCount}集`;
+       } else if (anime.episodes && anime.episodes.length > 0) {
+         episodeText = `${anime.episodes.length}集`;
        }
-       
-       const episodeCount = anime.episodeCount ? \`\${anime.episodeCount}集\` : (anime.episodes ? \`\${anime.episodes.length}集\` : '未知集数');
-       const rating = anime.rating ? \`<span class="anime-tag highlight" style="background:rgba(245, 158, 11, 0.1);color:#f59e0b;border-color:rgba(245, 158, 11, 0.2);">★ \${anime.rating}</span>\` : '';
 
-       return \`
-       <div class="anime-card" onclick="loadEpisodes('\${anime.animeId}', '\${escapeHtml(anime.animeTitle)}', this)">
+       // 6. 评分处理
+       const ratingHtml = anime.rating 
+         ? `<span class="anime-tag highlight" style="background:rgba(245, 158, 11, 0.1);color:#f59e0b;border-color:rgba(245, 158, 11, 0.2);">★ ${anime.rating}</span>` 
+         : '';
+
+       return `
+       <div class="anime-card" onclick="loadEpisodes('${anime.animeId}', '${escapeHtml(anime.animeTitle)}', this)">
          <div class="anime-cover-wrapper">
-           <img src="\${anime.imageUrl || ''}" class="anime-cover" loading="lazy" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTUwIiB2aWV3Qm94PSIwIDAgMTAwIDE1MCI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxNTAiIGZpbGw9IiMzMzMiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzY2NiIgZm9udC1zaXplPSIxNCI+Tm8gSW1hZ2U8L3RleHQ+PC9zdmc+'">
-           <div class="anime-badge">\${platformLabel}</div>
+           <img src="${anime.imageUrl || ''}" class="anime-cover" loading="lazy" referrerpolicy="no-referrer" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTUwIiB2aWV3Qm94PSIwIDAgMTAwIDE1MCI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxNTAiIGZpbGw9IiMzMzMiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzY2NiIgZm9udC1zaXplPSIxNCI+Tm8gSW1hZ2U8L3RleHQ+PC9zdmc+'">
+           <div class="anime-badge">${platformLabel}</div>
            <div class="anime-overlay">
              <span class="anime-select-btn">选择此番</span>
            </div>
          </div>
          <div class="anime-info">
-           <div class="anime-title" title="\${anime.animeTitle}">\${displayTitle}</div>
+           <div class="anime-title" title="${escapeHtml(anime.animeTitle)}">${escapeHtml(displayTitle)}</div>
            <div class="anime-tags">
-             <span class="anime-tag" style="background:rgba(99, 102, 241, 0.1);color:#818cf8;border-color:rgba(99, 102, 241, 0.2);">\${typeLabel}</span>
-             <span class="anime-tag">\${episodeCount}</span>
-             \${rating}
+             ${year ? `<span class="anime-tag">${year}</span>` : ''}
+             <span class="anime-tag" style="background:rgba(99, 102, 241, 0.1);color:#818cf8;border-color:rgba(99, 102, 241, 0.2);">${typeLabel}</span>
+             ${episodeText ? `<span class="anime-tag">${episodeText}</span>` : ''}
+             ${ratingHtml}
            </div>
          </div>
        </div>
-     \`}).join('');
+     `}).join('');
      
      container.innerHTML = html;
    }
+
 
 
    // 加载剧集列表
