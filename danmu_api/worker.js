@@ -8973,7 +8973,7 @@ function applyPushPreset(type) {
 
   switch (type) {
     case 'okvideo':
-      url = 'http://127.0.0.1:9978/proxy?do=autodanmu=';
+      url = 'http://127.0.0.1:9978/action?do=refresh&type=danmaku&path=';
       name = 'OK影视';
       break;
     case 'kodi':
