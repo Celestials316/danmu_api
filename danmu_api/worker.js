@@ -6327,7 +6327,7 @@ try {
                <div style="display: flex; gap: 8px;">
                  <button class="icon-btn" onclick="startNetworkScan()" title="扫描局域网设备" style="width: 32px; height: 32px;" id="scanNetworkBtn">
                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor">
-                     <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-width="2" stroke-linecap="round"/>
+                     <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" stroke-width="2"/>
                    </svg>
                  </button>
                  <button class="icon-btn" onclick="document.getElementById('pushTargetUrl').value=''; localStorage.removeItem('danmu_push_url'); showToast('已清空地址','info');" title="清空地址" style="width: 32px; height: 32px;">
@@ -6343,28 +6343,20 @@ try {
                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor">
                      <path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-width="2"/>
                    </svg>
-                   快速预设
+                   快速配置
                  </div>
                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px;">
+                   <button class="btn btn-secondary" style="padding: 10px 14px; font-size: 13px; height: auto; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s;" onclick="startNetworkScan()" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';" onmouseout="this.style.transform=''; this.style.boxShadow='';">
+                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor">
+                       <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" stroke-width="2"/>
+                     </svg>
+                     扫描设备
+                   </button>
                    <button class="btn btn-secondary" style="padding: 10px 14px; font-size: 13px; height: auto; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s;" onclick="applyPushPreset('okvideo')" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';" onmouseout="this.style.transform=''; this.style.boxShadow='';">
                      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/>
                      </svg>
-                     OK影视
-                   </button>
-                   <button class="btn btn-secondary" style="padding: 10px 14px; font-size: 13px; height: auto; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s;" onclick="applyPushPreset('kodi')" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';" onmouseout="this.style.transform=''; this.style.boxShadow='';">
-                     <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                       <circle cx="12" cy="12" r="10"/>
-                       <path d="M12 6v6l4 2" stroke="white" stroke-width="2" fill="none"/>
-                     </svg>
-                     Kodi
-                   </button>
-                   <button class="btn btn-secondary" style="padding: 10px 14px; font-size: 13px; height: auto; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s;" onclick="applyPushPreset('potplayer')" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';" onmouseout="this.style.transform=''; this.style.boxShadow='';">
-                     <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                       <rect x="4" y="4" width="16" height="16" rx="2"/>
-                       <path d="M9 8l6 4-6 4V8z" fill="white"/>
-                     </svg>
-                     PotPlayer
+                     OK影视示例
                    </button>
                  </div>
                </div>
@@ -7157,14 +7149,15 @@ try {
      </div>
    </div>
  </div>
+
  <script>
-   // ==================== 局域网 IP 扫描功能 ====================
+   // ==================== 局域网 IP 扫描功能（简化版）====================
    const NetworkScanner = {
      isScanning: false,
-     foundDevices: [],
+     foundIPs: [],
      
-     // 获取本机局域网IP前缀（如 192.168.1）
-     getLocalIPPrefix() {
+     // 获取本机局域网IP段
+     async getLocalIPPrefix() {
        return new Promise((resolve) => {
          const rtc = new RTCPeerConnection({ iceServers: [] });
          rtc.createDataChannel('');
@@ -7172,10 +7165,9 @@ try {
          
          rtc.onicecandidate = (event) => {
            if (event.candidate) {
-             const ip = event.candidate.candidate.match(/(\d+\.\d+\.\d+\.\d+)/);
-             if (ip && ip[1]) {
-               const parts = ip[1].split('.');
-               resolve(\`\${parts[0]}.\${parts[1]}.\${parts[2]}\`);
+             const match = event.candidate.candidate.match(/(\d+\.\d+\.\d+)\.\d+/);
+             if (match && match[1]) {
+               resolve(match[1]);
                rtc.close();
              }
            }
@@ -7184,66 +7176,56 @@ try {
          setTimeout(() => {
            resolve('192.168.1'); // 默认值
            rtc.close();
-         }, 1000);
+         }, 2000);
        });
      },
      
-     // 扫描指定IP的常用端口
-     async scanIP(ip, ports = [9978, 8080, 8081, 3000, 5000]) {
-       const results = [];
-       
-       for (const port of ports) {
-         try {
-           const controller = new AbortController();
-           const timeoutId = setTimeout(() => controller.abort(), 1000);
-           
-           const response = await fetch(\`http://\${ip}:\${port}\`, {
-             method: 'HEAD',
-             signal: controller.signal,
-             mode: 'no-cors'
-           });
-           
-           clearTimeout(timeoutId);
-           
-           results.push({
-             ip: ip,
-             port: port,
-             url: \`http://\${ip}:\${port}\`,
-             status: 'online'
-           });
-         } catch (error) {
-           // 忽略失败的请求
-         }
+     // 简单检测IP是否在线
+     async pingIP(ip) {
+       try {
+         const controller = new AbortController();
+         const timeoutId = setTimeout(() => controller.abort(), 500);
+         
+         await fetch(\`http://\${ip}:9978\`, {
+           method: 'HEAD',
+           signal: controller.signal,
+           mode: 'no-cors'
+         });
+         
+         clearTimeout(timeoutId);
+         return true;
+       } catch (error) {
+         return false;
        }
-       
-       return results;
      },
      
-     // 扫描整个局域网段
+     // 扫描局域网段获取在线IP列表
      async scanNetwork(progressCallback) {
        this.isScanning = true;
-       this.foundDevices = [];
+       this.foundIPs = [];
        
        try {
          const prefix = await this.getLocalIPPrefix();
          const totalHosts = 254;
          let scanned = 0;
          
-         // 分批扫描（每批10个IP）
-         for (let batch = 0; batch < 26; batch++) {
+         // 分批扫描（每批20个IP并发）
+         for (let batch = 0; batch < 13; batch++) {
            const promises = [];
            
-           for (let i = 0; i < 10 && (batch * 10 + i + 1) <= totalHosts; i++) {
-             const hostNum = batch * 10 + i + 1;
+           for (let i = 0; i < 20 && (batch * 20 + i + 1) <= totalHosts; i++) {
+             const hostNum = batch * 20 + i + 1;
              const ip = \`\${prefix}.\${hostNum}\`;
-             promises.push(this.scanIP(ip));
+             promises.push(
+               this.pingIP(ip).then(isOnline => ({ ip, isOnline }))
+             );
            }
            
            const results = await Promise.all(promises);
            
-           results.forEach(deviceList => {
-             if (deviceList.length > 0) {
-               this.foundDevices.push(...deviceList);
+           results.forEach(result => {
+             if (result.isOnline) {
+               this.foundIPs.push(result.ip);
              }
            });
            
@@ -7259,7 +7241,7 @@ try {
          this.isScanning = false;
        }
        
-       return this.foundDevices;
+       return this.foundIPs;
      }
    };
    // ==================== 全局状态管理 ====================
@@ -9317,33 +9299,34 @@ function initPushPage() {
    // 启动网络扫描
    async function startNetworkScan() {
      const btn = document.getElementById('scanNetworkBtn');
-     const originalHTML = btn.innerHTML;
+     if (!btn) return;
      
-     // 显示扫描弹窗
-     showNetworkScanModal();
+     const originalHTML = btn.innerHTML;
      
      try {
        btn.innerHTML = '<span class="loading-spinner" style="width:12px;height:12px;border-width:2px;"></span>';
        btn.disabled = true;
        
+       showNetworkScanModal();
        updateScanProgress(0, 254, '正在初始化...');
        
-       const devices = await NetworkScanner.scanNetwork((scanned, total) => {
-         updateScanProgress(scanned, total, \`正在扫描 \${scanned}/\${total}...\`);
+       const ips = await NetworkScanner.scanNetwork((scanned, total) => {
+         updateScanProgress(scanned, total, \`正在扫描 \${scanned}/\${total} 个地址...\`);
        });
        
        updateScanProgress(254, 254, '扫描完成');
-       displayFoundDevices(devices);
+       displayFoundIPs(ips);
        
-       if (devices.length === 0) {
-         showToast('未发现可用设备，请确保设备在同一局域网', 'warning', 3000);
+       if (ips.length === 0) {
+         showToast('未发现在线设备，请确保设备在同一局域网', 'warning', 3000);
        } else {
-         showToast(\`发现 \${devices.length} 个可用设备\`, 'success');
+         showToast(\`发现 \${ips.length} 个在线设备\`, 'success');
        }
        
      } catch (error) {
        console.error('扫描失败:', error);
        showToast('网络扫描失败: ' + error.message, 'error');
+       closeNetworkScanModal();
      } finally {
        btn.innerHTML = originalHTML;
        btn.disabled = false;
@@ -9352,15 +9335,19 @@ function initPushPage() {
    
    // 显示网络扫描弹窗
    function showNetworkScanModal() {
+     // 移除已存在的弹窗
+     const existingModal = document.getElementById('networkScanModal');
+     if (existingModal) existingModal.remove();
+     
      const modalHTML = \`
-       <div class="modal-overlay" id="networkScanModal" style="display: flex; opacity: 1; visibility: visible;">
+       <div class="modal-overlay show" id="networkScanModal">
          <div class="modal" style="max-width: 600px;">
            <div class="modal-header">
              <h3 class="modal-title">
                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor">
-                 <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-width="2"/>
+                 <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" stroke-width="2"/>
                </svg>
-               扫描局域网设备
+               扫描局域网设备 IP
              </h3>
              <button class="modal-close" onclick="closeNetworkScanModal()">
                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor">
@@ -9384,15 +9371,18 @@ function initPushPage() {
                  <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
                  <path d="M12 16v-4m0-4h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                </svg>
-               <span>💡 正在扫描常用端口 (9978, 8080, 8081, 3000, 5000)</span>
+               <span>💡 扫描端口 9978，点击 IP 即可自动配置推送地址</span>
              </div>
              
-             <div id="deviceListContainer" style="max-height: 300px; overflow-y: auto;">
+             <div id="ipListContainer" style="max-height: 350px; overflow-y: auto;">
                <div style="text-align: center; padding: 40px; color: var(--text-tertiary);">
                  <span class="loading-spinner" style="width: 32px; height: 32px; border-width: 3px;"></span>
                  <div style="margin-top: 16px;">扫描中，请稍候...</div>
                </div>
              </div>
+           </div>
+           <div class="modal-footer">
+             <button class="btn btn-secondary" onclick="closeNetworkScanModal()">关闭</button>
            </div>
          </div>
        </div>
@@ -9405,7 +9395,8 @@ function initPushPage() {
    function closeNetworkScanModal() {
      const modal = document.getElementById('networkScanModal');
      if (modal) {
-       modal.remove();
+       modal.classList.remove('show');
+       setTimeout(() => modal.remove(), 300);
      }
    }
    
@@ -9423,32 +9414,39 @@ function initPushPage() {
      }
    }
    
-   // 显示发现的设备
-   function displayFoundDevices(devices) {
-     const container = document.getElementById('deviceListContainer');
+   // 显示发现的IP列表
+   function displayFoundIPs(ips) {
+     const container = document.getElementById('ipListContainer');
      
-     if (devices.length === 0) {
+     if (!ips || ips.length === 0) {
        container.innerHTML = \`
          <div style="text-align: center; padding: 40px; color: var(--text-tertiary);">
            <div style="font-size: 48px; margin-bottom: 12px; opacity: 0.5;">🔍</div>
-           <div>未发现可用设备</div>
-           <div style="font-size: 12px; margin-top: 8px;">请确保设备在同一局域网内</div>
+           <div>未发现在线设备</div>
+           <div style="font-size: 12px; margin-top: 8px;">请确保设备与本机在同一局域网</div>
          </div>
        \`;
        return;
      }
      
-     const html = devices.map((device, index) => \`
-       <div class="server-item" style="cursor: pointer; margin-bottom: 12px;" onclick="selectDevice('\${device.url}')">
-         <div class="server-badge" style="background: linear-gradient(135deg, #10b981, #059669);">\${index + 1}</div>
-         <div class="server-info">
-           <div class="server-name">设备 \${device.ip}</div>
-           <div class="server-url">端口: \${device.port}</div>
-         </div>
-         <div class="server-actions">
-           <button class="btn btn-secondary" onclick="event.stopPropagation(); selectDevice('\${device.url}')" style="padding: 6px 12px; font-size: 12px;">
-             选择
-           </button>
+     const html = ips.map((ip, index) => \`
+       <div class="config-item" style="cursor: pointer; transition: all 0.2s; margin-bottom: 12px;" 
+            onclick="selectDeviceIP('\${ip}')"
+            onmouseover="this.style.background='var(--bg-hover)'; this.style.borderColor='var(--primary-500)'; this.style.transform='translateX(4px)';" 
+            onmouseout="this.style.background=''; this.style.borderColor=''; this.style.transform='';">
+         <div class="config-header" style="margin-bottom: 0;">
+           <div style="display: flex; align-items: center; gap: 12px;">
+             <div style="width: 36px; height: 36px; background: linear-gradient(135deg, #10b981, #059669); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 800; color: white; font-size: 14px; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);">
+               \${index + 1}
+             </div>
+             <div>
+               <div style="font-size: 15px; font-weight: 700; color: var(--text-primary); font-family: monospace;">\${ip}</div>
+               <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 2px;">点击配置推送地址</div>
+             </div>
+           </div>
+           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor">
+             <path d="M9 5l7 7-7 7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+           </svg>
          </div>
        </div>
      \`).join('');
@@ -9456,10 +9454,13 @@ function initPushPage() {
      container.innerHTML = html;
    }
    
-   // 选择设备
-   function selectDevice(url) {
-     document.getElementById('pushTargetUrl').value = url + '/action?do=refresh&type=danmaku&path=';
-     localStorage.setItem('danmu_push_url', url + '/action?do=refresh&type=danmaku&path=');
+   // 选择设备IP并配置推送地址
+   function selectDeviceIP(ip) {
+     // OK影视默认端口是 9978
+     const pushUrl = \`http://\${ip}:9978/action?do=refresh&type=danmaku&path=\`;
+     
+     document.getElementById('pushTargetUrl').value = pushUrl;
+     localStorage.setItem('danmu_push_url', pushUrl);
      
      // 视觉反馈
      const input = document.getElementById('pushTargetUrl');
@@ -9468,50 +9469,47 @@ function initPushPage() {
      setTimeout(() => {
        input.style.borderColor = '';
        input.style.backgroundColor = '';
-     }, 300);
+     }, 500);
      
-     showToast('已设置推送地址: ' + url, 'success');
+     showToast(\`✅ 已设置推送地址: \${ip}\`, 'success');
      closeNetworkScanModal();
    }
 // 应用推送预设
-function applyPushPreset(type) {
-  const input = document.getElementById('pushTargetUrl');
-  let url = '';
-  let name = '';
+   // 应用推送预设
+   function applyPushPreset(type) {
+     const input = document.getElementById('pushTargetUrl');
+     let url = '';
+     let name = '';
 
-  switch (type) {
-    case 'okvideo':
-      url = 'http://127.0.0.1:9978/action?do=refresh&type=danmaku&path=';
-      name = 'OK影视';
-      break;
-    case 'kodi':
-      // 这是一个示例地址，用户通常需要修改IP
-      url = 'http://192.168.1.5:8080/jsonrpc?Player.Open='; 
-      name = 'Kodi';
-      break;
-    case 'potplayer':
-      // 这是一个示例 Web API 插件地址
-      url = 'http://127.0.0.1:8080/input?url=';
-      name = 'PotPlayer';
-      break;
-  }
+     switch(type) {
+       case 'okvideo':
+         url = 'http://192.168.1.100:9978/action?do=refresh&type=danmaku&path=';
+         name = 'OK影视示例（请修改IP）';
+         break;
+       case 'kodi':
+         url = 'http://192.168.1.5:8080/jsonrpc?Player.Open=';
+         name = 'Kodi示例';
+         break;
+       case 'potplayer':
+         url = 'http://127.0.0.1:8080/input?url=';
+         name = 'PotPlayer示例';
+         break;
+     }
 
-  if (url) {
-    input.value = url;
-    // 自动保存
-    localStorage.setItem('danmu_push_url', url);
-    
-    // 视觉反馈
-    input.style.borderColor = 'var(--primary-500)';
-    input.style.backgroundColor = 'var(--bg-hover)';
-    setTimeout(() => {
-      input.style.borderColor = '';
-      input.style.backgroundColor = '';
-    }, 300);
+     if (url) {
+       input.value = url;
+       localStorage.setItem('danmu_push_url', url);
+       
+       input.style.borderColor = 'var(--primary-500)';
+       input.style.backgroundColor = 'var(--bg-hover)';
+       setTimeout(() => {
+         input.style.borderColor = '';
+         input.style.backgroundColor = '';
+       }, 300);
 
-    showToast('已应用 ' + name + ' 预设地址', 'success');
-  }
-}
+       showToast('已应用 ' + name + '，请根据实际情况修改 IP 地址', 'info', 3000);
+     }
+   }
    const originalSwitchPage = switchPage;
    switchPage = function(pageName) {
      originalSwitchPage(pageName);
