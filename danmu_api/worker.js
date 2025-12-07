@@ -4757,6 +4757,49 @@ try {
         font-size: 12px;
         border-radius: 6px;
      }
+            /* 推送页面移动端优化 */
+       #push-page .config-grid {
+         gap: 16px;
+       }
+
+       #push-page .config-item {
+         padding: 16px !important;
+       }
+
+       #push-page .config-header {
+         flex-direction: column;
+         align-items: flex-start !important;
+         gap: 12px;
+       }
+
+       #push-page .form-input {
+         font-size: 16px; /* 防止iOS自动缩放 */
+       }
+
+       #push-page .btn {
+         padding: 10px 16px !important;
+         font-size: 14px !important;
+       }
+
+       /* 预设按钮网格优化 */
+       #push-page button[onclick*="applyPushPreset"] {
+         padding: 12px 10px !important;
+         font-size: 12px !important;
+       }
+
+       /* 搜索框移动端适配 */
+       #pushSearchInput {
+         min-width: 0;
+         flex: 1;
+       }
+
+       #pushSearchBtn {
+         padding: 12px 16px !important;
+       }
+
+       #pushSearchBtn .desktop-only {
+         display: none;
+       }
    }
 
    /* 匹配结果卡片动画 */
@@ -6252,7 +6295,7 @@ try {
      </section>
 
      <section id="push-page" class="page-section">
-       <div class="card">
+       <div class="card" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.05), rgba(139, 92, 246, 0.05)); border-left: 4px solid var(--primary-500);">
          <div class="card-header">
            <h3 class="card-title">
              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -6260,51 +6303,96 @@ try {
              </svg>
              推送配置
            </h3>
+           <div class="badge badge-info" style="font-size: 12px; padding: 6px 12px;">
+             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" style="margin-right: 4px;">
+               <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
+             </svg>
+             智能推送
+           </div>
          </div>
          <div class="config-grid">
-           <div class="config-item" style="border-left: 4px solid var(--primary-500);">
-             <div class="config-header">
-               <span class="config-label">推送目标 URL</span>
-               <button class="icon-btn" onclick="document.getElementById('pushTargetUrl').value=''; localStorage.removeItem('danmu_push_url'); showToast('已清空地址','info');" title="清空地址" style="width: 24px; height: 24px;">
+           <div class="config-item" style="background: var(--bg-primary); border: 2px solid var(--border-color); border-radius: 12px; padding: 20px; position: relative; overflow: hidden;">
+             <!-- 装饰性背景 -->
+             <div style="position: absolute; top: -50%; right: -20%; width: 200px; height: 200px; background: radial-gradient(circle, rgba(99, 102, 241, 0.08) 0%, transparent 70%); pointer-events: none;"></div>
+             
+             <div class="config-header" style="position: relative; z-index: 1;">
+               <div style="display: flex; align-items: center; gap: 8px;">
+                 <div style="width: 32px; height: 32px; background: linear-gradient(135deg, var(--primary-500), var(--primary-600)); border-radius: 8px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);">
+                   <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="white" stroke-width="2">
+                     <path d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                   </svg>
+                 </div>
+                 <span class="config-label" style="font-size: 15px; font-weight: 700;">推送目标 URL</span>
+               </div>
+               <button class="icon-btn" onclick="document.getElementById('pushTargetUrl').value=''; localStorage.removeItem('danmu_push_url'); showToast('已清空地址','info');" title="清空地址" style="width: 32px; height: 32px;">
                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"><path d="M18 6L6 18M6 6l12 12" stroke-width="2" stroke-linecap="round"/></svg>
                </button>
              </div>
-             <div class="form-group" style="margin-bottom: 8px;">
-               <input type="text" class="form-input" id="pushTargetUrl" placeholder="http://192.168.1.x:xxxx/danmu/push?url=">
+             <div class="form-group" style="margin-bottom: 8px; position: relative; z-index: 1;">
+               <input type="text" class="form-input" id="pushTargetUrl" placeholder="http://192.168.1.x:xxxx/danmu/push?url=" style="border-radius: 10px; border: 2px solid var(--border-color); transition: all 0.3s;" onfocus="this.style.borderColor='var(--primary-500)'; this.style.boxShadow='0 0 0 3px rgba(99, 102, 241, 0.1)';" onblur="this.style.borderColor=''; this.style.boxShadow='';">
                
-               <div style="display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; align-items: center;">
-                 <span style="font-size: 12px; color: var(--text-tertiary); font-weight: 600;">快速预设:</span>
-                 <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 12px; height: auto; border-radius: 6px;" onclick="applyPushPreset('okvideo')">
-                   📺 OK影视
-                 </button>
-                 <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 12px; height: auto; border-radius: 6px;" onclick="applyPushPreset('kodi')">
-                   🍿 Kodi (示例)
-                 </button>
-                 <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 12px; height: auto; border-radius: 6px;" onclick="applyPushPreset('potplayer')">
-                   💿 PotPlayer (示例)
-                 </button>
+               <div style="margin-top: 16px;">
+                 <div style="font-size: 12px; color: var(--text-secondary); font-weight: 600; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+                   <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor">
+                     <path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-width="2"/>
+                   </svg>
+                   快速预设
+                 </div>
+                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px;">
+                   <button class="btn btn-secondary" style="padding: 10px 14px; font-size: 13px; height: auto; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s;" onclick="applyPushPreset('okvideo')" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';" onmouseout="this.style.transform=''; this.style.boxShadow='';">
+                     <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                       <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/>
+                     </svg>
+                     OK影视
+                   </button>
+                   <button class="btn btn-secondary" style="padding: 10px 14px; font-size: 13px; height: auto; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s;" onclick="applyPushPreset('kodi')" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';" onmouseout="this.style.transform=''; this.style.boxShadow='';">
+                     <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                       <circle cx="12" cy="12" r="10"/>
+                       <path d="M12 6v6l4 2" stroke="white" stroke-width="2" fill="none"/>
+                     </svg>
+                     Kodi
+                   </button>
+                   <button class="btn btn-secondary" style="padding: 10px 14px; font-size: 13px; height: auto; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s;" onclick="applyPushPreset('potplayer')" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';" onmouseout="this.style.transform=''; this.style.boxShadow='';">
+                     <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                       <rect x="4" y="4" width="16" height="16" rx="2"/>
+                       <path d="M9 8l6 4-6 4V8z" fill="white"/>
+                     </svg>
+                     PotPlayer
+                   </button>
+                 </div>
                </div>
 
                <div class="form-hint" style="margin-top: 12px;">请输入接收弹幕的播放器地址。系统会自动在末尾追加 <code style="background:var(--bg-secondary);padding:2px 4px;border-radius:4px;">http://.../comment/id.xml</code> 链接</div>
              </div>
            </div>
            
-           <div class="config-item">
-             <div class="config-header">
-               <span class="config-label">搜索动漫</span>
+           <div class="config-item" style="background: var(--bg-primary); border: 2px solid var(--border-color); border-radius: 12px; padding: 20px;">
+             <div class="config-header" style="margin-bottom: 14px;">
+               <div style="display: flex; align-items: center; gap: 8px;">
+                 <div style="width: 32px; height: 32px; background: linear-gradient(135deg, #10b981, #059669); border-radius: 8px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">
+                   <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="white" stroke-width="2">
+                     <circle cx="11" cy="11" r="8"/>
+                     <path d="m21 21-4.35-4.35"/>
+                   </svg>
+                 </div>
+                 <span class="config-label" style="font-size: 15px; font-weight: 700;">搜索动漫</span>
+               </div>
              </div>
-             <div style="display: flex; gap: 8px;">
-               <input type="text" class="form-input" id="pushSearchInput" placeholder="输入动漫名称..." onkeypress="if(event.key==='Enter') searchAnimeForPush()">
-               <button class="btn btn-primary" onclick="searchAnimeForPush()" id="pushSearchBtn">
-                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8" stroke-width="2"/><path d="m21 21-4.35-4.35" stroke-width="2"/></svg>
-                 搜索
+             <div style="display: flex; gap: 10px;">
+               <input type="text" class="form-input" id="pushSearchInput" placeholder="输入动漫名称..." onkeypress="if(event.key==='Enter') searchAnimeForPush()" style="flex: 1; padding: 12px 16px; border-radius: 10px; border: 2px solid var(--border-color); transition: all 0.3s;" onfocus="this.style.borderColor='var(--primary-500)'; this.style.boxShadow='0 0 0 3px rgba(99, 102, 241, 0.1)';" onblur="this.style.borderColor=''; this.style.boxShadow='';">
+               <button class="btn btn-primary" onclick="searchAnimeForPush()" id="pushSearchBtn" style="padding: 12px 24px; border-radius: 10px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3); transition: all 0.3s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(99, 102, 241, 0.4)';" onmouseout="this.style.transform=''; this.style.boxShadow='0 4px 12px rgba(99, 102, 241, 0.3)';">
+                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor">
+                   <circle cx="11" cy="11" r="8" stroke-width="2"/>
+                   <path d="m21 21-4.35-4.35" stroke-width="2"/>
+                 </svg>
+                 <span class="desktop-only">搜索</span>
                </button>
              </div>
            </div>
          </div>
        </div>
 
-       <div id="pushResultsContainer" style="display: none; margin-top: 24px;">
+       <div id="pushResultsContainer" style="display: none; margin-top: 28px; animation: fadeIn 0.3s ease-out;">
          <div class="manual-search-container">
            <div id="pushAnimeListView" class="search-view active">
              <div style="margin-bottom: 16px; font-size: 14px; font-weight: 600; color: var(--text-secondary);">
