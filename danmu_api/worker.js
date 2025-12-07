@@ -6386,7 +6386,8 @@ try {
                  <option value="">-- 手动扫描后选择设备 --</option>
                </select>
              </div>
-           </div>           
+           </div>
+           
            <div class="config-item" style="background: var(--bg-primary); border: 2px solid var(--border-color); border-radius: 12px; padding: 20px;">
              <div class="config-header" style="margin-bottom: 14px;">
                <div style="display: flex; align-items: center; gap: 8px;">
@@ -9297,11 +9298,11 @@ function applyPushPreset(type) {
          result.devices.forEach((device, index) => {
            const option = document.createElement('option');
            option.value = device.url;
-           option.textContent = \`\${device.name} (\${device.ip}:\${device.port})\`;
+           option.textContent = device.name + ' (' + device.ip + ':' + device.port + ')';
            deviceSelect.appendChild(option);
          });
          
-         showToast(\`✅ 发现 \${result.devices.length} 个设备\`, 'success');
+         showToast('✅ 发现 ' + result.devices.length + ' 个设备', 'success');
        } else {
          showToast('⚠️ 未发现局域网设备，请手动输入地址', 'warning');
          deviceSelect.innerHTML = '<option value="">-- 未发现设备，请手动输入 --</option>';
@@ -9345,6 +9346,7 @@ function applyPushPreset(type) {
        initPushPage();
      }
    };
+
    async function searchAnimeForPush() {
      const keyword = document.getElementById('pushSearchInput').value.trim();
      if (!keyword) {
@@ -12106,20 +12108,24 @@ docker-compose pull danmu-api && docker-compose up -d danmu-api`;
       // 并发扫描 IP 范围（示例：192.168.1.1-254）
       const scanPromises = [];
       for (let i = 1; i <= 254; i++) {
-        const ip = \`\${subnet}.\${i}\`;
+        const ip = subnet + '.' + i;
         
-        for (const { port, name, path } of commonPorts) {
+        for (const portConfig of commonPorts) {
+          const port = portConfig.port;
+          const name = portConfig.name;
+          const path = portConfig.path;
+          
           scanPromises.push(
-            fetch(\`http://\${ip}:\${port}\${path}\`, {
+            fetch('http://' + ip + ':' + port + path, {
               method: 'HEAD',
               signal: AbortSignal.timeout(500) // 500ms 超时
             })
             .then(() => {
               devices.push({
-                ip,
-                port,
-                name,
-                url: \`http://\${ip}:\${port}\${path}\`
+                ip: ip,
+                port: port,
+                name: name,
+                url: 'http://' + ip + ':' + port + path
               });
             })
             .catch(() => {}) // 忽略失败的请求
@@ -12133,17 +12139,17 @@ docker-compose pull danmu-api && docker-compose up -d danmu-api`;
         new Promise(resolve => setTimeout(resolve, 3000))
       ]);
 
-      log("info", \`[network/scan] 发现 \${devices.length} 个设备\`);
+      log("info", "[network/scan] 发现 " + devices.length + " 个设备");
 
       return jsonResponse({
         success: true,
         devices: devices.slice(0, 10), // 最多返回 10 个设备
-        scannedRange: \`\${subnet}.1-254\`,
+        scannedRange: subnet + '.1-254',
         timeout: 500
       });
 
     } catch (error) {
-      log("error", \`[network/scan] 扫描失败: \${error.message}\`);
+      log("error", "[network/scan] 扫描失败: " + error.message);
       return jsonResponse({
         success: false,
         error: error.message
