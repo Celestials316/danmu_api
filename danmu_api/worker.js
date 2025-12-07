@@ -6364,8 +6364,29 @@ try {
 
                <div class="form-hint" style="margin-top: 12px;">请输入接收弹幕的播放器地址。系统会自动在末尾追加 <code style="background:var(--bg-secondary);padding:2px 4px;border-radius:4px;">http://.../comment/id.xml</code> 链接</div>
              </div>
-           </div>
-           
+
+             <!-- 🔥 新增：局域网设备扫描 -->
+             <div style="margin-top: 16px;">
+               <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                 <div style="font-size: 12px; color: var(--text-secondary); font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                   <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor">
+                     <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" stroke-width="2"/>
+                     <polyline points="9 22 9 12 15 12 15 22" stroke-width="2"/>
+                   </svg>
+                   局域网设备
+                 </div>
+                 <button class="btn btn-secondary" onclick="scanLocalDevices()" id="scanBtn" style="padding: 6px 12px; font-size: 12px; border-radius: 6px; display: flex; align-items: center; gap: 4px;">
+                   <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor">
+                     <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-width="2"/>
+                   </svg>
+                   扫描设备
+                 </button>
+               </div>
+               <select class="form-select" id="deviceSelect" onchange="selectDevice(this.value)" style="font-size: 13px; padding: 10px 12px;">
+                 <option value="">-- 手动扫描后选择设备 --</option>
+               </select>
+             </div>
+           </div>           
            <div class="config-item" style="background: var(--bg-primary); border: 2px solid var(--border-color); border-radius: 12px; padding: 20px;">
              <div class="config-header" style="margin-bottom: 14px;">
                <div style="display: flex; align-items: center; gap: 8px;">
@@ -9243,6 +9264,80 @@ function applyPushPreset(type) {
     showToast('已应用 ' + name + ' 预设地址', 'success');
   }
 }
+   // 🔥 新增：扫描局域网设备
+   async function scanLocalDevices() {
+     const scanBtn = document.getElementById('scanBtn');
+     const deviceSelect = document.getElementById('deviceSelect');
+     
+     if (!scanBtn || !deviceSelect) return;
+     
+     const originalHtml = scanBtn.innerHTML;
+     scanBtn.disabled = true;
+     scanBtn.innerHTML = '<span class="loading-spinner" style="width:12px;height:12px;border-width:2px;"></span> 扫描中...';
+     
+     try {
+       showToast('正在扫描局域网设备，预计 3-5 秒...', 'info', 2000);
+       
+       const response = await fetch('/api/network/scan', {
+         cache: 'no-cache',
+         signal: AbortSignal.timeout(10000)
+       });
+       
+       if (!response.ok) {
+         throw new Error('扫描请求失败');
+       }
+       
+       const result = await response.json();
+       
+       if (result.success && result.devices && result.devices.length > 0) {
+         // 清空现有选项
+         deviceSelect.innerHTML = '<option value="">-- 请选择设备 --</option>';
+         
+         // 添加扫描到的设备
+         result.devices.forEach((device, index) => {
+           const option = document.createElement('option');
+           option.value = device.url;
+           option.textContent = `${device.name} (${device.ip}:${device.port})`;
+           deviceSelect.appendChild(option);
+         });
+         
+         showToast(`✅ 发现 ${result.devices.length} 个设备`, 'success');
+       } else {
+         showToast('⚠️ 未发现局域网设备，请手动输入地址', 'warning');
+         deviceSelect.innerHTML = '<option value="">-- 未发现设备，请手动输入 --</option>';
+       }
+       
+     } catch (error) {
+       console.error('扫描失败:', error);
+       showToast('扫描失败: ' + error.message, 'error');
+       deviceSelect.innerHTML = '<option value="">-- 扫描失败，请手动输入 --</option>';
+     } finally {
+       scanBtn.disabled = false;
+       scanBtn.innerHTML = originalHtml;
+     }
+   }
+   
+   // 🔥 新增：选择设备后自动填充
+   function selectDevice(url) {
+     if (!url) return;
+     
+     const input = document.getElementById('pushTargetUrl');
+     if (input) {
+       input.value = url;
+       localStorage.setItem('danmu_push_url', url);
+       
+       // 视觉反馈
+       input.style.borderColor = 'var(--primary-500)';
+       input.style.backgroundColor = 'var(--bg-hover)';
+       setTimeout(() => {
+         input.style.borderColor = '';
+         input.style.backgroundColor = '';
+       }, 300);
+       
+       showToast('已选择设备地址', 'success');
+     }
+   }
+
    const originalSwitchPage = switchPage;
    switchPage = function(pageName) {
      originalSwitchPage(pageName);
@@ -11991,6 +12086,68 @@ docker-compose pull danmu-api && docker-compose up -d danmu-api`;
       return jsonResponse({
         success: false,
         error: error.message || '连接失败'
+      }, 500);
+    }
+  }
+
+  // GET /api/network/scan - 扫描局域网设备
+  if (path === "/api/network/scan" && method === "GET") {
+    try {
+      // 获取服务器所在网段（简化版：仅扫描 192.168.x.x）
+      const commonPorts = [
+        { port: 9978, name: 'OK影视', path: '/action?do=refresh&type=danmaku&path=' },
+        { port: 8080, name: 'Kodi/PotPlayer', path: '/jsonrpc?Player.Open=' },
+        { port: 8096, name: 'Jellyfin', path: '/api/session' },
+        { port: 32400, name: 'Plex', path: '/library/sections' }
+      ];
+
+      const devices = [];
+      const subnet = '192.168.1'; // 根据实际情况调整（也可以从 clientIp 推算）
+      
+      // 并发扫描 IP 范围（示例：192.168.1.1-254）
+      const scanPromises = [];
+      for (let i = 1; i <= 254; i++) {
+        const ip = `${subnet}.${i}`;
+        
+        for (const { port, name, path } of commonPorts) {
+          scanPromises.push(
+            fetch(`http://${ip}:${port}${path}`, {
+              method: 'HEAD',
+              signal: AbortSignal.timeout(500) // 500ms 超时
+            })
+            .then(() => {
+              devices.push({
+                ip,
+                port,
+                name,
+                url: `http://${ip}:${port}${path}`
+              });
+            })
+            .catch(() => {}) // 忽略失败的请求
+          );
+        }
+      }
+
+      // 等待所有扫描完成（最多等待 3 秒）
+      await Promise.race([
+        Promise.allSettled(scanPromises),
+        new Promise(resolve => setTimeout(resolve, 3000))
+      ]);
+
+      log("info", `[network/scan] 发现 ${devices.length} 个设备`);
+
+      return jsonResponse({
+        success: true,
+        devices: devices.slice(0, 10), // 最多返回 10 个设备
+        scannedRange: `${subnet}.1-254`,
+        timeout: 500
+      });
+
+    } catch (error) {
+      log("error", `[network/scan] 扫描失败: ${error.message}`);
+      return jsonResponse({
+        success: false,
+        error: error.message
       }, 500);
     }
   }
