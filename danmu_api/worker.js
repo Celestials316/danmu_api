@@ -8957,55 +8957,53 @@ try {
 
    // ========== 弹幕推送功能 ==========
    
-   // 页面加载时恢复保存的 URL
-   function initPushPage() {
-     const savedUrl = localStorage.getItem('danmu_push_url');
-     if (savedUrl) {
-       document.getElementById('pushTargetUrl').value = savedUrl;
-     }
-   }
+// 页面加载时恢复保存的 URL
+function initPushPage() {
+  const savedUrl = localStorage.getItem('danmu_push_url');
+  if (savedUrl) {
+    document.getElementById('pushTargetUrl').value = savedUrl;
+  }
+}
 
-   // 应用推送预设
-   function applyPushPreset(type) {
-     const input = document.getElementById('pushTargetUrl');
-     let url = '';
-     let name = '';
+// 应用推送预设
+function applyPushPreset(type) {
+  const input = document.getElementById('pushTargetUrl');
+  let url = '';
+  let name = '';
 
-     switch (type) {
-       case 'okvideo':
-         url = 'http://127.0.0.1:9978/proxy?do=autodanmu=';
-         name = 'OK影视';
-         break;
-       case 'kodi':
-         // 这是一个示例地址，用户通常需要修改IP
-         url = 'http://192.168.1.5:8080/jsonrpc?Player.Open='; 
-         name = 'Kodi';
-         break;
-       case 'potplayer':
-         // 这是一个示例 Web API 插件地址
-         url = 'http://127.0.0.1:8080/input?url=';
-         name = 'PotPlayer';
-         break;
-     }
+  switch (type) {
+    case 'okvideo':
+      url = 'http://127.0.0.1:9978/proxy?do=autodanmu=';
+      name = 'OK影视';
+      break;
+    case 'kodi':
+      // 这是一个示例地址，用户通常需要修改IP
+      url = 'http://192.168.1.5:8080/jsonrpc?Player.Open='; 
+      name = 'Kodi';
+      break;
+    case 'potplayer':
+      // 这是一个示例 Web API 插件地址
+      url = 'http://127.0.0.1:8080/input?url=';
+      name = 'PotPlayer';
+      break;
+  }
 
-     if (url) {
-       input.value = url;
-       // 自动保存
-       localStorage.setItem('danmu_push_url', url);
-       
-       // 视觉反馈
-       input.style.borderColor = 'var(--primary-500)';
-       input.style.backgroundColor = 'var(--bg-hover)';
-       setTimeout(() => {
-         input.style.borderColor = '';
-         input.style.backgroundColor = '';
-       }, 300);
+  if (url) {
+    input.value = url;
+    // 自动保存
+    localStorage.setItem('danmu_push_url', url);
+    
+    // 视觉反馈
+    input.style.borderColor = 'var(--primary-500)';
+    input.style.backgroundColor = 'var(--bg-hover)';
+    setTimeout(() => {
+      input.style.borderColor = '';
+      input.style.backgroundColor = '';
+    }, 300);
 
-       showToast(`已应用 ${name} 预设地址`, 'success');
-     }
-   }
-
-   // 添加到页面切换逻辑中
+    showToast('已应用 ' + name + ' 预设地址', 'success');
+  }
+}
    const originalSwitchPage = switchPage;
    switchPage = function(pageName) {
      originalSwitchPage(pageName);
