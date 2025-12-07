@@ -4593,6 +4593,16 @@ try {
      text-overflow: ellipsis;
      user-select: none;
      position: relative;
+     min-height: 44px;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+   }
+
+   .episode-btn .episode-number {
+     display: block;
+     width: 100%;
+     transition: all 0.25s ease;
    }
 
    .episode-btn:hover {
@@ -4608,6 +4618,24 @@ try {
      border-color: var(--primary-500);
      color: white;
      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+   }
+
+   .episode-btn.title-mode {
+     background: var(--bg-hover);
+     border-color: var(--primary-500);
+     font-size: 11px;
+     white-space: normal;
+     line-height: 1.3;
+     padding: 8px 6px;
+     min-height: 54px;
+   }
+
+   .episode-btn.title-mode .episode-number {
+     display: -webkit-box;
+     -webkit-line-clamp: 2;
+     -webkit-box-orient: vertical;
+     overflow: hidden;
+     word-break: break-all;
    }
 
    /* 移动端适配优化 */
@@ -4668,9 +4696,21 @@ try {
      }
 
      .episode-btn {
-        padding: 10px 2px;
-        font-size: 12px;
-        border-radius: 6px;
+        padding: 10px 4px;
+        font-size: 13px;
+        border-radius: 8px;
+        min-height: 48px;
+     }
+
+     .episode-btn.title-mode {
+        font-size: 10px;
+        padding: 6px 4px;
+        min-height: 56px;
+        line-height: 1.25;
+     }
+
+     .episode-grid {
+        grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));
      }
    }
 
@@ -8394,12 +8434,43 @@ try {
        const html = \`
          <div class="episode-grid">
            \${episodes.map(ep => \`
-             <div class="episode-btn" title="\${ep.episodeTitle}" onclick="loadEpisodeDanmu('\${ep.episodeId}', this)">
-               \${ep.episodeNumber}
+             <div class="episode-btn" data-episode-id="\${ep.episodeId}" data-episode-title="\${escapeHtml(ep.episodeTitle || ep.episodeNumber)}" data-episode-number="\${ep.episodeNumber}">
+               <span class="episode-number">\${ep.episodeNumber}</span>
              </div>
            \`).join('')}
          </div>
        \`;
+       container.innerHTML = html;
+       
+       // 添加点击事件
+       container.querySelectorAll('.episode-btn').forEach(btn => {
+         let showTitle = false;
+         const originalNumber = btn.dataset.episodeNumber;
+         const episodeTitle = btn.dataset.episodeTitle;
+         const episodeId = btn.dataset.episodeId;
+         
+         btn.addEventListener('click', function(e) {
+           // 切换显示模式
+           showTitle = !showTitle;
+           const numberSpan = this.querySelector('.episode-number');
+           
+           if (showTitle) {
+             numberSpan.textContent = episodeTitle;
+             this.classList.add('title-mode');
+             this.title = '点击切换为集数 | 双击加载弹幕';
+           } else {
+             numberSpan.textContent = originalNumber;
+             this.classList.remove('title-mode');
+             this.title = '点击切换为标题 | 双击加载弹幕';
+           }
+         });
+         
+         // 双击加载弹幕
+         btn.addEventListener('dblclick', function(e) {
+           e.stopPropagation();
+           loadEpisodeDanmu(episodeId, this);
+         });
+       });
        container.innerHTML = html;
        
      } catch (error) {
@@ -9111,12 +9182,42 @@ function applyPushPreset(type) {
          const episodes = result.bangumi.episodes;
          
          const html = episodes.map(ep => \`
-           <button class="episode-btn" onclick="executePushDanmu('\${ep.episodeId}', '\${ep.episodeTitle || ep.episodeNumber}', this)">
-             \${ep.episodeNumber}
+           <button class="episode-btn" data-episode-id="\${ep.episodeId}" data-episode-title="\${escapeHtml(ep.episodeTitle || ep.episodeNumber)}" data-episode-number="\${ep.episodeNumber}">
+             <span class="episode-number">\${ep.episodeNumber}</span>
            </button>
          \`).join('');
          
          container.innerHTML = html || '<div style="text-align:center; padding:20px; color:var(--text-tertiary)">无剧集数据</div>';
+         
+         // 添加点击事件
+         container.querySelectorAll('.episode-btn').forEach(btn => {
+           let showTitle = false;
+           const originalNumber = btn.dataset.episodeNumber;
+           const episodeTitle = btn.dataset.episodeTitle;
+           const episodeId = btn.dataset.episodeId;
+           
+           btn.addEventListener('click', function(e) {
+             // 切换显示模式
+             showTitle = !showTitle;
+             const numberSpan = this.querySelector('.episode-number');
+             
+             if (showTitle) {
+               numberSpan.textContent = episodeTitle;
+               this.classList.add('title-mode');
+               this.title = '点击切换为集数 | 双击推送';
+             } else {
+               numberSpan.textContent = originalNumber;
+               this.classList.remove('title-mode');
+               this.title = '点击切换为标题 | 双击推送';
+             }
+           });
+           
+           // 双击推送弹幕
+           btn.addEventListener('dblclick', function(e) {
+             e.stopPropagation();
+             executePushDanmu(episodeId, episodeTitle, this);
+           });
+         });
        } else {
          throw new Error('无法获取剧集');
        }
