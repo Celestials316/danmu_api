@@ -8355,7 +8355,7 @@ try {
      }
    }
 
-// 渲染动漫列表 (修复版：解决了双引号、单引号及转义字符报错问题)
+// 渲染动漫列表 (已修复：保留了转义符格式，并解决了单引号报错)
 function renderAnimeList(animes) {
   const container = document.getElementById('animeListContainer');
   
@@ -8374,16 +8374,6 @@ function renderAnimeList(animes) {
     'hanjutv': '韩剧TV', 'renren': '人人影视'
   };
 
-  // 简单的HTML转义函数 (防止外部未定义导致报错)
-  const escapeStr = (str) => {
-    if (!str) return '';
-    return str.replace(/&/g, '&amp;')
-              .replace(/</g, '&lt;')
-              .replace(/>/g, '&gt;')
-              .replace(/"/g, '&quot;')
-              .replace(/'/g, '&#39;');
-  };
-
   const html = animes.map(anime => {
     // 1. 优化类型显示
     const rawType = anime.type ? anime.type.toLowerCase() : '';
@@ -8394,20 +8384,16 @@ function renderAnimeList(animes) {
     const sourceKey = (anime.source || 'dandan').toLowerCase();
     const platformLabel = sourceMap[sourceKey] || sourceKey.toUpperCase();
 
-    // 3. 标题清洗逻辑
+    // 3. 标题清洗逻辑 (注意：这里保留了双反斜杠)
     let displayTitle = anime.animeTitle || '';
-    displayTitle = displayTitle.replace(/\s*from\s+.*$/i, ''); // 移除 from 标记
+    displayTitle = displayTitle.replace(/\\s*from\\s+.*$/i, ''); 
     displayTitle = displayTitle.trim();
 
     // === 关键修复 ===
-    // 针对 onclick 事件的参数处理：
-    // 1. 先转义反斜杠 (避免破坏后续转义)
-    // 2. 转义单引号 (避免中断 JS 字符串)
-    // 3. 转义双引号 (避免中断 HTML 属性)
-    const safeTitleParam = (anime.animeTitle || '')
-      .replace(/\\/g, '\\\\')
-      .replace(/'/g, "\\'")
-      .replace(/"/g, '&quot;'); 
+    // 针对 onclick 事件的标题转义
+    // .replace(/'/g, "\\\\'") -> 在最终JS中变成 replace(/'/g, "\'")
+    // 这样如果标题里有单引号 (如 Kino's)，会被转义为 Kino\'s，不会弄断JS字符串
+    const safeTitleParam = (anime.animeTitle || '').replace(/'/g, "\\\\'").replace(/"/g, '&quot;');
 
     // 4. 年份处理
     let year = '';
@@ -8417,45 +8403,48 @@ function renderAnimeList(animes) {
       year = anime.startDate.substring(0, 4);
     }
     
+    if (year && !isNaN(year)) {
+      if (displayTitle.indexOf(year) === -1) {
+         displayTitle = \`\${displayTitle} (\${year})\`;
+      }
+    }
+    
     // 5. 集数处理
     let episodeText = '';
     if (anime.episodeCount && anime.episodeCount > 0) {
-      episodeText = `${anime.episodeCount}集`;
+      episodeText = \`\${anime.episodeCount}集\`;
     } else if (anime.episodes && anime.episodes.length > 0) {
-      episodeText = `${anime.episodes.length}集`;
+      episodeText = \`\${anime.episodes.length}集\`;
     }
 
-    // 6. 评分处理
+    // 6. 评分处理 (注意：这里的 $ 和 \` 都进行了转义)
     const ratingHtml = anime.rating 
-      ? `<span class="anime-tag highlight" style="background:rgba(245, 158, 11, 0.1);color:#f59e0b;border-color:rgba(245, 158, 11, 0.2);">★ ${anime.rating}</span>` 
+      ? \`<span class="anime-tag highlight" style="background:rgba(245, 158, 11, 0.1);color:#f59e0b;border-color:rgba(245, 158, 11, 0.2);">★ \${anime.rating}</span>\` 
       : '';
 
-    // 注意：onclick 中使用的是 safeTitleParam，显示文本使用 escapeStr
-    return `
-    <div class="anime-card" onclick="loadEpisodes('${anime.animeId}', '${safeTitleParam}', this)">
+    // 注意：onclick 中使用的是 safeTitleParam，外层使用反斜杠转义的反引号
+    return \`
+    <div class="anime-card" onclick="loadEpisodes('\${anime.animeId}', '\${safeTitleParam}', this)">
       <div class="anime-cover-wrapper">
-        <img src="${anime.imageUrl || ''}" class="anime-cover" loading="lazy" referrerpolicy="no-referrer" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTUwIiB2aWV3Qm94PSIwIDAgMTAwIDE1MCI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxNTAiIGZpbGw9IiMzMzMiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzY2NiIgZm9udC1zaXplPSIxNCI+Tm8gSW1hZ2U8L3RleHQ+PC9zdmc+'">
-        <div class="anime-badge">${platformLabel}</div>
+        <img src="\${anime.imageUrl || ''}" class="anime-cover" loading="lazy" referrerpolicy="no-referrer" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTUwIiB2aWV3Qm94PSIwIDAgMTAwIDE1MCI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxNTAiIGZpbGw9IiMzMzMiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzY2NiIgZm9udC1zaXplPSIxNCI+Tm8gSW1hZ2U8L3RleHQ+PC9zdmc+'">
+        <div class="anime-badge">\${platformLabel}</div>
         <div class="anime-overlay">
           <span class="anime-select-btn">选择此番</span>
         </div>
       </div>
       <div class="anime-info">
-        <div class="anime-title" title="${escapeStr(anime.animeTitle)}">${escapeStr(displayTitle)}</div>
+        <div class="anime-title" title="\${escapeHtml(anime.animeTitle)}">\${escapeHtml(displayTitle)}</div>
         <div class="anime-tags">
-          ${year ? `<span class="anime-tag">${year}</span>` : ''}
-          <span class="anime-tag" style="background:rgba(99, 102, 241, 0.1);color:#818cf8;border-color:rgba(99, 102, 241, 0.2);">${typeLabel}</span>
-          ${episodeText ? `<span class="anime-tag">${episodeText}</span>` : ''}
-          ${ratingHtml}
+          <span class="anime-tag" style="background:rgba(99, 102, 241, 0.1);color:#818cf8;border-color:rgba(99, 102, 241, 0.2);">\${typeLabel}</span>
+          <span class="anime-tag">\${episodeText}</span>
+          \${ratingHtml}
         </div>
       </div>
     </div>
-  `}).join('');
+  \`}).join('');
   
   container.innerHTML = html;
 }
-
-
 
    // 加载剧集列表
    // ========== 剧集列表视图管理 ==========
