@@ -6324,9 +6324,16 @@ try {
                  </div>
                  <span class="config-label" style="font-size: 15px; font-weight: 700;">推送目标 URL</span>
                </div>
-               <button class="icon-btn" onclick="document.getElementById('pushTargetUrl').value=''; localStorage.removeItem('danmu_push_url'); showToast('已清空地址','info');" title="清空地址" style="width: 32px; height: 32px;">
-                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"><path d="M18 6L6 18M6 6l12 12" stroke-width="2" stroke-linecap="round"/></svg>
-               </button>
+               <div style="display: flex; gap: 8px;">
+                 <button class="icon-btn" onclick="startNetworkScan()" title="扫描局域网设备" style="width: 32px; height: 32px;" id="scanNetworkBtn">
+                   <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor">
+                     <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-width="2" stroke-linecap="round"/>
+                   </svg>
+                 </button>
+                 <button class="icon-btn" onclick="document.getElementById('pushTargetUrl').value=''; localStorage.removeItem('danmu_push_url'); showToast('已清空地址','info');" title="清空地址" style="width: 32px; height: 32px;">
+                   <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"><path d="M18 6L6 18M6 6l12 12" stroke-width="2" stroke-linecap="round"/></svg>
+                 </button>
+               </div>
              </div>
              <div class="form-group" style="margin-bottom: 8px; position: relative; z-index: 1;">
                <input type="text" class="form-input" id="pushTargetUrl" placeholder="http://192.168.1.x:xxxx/danmu/push?url=" style="border-radius: 10px; border: 2px solid var(--border-color); transition: all 0.3s;" onfocus="this.style.borderColor='var(--primary-500)'; this.style.boxShadow='0 0 0 3px rgba(99, 102, 241, 0.1)';" onblur="this.style.borderColor=''; this.style.boxShadow='';">
@@ -7150,8 +7157,111 @@ try {
      </div>
    </div>
  </div>
-
  <script>
+   // ==================== 局域网 IP 扫描功能 ====================
+   const NetworkScanner = {
+     isScanning: false,
+     foundDevices: [],
+     
+     // 获取本机局域网IP前缀（如 192.168.1）
+     getLocalIPPrefix() {
+       return new Promise((resolve) => {
+         const rtc = new RTCPeerConnection({ iceServers: [] });
+         rtc.createDataChannel('');
+         rtc.createOffer().then(offer => rtc.setLocalDescription(offer));
+         
+         rtc.onicecandidate = (event) => {
+           if (event.candidate) {
+             const ip = event.candidate.candidate.match(/(\d+\.\d+\.\d+\.\d+)/);
+             if (ip && ip[1]) {
+               const parts = ip[1].split('.');
+               resolve(\`\${parts[0]}.\${parts[1]}.\${parts[2]}\`);
+               rtc.close();
+             }
+           }
+         };
+         
+         setTimeout(() => {
+           resolve('192.168.1'); // 默认值
+           rtc.close();
+         }, 1000);
+       });
+     },
+     
+     // 扫描指定IP的常用端口
+     async scanIP(ip, ports = [9978, 8080, 8081, 3000, 5000]) {
+       const results = [];
+       
+       for (const port of ports) {
+         try {
+           const controller = new AbortController();
+           const timeoutId = setTimeout(() => controller.abort(), 1000);
+           
+           const response = await fetch(\`http://\${ip}:\${port}\`, {
+             method: 'HEAD',
+             signal: controller.signal,
+             mode: 'no-cors'
+           });
+           
+           clearTimeout(timeoutId);
+           
+           results.push({
+             ip: ip,
+             port: port,
+             url: \`http://\${ip}:\${port}\`,
+             status: 'online'
+           });
+         } catch (error) {
+           // 忽略失败的请求
+         }
+       }
+       
+       return results;
+     },
+     
+     // 扫描整个局域网段
+     async scanNetwork(progressCallback) {
+       this.isScanning = true;
+       this.foundDevices = [];
+       
+       try {
+         const prefix = await this.getLocalIPPrefix();
+         const totalHosts = 254;
+         let scanned = 0;
+         
+         // 分批扫描（每批10个IP）
+         for (let batch = 0; batch < 26; batch++) {
+           const promises = [];
+           
+           for (let i = 0; i < 10 && (batch * 10 + i + 1) <= totalHosts; i++) {
+             const hostNum = batch * 10 + i + 1;
+             const ip = \`\${prefix}.\${hostNum}\`;
+             promises.push(this.scanIP(ip));
+           }
+           
+           const results = await Promise.all(promises);
+           
+           results.forEach(deviceList => {
+             if (deviceList.length > 0) {
+               this.foundDevices.push(...deviceList);
+             }
+           });
+           
+           scanned += promises.length;
+           if (progressCallback) {
+             progressCallback(scanned, totalHosts);
+           }
+         }
+         
+       } catch (error) {
+         console.error('网络扫描失败:', error);
+       } finally {
+         this.isScanning = false;
+       }
+       
+       return this.foundDevices;
+     }
+   };
    // ==================== 全局状态管理 ====================
    const AppState = {
      currentEditingEnv: null,
@@ -9203,7 +9313,166 @@ function initPushPage() {
     document.getElementById('pushTargetUrl').value = savedUrl;
   }
 }
-
+   
+   // 启动网络扫描
+   async function startNetworkScan() {
+     const btn = document.getElementById('scanNetworkBtn');
+     const originalHTML = btn.innerHTML;
+     
+     // 显示扫描弹窗
+     showNetworkScanModal();
+     
+     try {
+       btn.innerHTML = '<span class="loading-spinner" style="width:12px;height:12px;border-width:2px;"></span>';
+       btn.disabled = true;
+       
+       updateScanProgress(0, 254, '正在初始化...');
+       
+       const devices = await NetworkScanner.scanNetwork((scanned, total) => {
+         updateScanProgress(scanned, total, \`正在扫描 \${scanned}/\${total}...\`);
+       });
+       
+       updateScanProgress(254, 254, '扫描完成');
+       displayFoundDevices(devices);
+       
+       if (devices.length === 0) {
+         showToast('未发现可用设备，请确保设备在同一局域网', 'warning', 3000);
+       } else {
+         showToast(\`发现 \${devices.length} 个可用设备\`, 'success');
+       }
+       
+     } catch (error) {
+       console.error('扫描失败:', error);
+       showToast('网络扫描失败: ' + error.message, 'error');
+     } finally {
+       btn.innerHTML = originalHTML;
+       btn.disabled = false;
+     }
+   }
+   
+   // 显示网络扫描弹窗
+   function showNetworkScanModal() {
+     const modalHTML = \`
+       <div class="modal-overlay" id="networkScanModal" style="display: flex; opacity: 1; visibility: visible;">
+         <div class="modal" style="max-width: 600px;">
+           <div class="modal-header">
+             <h3 class="modal-title">
+               <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor">
+                 <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-width="2"/>
+               </svg>
+               扫描局域网设备
+             </h3>
+             <button class="modal-close" onclick="closeNetworkScanModal()">
+               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor">
+                 <path d="M6 18L18 6M6 6l12 12" stroke-width="2" stroke-linecap="round"/>
+               </svg>
+             </button>
+           </div>
+           <div class="modal-body">
+             <div id="scanProgressContainer" style="margin-bottom: 20px;">
+               <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; color: var(--text-secondary);">
+                 <span id="scanProgressText">准备扫描...</span>
+                 <span id="scanProgressPercent">0%</span>
+               </div>
+               <div class="progress-bar">
+                 <div class="progress-fill" id="scanProgressBar" style="width: 0%"></div>
+               </div>
+             </div>
+             
+             <div class="alert alert-info" style="margin-bottom: 20px;">
+               <svg class="alert-icon" viewBox="0 0 24 24" width="20" height="20">
+                 <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
+                 <path d="M12 16v-4m0-4h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+               </svg>
+               <span>💡 正在扫描常用端口 (9978, 8080, 8081, 3000, 5000)</span>
+             </div>
+             
+             <div id="deviceListContainer" style="max-height: 300px; overflow-y: auto;">
+               <div style="text-align: center; padding: 40px; color: var(--text-tertiary);">
+                 <span class="loading-spinner" style="width: 32px; height: 32px; border-width: 3px;"></span>
+                 <div style="margin-top: 16px;">扫描中，请稍候...</div>
+               </div>
+             </div>
+           </div>
+         </div>
+       </div>
+     \`;
+     
+     document.body.insertAdjacentHTML('beforeend', modalHTML);
+   }
+   
+   // 关闭网络扫描弹窗
+   function closeNetworkScanModal() {
+     const modal = document.getElementById('networkScanModal');
+     if (modal) {
+       modal.remove();
+     }
+   }
+   
+   // 更新扫描进度
+   function updateScanProgress(current, total, text) {
+     const progressBar = document.getElementById('scanProgressBar');
+     const progressText = document.getElementById('scanProgressText');
+     const progressPercent = document.getElementById('scanProgressPercent');
+     
+     if (progressBar && progressText && progressPercent) {
+       const percent = Math.round((current / total) * 100);
+       progressBar.style.width = percent + '%';
+       progressText.textContent = text;
+       progressPercent.textContent = percent + '%';
+     }
+   }
+   
+   // 显示发现的设备
+   function displayFoundDevices(devices) {
+     const container = document.getElementById('deviceListContainer');
+     
+     if (devices.length === 0) {
+       container.innerHTML = \`
+         <div style="text-align: center; padding: 40px; color: var(--text-tertiary);">
+           <div style="font-size: 48px; margin-bottom: 12px; opacity: 0.5;">🔍</div>
+           <div>未发现可用设备</div>
+           <div style="font-size: 12px; margin-top: 8px;">请确保设备在同一局域网内</div>
+         </div>
+       \`;
+       return;
+     }
+     
+     const html = devices.map((device, index) => \`
+       <div class="server-item" style="cursor: pointer; margin-bottom: 12px;" onclick="selectDevice('\${device.url}')">
+         <div class="server-badge" style="background: linear-gradient(135deg, #10b981, #059669);">\${index + 1}</div>
+         <div class="server-info">
+           <div class="server-name">设备 \${device.ip}</div>
+           <div class="server-url">端口: \${device.port}</div>
+         </div>
+         <div class="server-actions">
+           <button class="btn btn-secondary" onclick="event.stopPropagation(); selectDevice('\${device.url}')" style="padding: 6px 12px; font-size: 12px;">
+             选择
+           </button>
+         </div>
+       </div>
+     \`).join('');
+     
+     container.innerHTML = html;
+   }
+   
+   // 选择设备
+   function selectDevice(url) {
+     document.getElementById('pushTargetUrl').value = url + '/action?do=refresh&type=danmaku&path=';
+     localStorage.setItem('danmu_push_url', url + '/action?do=refresh&type=danmaku&path=');
+     
+     // 视觉反馈
+     const input = document.getElementById('pushTargetUrl');
+     input.style.borderColor = 'var(--primary-500)';
+     input.style.backgroundColor = 'var(--bg-hover)';
+     setTimeout(() => {
+       input.style.borderColor = '';
+       input.style.backgroundColor = '';
+     }, 300);
+     
+     showToast('已设置推送地址: ' + url, 'success');
+     closeNetworkScanModal();
+   }
 // 应用推送预设
 function applyPushPreset(type) {
   const input = document.getElementById('pushTargetUrl');
