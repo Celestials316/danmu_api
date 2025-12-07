@@ -9235,7 +9235,7 @@ function applyPushPreset(type) {
        let displayTitle = anime.animeTitle || '';
        displayTitle = displayTitle.replace(/【.*?】/g, '');
        displayTitle = displayTitle.replace(/\\[.*?\\]/g, '');
-       displayTitle = displayTitle.replace(/\\s*from\\s+.*$/i, '');
+       displayTitle = displayTitle.replace(/\\s*from\\s+.*\$/i, '');
        displayTitle = displayTitle.trim();
        
        // 🔥 提取年份
@@ -9276,7 +9276,6 @@ function applyPushPreset(type) {
      container.innerHTML = html;
    }
 
-
    async function loadPushEpisodes(animeId, animeTitle) {
      currentContext = 'push';
      const listView = document.getElementById('pushAnimeListView');
@@ -9288,20 +9287,20 @@ function applyPushPreset(type) {
      let cleanTitle = animeTitle;
      
      // 提取年份
-     const yearMatch = cleanTitle.match(/[(（](\d{4})[)）]/);
+     const yearMatch = cleanTitle.match(/[(（](\\d{4})[)）]/);
      const year = yearMatch ? yearMatch[1] : null;
      
      // 清理标题：移除【】、[]、年份括号、季集标记等
      cleanTitle = cleanTitle
-       .replace(/【.*?】|\[.*?\]/g, '')
-       .replace(/[(（]\d{4}[)）]/g, '')
-       .replace(/S\d+E\d+/i, '')
-       .replace(/第\s*\d+\s*[集话季]/g, '')
+       .replace(/【.*?】|\\[.*?\\]/g, '')
+       .replace(/[(（]\\d{4}[)）]/g, '')
+       .replace(/S\\d+E\\d+/i, '')
+       .replace(/第\\s*\\d+\\s*[集话季]/g, '')
        .trim();
      
      // 如果提取到年份且标题中不包含年份，添加到末尾
      if (year && !cleanTitle.includes(year)) {
-       cleanTitle = `${cleanTitle} (${year})`;
+       cleanTitle = \`\${cleanTitle} (\${year})\`;
      }
      
      titleEl.textContent = cleanTitle;
