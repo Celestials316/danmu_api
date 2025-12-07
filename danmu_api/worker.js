@@ -9211,25 +9211,63 @@ function applyPushPreset(type) {
    function renderPushAnimeList(animes) {
      const container = document.getElementById('pushAnimeGrid');
      
-     // 简单的类型映射
-     const typeMap = { 'tvseries': 'TV剧', 'tv': 'TV动画', 'movie': '剧场版', 'ova': 'OVA' };
-     const sourceMap = { 'dandan': '弹弹', 'bilibili': 'B站', 'iqiyi': '爱奇艺', 'qq': '腾讯' };
+     // 🔥 使用与测试页面完全一致的映射表
+     const typeMap = {
+       'tvseries': 'TV剧', 'tv': 'TV动画', 'movie': '剧场版', 'ova': 'OVA',
+       'jpmovie': '电影', 'web': 'Web', 'music': 'MV'
+     };
+     
+     const sourceMap = {
+       'dandan': '弹弹Play', '360': '360影视', 'vod': 'VOD',
+       'bilibili': 'B站', 'iqiyi': '爱奇艺', 'youku': '优酷',
+       'tencent': '腾讯', 'qq': '腾讯', 'mgtv': '芒果',
+       'bahamut': '巴哈', 'tmdb': 'TMDB', 'douban': '豆瓣'
+     };
 
      const html = animes.map(anime => {
-       const typeLabel = typeMap[anime.type?.toLowerCase()] || '动漫';
-       const sourceLabel = sourceMap[anime.source?.toLowerCase()] || '其他';
+       const rawType = anime.type ? anime.type.toLowerCase() : '';
+       const typeLabel = typeMap[rawType] || anime.typeDescription || '动漫';
+       
+       const sourceKey = (anime.source || 'dandan').toLowerCase();
+       const platformLabel = sourceMap[sourceKey] || sourceKey.toUpperCase();
+       
+       // 🔥 标题清洗逻辑（与测试页面一致）
+       let displayTitle = anime.animeTitle || '';
+       displayTitle = displayTitle.replace(/【.*?】/g, '');
+       displayTitle = displayTitle.replace(/\\[.*?\\]/g, '');
+       displayTitle = displayTitle.replace(/\\s*from\\s+.*$/i, '');
+       displayTitle = displayTitle.trim();
+       
+       // 🔥 提取年份
+       let year = '';
+       if (anime.year) {
+         year = anime.year;
+       } else if (anime.startDate && anime.startDate.length >= 4) {
+         year = anime.startDate.substring(0, 4);
+       }
+       
+       // 🔥 如果有年份且标题中不包含年份，添加到末尾
+       if (year && !isNaN(year)) {
+         if (displayTitle.indexOf(year) === -1) {
+           displayTitle = \`\${displayTitle} (\${year})\`;
+         }
+       }
+       
+       const episodeCount = anime.episodeCount ? \`\${anime.episodeCount}集\` : (anime.episodes ? \`\${anime.episodes.length}集\` : '未知集数');
+       const rating = anime.rating ? \`<span class="anime-tag highlight" style="background:rgba(245, 158, 11, 0.1);color:#f59e0b;border-color:rgba(245, 158, 11, 0.2);">★ \${anime.rating}</span>\` : '';
        
        return \`
        <div class="anime-card" onclick="loadPushEpisodes('\${anime.animeId}', '\${escapeHtml(anime.animeTitle)}')">
          <div class="anime-cover-wrapper">
-           <img src="\${anime.imageUrl || ''}" class="anime-cover" loading="lazy" onerror="this.src='https://placehold.co/150x225/1c1c27/FFF?text=No+Img'">
-           <div class="anime-badge">\${sourceLabel}</div>
+           <img src="\${anime.imageUrl || ''}" class="anime-cover" loading="lazy" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTUwIiB2aWV3Qm94PSIwIDAgMTAwIDE1MCI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxNTAiIGZpbGw9IiMzMzMiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzY2NiIgZm9udC1zaXplPSIxNCI+Tm8gSW1hZ2U8L3RleHQ+PC9zdmc+'">
+           <div class="anime-badge">\${platformLabel}</div>
          </div>
          <div class="anime-info">
-           <div class="anime-title" title="\${anime.animeTitle}">\${anime.animeTitle}</div>
+           <div class="anime-title" title="\${anime.animeTitle}">\${displayTitle}</div>
            <div class="anime-tags">
-             <span class="anime-tag">\${typeLabel}</span>
-             <span class="anime-tag">\${anime.episodeCount || '?'}集</span>
+             <span class="anime-tag" style="background:rgba(99, 102, 241, 0.1);color:#818cf8;border-color:rgba(99, 102, 241, 0.2);">\${typeLabel}</span>
+             <span class="anime-tag">\${episodeCount}</span>
+             \${rating}
            </div>
          </div>
        </div>
@@ -9238,6 +9276,7 @@ function applyPushPreset(type) {
      container.innerHTML = html;
    }
 
+
    async function loadPushEpisodes(animeId, animeTitle) {
      currentContext = 'push';
      const listView = document.getElementById('pushAnimeListView');
@@ -9245,7 +9284,28 @@ function applyPushPreset(type) {
      const container = document.getElementById('pushEpisodeGrid');
      const titleEl = document.getElementById('pushSelectedAnimeTitle');
      
-     titleEl.textContent = animeTitle;
+     // 🔥 应用与测试页面相同的标题清洗逻辑
+     let cleanTitle = animeTitle;
+     
+     // 提取年份
+     const yearMatch = cleanTitle.match(/[(（](\d{4})[)）]/);
+     const year = yearMatch ? yearMatch[1] : null;
+     
+     // 清理标题：移除【】、[]、年份括号、季集标记等
+     cleanTitle = cleanTitle
+       .replace(/【.*?】|\[.*?\]/g, '')
+       .replace(/[(（]\d{4}[)）]/g, '')
+       .replace(/S\d+E\d+/i, '')
+       .replace(/第\s*\d+\s*[集话季]/g, '')
+       .trim();
+     
+     // 如果提取到年份且标题中不包含年份，添加到末尾
+     if (year && !cleanTitle.includes(year)) {
+       cleanTitle = `${cleanTitle} (${year})`;
+     }
+     
+     titleEl.textContent = cleanTitle;
+     titleEl.title = animeTitle; // 保存原始标题到 title 属性
      
      // 切换视图
      listView.classList.remove('active');
@@ -9254,6 +9314,10 @@ function applyPushPreset(type) {
      episodeView.classList.add('active');
      
      container.innerHTML = '<div style="text-align: center; padding: 40px;"><span class="loading-spinner"></span> 加载中...</div>';
+     
+     // 🔥 滚动到顶部（与测试页面一致）
+     const searchContainer = document.querySelector('.manual-search-container');
+     if (searchContainer) searchContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
      try {
        const response = await fetch(\`/api/v2/bangumi/\${animeId}\`);
@@ -9267,7 +9331,12 @@ function applyPushPreset(type) {
          throw new Error('无法获取剧集');
        }
      } catch (error) {
-       container.innerHTML = \`<div style="color: var(--error); text-align: center;">加载失败: \${error.message}</div>\`;
+       container.innerHTML = \`
+         <div style="text-align: center; padding: 60px 20px; color: var(--error);">
+           <div style="font-size: 40px; margin-bottom: 16px;">❌</div>
+           <div>加载失败: \${error.message}</div>
+           <button onclick="loadPushEpisodes('\${animeId}', '\${escapeHtml(animeTitle)}')" class="btn btn-secondary" style="margin-top: 16px;">重试</button>
+         </div>\`;
      }
    }
 
