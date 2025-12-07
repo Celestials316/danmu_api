@@ -6180,10 +6180,27 @@ try {
            <div class="config-item" style="border-left: 4px solid var(--primary-500);">
              <div class="config-header">
                <span class="config-label">推送目标 URL</span>
+               <button class="icon-btn" onclick="document.getElementById('pushTargetUrl').value=''; localStorage.removeItem('danmu_push_url'); showToast('已清空地址','info');" title="清空地址" style="width: 24px; height: 24px;">
+                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"><path d="M18 6L6 18M6 6l12 12" stroke-width="2" stroke-linecap="round"/></svg>
+               </button>
              </div>
              <div class="form-group" style="margin-bottom: 8px;">
                <input type="text" class="form-input" id="pushTargetUrl" placeholder="http://192.168.1.x:xxxx/danmu/push?url=">
-               <div class="form-hint">请输入接收弹幕的播放器或服务地址，推送时会自动在末尾追加弹幕 XML 链接</div>
+               
+               <div style="display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; align-items: center;">
+                 <span style="font-size: 12px; color: var(--text-tertiary); font-weight: 600;">快速预设:</span>
+                 <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 12px; height: auto; border-radius: 6px;" onclick="applyPushPreset('okvideo')">
+                   📺 OK影视
+                 </button>
+                 <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 12px; height: auto; border-radius: 6px;" onclick="applyPushPreset('kodi')">
+                   🍿 Kodi (示例)
+                 </button>
+                 <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 12px; height: auto; border-radius: 6px;" onclick="applyPushPreset('potplayer')">
+                   💿 PotPlayer (示例)
+                 </button>
+               </div>
+
+               <div class="form-hint" style="margin-top: 12px;">请输入接收弹幕的播放器地址。系统会自动在末尾追加 <code style="background:var(--bg-secondary);padding:2px 4px;border-radius:4px;">http://.../comment/id.xml</code> 链接</div>
              </div>
            </div>
            
@@ -8945,6 +8962,46 @@ try {
      const savedUrl = localStorage.getItem('danmu_push_url');
      if (savedUrl) {
        document.getElementById('pushTargetUrl').value = savedUrl;
+     }
+   }
+
+   // 应用推送预设
+   function applyPushPreset(type) {
+     const input = document.getElementById('pushTargetUrl');
+     let url = '';
+     let name = '';
+
+     switch (type) {
+       case 'okvideo':
+         url = 'http://127.0.0.1:9978/proxy?do=autodanmu=';
+         name = 'OK影视';
+         break;
+       case 'kodi':
+         // 这是一个示例地址，用户通常需要修改IP
+         url = 'http://192.168.1.5:8080/jsonrpc?Player.Open='; 
+         name = 'Kodi';
+         break;
+       case 'potplayer':
+         // 这是一个示例 Web API 插件地址
+         url = 'http://127.0.0.1:8080/input?url=';
+         name = 'PotPlayer';
+         break;
+     }
+
+     if (url) {
+       input.value = url;
+       // 自动保存
+       localStorage.setItem('danmu_push_url', url);
+       
+       // 视觉反馈
+       input.style.borderColor = 'var(--primary-500)';
+       input.style.backgroundColor = 'var(--bg-hover)';
+       setTimeout(() => {
+         input.style.borderColor = '';
+         input.style.backgroundColor = '';
+       }, 300);
+
+       showToast(`已应用 ${name} 预设地址`, 'success');
      }
    }
 
