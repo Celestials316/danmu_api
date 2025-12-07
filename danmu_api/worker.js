@@ -4609,6 +4609,76 @@ try {
      color: white;
      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
    }
+   /* ... 原有的 .episode-btn 样式 ... */
+   .episode-btn.active {
+     background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+     border-color: var(--primary-500);
+     color: white;
+     box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+   }
+
+   /* 新增：集数列表详细模式样式 */
+   .episode-list-view {
+     display: flex;
+     flex-direction: column;
+     gap: 8px;
+     max-height: 550px;
+     overflow-y: auto;
+     padding-right: 4px;
+     padding-bottom: 20px;
+   }
+
+   .episode-list-item {
+     display: flex;
+     align-items: center;
+     justify-content: space-between;
+     padding: 12px 16px;
+     background: var(--bg-primary);
+     border: 1px solid var(--border-color);
+     border-radius: 10px;
+     cursor: pointer;
+     transition: all 0.2s;
+   }
+
+   .episode-list-item:hover {
+     background: var(--bg-hover);
+     border-color: var(--primary-500);
+   }
+
+   .episode-list-item .ep-num {
+     font-weight: 700;
+     color: var(--primary-400);
+     font-size: 14px;
+     min-width: 60px;
+   }
+
+   .episode-list-item .ep-title {
+     flex: 1;
+     font-size: 13px;
+     color: var(--text-primary);
+     text-align: right;
+     white-space: nowrap;
+     overflow: hidden;
+     text-overflow: ellipsis;
+     margin-left: 10px;
+   }
+   
+   .view-toggle-btn {
+     padding: 6px 10px;
+     background: var(--bg-tertiary);
+     border: 1px solid var(--border-color);
+     border-radius: 6px;
+     color: var(--text-secondary);
+     cursor: pointer;
+     transition: all 0.2s;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+   }
+   .view-toggle-btn:hover {
+     color: var(--primary-500);
+     border-color: var(--primary-500);
+   }
 
    /* 移动端适配优化 */
    @media (max-width: 768px) {
@@ -6980,6 +7050,10 @@ try {
 
  <script>
    // ==================== 全局状态管理 ====================
+   // 新增：用于存储当前剧集列表数据以支持视图切换
+   let currentEpisodesData = [];
+   let isDetailViewMode = false;
+
    const AppState = {
      currentEditingEnv: null,
      currentEditingVodIndex: null,
@@ -8372,6 +8446,17 @@ try {
      const searchContainer = document.querySelector('.manual-search-container');
      if (searchContainer) searchContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
      
+     // 5. 注入切换按钮（如果不存在）
+     const header = episodeView.querySelector('.episode-view-header');
+     if (header && !header.querySelector('.view-toggle-btn')) {
+        const toggleBtn = document.createElement('button');
+        toggleBtn.className = 'view-toggle-btn icon-btn';
+        toggleBtn.title = '切换列表/网格视图';
+        toggleBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"><path d="M4 6h16M4 12h16M4 18h16" stroke-width="2"/></svg>';
+        toggleBtn.onclick = () => toggleEpisodeViewMode('test');
+        header.appendChild(toggleBtn);
+     }
+
      try {
        const response = await fetch(\`/api/v2/bangumi/\${animeId}\`);
        const result = await response.json();
@@ -8380,8 +8465,10 @@ try {
          throw new Error('无法获取剧集列表');
        }
        
-       const episodes = result.bangumi.episodes;
-       if (episodes.length === 0) {
+       // 保存数据到全局变量
+       currentEpisodesData = result.bangumi.episodes;
+       
+       if (currentEpisodesData.length === 0) {
          container.innerHTML = \`
            <div style="text-align: center; padding: 80px 0; color: var(--text-tertiary);">
              <div style="font-size: 48px; opacity: 0.5; margin-bottom: 16px;">📭</div>
@@ -8390,17 +8477,8 @@ try {
          return;
        }
        
-       // 渲染剧集网格
-       const html = \`
-         <div class="episode-grid">
-           \${episodes.map(ep => \`
-             <div class="episode-btn" title="\${ep.episodeTitle}" onclick="loadEpisodeDanmu('\${ep.episodeId}', this)">
-               \${ep.episodeNumber}
-             </div>
-           \`).join('')}
-         </div>
-       \`;
-       container.innerHTML = html;
+       // 渲染
+       renderEpisodesUI('episodeListContainer', 'test');
        
      } catch (error) {
        container.innerHTML = \`
@@ -8409,6 +8487,46 @@ try {
            <div>加载失败: \${error.message}</div>
            <button onclick="loadEpisodes('\${animeId}', '\${escapeHtml(animeTitle)}')" class="btn btn-secondary" style="margin-top: 16px;">重试</button>
          </div>\`;
+     }
+   }
+
+   // 辅助函数：切换视图模式
+   function toggleEpisodeViewMode(context) {
+     isDetailViewMode = !isDetailViewMode;
+     const containerId = context === 'push' ? 'pushEpisodeGrid' : 'episodeListContainer';
+     renderEpisodesUI(containerId, context);
+   }
+
+   // 辅助函数：渲染 UI
+   function renderEpisodesUI(containerId, context) {
+     const container = document.getElementById(containerId);
+     if (!container || !currentEpisodesData) return;
+
+     if (isDetailViewMode) {
+       // 列表详细模式
+       const html = \`
+         <div class="episode-list-view">
+           \${currentEpisodesData.map(ep => \`
+             <div class="episode-list-item" onclick="\${context === 'push' ? \`executePushDanmu('\${ep.episodeId}', '\${escapeHtml(ep.episodeTitle || ep.episodeNumber)}', this)\` : \`loadEpisodeDanmu('\${ep.episodeId}', this)\`}">
+               <span class="ep-num">第 \${ep.episodeNumber} 集</span>
+               <span class="ep-title">\${escapeHtml(ep.episodeTitle || '')}</span>
+             </div>
+           \`).join('')}
+         </div>
+       \`;
+       container.innerHTML = html;
+     } else {
+       // 网格简洁模式
+       const html = \`
+         <div class="episode-grid">
+           \${currentEpisodesData.map(ep => \`
+             <div class="episode-btn" title="\${escapeHtml(ep.episodeTitle || '')}" onclick="\${context === 'push' ? \`executePushDanmu('\${ep.episodeId}', '\${escapeHtml(ep.episodeTitle || ep.episodeNumber)}', this)\` : \`loadEpisodeDanmu('\${ep.episodeId}', this)\`}">
+               \${ep.episodeNumber}
+             </div>
+           \`).join('')}
+         </div>
+       \`;
+       container.innerHTML = html;
      }
    }
 
@@ -9103,20 +9221,30 @@ function applyPushPreset(type) {
      
      container.innerHTML = '<div style="text-align: center; padding: 40px;"><span class="loading-spinner"></span> 加载中...</div>';
 
+     // 注入切换按钮（如果不存在）
+     const header = episodeView.querySelector('.episode-view-header');
+     if (header && !header.querySelector('.view-toggle-btn')) {
+        const toggleBtn = document.createElement('button');
+        toggleBtn.className = 'view-toggle-btn icon-btn';
+        toggleBtn.title = '切换列表/网格视图';
+        toggleBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"><path d="M4 6h16M4 12h16M4 18h16" stroke-width="2"/></svg>';
+        toggleBtn.onclick = () => toggleEpisodeViewMode('push');
+        header.appendChild(toggleBtn);
+     }
+
      try {
        const response = await fetch(\`/api/v2/bangumi/\${animeId}\`);
        const result = await response.json();
        
        if (result.success && result.bangumi && result.bangumi.episodes) {
-         const episodes = result.bangumi.episodes;
+         // 保存数据到全局变量
+         currentEpisodesData = result.bangumi.episodes;
          
-         const html = episodes.map(ep => \`
-           <button class="episode-btn" onclick="executePushDanmu('\${ep.episodeId}', '\${ep.episodeTitle || ep.episodeNumber}', this)">
-             \${ep.episodeNumber}
-           </button>
-         \`).join('');
-         
-         container.innerHTML = html || '<div style="text-align:center; padding:20px; color:var(--text-tertiary)">无剧集数据</div>';
+         if (currentEpisodesData.length === 0) {
+            container.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-tertiary)">无剧集数据</div>';
+         } else {
+            renderEpisodesUI('pushEpisodeGrid', 'push');
+         }
        } else {
          throw new Error('无法获取剧集');
        }
