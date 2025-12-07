@@ -6431,143 +6431,146 @@ try {
                    </button>
                  </div>
                </div>
-      // ========== 局域网扫描功能 (已转义) ==========
+// ========== 局域网扫描功能 ==========
 
-      let isScanning = false;
+   let isScanning = false;
 
-      async function startLanScan() {
-        if (isScanning) return;
+   async function startLanScan() {
+     if (isScanning) return;
 
-        const subnetInput = document.getElementById('scanSubnet');
-        const portInput = document.getElementById('scanPort');
-        const resultsContainer = document.getElementById('scanResults');
-        const progressBar = document.getElementById('scanProgressBar');
-        const progressFill = document.getElementById('scanProgressFill');
-        const btn = document.getElementById('btnScan');
-        const btnText = document.getElementById('scanBtnText');
+     const subnetInput = document.getElementById('scanSubnet');
+     const portInput = document.getElementById('scanPort');
+     const resultsContainer = document.getElementById('scanResults');
+     const progressBar = document.getElementById('scanProgressBar');
+     const progressFill = document.getElementById('scanProgressFill');
+     const btn = document.getElementById('btnScan');
+     const btnText = document.getElementById('scanBtnText');
 
-        const subnet = subnetInput.value.trim().replace(/\.$/, ''); // 去除末尾的点
-        const port = portInput.value.trim();
+     const subnet = subnetInput.value.trim().replace(/\\.$/, ''); // 去除末尾的点
+     const port = portInput.value.trim();
 
-        if (!subnet || !port) {
-          showToast('请输入网段和端口', 'error');
-          return;
-        }
+     if (!subnet || !port) {
+       showToast('请输入网段和端口', 'error');
+       return;
+     }
 
-        // UI 初始化
-        isScanning = true;
-        btn.disabled = true;
-        btnText.textContent = '扫描中...';
-        resultsContainer.innerHTML = '';
-        progressBar.style.display = 'block';
-        progressFill.style.width = '0%';
+     // UI 初始化
+     isScanning = true;
+     btn.disabled = true;
+     btnText.textContent = '扫描中...';
+     resultsContainer.innerHTML = '';
+     progressBar.style.display = 'block';
+     progressFill.style.width = '0%';
 
-        const totalIps = 254; // 扫描 1~254
-        let scannedCount = 0;
-        let foundDevices = 0;
+     const totalIps = 254; // 扫描 1~254
+     let scannedCount = 0;
+     let foundDevices = 0;
 
-        // 并发控制：每次扫描 10 个 IP，避免浏览器卡顿
-        const batchSize = 10;
-        
-        for (let i = 1; i <= totalIps; i += batchSize) {
-          if (!isScanning) break; 
+     // 并发控制：每次扫描 10 个 IP，避免浏览器卡顿
+     const batchSize = 10;
+     
+     for (let i = 1; i <= totalIps; i += batchSize) {
+       if (!isScanning) break; 
 
-          const batchPromises = [];
-          for (let j = 0; j < batchSize && (i + j) <= totalIps; j++) {
-            // 注意：下面的反引号和$已转义，用于防止 Node.js 提前解析
-            const ip = \`\${subnet}.\${i + j}\`;
-            batchPromises.push(checkDevice(ip, port));
-          }
+       const batchPromises = [];
+       for (let j = 0; j < batchSize && (i + j) <= totalIps; j++) {
+         const ip = \`\${subnet}.\${i + j}\`;
+         batchPromises.push(checkDevice(ip, port));
+       }
 
-          const results = await Promise.all(batchPromises);
+       const results = await Promise.all(batchPromises);
 
-          results.forEach(res => {
-            if (res.alive) {
-              foundDevices++;
-              addScanResult(res.ip, res.port);
-            }
-          });
+       results.forEach(res => {
+         if (res.alive) {
+           foundDevices++;
+           addScanResult(res.ip, res.port);
+         }
+       });
 
-          scannedCount += batchPromises.length;
-          const progress = (scannedCount / totalIps) * 100;
-          progressFill.style.width = \`\${progress}%\`;
-        }
+       scannedCount += batchPromises.length;
+       const progress = (scannedCount / totalIps) * 100;
+       progressFill.style.width = \`\${progress}%\`;
+     }
 
-        // 扫描结束
-        isScanning = false;
-        btn.disabled = false;
-        btnText.textContent = '扫描';
-        setTimeout(() => {
-          progressBar.style.display = 'none';
-        }, 1000);
+     // 扫描结束
+     isScanning = false;
+     btn.disabled = false;
+     btnText.textContent = '扫描';
+     setTimeout(() => {
+       progressBar.style.display = 'none';
+     }, 1000);
 
-        if (foundDevices === 0) {
-          resultsContainer.innerHTML = \`<div style="grid-column:1/-1;text-align:center;font-size:12px;color:var(--text-tertiary);padding:10px;">未发现开放端口 \${port} 的设备<br>请检查设备是否开机或更改端口</div>\`;
-        } else {
-          showToast(\`扫描完成，发现 \${foundDevices} 个设备\`, 'success');
-        }
-      }
+     if (foundDevices === 0) {
+       resultsContainer.innerHTML = \`<div style="grid-column:1/-1;text-align:center;font-size:12px;color:var(--text-tertiary);padding:10px;">未发现开放端口 \${port} 的设备<br>请检查设备是否开机或更改端口</div>\`;
+     } else {
+       showToast(\`扫描完成，发现 \${foundDevices} 个设备\`, 'success');
+     }
+   }
 
-      /**
-       * 检测单个 IP 端口是否开放
-       */
-      async function checkDevice(ip, port) {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 1500); // 1.5秒超时
+   /**
+    * 检测单个 IP 端口是否开放
+    * 利用 fetch 的超时机制。如果端口开放，通常会立即返回（即使是 404 或 CORS 错误）。
+    * 如果端口关闭或 IP 不存在，通常会等待直到超时。
+    */
+   async function checkDevice(ip, port) {
+     const controller = new AbortController();
+     const timeoutId = setTimeout(() => controller.abort(), 1500); // 1.5秒超时
 
-        try {
-          // 使用 no-cors 模式
-          await fetch(\`http://\${ip}:\${port}\`, {
-            method: 'HEAD',
-            mode: 'no-cors',
-            signal: controller.signal
-          });
-          clearTimeout(timeoutId);
-          return { ip, port, alive: true };
-        } catch (error) {
-          clearTimeout(timeoutId);
-          return { ip, port, alive: false };
-        }
-      }
+     try {
+       // 使用 no-cors 模式，这样即使跨域也能探测到（不报错但也不返回内容，只返回状态）
+       await fetch(\`http://\${ip}:\${port}\`, {
+         method: 'HEAD',
+         mode: 'no-cors',
+         signal: controller.signal
+       });
+       // 如果没有抛出错误（或者抛出非网络错误的 CORS 错误），说明服务器有响应
+       clearTimeout(timeoutId);
+       return { ip, port, alive: true };
+     } catch (error) {
+       clearTimeout(timeoutId);
+       // 这里简化逻辑：只要 fetch 成功(mode:no-cors)代表握手成功，报错则代表超时或拒绝
+       return { ip, port, alive: false };
+     }
+   }
 
-      function addScanResult(ip, port) {
-        const container = document.getElementById('scanResults');
-        const div = document.createElement('div');
-        div.className = 'scan-result-item';
-        div.innerHTML = \`
-          <div style="font-size:20px;margin-bottom:4px;">📺</div>
-          <div class="device-ip">\${ip}</div>
-          <div class="device-info">端口: \${port}</div>
-        \`;
-        
-        div.onclick = () => {
-          const input = document.getElementById('pushTargetUrl');
-          let urlPattern = '';
-          
-          if (port == '9978') { // OK影视
-            urlPattern = \`http://\${ip}:\${port}/action?do=refresh&type=danmaku&path=\`;
-          } else if (port == '8080') { // Kodi/PotPlayer常用
-            urlPattern = \`http://\${ip}:\${port}/\`; 
-            showToast('已填入 IP，请根据播放器类型补全 API 路径', 'info');
-          } else {
-            urlPattern = \`http://\${ip}:\${port}/\`;
-          }
-          
-          input.value = urlPattern;
-          localStorage.setItem('danmu_push_url', urlPattern);
-          
-          // 视觉反馈
-          input.style.borderColor = 'var(--primary-500)';
-          input.style.backgroundColor = 'var(--bg-hover)';
-          setTimeout(() => {
-            input.style.borderColor = '';
-            input.style.backgroundColor = '';
-          }, 300);
-        };
-        
-        container.appendChild(div);
-      }
-
+   function addScanResult(ip, port) {
+     const container = document.getElementById('scanResults');
+     const div = document.createElement('div');
+     div.className = 'scan-result-item';
+     div.innerHTML = \`
+       <div style="font-size:20px;margin-bottom:4px;">📺</div>
+       <div class="device-ip">\${ip}</div>
+       <div class="device-info">端口: \${port}</div>
+     \`;
+     
+     div.onclick = () => {
+       const input = document.getElementById('pushTargetUrl');
+       let urlPattern = '';
+       
+       // 根据端口猜测预设格式
+       if (port == '9978') { // OK影视
+         urlPattern = \`http://\${ip}:\${port}/action?do=refresh&type=danmaku&path=\`;
+       } else if (port == '8080') { // Kodi/PotPlayer常用
+         urlPattern = \`http://\${ip}:\${port}/\`; 
+         showToast('已填入 IP，请根据播放器类型补全 API 路径', 'info');
+       } else {
+         urlPattern = \`http://\${ip}:\${port}/\`;
+       }
+       
+       input.value = urlPattern;
+       localStorage.setItem('danmu_push_url', urlPattern);
+       
+       // 视觉反馈
+       input.style.borderColor = 'var(--primary-500)';
+       input.style.backgroundColor = 'var(--bg-hover)';
+       setTimeout(() => {
+         input.style.borderColor = '';
+         input.style.backgroundColor = '';
+       }, 300);
+     };
+     
+     container.appendChild(div);
+   }
                <div class="form-hint" style="margin-top: 12px;">请输入接收弹幕的播放器地址。系统会自动在末尾追加 <code style="background:var(--bg-secondary);padding:2px 4px;border-radius:4px;">http://.../comment/id.xml</code> 链接</div>
              </div>
            </div>
