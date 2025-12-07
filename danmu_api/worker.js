@@ -4857,6 +4857,13 @@ try {
          </svg>
          <span>弹幕测试</span>
        </div>
+
+       <div class="nav-item" onclick="switchPage('push')">
+         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+           <path d="M5 10l7-7m0 0l7 7m-7-7v18" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+         </svg>
+         <span>推送管理</span>
+       </div>
        
        <div class="nav-item" onclick="switchPage('cache')">
          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -6159,8 +6166,92 @@ try {
        </div>
      </section>
 
+     <section id="push-page" class="page-section">
+       <div class="card">
+         <div class="card-header">
+           <h3 class="card-title">
+             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+               <path d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+             </svg>
+             推送配置
+           </h3>
+         </div>
+         <div class="config-grid">
+           <div class="config-item" style="border-left: 4px solid var(--primary-500);">
+             <div class="config-header">
+               <span class="config-label">推送目标 URL</span>
+               <button class="icon-btn" onclick="document.getElementById('pushTargetUrl').value=''; localStorage.removeItem('danmu_push_url'); showToast('已清空地址','info');" title="清空地址" style="width: 24px; height: 24px;">
+                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"><path d="M18 6L6 18M6 6l12 12" stroke-width="2" stroke-linecap="round"/></svg>
+               </button>
+             </div>
+             <div class="form-group" style="margin-bottom: 8px;">
+               <input type="text" class="form-input" id="pushTargetUrl" placeholder="http://192.168.1.x:xxxx/danmu/push?url=">
+               
+               <div style="display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; align-items: center;">
+                 <span style="font-size: 12px; color: var(--text-tertiary); font-weight: 600;">快速预设:</span>
+                 <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 12px; height: auto; border-radius: 6px;" onclick="applyPushPreset('okvideo')">
+                   📺 OK影视
+                 </button>
+                 <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 12px; height: auto; border-radius: 6px;" onclick="applyPushPreset('kodi')">
+                   🍿 Kodi (示例)
+                 </button>
+                 <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 12px; height: auto; border-radius: 6px;" onclick="applyPushPreset('potplayer')">
+                   💿 PotPlayer (示例)
+                 </button>
+               </div>
 
-     <!-- 缓存管理页面 -->
+               <div class="form-hint" style="margin-top: 12px;">请输入接收弹幕的播放器地址。系统会自动在末尾追加 <code style="background:var(--bg-secondary);padding:2px 4px;border-radius:4px;">http://.../comment/id.xml</code> 链接</div>
+             </div>
+           </div>
+           
+           <div class="config-item">
+             <div class="config-header">
+               <span class="config-label">搜索动漫</span>
+             </div>
+             <div style="display: flex; gap: 8px;">
+               <input type="text" class="form-input" id="pushSearchInput" placeholder="输入动漫名称..." onkeypress="if(event.key==='Enter') searchAnimeForPush()">
+               <button class="btn btn-primary" onclick="searchAnimeForPush()" id="pushSearchBtn">
+                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8" stroke-width="2"/><path d="m21 21-4.35-4.35" stroke-width="2"/></svg>
+                 搜索
+               </button>
+             </div>
+           </div>
+         </div>
+       </div>
+
+       <div id="pushResultsContainer" style="display: none; margin-top: 24px;">
+         <div class="manual-search-container">
+           <div id="pushAnimeListView" class="search-view active">
+             <div style="margin-bottom: 16px; font-size: 14px; font-weight: 600; color: var(--text-secondary);">
+               搜索结果
+             </div>
+             <div id="pushAnimeGrid" class="anime-grid">
+               </div>
+           </div>
+
+           <div id="pushEpisodeListView" class="search-view hidden-right">
+             <div class="episode-view-header">
+               <button class="back-btn" onclick="backToPushAnimeList()">
+                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                 返回列表
+               </button>
+               <div class="selected-anime-info">
+                 <div id="pushSelectedAnimeTitle" class="selected-anime-title">番剧标题</div>
+                 <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 2px;">点击集数推送弹幕</div>
+               </div>
+             </div>
+             
+             <div id="pushEpisodeGrid" class="episode-grid">
+               </div>
+           </div>
+         </div>
+       </div>
+
+       <div class="footer">
+         <p>弹幕推送 | 将 API 获取的弹幕推送到指定设备</p>
+       </div>
+     </section>
+
      <section id="cache-page" class="page-section">
        <div class="stats-grid">
          <div class="stat-card">
@@ -7039,6 +7130,7 @@ try {
        'about': '关于系统',
        'sources': '搜索源管理',
        'danmuTest': '弹幕测试',
+       'push': '弹幕推送',
        'cache': '缓存管理'
      };
      document.getElementById('pageTitle').textContent = titles[pageName];
@@ -8863,7 +8955,230 @@ try {
      showToast('✨ 已重置测试状态', 'info');
    }
 
+   // ========== 弹幕推送功能 ==========
+   
+// 页面加载时恢复保存的 URL
+function initPushPage() {
+  const savedUrl = localStorage.getItem('danmu_push_url');
+  if (savedUrl) {
+    document.getElementById('pushTargetUrl').value = savedUrl;
+  }
+}
 
+// 应用推送预设
+function applyPushPreset(type) {
+  const input = document.getElementById('pushTargetUrl');
+  let url = '';
+  let name = '';
+
+  switch (type) {
+    case 'okvideo':
+      url = 'http://127.0.0.1:9978/action?do=refresh&type=danmaku&path=';
+      name = 'OK影视';
+      break;
+    case 'kodi':
+      // 这是一个示例地址，用户通常需要修改IP
+      url = 'http://192.168.1.5:8080/jsonrpc?Player.Open='; 
+      name = 'Kodi';
+      break;
+    case 'potplayer':
+      // 这是一个示例 Web API 插件地址
+      url = 'http://127.0.0.1:8080/input?url=';
+      name = 'PotPlayer';
+      break;
+  }
+
+  if (url) {
+    input.value = url;
+    // 自动保存
+    localStorage.setItem('danmu_push_url', url);
+    
+    // 视觉反馈
+    input.style.borderColor = 'var(--primary-500)';
+    input.style.backgroundColor = 'var(--bg-hover)';
+    setTimeout(() => {
+      input.style.borderColor = '';
+      input.style.backgroundColor = '';
+    }, 300);
+
+    showToast('已应用 ' + name + ' 预设地址', 'success');
+  }
+}
+   const originalSwitchPage = switchPage;
+   switchPage = function(pageName) {
+     originalSwitchPage(pageName);
+     if (pageName === 'push') {
+       initPushPage();
+     }
+   };
+
+   async function searchAnimeForPush() {
+     const keyword = document.getElementById('pushSearchInput').value.trim();
+     if (!keyword) {
+       showToast('请输入搜索关键词', 'warning');
+       return;
+     }
+
+     const btn = document.getElementById('pushSearchBtn');
+     const originalText = btn.innerHTML;
+     btn.innerHTML = '<span class="loading-spinner" style="width:14px;height:14px;border-width:2px;"></span>';
+     btn.disabled = true;
+
+     const container = document.getElementById('pushResultsContainer');
+     const grid = document.getElementById('pushAnimeGrid');
+     
+     container.style.display = 'block';
+     backToPushAnimeList(); // 确保在列表视图
+     
+     grid.innerHTML = \`
+       <div style="grid-column: 1/-1; text-align: center; padding: 60px 0; color: var(--text-secondary);">
+         <span class="loading-spinner" style="width: 32px; height: 32px; border-width: 3px;"></span> 
+         <div style="margin-top: 16px;">正在搜索...</div>
+       </div>\`;
+
+     try {
+       const response = await fetch(\`/api/v2/search/anime?keyword=\${encodeURIComponent(keyword)}\`);
+       const result = await response.json();
+
+       if (!result.success || !result.animes || result.animes.length === 0) {
+         grid.innerHTML = \`
+           <div style="grid-column: 1/-1; text-align: center; padding: 60px 0; color: var(--text-tertiary);">
+             <div style="font-size: 48px; margin-bottom: 12px; opacity: 0.5;">🤔</div>
+             未找到相关动漫
+           </div>\`;
+       } else {
+         renderPushAnimeList(result.animes);
+       }
+     } catch (error) {
+       grid.innerHTML = \`<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--error);">搜索出错: \${error.message}</div>\`;
+     } finally {
+       btn.innerHTML = originalText;
+       btn.disabled = false;
+     }
+   }
+
+   function renderPushAnimeList(animes) {
+     const container = document.getElementById('pushAnimeGrid');
+     
+     // 简单的类型映射
+     const typeMap = { 'tvseries': 'TV剧', 'tv': 'TV动画', 'movie': '剧场版', 'ova': 'OVA' };
+     const sourceMap = { 'dandan': '弹弹', 'bilibili': 'B站', 'iqiyi': '爱奇艺', 'qq': '腾讯' };
+
+     const html = animes.map(anime => {
+       const typeLabel = typeMap[anime.type?.toLowerCase()] || '动漫';
+       const sourceLabel = sourceMap[anime.source?.toLowerCase()] || '其他';
+       
+       return \`
+       <div class="anime-card" onclick="loadPushEpisodes('\${anime.animeId}', '\${escapeHtml(anime.animeTitle)}')">
+         <div class="anime-cover-wrapper">
+           <img src="\${anime.imageUrl || ''}" class="anime-cover" loading="lazy" onerror="this.src='https://placehold.co/150x225/1c1c27/FFF?text=No+Img'">
+           <div class="anime-badge">\${sourceLabel}</div>
+         </div>
+         <div class="anime-info">
+           <div class="anime-title" title="\${anime.animeTitle}">\${anime.animeTitle}</div>
+           <div class="anime-tags">
+             <span class="anime-tag">\${typeLabel}</span>
+             <span class="anime-tag">\${anime.episodeCount || '?'}集</span>
+           </div>
+         </div>
+       </div>
+     \`}).join('');
+     
+     container.innerHTML = html;
+   }
+
+   async function loadPushEpisodes(animeId, animeTitle) {
+     const listView = document.getElementById('pushAnimeListView');
+     const episodeView = document.getElementById('pushEpisodeListView');
+     const container = document.getElementById('pushEpisodeGrid');
+     const titleEl = document.getElementById('pushSelectedAnimeTitle');
+     
+     titleEl.textContent = animeTitle;
+     
+     // 切换视图
+     listView.classList.remove('active');
+     listView.classList.add('hidden-left');
+     episodeView.classList.remove('hidden-right');
+     episodeView.classList.add('active');
+     
+     container.innerHTML = '<div style="text-align: center; padding: 40px;"><span class="loading-spinner"></span> 加载中...</div>';
+
+     try {
+       const response = await fetch(\`/api/v2/bangumi/\${animeId}\`);
+       const result = await response.json();
+       
+       if (result.success && result.bangumi && result.bangumi.episodes) {
+         const episodes = result.bangumi.episodes;
+         
+         const html = episodes.map(ep => \`
+           <button class="episode-btn" onclick="executePushDanmu('\${ep.episodeId}', '\${ep.episodeTitle || ep.episodeNumber}', this)">
+             \${ep.episodeNumber}
+           </button>
+         \`).join('');
+         
+         container.innerHTML = html || '<div style="text-align:center; padding:20px; color:var(--text-tertiary)">无剧集数据</div>';
+       } else {
+         throw new Error('无法获取剧集');
+       }
+     } catch (error) {
+       container.innerHTML = \`<div style="color: var(--error); text-align: center;">加载失败: \${error.message}</div>\`;
+     }
+   }
+
+   function backToPushAnimeList() {
+     const listView = document.getElementById('pushAnimeListView');
+     const episodeView = document.getElementById('pushEpisodeListView');
+     
+     episodeView.classList.remove('active');
+     episodeView.classList.add('hidden-right');
+     listView.classList.remove('hidden-left');
+     listView.classList.add('active');
+   }
+
+   async function executePushDanmu(episodeId, episodeTitle, btnElement) {
+     const pushUrl = document.getElementById('pushTargetUrl').value.trim();
+     
+     if (!pushUrl) {
+       showToast('请先设置推送目标 URL', 'error');
+       document.getElementById('pushTargetUrl').focus();
+       // 闪烁提示
+       document.getElementById('pushTargetUrl').parentElement.style.animation = 'shake 0.5s';
+       setTimeout(() => document.getElementById('pushTargetUrl').parentElement.style.animation = '', 500);
+       return;
+     }
+
+     // 保存 URL
+     localStorage.setItem('danmu_push_url', pushUrl);
+
+     // UI 状态
+     const originalText = btnElement.innerText;
+     btnElement.innerHTML = '<span class="loading-spinner" style="width:12px;height:12px;border-width:2px;"></span>';
+     btnElement.style.pointerEvents = 'none';
+
+     try {
+       // 构造 XML 获取地址
+       const xmlUrl = window.location.origin + \`/api/v2/comment/\${episodeId}?format=xml\`;
+       // 构造推送地址
+       const target = pushUrl + encodeURIComponent(xmlUrl);
+       
+       console.log('Pushing to:', target);
+
+       // 发起请求 (no-cors 模式，因为通常推送到本地播放器会有跨域限制)
+       await fetch(target, {
+         method: 'GET',
+         mode: 'no-cors'
+       });
+
+       showToast(\`已推送: \${episodeTitle}\`, 'success');
+       btnElement.classList.add('active'); // 标记为已推送
+     } catch (error) {
+       console.error('推送失败:', error);
+       showToast('推送请求发送失败: ' + error.message, 'error');
+     } finally {
+       btnElement.innerText = originalText;
+       btnElement.style.pointerEvents = 'auto';
+     }
+   }
 
 
 // ========== 弹幕导出功能 ==========
