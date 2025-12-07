@@ -51,41 +51,50 @@ export default class BaseSource {
 
   // 按年份降序排序并添加到curAnimes
   sortAndPushAnimesByYear(processedAnimes, curAnimes) {
-    processedAnimes
+    // 预处理数据，避免在排序比较中重复执行正则提取
+    const mappedAnimes = processedAnimes
       .filter(anime => anime !== null)
-      .sort((a, b) => {
-        const yearA = extractYear(a.animeTitle);
-        const yearB = extractYear(b.animeTitle);
-
-        // 如果都有年份，按年份降序排列
-        if (yearA !== null && yearA !== undefined && yearB !== null && yearB !== undefined) {
-          if (yearB !== yearA) {
-            return yearB - yearA;
-          }
-          // 年份相同时，按 title 字数升序排列（字数少的在前）
-          const titleA = extractAnimeTitle(a.animeTitle);
-          const titleB = extractAnimeTitle(b.animeTitle);
-          return titleA.length - titleB.length;
-        }
-        // 如果只有a有年份，a排在前面
-        if ((yearA !== null && yearA !== undefined) && (yearB === null || yearB === undefined)) {
-          return -1;
-        }
-        // 如果只有b有年份，b排在前面
-        if ((yearA === null || yearA === undefined) && (yearB !== null && yearB !== undefined)) {
-          return 1;
-        }
-        // 如果都没有年份，保持原顺序
-        return 0;
-      })
-      .forEach(anime => {
-        // 检查 curAnimes 中是否已存在相同 animeId 的动漫
-        const existingIndex = curAnimes.findIndex(a => a.animeId === anime.animeId);
-        if (existingIndex === -1) {
-          // 不存在则添加
-          curAnimes.push(anime);
-        }
-        // 如果已存在则跳过，避免重复
+      .map(anime => {
+        const year = extractYear(anime.animeTitle);
+        return {
+          anime,
+          year,
+          hasYear: year !== null && year !== undefined,
+          // 仅在年份相同时才需要用到title长度，懒计算或预计算均可，这里预计算简化逻辑
+          titleLen: extractAnimeTitle(anime.animeTitle).length
+        };
       });
+
+    mappedAnimes.sort((a, b) => {
+      // 如果都有年份，按年份降序排列
+      if (a.hasYear && b.hasYear) {
+        if (b.year !== a.year) {
+          return b.year - a.year;
+        }
+        // 年份相同时，按 title 字数升序排列（字数少的在前）
+        return a.titleLen - b.titleLen;
+      }
+      // 如果只有a有年份，a排在前面
+      if (a.hasYear && !b.hasYear) {
+        return -1;
+      }
+      // 如果只有b有年份，b排在前面
+      if (!a.hasYear && b.hasYear) {
+        return 1;
+      }
+      // 如果都没有年份，保持原顺序
+      return 0;
+    });
+
+    mappedAnimes.forEach(item => {
+      const anime = item.anime;
+      // 检查 curAnimes 中是否已存在相同 animeId 的动漫
+      const existingIndex = curAnimes.findIndex(a => a.animeId === anime.animeId);
+      if (existingIndex === -1) {
+        // 不存在则添加
+        curAnimes.push(anime);
+      }
+      // 如果已存在则跳过，避免重复
+    });
   }
 }
