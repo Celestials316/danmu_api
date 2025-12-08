@@ -9371,6 +9371,72 @@ function initPushPage() {
     document.getElementById('pushTargetUrl').value = savedUrl;
   }
 }
+function scanLanDevices() {
+  var list = document.getElementById('lanDevicesList');
+  var btn = document.getElementById('scanLanBtn');
+  if (!list || !btn) return;
+  
+  btn.disabled = true;
+  btn.textContent = '扫描中...';
+  list.innerHTML = '正在扫描...';
+  
+  var baseIP = '192.168.1';
+  var checkPorts = [9978, 8080, 10086];
+  var checkIPs = [1, 2, 3, 4, 5, 100, 101, 102];
+  var found = [];
+  var count = 0;
+  var total = checkIPs.length * checkPorts.length;
+  
+  for (var i = 0; i < checkIPs.length; i++) {
+    for (var j = 0; j < checkPorts.length; j++) {
+      checkDevice(baseIP + '.' + checkIPs[i], checkPorts[j]);
+    }
+  }
+  
+  function checkDevice(ip, port) {
+    var img = new Image();
+    var done = false;
+    
+    setTimeout(function() {
+      if (!done) {
+        done = true;
+        count++;
+        finish();
+      }
+    }, 2000);
+    
+    img.onload = img.onerror = function() {
+      if (done) return;
+      done = true;
+      found.push(ip + ':' + port);
+      count++;
+      finish();
+    };
+    
+    img.src = 'http://' + ip + ':' + port + '/favicon.ico?' + Date.now();
+  }
+  
+  function finish() {
+    if (count < total) return;
+    
+    btn.disabled = false;
+    btn.textContent = '扫描局域网设备';
+    
+    if (found.length > 0) {
+      var html = '';
+      for (var i = 0; i < found.length; i++) {
+        html += '<div style="padding:8px;background:var(--bg-tertiary);margin-bottom:4px;border-radius:4px;">';
+        html += '<span>' + found[i] + '</span> ';
+        html += '<button class="btn btn-primary" style="padding:2px 8px;font-size:11px;height:auto;float:right;" ';
+        html += 'onclick="document.getElementById(\'pushTargetUrl\').value=\'http://' + found[i] + '/\'">使用</button>';
+        html += '</div>';
+      }
+      list.innerHTML = html;
+    } else {
+      list.innerHTML = '未发现设备';
+    }
+  }
+}
 
 // 应用推送预设
 function applyPushPreset(type) {
