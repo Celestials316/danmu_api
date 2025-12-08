@@ -4567,24 +4567,23 @@ try {
      text-overflow: ellipsis;
    }
 
-        /* 优化后的剧集容器 */
-        .episode-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(75px, 1fr));
-            gap: 10px;
-            max-height: 550px;
-            overflow-y: auto;
-            padding-right: 4px;
-            padding-bottom: 20px;
-            transition: all 0.3s ease;
-        }
+   /* 优化后的剧集容器 */
+   .episode-grid {
+     display: grid;
+     grid-template-columns: repeat(auto-fill, minmax(75px, 1fr));
+     gap: 10px;
+     max-height: 550px;
+     overflow-y: auto;
+     padding-right: 4px;
+     padding-bottom: 20px;
+     transition: all 0.3s ease;
+   }
 
-        /* 列表模式样式 - 强制单列 */
-        .episode-grid.list-mode {
-            grid-template-columns: 1fr !important;
-            gap: 8px;
-        }
-
+   /* 列表模式样式 */
+   .episode-grid.list-mode {
+     grid-template-columns: 1fr;
+     gap: 8px;
+   }
 
    .episode-btn {
      padding: 12px 4px;
@@ -8557,7 +8556,7 @@ try {
        container.classList.remove('list-mode');
      }
 
-     const html = currentEpisodesData.map((ep, index) => {
+     const html = currentEpisodesData.map(ep => {
        const title = ep.episodeTitle || '';
        const num = ep.episodeNumber || (index + 1);
        const clickAction = currentContext === 'push' 
@@ -8621,7 +8620,7 @@ try {
      
      // 3. 显示加载状态
      container.innerHTML = \`
-       <div style="grid-column: 1/-1; text-align: center; padding: 100px 0; color: var(--text-secondary);">
+       <div style="text-align: center; padding: 100px 0; color: var(--text-secondary);">
          <span class="loading-spinner" style="width: 40px; height: 40px; border-width: 3px;"></span>
          <div style="margin-top: 20px;">正在获取剧集列表...</div>
        </div>\`;
