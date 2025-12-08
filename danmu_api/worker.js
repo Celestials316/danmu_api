@@ -9390,8 +9390,10 @@ function initPushPage() {
   if (savedUrl) {
     document.getElementById('pushTargetUrl').value = savedUrl;
   }
-  // 尝试获取本机IP
-  getLocalIP();
+  // 延迟异步获取本机IP，不阻塞页面
+  setTimeout(function() {
+    getLocalIP();
+  }, 500);
 }
 
 // ========== 局域网设备扫描功能 ==========
@@ -9410,64 +9412,54 @@ var LanScanner = {
   ]
 };
 
-// 获取本机局域网IP
-async function getLocalIP() {
+// 获取本机局域网IP（完全异步，不阻塞）
+function getLocalIP() {
   var displayEl = document.getElementById('localIpDisplay');
   
+  // 使用 WebRTC 获取本机IP
   try {
     var pc = new RTCPeerConnection({ iceServers: [] });
     pc.createDataChannel('');
     
-    var offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
+    var resolved = false;
     
-    await new Promise(function(resolve) {
-      pc.onicecandidate = function(event) {
-        if (!event.candidate) {
-          resolve();
-          return;
-        }
-        var candidate = event.candidate.candidate;
-        var ipMatch = candidate.match(/([0-9]{1,3}\\.){3}[0-9]{1,3}/);
-        if (ipMatch) {
-          var ip = ipMatch[0];
-          if (ip.startsWith('192.168.') || ip.startsWith('10.') || ip.startsWith('172.')) {
-            LanScanner.localIP = ip;
-            if (displayEl) {
-              displayEl.textContent = '本机: ' + ip;
-            }
-            resolve();
+    pc.onicecandidate = function(event) {
+      if (resolved) return;
+      if (!event || !event.candidate || !event.candidate.candidate) return;
+      
+      var candidate = event.candidate.candidate;
+      var ipMatch = candidate.match(/([0-9]{1,3}\.){3}[0-9]{1,3}/);
+      if (ipMatch) {
+        var ip = ipMatch[0];
+        if (ip.startsWith('192.168.') || ip.startsWith('10.') || ip.startsWith('172.')) {
+          resolved = true;
+          LanScanner.localIP = ip;
+          if (displayEl) {
+            displayEl.textContent = '本机: ' + ip;
           }
-        }
-      };
-      setTimeout(resolve, 3000);
-    });
-    
-    pc.close();
-  } catch (error) {
-    console.log('WebRTC获取IP失败:', error);
-  }
-  
-  if (!LanScanner.localIP) {
-    try {
-      var response = await fetch('/api/network/local-ip');
-      var result = await response.json();
-      if (result.success && result.ip) {
-        LanScanner.localIP = result.ip;
-        if (displayEl) {
-          displayEl.textContent = '本机: ' + result.ip;
+          try { pc.close(); } catch(e) {}
         }
       }
-    } catch (e) {
-      console.log('服务端获取IP失败');
-    }
+    };
+    
+    pc.createOffer().then(function(offer) {
+      return pc.setLocalDescription(offer);
+    }).catch(function(err) {
+      console.log('WebRTC offer 失败:', err);
+    });
+    
+    // 3秒后关闭
+    setTimeout(function() {
+      try { pc.close(); } catch(e) {}
+    }, 3000);
+    
+  } catch (error) {
+    console.log('WebRTC 不可用:', error);
   }
-  
-  return LanScanner.localIP;
 }
 
 // 扫描局域网设备
-async function scanLanDevices() {
+function scanLanDevices() {
   if (LanScanner.scanning) {
     showToast('正在扫描中，请稍候...', 'warning');
     return;
@@ -9480,157 +9472,164 @@ async function scanLanDevices() {
   var list = document.getElementById('lanDevicesList');
   var tips = document.getElementById('scanTipsContainer');
   
+  if (!btn || !btnText || !container || !list) {
+    showToast('页面元素未找到', 'error');
+    return;
+  }
+  
   LanScanner.scanning = true;
   LanScanner.foundDevices = [];
   
   btn.disabled = true;
   btnText.textContent = '正在扫描...';
-  scanIcon.style.animation = 'spin 1s linear infinite';
+  if (scanIcon) scanIcon.style.animation = 'spin 1s linear infinite';
   
   container.style.display = 'block';
-  list.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-tertiary);"><span class="loading-spinner" style="width: 20px; height: 20px; border-width: 2px;"></span><div style="margin-top: 8px; font-size: 12px;">正在扫描局域网设备...</div></div>';
-  tips.style.display = 'none';
+  list.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-tertiary);"><div style="margin-top: 8px; font-size: 12px;">正在扫描局域网设备...</div></div>';
+  if (tips) tips.style.display = 'none';
   
-  try {
-    if (!LanScanner.localIP) {
-      await getLocalIP();
+  // 确定网段
+  var baseIP = '192.168.1';
+  if (LanScanner.localIP) {
+    var parts = LanScanner.localIP.split('.');
+    if (parts.length === 4) {
+      baseIP = parts[0] + '.' + parts[1] + '.' + parts[2];
     }
-    
-    var baseIP = '192.168.1';
-    if (LanScanner.localIP) {
-      var parts = LanScanner.localIP.split('.');
-      if (parts.length === 4) {
-        baseIP = parts[0] + '.' + parts[1] + '.' + parts[2];
+  }
+  
+  showToast('开始扫描网段: ' + baseIP + '.x', 'info', 2000);
+  
+  // 构建扫描任务
+  var ipRanges = [];
+  var i;
+  for (i = 1; i <= 30; i++) ipRanges.push(i);
+  for (i = 100; i <= 120; i++) ipRanges.push(i);
+  for (i = 200; i <= 220; i++) ipRanges.push(i);
+  
+  var totalTasks = ipRanges.length * LanScanner.knownPorts.length;
+  var completedTasks = 0;
+  var activeTasks = 0;
+  var maxConcurrent = 20;
+  var taskIndex = 0;
+  
+  function runNextTask() {
+    if (taskIndex >= ipRanges.length * LanScanner.knownPorts.length) {
+      if (activeTasks === 0) {
+        finishScan();
       }
+      return;
     }
     
-    showToast('开始扫描网段: ' + baseIP + '.x', 'info', 2000);
+    var ipIndex = Math.floor(taskIndex / LanScanner.knownPorts.length);
+    var portIndex = taskIndex % LanScanner.knownPorts.length;
+    taskIndex++;
     
-    // 尝试服务端扫描
-    var serverScanSuccess = false;
-    try {
-      var response = await fetch('/api/network/scan?subnet=' + baseIP, {
-        signal: AbortSignal.timeout(15000)
-      });
-      var result = await response.json();
-      
-      if (result.success && result.devices && result.devices.length > 0) {
-        LanScanner.foundDevices = result.devices;
-        serverScanSuccess = true;
-      }
-    } catch (e) {
-      console.log('服务端扫描不可用，使用前端扫描');
+    var lastOctet = ipRanges[ipIndex];
+    var ip = baseIP + '.' + lastOctet;
+    var portInfo = LanScanner.knownPorts[portIndex];
+    
+    if (ip === LanScanner.localIP) {
+      runNextTask();
+      return;
     }
     
-    // 前端扫描
-    if (!serverScanSuccess) {
-      var scanPromises = [];
-      var ipRanges = [];
+    activeTasks++;
+    probeDeviceCallback(ip, portInfo, function() {
+      activeTasks--;
+      completedTasks++;
       
-      for (var i = 1; i <= 50; i++) ipRanges.push(i);
-      for (var i = 100; i <= 150; i++) ipRanges.push(i);
-      for (var i = 200; i <= 254; i++) ipRanges.push(i);
+      var progress = Math.round((completedTasks / totalTasks) * 100);
+      if (btnText) btnText.textContent = '扫描中 ' + progress + '%';
       
-      for (var j = 0; j < ipRanges.length; j++) {
-        var lastOctet = ipRanges[j];
-        var ip = baseIP + '.' + lastOctet;
-        
-        if (ip === LanScanner.localIP) continue;
-        
-        for (var k = 0; k < LanScanner.knownPorts.length; k++) {
-          scanPromises.push(probeDevice(ip, LanScanner.knownPorts[k]));
-        }
-      }
-      
-      var batchSize = 50;
-      for (var i = 0; i < scanPromises.length; i += batchSize) {
-        var batch = scanPromises.slice(i, i + batchSize);
-        await Promise.allSettled(batch);
-        
-        var progress = Math.min(100, Math.round((i / scanPromises.length) * 100));
-        btnText.textContent = '扫描中 ' + progress + '%';
-      }
-    }
-    
-    if (LanScanner.foundDevices.length > 0) {
-      displayFoundDevices();
-      showToast('发现 ' + LanScanner.foundDevices.length + ' 个设备', 'success');
-    } else {
-      list.innerHTML = '<div style="text-align: center; padding: 30px; color: var(--text-tertiary);"><div style="font-size: 32px; margin-bottom: 10px; opacity: 0.5;">📡</div><div style="font-size: 13px;">未发现在线设备</div><div style="font-size: 11px; margin-top: 6px; color: var(--text-tertiary);">请确保设备已开启并在同一网段</div></div>';
-      tips.style.display = 'block';
-    }
-    
-  } catch (error) {
-    console.error('扫描失败:', error);
-    list.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--error);">扫描出错: ' + error.message + '</div>';
-    tips.style.display = 'block';
-  } finally {
+      runNextTask();
+    });
+  }
+  
+  function finishScan() {
     LanScanner.scanning = false;
     btn.disabled = false;
     btnText.textContent = '重新扫描';
-    scanIcon.style.animation = '';
+    if (scanIcon) scanIcon.style.animation = '';
+    
+    if (LanScanner.foundDevices.length > 0) {
+      displayFoundDevices();
+      showToast('发现 ' + LanScanner.foundDevices.length + ' 个端口', 'success');
+    } else {
+      list.innerHTML = '<div style="text-align: center; padding: 30px; color: var(--text-tertiary);"><div style="font-size: 32px; margin-bottom: 10px; opacity: 0.5;">📡</div><div style="font-size: 13px;">未发现在线设备</div><div style="font-size: 11px; margin-top: 6px;">请确保设备已开启并在同一网段</div></div>';
+      if (tips) tips.style.display = 'block';
+    }
+  }
+  
+  // 启动并发任务
+  for (var c = 0; c < maxConcurrent; c++) {
+    runNextTask();
   }
 }
 
-// 探测单个设备端口
-async function probeDevice(ip, portInfo) {
+// 探测单个设备端口（回调方式）
+function probeDeviceCallback(ip, portInfo, callback) {
   var url = 'http://' + ip + ':' + portInfo.port + '/';
+  var startTime = Date.now();
+  var done = false;
   
-  try {
-    var controller = new AbortController();
-    var timeoutId = setTimeout(function() { controller.abort(); }, 800);
-    
-    var startTime = Date.now();
-    
-    await fetch(url, {
-      method: 'HEAD',
-      mode: 'no-cors',
-      cache: 'no-cache',
-      signal: controller.signal
-    });
-    
+  var timeoutId = setTimeout(function() {
+    if (!done) {
+      done = true;
+      callback();
+    }
+  }, 1000);
+  
+  var img = new Image();
+  img.onload = img.onerror = function() {
+    if (done) return;
+    done = true;
     clearTimeout(timeoutId);
     
     var responseTime = Date.now() - startTime;
-    
-    if (responseTime < 500) {
-      var existingDevice = LanScanner.foundDevices.find(function(d) {
-        return d.ip === ip && d.port === portInfo.port;
-      });
-      
-      if (!existingDevice) {
+    if (responseTime < 800) {
+      var exists = false;
+      for (var i = 0; i < LanScanner.foundDevices.length; i++) {
+        if (LanScanner.foundDevices[i].ip === ip && LanScanner.foundDevices[i].port === portInfo.port) {
+          exists = true;
+          break;
+        }
+      }
+      if (!exists) {
         LanScanner.foundDevices.push({
           ip: ip,
           port: portInfo.port,
           name: portInfo.name,
           urlTemplate: portInfo.urlTemplate,
-          responseTime: responseTime,
-          status: 'possible'
+          responseTime: responseTime
         });
       }
     }
-  } catch (error) {
-    // 忽略错误
-  }
+    callback();
+  };
+  
+  img.src = url + 'favicon.ico?t=' + Date.now();
 }
 
 // 显示发现的设备
 function displayFoundDevices() {
   var list = document.getElementById('lanDevicesList');
+  if (!list) return;
   
   LanScanner.foundDevices.sort(function(a, b) {
     var aNum = parseInt(a.ip.split('.')[3]);
     var bNum = parseInt(b.ip.split('.')[3]);
-    return aNum - bNum;
+    if (aNum !== bNum) return aNum - bNum;
+    return a.port - b.port;
   });
   
   var devicesByIP = {};
-  LanScanner.foundDevices.forEach(function(device) {
+  for (var i = 0; i < LanScanner.foundDevices.length; i++) {
+    var device = LanScanner.foundDevices[i];
     if (!devicesByIP[device.ip]) {
       devicesByIP[device.ip] = [];
     }
     devicesByIP[device.ip].push(device);
-  });
+  }
   
   var html = '';
   var ips = Object.keys(devicesByIP);
@@ -9639,10 +9638,10 @@ function displayFoundDevices() {
     var ip = ips[i];
     var devices = devicesByIP[ip];
     
-    html += '<div style="background: var(--bg-tertiary); border-radius: 8px; overflow: hidden; border: 1px solid var(--border-color);">';
+    html += '<div style="background: var(--bg-tertiary); border-radius: 8px; overflow: hidden; border: 1px solid var(--border-color); margin-bottom: 8px;">';
     html += '<div style="padding: 10px 12px; background: var(--bg-secondary); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between;">';
     html += '<div style="display: flex; align-items: center; gap: 8px;">';
-    html += '<div style="width: 8px; height: 8px; background: #10b981; border-radius: 50%; animation: pulse 2s infinite;"></div>';
+    html += '<div style="width: 8px; height: 8px; background: #10b981; border-radius: 50%;"></div>';
     html += '<span style="font-family: monospace; font-size: 13px; font-weight: 600;">' + ip + '</span>';
     html += '</div>';
     html += '<span style="font-size: 11px; color: var(--text-tertiary);">' + devices.length + ' 个端口</span>';
@@ -9652,22 +9651,17 @@ function displayFoundDevices() {
     
     for (var j = 0; j < devices.length; j++) {
       var device = devices[j];
-      var deviceUrl = device.urlTemplate.replace('{ip}', device.ip);
       var borderStyle = j > 0 ? 'border-top: 1px dashed var(--border-color);' : '';
       
       html += '<div style="display: flex; align-items: center; justify-content: space-between; padding: 8px; ' + borderStyle + '">';
       html += '<div style="display: flex; align-items: center; gap: 10px;">';
       html += '<span style="font-size: 12px; color: var(--primary); font-family: monospace; min-width: 50px;">:' + device.port + '</span>';
       html += '<span style="font-size: 12px; color: var(--text-secondary);">' + device.name + '</span>';
-      
       if (device.responseTime) {
         html += '<span style="font-size: 10px; color: var(--text-tertiary);">' + device.responseTime + 'ms</span>';
       }
       html += '</div>';
-      
-      html += '<button class="btn btn-primary" style="padding: 4px 10px; font-size: 11px; height: auto; border-radius: 4px;" onclick="selectLanDevice(\'' + device.ip + '\',' + device.port + ',\'' + device.name + '\')">';
-      html += '使用';
-      html += '</button>';
+      html += '<button class="btn btn-primary" style="padding: 4px 10px; font-size: 11px; height: auto; border-radius: 4px;" onclick="selectLanDevice(\'' + device.ip + '\', ' + device.port + ', \'' + device.name + '\')">使用</button>';
       html += '</div>';
     }
     
@@ -9680,6 +9674,7 @@ function displayFoundDevices() {
 // 选择局域网设备
 function selectLanDevice(ip, port, name) {
   var input = document.getElementById('pushTargetUrl');
+  if (!input) return;
   
   if (name === 'OK影视') {
     input.value = 'http://' + ip + ':9978/action?do=refresh&type=danmaku&path=';
@@ -9692,7 +9687,6 @@ function selectLanDevice(ip, port, name) {
   localStorage.setItem('danmu_push_url', input.value);
   showToast('已选择: ' + ip + ' (' + name + ')', 'success');
   
-  input.scrollIntoView({ behavior: 'smooth', block: 'center' });
   input.focus();
   input.select();
 }
@@ -9702,7 +9696,7 @@ function selectLanDevice(ip, port, name) {
   if (!document.getElementById('lanScannerStyles')) {
     var style = document.createElement('style');
     style.id = 'lanScannerStyles';
-    style.textContent = '@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } } @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }';
+    style.textContent = '@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }';
     document.head.appendChild(style);
   }
 })();
@@ -9710,8 +9704,6 @@ function selectLanDevice(ip, port, name) {
 
 // 应用推送预设
 function applyPushPreset(type) {
-
-
   const input = document.getElementById('pushTargetUrl');
   let url = '';
   let name = '';
