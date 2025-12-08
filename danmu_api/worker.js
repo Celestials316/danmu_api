@@ -9368,24 +9368,51 @@ function scanLanDevices() {
   
   list.innerHTML = '正在扫描...';
   
-  var img = new Image();
-  var done = false;
+  var found = [];
+  var count = 0;
+  var ips = ['192.168.1.1', '192.168.1.100', '192.168.1.101'];
+  var total = ips.length;
   
-  setTimeout(function() {
-    if (!done) {
+  for (var i = 0; i < ips.length; i++) {
+    checkIP(ips[i]);
+  }
+  
+  function checkIP(ip) {
+    var img = new Image();
+    var done = false;
+    
+    setTimeout(function() {
+      if (!done) {
+        done = true;
+        count++;
+        showResult();
+      }
+    }, 2000);
+    
+    img.onload = img.onerror = function() {
+      if (done) return;
       done = true;
-      list.innerHTML = '扫描完成（超时）';
+      found.push(ip);
+      count++;
+      showResult();
+    };
+    
+    img.src = 'http://' + ip + ':80/favicon.ico?' + Date.now();
+  }
+  
+  function showResult() {
+    if (count < total) {
+      list.innerHTML = '扫描中 ' + count + '/' + total;
+      return;
     }
-  }, 3000);
-  
-  img.onload = img.onerror = function() {
-    if (done) return;
-    done = true;
-    list.innerHTML = '发现响应: 192.168.1.1:80';
-  };
-  
-  img.src = 'http://192.168.1.1:80/favicon.ico?' + Date.now();
+    if (found.length > 0) {
+      list.innerHTML = '发现: ' + found.join(', ');
+    } else {
+      list.innerHTML = '未发现设备';
+    }
+  }
 }
+
 
 
 // 应用推送预设
