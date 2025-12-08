@@ -9394,6 +9394,8 @@ function scanLanDevices() {
   for (var i = 200; i <= 210; i++) ips.push(baseIP + '.' + i);
   
   var total = ips.length * ports.length;
+  var TIMEOUT = 1500;
+  var FAST_THRESHOLD = 100;
   
   for (var i = 0; i < ips.length; i++) {
     for (var j = 0; j < ports.length; j++) {
@@ -9402,21 +9404,36 @@ function scanLanDevices() {
   }
   
   function checkDevice(ip, port) {
-    var img = new Image();
     var done = false;
+    var startTime = Date.now();
     
-    setTimeout(function() {
+    var timer = setTimeout(function() {
       if (!done) {
         done = true;
         count++;
         showResult();
       }
-    }, 2000);
+    }, TIMEOUT);
     
-    img.onload = img.onerror = function() {
+    var img = new Image();
+    
+    img.onload = function() {
       if (done) return;
       done = true;
-      found.push({ip: ip, port: port});
+      clearTimeout(timer);
+      found.push({ip: ip, port: port, time: Date.now() - startTime});
+      count++;
+      showResult();
+    };
+    
+    img.onerror = function() {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      var elapsed = Date.now() - startTime;
+      if (elapsed < FAST_THRESHOLD) {
+        found.push({ip: ip, port: port, time: elapsed});
+      }
       count++;
       showResult();
     };
@@ -9436,6 +9453,8 @@ function scanLanDevices() {
     }
     
     if (found.length > 0) {
+      found.sort(function(a, b) { return a.time - b.time; });
+      
       var html = '';
       for (var i = 0; i < found.length; i++) {
         var d = found[i];
@@ -9447,13 +9466,14 @@ function scanLanDevices() {
         html += '<div style="padding:10px;background:var(--bg-tertiary);margin-bottom:6px;border-radius:6px;display:flex;justify-content:space-between;align-items:center;">';
         html += '<div><span style="font-family:monospace;font-weight:600;">' + d.ip + ':' + d.port + '</span>';
         if (name) html += '<span style="margin-left:8px;font-size:12px;color:var(--text-tertiary);">' + name + '</span>';
+        html += '<span style="margin-left:8px;font-size:11px;color:var(--success);">' + d.time + 'ms</span>';
         html += '</div>';
         html += '<button class="btn btn-primary" style="padding:4px 12px;font-size:12px;height:auto;" onclick="useLanDevice(this)" data-ip="' + d.ip + '" data-port="' + d.port + '">使用</button>';
         html += '</div>';
       }
       list.innerHTML = html;
     } else {
-      list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-tertiary);">未发现设备<br><span style="font-size:12px;">请确认网段正确且设备已开启</span></div>';
+      list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-tertiary);">未发现设备<br><span style="font-size:12px;">请确认网段正确且设备已开启相应服务</span></div>';
     }
   }
 }
