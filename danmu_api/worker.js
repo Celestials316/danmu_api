@@ -4567,7 +4567,7 @@ try {
      text-overflow: ellipsis;
    }
 
-   /* 优化后的剧集容器 */
+   /* 优化后的剧集容器 - 默认样式 */
    .episode-grid {
      display: grid;
      grid-template-columns: repeat(auto-fill, minmax(75px, 1fr));
@@ -4579,13 +4579,13 @@ try {
      transition: all 0.3s ease;
    }
 
-   /* 无标题时的紧凑网格布局 */
-   .episode-grid.no-titles {
-     grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+   /* 网格模式：紧凑的多列布局 */
+   .episode-grid.grid-mode {
+     grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
      gap: 8px;
    }
 
-   /* 列表模式样式 */
+   /* 列表模式：单列布局 */
    .episode-grid.list-mode {
      grid-template-columns: 1fr;
      gap: 8px;
@@ -4612,14 +4612,12 @@ try {
      justify-content: center;
    }
 
-   /* 无标题时的紧凑按钮样式 */
-   .episode-btn.no-title {
-     min-width: 36px;
-     max-width: 60px;
+   /* 网格模式下的按钮样式 - 紧凑 */
+   .episode-btn.grid-mode {
+     min-width: 40px;
      padding: 10px 6px;
      font-size: 14px;
      font-weight: 600;
-     color: var(--text-primary);
    }
 
    /* 列表模式下的按钮样式 - 优化对齐 */
@@ -8565,21 +8563,13 @@ try {
        return;
      }
 
-     // 检查是否有任何集有标题
-     const hasAnyTitle = currentEpisodesData.some(ep => ep.episodeTitle && ep.episodeTitle.trim() !== '');
-
      // 更新容器样式
      if (isEpisodeListMode) {
        container.classList.add('list-mode');
-       container.classList.remove('no-titles');
+       container.classList.remove('grid-mode');
      } else {
        container.classList.remove('list-mode');
-       // 无标题时使用紧凑布局
-       if (hasAnyTitle) {
-         container.classList.remove('no-titles');
-       } else {
-         container.classList.add('no-titles');
-       }
+       container.classList.add('grid-mode');
      }
 
      const html = currentEpisodesData.map((ep, index) => {
@@ -8589,31 +8579,23 @@ try {
          ? \`executePushDanmu('\${ep.episodeId}', '\${escapeHtml(title || num)}', this)\`
          : \`loadEpisodeDanmu('\${ep.episodeId}', this)\`;
        
-       // 列表模式
        if (isEpisodeListMode) {
+         // 列表模式：显示集数 + 标题
          return \`
            <div class="episode-btn list-mode" title="\${escapeHtml(title)}" onclick="\${clickAction}">
              <span class="ep-num">\${num}</span>
              <span class="ep-title">\${escapeHtml(title)}</span>
            </div>
          \`;
+       } else {
+         // 网格模式：只显示集数，紧凑布局
+         return \`<div class="episode-btn grid-mode" onclick="\${clickAction}">\${num}</div>\`;
        }
-       
-       // 无标题时使用紧凑样式
-       if (!hasAnyTitle) {
-         return \`<div class="episode-btn no-title" onclick="\${clickAction}">\${num}</div>\`;
-       }
-       
-       // 有标题时的默认样式
-       return \`
-         <div class="episode-btn" title="\${escapeHtml(title)}" onclick="\${clickAction}">
-           <span class="ep-num">\${num}</span>
-         </div>
-       \`;
      }).join('');
 
      container.innerHTML = html;
    }
+
 
    // 辅助：更新头部以包含切换按钮
    function updateEpisodeHeader(titleElId) {
