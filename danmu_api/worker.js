@@ -9592,52 +9592,43 @@ function applyPushPreset(type) {
    }
 
    async function executePushDanmu(episodeId, episodeTitle, btnElement) {
-     const pushUrl = document.getElementById('pushTargetUrl').value.trim();
+     var pushUrlInput = document.getElementById('pushTargetUrl');
+     var pushUrl = pushUrlInput.value.trim();
      
      if (!pushUrl) {
        showToast('请先设置推送目标 URL', 'error');
-       document.getElementById('pushTargetUrl').focus();
-       // 闪烁提示
-       document.getElementById('pushTargetUrl').parentElement.style.animation = 'shake 0.5s';
-       setTimeout(() => document.getElementById('pushTargetUrl').parentElement.style.animation = '', 500);
+       pushUrlInput.focus();
+       pushUrlInput.parentElement.style.animation = 'shake 0.5s';
+       setTimeout(function() { pushUrlInput.parentElement.style.animation = ''; }, 500);
        return;
      }
 
-     // 保存 URL
      localStorage.setItem('danmu_push_url', pushUrl);
 
-     // 获取番剧名称
      var animeName = selectedPushAnime ? (selectedPushAnime.name || selectedPushAnime.title || '未知番剧') : '未知番剧';
-
-     // UI 状态
-     const originalText = btnElement.innerText;
+     var originalText = btnElement.innerText;
      btnElement.innerHTML = '<span class="loading-spinner" style="width:12px;height:12px;border-width:2px;"></span>';
      btnElement.style.pointerEvents = 'none';
 
      try {
-       // 构造 XML 获取地址
-       const xmlUrl = window.location.origin + \`/api/v2/comment/\${episodeId}?format=xml\`;
-       // 构造推送地址
-       const target = pushUrl + encodeURIComponent(xmlUrl);
+       var xmlUrl = window.location.origin + '/api/v2/comment/' + episodeId + '?format=xml';
+       var target = pushUrl + encodeURIComponent(xmlUrl);
        
        console.log('Pushing to:', target);
 
-       // 发起请求 (no-cors 模式，因为通常推送到本地播放器会有跨域限制)
        await fetch(target, {
          method: 'GET',
          mode: 'no-cors'
        });
 
-       showToast(\`已推送: \${episodeTitle}\`, 'success');
-       btnElement.classList.add('active'); // 标记为已推送
+       showToast('已推送: ' + episodeTitle, 'success');
+       btnElement.classList.add('active');
        
-       // 显示推送结果
        updatePushResult(true, animeName, episodeTitle, '');
      } catch (error) {
        console.error('推送失败:', error);
        showToast('推送请求发送失败: ' + error.message, 'error');
        
-       // 显示失败结果
        updatePushResult(false, animeName, episodeTitle, error.message);
      } finally {
        btnElement.innerText = originalText;
