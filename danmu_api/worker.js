@@ -6477,15 +6477,16 @@ try {
 
                <div style="margin-top: 20px; padding-top: 16px; border-top: 1px dashed var(--border-color);">
                  <div style="font-size: 12px; color: var(--text-secondary); font-weight: 600; margin-bottom: 10px;">
-                   局域网设备
+                   局域网设备扫描
                  </div>
-                 <button class="btn btn-secondary" id="scanLanBtn" style="width: 100%; padding: 12px; font-size: 13px; border-radius: 8px;" onclick="scanLanDevices()">
-                   扫描局域网设备
-                 </button>
-                 <div id="lanDevicesList" style="margin-top: 12px;"></div>
+                 <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                   <input type="text" id="lanSubnet" value="192.168.5" placeholder="网段如 192.168.1" style="flex: 1; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; font-family: monospace; background: var(--bg-secondary); color: var(--text-primary);">
+                   <button class="btn btn-primary" id="scanLanBtn" style="padding: 8px 16px; font-size: 13px; border-radius: 6px; white-space: nowrap;" onclick="scanLanDevices()">
+                     扫描
+                   </button>
+                 </div>
+                 <div id="lanDevicesList"></div>
                </div>
-
-
 
                <div class="form-hint" style="margin-top: 12px;">请输入接收弹幕的播放器地址。系统会自动在末尾追加 <code style="background:var(--bg-secondary);padding:2px 4px;border-radius:4px;">http://.../comment/id.xml</code> 链接</div>
              </div>
@@ -9371,21 +9372,26 @@ function initPushPage() {
 function scanLanDevices() {
   var list = document.getElementById('lanDevicesList');
   var btn = document.getElementById('scanLanBtn');
+  var subnetInput = document.getElementById('lanSubnet');
   if (!list) return;
+  
+  var baseIP = subnetInput ? subnetInput.value.trim() : '192.168.1';
+  if (!baseIP) baseIP = '192.168.1';
   
   if (btn) {
     btn.disabled = true;
     btn.innerText = '扫描中...';
   }
-  list.innerHTML = '正在扫描...';
+  list.innerHTML = '正在扫描 ' + baseIP + '.x ...';
   
   var found = [];
   var count = 0;
   var ips = [];
   var ports = [9978, 8080, 10086];
   
-  for (var i = 1; i <= 10; i++) ips.push('192.168.1.' + i);
-  for (var i = 100; i <= 105; i++) ips.push('192.168.1.' + i);
+  for (var i = 1; i <= 20; i++) ips.push(baseIP + '.' + i);
+  for (var i = 100; i <= 120; i++) ips.push(baseIP + '.' + i);
+  for (var i = 200; i <= 210; i++) ips.push(baseIP + '.' + i);
   
   var total = ips.length * ports.length;
   
@@ -9433,14 +9439,21 @@ function scanLanDevices() {
       var html = '';
       for (var i = 0; i < found.length; i++) {
         var d = found[i];
+        var name = '';
+        if (d.port == 9978) name = 'OK影视';
+        else if (d.port == 8080) name = 'Kodi';
+        else if (d.port == 10086) name = 'TVBox';
+        
         html += '<div style="padding:10px;background:var(--bg-tertiary);margin-bottom:6px;border-radius:6px;display:flex;justify-content:space-between;align-items:center;">';
-        html += '<span style="font-family:monospace;">' + d.ip + ':' + d.port + '</span>';
+        html += '<div><span style="font-family:monospace;font-weight:600;">' + d.ip + ':' + d.port + '</span>';
+        if (name) html += '<span style="margin-left:8px;font-size:12px;color:var(--text-tertiary);">' + name + '</span>';
+        html += '</div>';
         html += '<button class="btn btn-primary" style="padding:4px 12px;font-size:12px;height:auto;" onclick="useLanDevice(this)" data-ip="' + d.ip + '" data-port="' + d.port + '">使用</button>';
         html += '</div>';
       }
       list.innerHTML = html;
     } else {
-      list.innerHTML = '未发现设备';
+      list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-tertiary);">未发现设备<br><span style="font-size:12px;">请确认网段正确且设备已开启</span></div>';
     }
   }
 }
@@ -9460,6 +9473,7 @@ function useLanDevice(el) {
   localStorage.setItem('danmu_push_url', input.value);
   showToast('已选择: ' + ip + ':' + port, 'success');
 }
+
 
 
 // 应用推送预设
