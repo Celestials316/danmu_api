@@ -9605,7 +9605,7 @@ function applyPushPreset(type) {
      titleEl.innerHTML = (success ? '推送成功' : '推送失败') + ' <span style="font-size:12px;color:var(--text-tertiary)">' + time + '</span>';
      
      var html = '<span class="detail-item"><span class="label">番剧:</span><span class="value">' + animeName + '</span></span>';
-     html += '<span class="detail-item"><span class="label">剧集:</span><span class="value">第 ' + episodeTitle + ' 集</span></span>';
+     html += '<span class="detail-item"><span class="label">剧集:</span><span class="value">' + episodeTitle + '</span></span>';
      if (!success && errMsg) {
        html += '<span class="detail-item" style="color:#ef4444"><span class="label">原因:</span><span class="value">' + errMsg + '</span></span>';
      }
@@ -9645,8 +9645,9 @@ function applyPushPreset(type) {
        btnElement.classList.add('active');
        try {
          var animeName = '未知番剧';
-         if (typeof selectedPushAnime !== 'undefined' && selectedPushAnime) {
-           animeName = selectedPushAnime.name || selectedPushAnime.title || '未知番剧';
+         var titleEl = document.querySelector('#pushAnimeSection .selected-anime-title');
+         if (titleEl) {
+           animeName = titleEl.textContent || '未知番剧';
          }
          updatePushResult(true, animeName, episodeTitle, '');
        } catch(e) { console.log(e); }
