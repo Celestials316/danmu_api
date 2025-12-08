@@ -4579,6 +4579,12 @@ try {
      transition: all 0.3s ease;
    }
 
+   /* 无标题时的紧凑网格布局 */
+   .episode-grid.no-titles {
+     grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+     gap: 8px;
+   }
+
    /* 列表模式样式 */
    .episode-grid.list-mode {
      grid-template-columns: 1fr;
@@ -4604,6 +4610,16 @@ try {
      display: flex;
      align-items: center;
      justify-content: center;
+   }
+
+   /* 无标题时的紧凑按钮样式 */
+   .episode-btn.no-title {
+     min-width: 36px;
+     max-width: 60px;
+     padding: 10px 6px;
+     font-size: 14px;
+     font-weight: 600;
+     color: var(--text-primary);
    }
 
    /* 列表模式下的按钮样式 - 优化对齐 */
@@ -8549,26 +8565,49 @@ try {
        return;
      }
 
+     // 检查是否有任何集有标题
+     const hasAnyTitle = currentEpisodesData.some(ep => ep.episodeTitle && ep.episodeTitle.trim() !== '');
+
      // 更新容器样式
      if (isEpisodeListMode) {
        container.classList.add('list-mode');
+       container.classList.remove('no-titles');
      } else {
        container.classList.remove('list-mode');
+       // 无标题时使用紧凑布局
+       if (hasAnyTitle) {
+         container.classList.remove('no-titles');
+       } else {
+         container.classList.add('no-titles');
+       }
      }
 
-     const html = currentEpisodesData.map(ep => {
+     const html = currentEpisodesData.map((ep, index) => {
        const title = ep.episodeTitle || '';
        const num = ep.episodeNumber || (index + 1);
        const clickAction = currentContext === 'push' 
          ? \`executePushDanmu('\${ep.episodeId}', '\${escapeHtml(title || num)}', this)\`
          : \`loadEpisodeDanmu('\${ep.episodeId}', this)\`;
        
-       const btnClass = isEpisodeListMode ? 'episode-btn list-mode' : 'episode-btn';
+       // 列表模式
+       if (isEpisodeListMode) {
+         return \`
+           <div class="episode-btn list-mode" title="\${escapeHtml(title)}" onclick="\${clickAction}">
+             <span class="ep-num">\${num}</span>
+             <span class="ep-title">\${escapeHtml(title)}</span>
+           </div>
+         \`;
+       }
        
+       // 无标题时使用紧凑样式
+       if (!hasAnyTitle) {
+         return \`<div class="episode-btn no-title" onclick="\${clickAction}">\${num}</div>\`;
+       }
+       
+       // 有标题时的默认样式
        return \`
-         <div class="\${btnClass}" title="\${escapeHtml(title)}" onclick="\${clickAction}">
+         <div class="episode-btn" title="\${escapeHtml(title)}" onclick="\${clickAction}">
            <span class="ep-num">\${num}</span>
-           \${isEpisodeListMode ? \`<span class="ep-title">\${escapeHtml(title)}</span>\` : ''}
          </div>
        \`;
      }).join('');
