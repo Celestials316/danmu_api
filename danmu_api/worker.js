@@ -9645,9 +9645,9 @@ function applyPushPreset(type) {
        btnElement.classList.add('active');
        try {
          var animeName = '未知番剧';
-         var backBtn = document.querySelector('#pushEpisodeSection button');
-         if (backBtn && backBtn.nextElementSibling) {
-           animeName = backBtn.nextElementSibling.textContent || '未知番剧';
+         var animeTitleEl = document.getElementById('pushSelectedAnimeTitle');
+         if (animeTitleEl) {
+           animeName = animeTitleEl.textContent || '未知番剧';
          }
          updatePushResult(true, animeName, originalText, episodeTitle);
        } catch(e) { console.log(e); }
