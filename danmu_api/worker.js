@@ -6488,11 +6488,14 @@ try {
                    </select>
                  </div>
                  <div style="display: flex; gap: 8px;">
-                   <button class="btn btn-secondary" style="flex: 1; padding: 10px; font-size: 13px; border-radius: 6px;" onclick="testLanDevice()">测试连接</button>
+                   <button class="btn btn-secondary" style="flex: 1; padding: 10px; font-size: 13px; border-radius: 6px;" onclick="testLanDevice()">打开测试</button>
                    <button class="btn btn-primary" style="flex: 1; padding: 10px; font-size: 13px; border-radius: 6px;" onclick="useLanDeviceManual()">使用此设备</button>
                  </div>
-                 <div id="lanTestResult" style="margin-top: 10px; font-size: 12px; text-align: center;"></div>
+                 <div style="margin-top: 8px; font-size: 11px; color: var(--text-tertiary); text-align: center;">
+                   输入设备IP，点"打开测试"确认能访问后，点"使用此设备"
+                 </div>
                </div>
+
 
            
            <div class="config-item" style="background: var(--bg-primary); border: 2px solid var(--border-color); border-radius: 12px; padding: 20px;">
@@ -9374,12 +9377,12 @@ function initPushPage() {
   initLanDevice();
 }
 
+
 function testLanDevice() {
   var ipInput = document.getElementById('lanDeviceIP');
   var portSelect = document.getElementById('lanDevicePort');
-  var result = document.getElementById('lanTestResult');
   
-  if (!ipInput || !result) return;
+  if (!ipInput) return;
   
   var ip = ipInput.value.trim();
   if (!ip) {
@@ -9390,34 +9393,7 @@ function testLanDevice() {
   var port = portSelect ? portSelect.value : '9978';
   var url = 'http://' + ip + ':' + port + '/';
   
-  result.innerHTML = '正在测试 ' + ip + ':' + port + ' ...';
-  result.style.color = 'var(--text-tertiary)';
-  
-  var iframe = document.createElement('iframe');
-  iframe.style.display = 'none';
-  document.body.appendChild(iframe);
-  
-  var timer = setTimeout(function() {
-    document.body.removeChild(iframe);
-    result.innerHTML = '⚠️ 连接超时，设备可能不在线';
-    result.style.color = 'var(--warning)';
-  }, 5000);
-  
-  iframe.onload = function() {
-    clearTimeout(timer);
-    document.body.removeChild(iframe);
-    result.innerHTML = '✅ 检测到响应，可以尝试使用';
-    result.style.color = 'var(--success)';
-  };
-  
-  iframe.onerror = function() {
-    clearTimeout(timer);
-    document.body.removeChild(iframe);
-    result.innerHTML = '❓ 无法确认，请直接尝试使用';
-    result.style.color = 'var(--warning)';
-  };
-  
-  iframe.src = url;
+  window.open(url, '_blank');
 }
 
 function useLanDeviceManual() {
@@ -9460,6 +9436,7 @@ function initLanDevice() {
     if (savedPort) portSelect.value = savedPort;
   }
 }
+
 
 
 
