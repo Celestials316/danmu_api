@@ -4599,6 +4599,97 @@ try {
      font-weight: 600;
    }
 
+   /* 推送结果显示区域 */
+   .push-result-container {
+     margin-top: 20px;
+     padding: 16px;
+     background: var(--bg-primary);
+     border-radius: 12px;
+     border: 1px solid var(--border-color);
+     animation: slideInUp 0.3s ease;
+   }
+
+   @keyframes slideInUp {
+     from {
+       opacity: 0;
+       transform: translateY(10px);
+     }
+     to {
+       opacity: 1;
+       transform: translateY(0);
+     }
+   }
+
+   .push-result-card {
+     display: flex;
+     align-items: center;
+     gap: 16px;
+   }
+
+   .push-result-icon {
+     width: 48px;
+     height: 48px;
+     border-radius: 50%;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+     font-size: 24px;
+     flex-shrink: 0;
+   }
+
+   .push-result-icon.success {
+     background: rgba(16, 185, 129, 0.15);
+     color: #10b981;
+   }
+
+   .push-result-icon.error {
+     background: rgba(239, 68, 68, 0.15);
+     color: #ef4444;
+   }
+
+   .push-result-info {
+     flex: 1;
+     min-width: 0;
+   }
+
+   .push-result-title {
+     font-size: 16px;
+     font-weight: 600;
+     color: var(--text-primary);
+     margin-bottom: 6px;
+     display: flex;
+     align-items: center;
+     gap: 8px;
+   }
+
+   .push-result-details {
+     font-size: 14px;
+     color: var(--text-secondary);
+     display: flex;
+     flex-wrap: wrap;
+     gap: 12px;
+   }
+
+   .push-result-details .detail-item {
+     display: flex;
+     align-items: center;
+     gap: 4px;
+   }
+
+   .push-result-details .detail-item .label {
+     color: var(--text-tertiary);
+   }
+
+   .push-result-details .detail-item .value {
+     font-weight: 500;
+     color: var(--text-primary);
+   }
+
+   .push-result-details .danmu-count {
+     color: var(--accent-primary);
+     font-weight: 600;
+   }
+
    .episode-btn {
      padding: 12px 4px;
      background: var(--bg-primary);
@@ -6436,8 +6527,18 @@ try {
                </div>
              </div>
              
-             <div id="pushEpisodeGrid" class="episode-grid">
+             <div id="pushEpisodeGrid" class="episode-grid"></div>
+             
+             <!-- 推送结果显示区域 -->
+             <div id="pushResultContainer" class="push-result-container" style="display: none;">
+               <div class="push-result-card">
+                 <div class="push-result-icon" id="pushResultIcon">✓</div>
+                 <div class="push-result-info">
+                   <div class="push-result-title" id="pushResultTitle"></div>
+                   <div class="push-result-details" id="pushResultDetails"></div>
+                 </div>
                </div>
+             </div>
            </div>
          </div>
        </div>
@@ -9490,50 +9591,139 @@ function applyPushPreset(type) {
      listView.classList.add('active');
    }
 
-   async function executePushDanmu(episodeId, episodeTitle, btnElement) {
-     const pushUrl = document.getElementById('pushTargetUrl').value.trim();
-     
-     if (!pushUrl) {
-       showToast('请先设置推送目标 URL', 'error');
-       document.getElementById('pushTargetUrl').focus();
-       // 闪烁提示
-       document.getElementById('pushTargetUrl').parentElement.style.animation = 'shake 0.5s';
-       setTimeout(() => document.getElementById('pushTargetUrl').parentElement.style.animation = '', 500);
+   // 执行弹幕推送
+   async function executePushDanmu(episodeId, episodeName, btnElement) {
+     if (!selectedPushAnime || !episodeId) {
+       showToast('请先选择要推送的番剧和剧集', 'error');
        return;
      }
 
-     // 保存 URL
-     localStorage.setItem('danmu_push_url', pushUrl);
+     // 禁用按钮，显示加载状态
+     const originalHTML = btnElement.innerHTML;
+     btnElement.disabled = true;
+     btnElement.classList.add('loading');
+     btnElement.innerHTML = '<span class="loading-spinner"></span>';
 
-     // UI 状态
-     const originalText = btnElement.innerText;
-     btnElement.innerHTML = '<span class="loading-spinner" style="width:12px;height:12px;border-width:2px;"></span>';
-     btnElement.style.pointerEvents = 'none';
+     // 隐藏之前的结果
+     const resultContainer = document.getElementById('pushResultContainer');
+     if (resultContainer) {
+       resultContainer.style.display = 'none';
+     }
 
      try {
-       // 构造 XML 获取地址
-       const xmlUrl = window.location.origin + \`/api/v2/comment/\${episodeId}?format=xml\`;
-       // 构造推送地址
-       const target = pushUrl + encodeURIComponent(xmlUrl);
-       
-       console.log('Pushing to:', target);
+       const response = await fetch(\`/api/danmu/push/\${selectedPushAnime.id}/\${episodeId}\`);
+       const result = await response.json();
 
-       // 发起请求 (no-cors 模式，因为通常推送到本地播放器会有跨域限制)
-       await fetch(target, {
-         method: 'GET',
-         mode: 'no-cors'
-       });
-
-       showToast(\`已推送: \${episodeTitle}\`, 'success');
-       btnElement.classList.add('active'); // 标记为已推送
+       if (result.success) {
+         btnElement.classList.remove('loading');
+         btnElement.classList.add('success');
+         btnElement.innerHTML = '✓';
+         
+         const danmuCount = result.count || 0;
+         showToast(\`已推送 \${danmuCount} 条弹幕\`, 'success');
+         
+         // 显示推送结果详情
+         showPushResult({
+           success: true,
+           animeName: selectedPushAnime.name || selectedPushAnime.title || '未知番剧',
+           episodeName: episodeName,
+           danmuCount: danmuCount
+         });
+         
+         // 3秒后恢复按钮状态
+         setTimeout(() => {
+           btnElement.classList.remove('success');
+           btnElement.disabled = false;
+           btnElement.innerHTML = originalHTML;
+         }, 3000);
+       } else {
+         throw new Error(result.message || '推送失败');
+       }
      } catch (error) {
-       console.error('推送失败:', error);
-       showToast('推送请求发送失败: ' + error.message, 'error');
-     } finally {
-       btnElement.innerText = originalText;
-       btnElement.style.pointerEvents = 'auto';
+       btnElement.classList.remove('loading');
+       btnElement.classList.add('error');
+       btnElement.innerHTML = '✗';
+       showToast(\`推送失败: \${error.message}\`, 'error');
+       
+       // 显示失败结果
+       showPushResult({
+         success: false,
+         animeName: selectedPushAnime.name || selectedPushAnime.title || '未知番剧',
+         episodeName: episodeName,
+         errorMessage: error.message
+       });
+       
+       // 3秒后恢复按钮状态
+       setTimeout(() => {
+         btnElement.classList.remove('error');
+         btnElement.disabled = false;
+         btnElement.innerHTML = originalHTML;
+       }, 3000);
      }
    }
+
+   // 显示推送结果
+   function showPushResult(data) {
+     const container = document.getElementById('pushResultContainer');
+     const iconEl = document.getElementById('pushResultIcon');
+     const titleEl = document.getElementById('pushResultTitle');
+     const detailsEl = document.getElementById('pushResultDetails');
+     
+     if (!container || !iconEl || !titleEl || !detailsEl) return;
+
+     // 设置图标和状态
+     iconEl.className = 'push-result-icon ' + (data.success ? 'success' : 'error');
+     iconEl.textContent = data.success ? '✓' : '✗';
+
+     // 设置标题
+     if (data.success) {
+       titleEl.innerHTML = \`<span>推送成功</span><span style="font-size: 12px; color: var(--text-tertiary);">\${new Date().toLocaleTimeString()}</span>\`;
+     } else {
+       titleEl.innerHTML = \`<span>推送失败</span><span style="font-size: 12px; color: var(--text-tertiary);">\${new Date().toLocaleTimeString()}</span>\`;
+     }
+
+     // 设置详情
+     if (data.success) {
+       detailsEl.innerHTML = \`
+         <span class="detail-item">
+           <span class="label">番剧:</span>
+           <span class="value">\${escapeHtml(data.animeName)}</span>
+         </span>
+         <span class="detail-item">
+           <span class="label">剧集:</span>
+           <span class="value">第 \${escapeHtml(data.episodeName)} 集</span>
+         </span>
+         <span class="detail-item">
+           <span class="label">弹幕:</span>
+           <span class="value danmu-count">\${data.danmuCount} 条</span>
+         </span>
+       \`;
+     } else {
+       detailsEl.innerHTML = \`
+         <span class="detail-item">
+           <span class="label">番剧:</span>
+           <span class="value">\${escapeHtml(data.animeName)}</span>
+         </span>
+         <span class="detail-item">
+           <span class="label">剧集:</span>
+           <span class="value">第 \${escapeHtml(data.episodeName)} 集</span>
+         </span>
+         <span class="detail-item" style="color: #ef4444;">
+           <span class="label">原因:</span>
+           <span class="value">\${escapeHtml(data.errorMessage || '未知错误')}</span>
+         </span>
+       \`;
+     }
+
+     // 显示容器
+     container.style.display = 'block';
+     
+     // 添加动画效果
+     container.style.animation = 'none';
+     container.offsetHeight; // 触发重绘
+     container.style.animation = 'slideInUp 0.3s ease';
+   }
+
 
 
 // ========== 弹幕导出功能 ==========
