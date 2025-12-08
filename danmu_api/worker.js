@@ -8621,7 +8621,7 @@ try {
      
      // 3. 显示加载状态
      container.innerHTML = \`
-       <div style="text-align: center; padding: 100px 0; color: var(--text-secondary);">
+       <div style="grid-column: 1/-1; text-align: center; padding: 100px 0; color: var(--text-secondary);">
          <span class="loading-spinner" style="width: 40px; height: 40px; border-width: 3px;"></span>
          <div style="margin-top: 20px;">正在获取剧集列表...</div>
        </div>\`;
@@ -8644,10 +8644,10 @@ try {
        
      } catch (error) {
        container.innerHTML = \`
-         <div style="text-align: center; padding: 60px 20px; color: var(--error);">
+         <div style="grid-column: 1/-1; text-align: center; padding: 60px 20px; color: var(--error);">
            <div style="font-size: 40px; margin-bottom: 16px;">❌</div>
            <div>加载失败: \${error.message}</div>
-           <button onclick="loadEpisodes('\${animeId}', '\${escapeHtml(animeTitle)}')" class="btn btn-secondary" style="margin-top: 16px;">重试</button>
+           <button onclick="loadEpisodes('${animeId}', '${escapeHtml(animeTitle)}')" class="btn btn-secondary" style="margin-top: 16px;">重试</button>
          </div>\`;
      }
    }
