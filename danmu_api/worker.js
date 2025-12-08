@@ -8556,7 +8556,7 @@ try {
        container.classList.remove('list-mode');
      }
 
-     const html = currentEpisodesData.map(ep => {
+     const html = currentEpisodesData.map((ep, index) => {
        const title = ep.episodeTitle || '';
        const num = ep.episodeNumber || (index + 1);
        const clickAction = currentContext === 'push' 
