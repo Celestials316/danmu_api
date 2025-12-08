@@ -9591,137 +9591,85 @@ function applyPushPreset(type) {
      listView.classList.add('active');
    }
 
-   // 执行弹幕推送
-   async function executePushDanmu(episodeId, episodeName, btnElement) {
-     if (!selectedPushAnime || !episodeId) {
-       showToast('请先选择要推送的番剧和剧集', 'error');
+   function updatePushResult(success, animeName, epNum, epTitle) {
+     var container = document.getElementById('pushResultContainer');
+     if (!container) return;
+     var iconEl = document.getElementById('pushResultIcon');
+     var titleEl = document.getElementById('pushResultTitle');
+     var detailsEl = document.getElementById('pushResultDetails');
+     
+     // 清理番剧名称，移除来源标记和年份
+     var cleanAnimeName = animeName;
+     if (cleanAnimeName) {
+       cleanAnimeName = cleanAnimeName.replace(/from\s+\w+/gi, '').replace(/\(\d{4}\)/g, '').trim();
+     }
+     
+     // 清理剧集标题，移除来源标记
+     var cleanEpTitle = epTitle;
+     if (cleanEpTitle) {
+       cleanEpTitle = cleanEpTitle.replace(/【[^】]*】/g, '').trim();
+     }
+     
+     iconEl.className = 'push-result-icon ' + (success ? 'success' : 'error');
+     iconEl.textContent = success ? '✓' : '✗';
+     
+     var time = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+     titleEl.innerHTML = (success ? '推送成功' : '推送失败') + ' <span style="font-size:12px;color:var(--text-tertiary)">' + time + '</span>';
+     
+     var html = '<span class="detail-item"><span class="label">番剧:</span><span class="value">' + cleanAnimeName + '</span></span>';
+     html += '<span class="detail-item"><span class="label">剧集:</span><span class="value">第 ' + epNum + ' 集</span></span>';
+     if (cleanEpTitle && cleanEpTitle !== epNum) {
+       html += '<span class="detail-item"><span class="value" style="color:var(--text-secondary)">' + cleanEpTitle + '</span></span>';
+     }
+     detailsEl.innerHTML = html;
+     container.style.display = 'block';
+   }
+
+   async function executePushDanmu(episodeId, episodeTitle, btnElement) {
+     const pushUrl = document.getElementById('pushTargetUrl').value.trim();
+     
+     if (!pushUrl) {
+       showToast('请先设置推送目标 URL', 'error');
+       document.getElementById('pushTargetUrl').focus();
+       document.getElementById('pushTargetUrl').parentElement.style.animation = 'shake 0.5s';
+       setTimeout(() => document.getElementById('pushTargetUrl').parentElement.style.animation = '', 500);
        return;
      }
 
-     // 禁用按钮，显示加载状态
-     const originalHTML = btnElement.innerHTML;
-     btnElement.disabled = true;
-     btnElement.classList.add('loading');
-     btnElement.innerHTML = '<span class="loading-spinner"></span>';
+     localStorage.setItem('danmu_push_url', pushUrl);
 
-     // 隐藏之前的结果
-     const resultContainer = document.getElementById('pushResultContainer');
-     if (resultContainer) {
-       resultContainer.style.display = 'none';
-     }
+     const originalText = btnElement.innerText;
+     btnElement.innerHTML = '<span class="loading-spinner" style="width:12px;height:12px;border-width:2px;"></span>';
+     btnElement.style.pointerEvents = 'none';
 
      try {
-       const response = await fetch(\`/api/danmu/push/\${selectedPushAnime.id}/\${episodeId}\`);
-       const result = await response.json();
-
-       if (result.success) {
-         btnElement.classList.remove('loading');
-         btnElement.classList.add('success');
-         btnElement.innerHTML = '✓';
-         
-         const danmuCount = result.count || 0;
-         showToast(\`已推送 \${danmuCount} 条弹幕\`, 'success');
-         
-         // 显示推送结果详情
-         showPushResult({
-           success: true,
-           animeName: selectedPushAnime.name || selectedPushAnime.title || '未知番剧',
-           episodeName: episodeName,
-           danmuCount: danmuCount
-         });
-         
-         // 3秒后恢复按钮状态
-         setTimeout(() => {
-           btnElement.classList.remove('success');
-           btnElement.disabled = false;
-           btnElement.innerHTML = originalHTML;
-         }, 3000);
-       } else {
-         throw new Error(result.message || '推送失败');
-       }
-     } catch (error) {
-       btnElement.classList.remove('loading');
-       btnElement.classList.add('error');
-       btnElement.innerHTML = '✗';
-       showToast(\`推送失败: \${error.message}\`, 'error');
+       const xmlUrl = window.location.origin + '/api/v2/comment/' + episodeId + '?format=xml';
+       const target = pushUrl + encodeURIComponent(xmlUrl);
        
-       // 显示失败结果
-       showPushResult({
-         success: false,
-         animeName: selectedPushAnime.name || selectedPushAnime.title || '未知番剧',
-         episodeName: episodeName,
-         errorMessage: error.message
+       console.log('Pushing to:', target);
+
+       await fetch(target, {
+         method: 'GET',
+         mode: 'no-cors'
        });
-       
-       // 3秒后恢复按钮状态
-       setTimeout(() => {
-         btnElement.classList.remove('error');
-         btnElement.disabled = false;
-         btnElement.innerHTML = originalHTML;
-       }, 3000);
+
+       showToast('已推送: ' + episodeTitle, 'success');
+       btnElement.classList.add('active');
+       try {
+         var animeName = '未知番剧';
+         var animeTitleEl = document.getElementById('pushSelectedAnimeTitle');
+         if (animeTitleEl) {
+           animeName = animeTitleEl.textContent || '未知番剧';
+         }
+         updatePushResult(true, animeName, originalText, episodeTitle);
+       } catch(e) { console.log(e); }
+     } catch (error) {
+       console.error('推送失败:', error);
+       showToast('推送请求发送失败: ' + error.message, 'error');
+     } finally {
+       btnElement.innerText = originalText;
+       btnElement.style.pointerEvents = 'auto';
      }
-   }
-
-   // 显示推送结果
-   function showPushResult(data) {
-     const container = document.getElementById('pushResultContainer');
-     const iconEl = document.getElementById('pushResultIcon');
-     const titleEl = document.getElementById('pushResultTitle');
-     const detailsEl = document.getElementById('pushResultDetails');
-     
-     if (!container || !iconEl || !titleEl || !detailsEl) return;
-
-     // 设置图标和状态
-     iconEl.className = 'push-result-icon ' + (data.success ? 'success' : 'error');
-     iconEl.textContent = data.success ? '✓' : '✗';
-
-     // 设置标题
-     if (data.success) {
-       titleEl.innerHTML = \`<span>推送成功</span><span style="font-size: 12px; color: var(--text-tertiary);">\${new Date().toLocaleTimeString()}</span>\`;
-     } else {
-       titleEl.innerHTML = \`<span>推送失败</span><span style="font-size: 12px; color: var(--text-tertiary);">\${new Date().toLocaleTimeString()}</span>\`;
-     }
-
-     // 设置详情
-     if (data.success) {
-       detailsEl.innerHTML = \`
-         <span class="detail-item">
-           <span class="label">番剧:</span>
-           <span class="value">\${escapeHtml(data.animeName)}</span>
-         </span>
-         <span class="detail-item">
-           <span class="label">剧集:</span>
-           <span class="value">第 \${escapeHtml(data.episodeName)} 集</span>
-         </span>
-         <span class="detail-item">
-           <span class="label">弹幕:</span>
-           <span class="value danmu-count">\${data.danmuCount} 条</span>
-         </span>
-       \`;
-     } else {
-       detailsEl.innerHTML = \`
-         <span class="detail-item">
-           <span class="label">番剧:</span>
-           <span class="value">\${escapeHtml(data.animeName)}</span>
-         </span>
-         <span class="detail-item">
-           <span class="label">剧集:</span>
-           <span class="value">第 \${escapeHtml(data.episodeName)} 集</span>
-         </span>
-         <span class="detail-item" style="color: #ef4444;">
-           <span class="label">原因:</span>
-           <span class="value">\${escapeHtml(data.errorMessage || '未知错误')}</span>
-         </span>
-       \`;
-     }
-
-     // 显示容器
-     container.style.display = 'block';
-     
-     // 添加动画效果
-     container.style.animation = 'none';
-     container.offsetHeight; // 触发重绘
-     container.style.animation = 'slideInUp 0.3s ease';
    }
 
 
