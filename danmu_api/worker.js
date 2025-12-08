@@ -6485,6 +6485,7 @@ try {
                  </div>
                  <div id="lanDevicesList"></div>
                </div>
+
            
            <div class="config-item" style="background: var(--bg-primary); border: 2px solid var(--border-color); border-radius: 12px; padding: 20px;">
              <div class="config-header" style="margin-bottom: 14px;">
@@ -9379,17 +9380,24 @@ function scanLanDevices() {
     btn.disabled = true;
     btn.innerText = '扫描中...';
   }
-  list.innerHTML = '正在扫描...';
+  list.innerHTML = '正在扫描 ' + subnet + '.x ...';
   
-  var results = [];
+  var found = [];
   var count = 0;
-  var total = 5;
+  var ips = [];
+  var ports = [9978, 8080, 10086];
   
-  checkOne(subnet + '.1', 9978);
-  checkOne(subnet + '.2', 9978);
-  checkOne(subnet + '.100', 9978);
-  checkOne(subnet + '.200', 9978);
-  checkOne(subnet + '.180', 9978);
+  for (var i = 1; i <= 254; i++) {
+    ips.push(subnet + '.' + i);
+  }
+  
+  var total = ips.length * ports.length;
+  
+  for (var i = 0; i < ips.length; i++) {
+    for (var j = 0; j < ports.length; j++) {
+      checkOne(ips[i], ports[j]);
+    }
+  }
   
   function checkOne(ip, port) {
     var startTime = Date.now();
@@ -9397,28 +9405,72 @@ function scanLanDevices() {
     
     fetch(url, { mode: 'no-cors' })
       .then(function() {
-        results.push(ip + ': ' + (Date.now() - startTime) + 'ms (then)');
+        var elapsed = Date.now() - startTime;
+        found.push({ ip: ip, port: port, time: elapsed });
         count++;
-        showAll();
+        updateProgress();
       })
       .catch(function() {
-        results.push(ip + ': ' + (Date.now() - startTime) + 'ms (catch)');
         count++;
-        showAll();
+        updateProgress();
       });
   }
   
-  function showAll() {
+  function updateProgress() {
+    var pct = Math.round(count / total * 100);
+    list.innerHTML = '扫描中 ' + pct + '%';
+    
     if (count >= total) {
-      btn.disabled = false;
-      btn.innerText = '重新扫描';
-      list.innerHTML = results.join('<br>');
+      showResults();
+    }
+  }
+  
+  function showResults() {
+    btn.disabled = false;
+    btn.innerText = '重新扫描';
+    
+    if (found.length > 0) {
+      found.sort(function(a, b) { return a.time - b.time; });
+      
+      var html = '';
+      for (var i = 0; i < found.length; i++) {
+        var d = found[i];
+        var name = '';
+        if (d.port == 9978) name = 'OK影视';
+        else if (d.port == 8080) name = 'Kodi';
+        else if (d.port == 10086) name = 'TVBox';
+        
+        html += '<div style="padding:10px;background:var(--bg-tertiary);margin-bottom:6px;border-radius:6px;display:flex;justify-content:space-between;align-items:center;">';
+        html += '<div>';
+        html += '<span style="font-family:monospace;font-weight:600;">' + d.ip + ':' + d.port + '</span>';
+        if (name) html += '<span style="margin-left:8px;font-size:12px;color:var(--text-tertiary);">' + name + '</span>';
+        html += '<span style="margin-left:8px;font-size:11px;color:var(--success);">' + d.time + 'ms</span>';
+        html += '</div>';
+        html += '<button class="btn btn-primary" style="padding:4px 12px;font-size:12px;height:auto;" onclick="useLanDevice(this)" data-ip="' + d.ip + '" data-port="' + d.port + '">使用</button>';
+        html += '</div>';
+      }
+      list.innerHTML = html;
+      showToast('发现 ' + found.length + ' 个设备', 'success');
+    } else {
+      list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-tertiary);">未发现设备</div>';
     }
   }
 }
 
-function useLanDevice(ip, port) {
-  alert(ip);
+function useLanDevice(el) {
+  var ip = el.getAttribute('data-ip');
+  var port = el.getAttribute('data-port');
+  var input = document.getElementById('pushTargetUrl');
+  if (!input) return;
+  
+  if (port == '9978') {
+    input.value = 'http://' + ip + ':9978/action?do=refresh&type=danmaku&path=';
+  } else {
+    input.value = 'http://' + ip + ':' + port + '/';
+  }
+  
+  localStorage.setItem('danmu_push_url', input.value);
+  showToast('已选择: ' + ip + ':' + port, 'success');
 }
 
 
