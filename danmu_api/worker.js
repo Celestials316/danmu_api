@@ -9591,7 +9591,7 @@ function applyPushPreset(type) {
      listView.classList.add('active');
    }
 
-   function updatePushResult(success, animeName, epNum, epTitle, errMsg) {
+   function updatePushResult(success, animeName, epNum, epTitle) {
      var container = document.getElementById('pushResultContainer');
      if (!container) return;
      var iconEl = document.getElementById('pushResultIcon');
@@ -9606,11 +9606,8 @@ function applyPushPreset(type) {
      
      var html = '<span class="detail-item"><span class="label">番剧:</span><span class="value">' + animeName + '</span></span>';
      html += '<span class="detail-item"><span class="label">剧集:</span><span class="value">第 ' + epNum + ' 集</span></span>';
-     if (success && epTitle && epTitle !== epNum) {
-       html += '<span class="detail-item"><span class="label">标题:</span><span class="value">' + epTitle + '</span></span>';
-     }
-     if (!success && errMsg) {
-       html += '<span class="detail-item" style="color:#ef4444"><span class="label">原因:</span><span class="value">' + errMsg + '</span></span>';
+     if (epTitle && epTitle !== epNum) {
+       html += '<span class="detail-item"><span class="value" style="color:var(--text-secondary)">' + epTitle + '</span></span>';
      }
      detailsEl.innerHTML = html;
      container.style.display = 'block';
@@ -9648,11 +9645,11 @@ function applyPushPreset(type) {
        btnElement.classList.add('active');
        try {
          var animeName = '未知番剧';
-         var headerEl = document.querySelector('#pushEpisodeSection .section-header h4');
-         if (headerEl) {
-           animeName = headerEl.textContent || '未知番剧';
+         var backBtn = document.querySelector('#pushEpisodeSection button');
+         if (backBtn && backBtn.nextElementSibling) {
+           animeName = backBtn.nextElementSibling.textContent || '未知番剧';
          }
-         updatePushResult(true, animeName, originalText, episodeTitle, '');
+         updatePushResult(true, animeName, originalText, episodeTitle);
        } catch(e) { console.log(e); }
      } catch (error) {
        console.error('推送失败:', error);
