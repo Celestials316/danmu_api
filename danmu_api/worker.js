@@ -9374,125 +9374,37 @@ function scanLanDevices() {
   if (!list) return;
   
   var subnet = subnetInput ? subnetInput.value.trim() : '192.168.1';
-  if (!subnet) subnet = '192.168.1';
   
   if (btn) {
     btn.disabled = true;
     btn.innerText = '扫描中...';
   }
-  list.innerHTML = '正在扫描 ' + subnet + '.x ...';
+  list.innerHTML = '正在测试...';
   
-  var found = [];
-  var count = 0;
-  var ips = [];
-  var ports = [9978, 8080, 10086];
+  var url = 'http://' + subnet + '.1:9978/';
+  var startTime = Date.now();
   
-  // 扫描常见IP段
-  for (var i = 1; i <= 30; i++) ips.push(subnet + '.' + i);
-  for (var i = 100; i <= 130; i++) ips.push(subnet + '.' + i);
-  for (var i = 200; i <= 220; i++) ips.push(subnet + '.' + i);
-  
-  var total = ips.length * ports.length;
-  var TIMEOUT = 1500;
-  
-  for (var i = 0; i < ips.length; i++) {
-    for (var j = 0; j < ports.length; j++) {
-      checkDevice(ips[i], ports[j]);
-    }
-  }
-  
-  function checkDevice(ip, port) {
-    var done = false;
-    var startTime = Date.now();
-    var url = 'http://' + ip + ':' + port + '/';
-    
-    var timer = setTimeout(function() {
-      if (!done) {
-        done = true;
-        count++;
-        updateProgress();
-      }
-    }, TIMEOUT);
-    
-    fetch(url, { mode: 'no-cors' })
-      .then(function() {
-        if (done) return;
-        done = true;
-        clearTimeout(timer);
-        var elapsed = Date.now() - startTime;
-        found.push({ ip: ip, port: port, time: elapsed });
-        count++;
-        updateProgress();
-      })
-      .catch(function(err) {
-        if (done) return;
-        done = true;
-        clearTimeout(timer);
-        var elapsed = Date.now() - startTime;
-        // 快速失败说明有服务在监听（只是CORS拒绝）
-        if (elapsed < 300) {
-          found.push({ ip: ip, port: port, time: elapsed });
-        }
-        count++;
-        updateProgress();
-      });
-  }
-  
-  function updateProgress() {
-    var pct = Math.round(count / total * 100);
-    list.innerHTML = '扫描中 ' + pct + '% (' + found.length + ' 个设备)';
-    
-    if (count >= total) {
-      showResults();
-    }
-  }
-  
-  function showResults() {
-    if (btn) {
+  fetch(url, { mode: 'no-cors' })
+    .then(function() {
+      var elapsed = Date.now() - startTime;
+      list.innerHTML = '请求完成: ' + elapsed + 'ms';
       btn.disabled = false;
       btn.innerText = '重新扫描';
-    }
-    
-    if (found.length > 0) {
-      // 按响应时间排序
-      found.sort(function(a, b) { return a.time - b.time; });
-      
-      var html = '';
-      for (var i = 0; i < found.length; i++) {
-        var d = found[i];
-        var name = '';
-        if (d.port == 9978) name = 'OK影视';
-        else if (d.port == 8080) name = 'Kodi';
-        else if (d.port == 10086) name = 'TVBox';
-        
-        html += '<div style="padding:10px;background:var(--bg-tertiary);margin-bottom:6px;border-radius:6px;display:flex;justify-content:space-between;align-items:center;">';
-        html += '<div><span style="font-family:monospace;font-weight:600;">' + d.ip + ':' + d.port + '</span>';
-        if (name) html += '<span style="margin-left:8px;font-size:12px;color:var(--text-tertiary);">' + name + '</span>';
-        html += '<span style="margin-left:8px;font-size:11px;color:var(--success);">' + d.time + 'ms</span>';
-        html += '</div>';
-        html += '<button class="btn btn-primary" style="padding:4px 12px;font-size:12px;height:auto;" onclick="useLanDevice(\'' + d.ip + '\',' + d.port + ')">使用</button>';
-        html += '</div>';
-      }
-      list.innerHTML = html;
-      showToast('发现 ' + found.length + ' 个设备', 'success');
-    } else {
-      list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-tertiary);">未发现设备<br><span style="font-size:12px;">请确认网段正确</span></div>';
-    }
-  }
+    })
+    .catch(function() {
+      var elapsed = Date.now() - startTime;
+      list.innerHTML = '请求失败: ' + elapsed + 'ms';
+      btn.disabled = false;
+      btn.innerText = '重新扫描';
+    });
 }
 
 function useLanDevice(ip, port) {
   var input = document.getElementById('pushTargetUrl');
   if (!input) return;
-  
-  if (port == 9978) {
-    input.value = 'http://' + ip + ':9978/action?do=refresh&type=danmaku&path=';
-  } else {
-    input.value = 'http://' + ip + ':' + port + '/';
-  }
-  
+  input.value = 'http://' + ip + ':' + port + '/';
   localStorage.setItem('danmu_push_url', input.value);
-  showToast('已选择: ' + ip + ':' + port, 'success');
+  showToast('已选择', 'success');
 }
 
 
