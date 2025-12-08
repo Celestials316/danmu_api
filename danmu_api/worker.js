@@ -6475,10 +6475,16 @@ try {
                  </div>
                </div>
 
-               <div style="margin-top: 20px;">
-                 <button class="btn btn-secondary" onclick="scanLanDevices()">测试扫描</button>
-                 <div id="lanDevicesList" style="margin-top: 10px;"></div>
+               <div style="margin-top: 20px; padding-top: 16px; border-top: 1px dashed var(--border-color);">
+                 <div style="font-size: 12px; color: var(--text-secondary); font-weight: 600; margin-bottom: 10px;">
+                   局域网设备
+                 </div>
+                 <button class="btn btn-secondary" id="scanLanBtn" style="width: 100%; padding: 12px; font-size: 13px; border-radius: 8px;" onclick="scanLanDevices()">
+                   扫描局域网设备
+                 </button>
+                 <div id="lanDevicesList" style="margin-top: 12px;"></div>
                </div>
+
 
 
                <div class="form-hint" style="margin-top: 12px;">请输入接收弹幕的播放器地址。系统会自动在末尾追加 <code style="background:var(--bg-secondary);padding:2px 4px;border-radius:4px;">http://.../comment/id.xml</code> 链接</div>
@@ -9364,20 +9370,32 @@ function initPushPage() {
 }
 function scanLanDevices() {
   var list = document.getElementById('lanDevicesList');
+  var btn = document.getElementById('scanLanBtn');
   if (!list) return;
   
+  if (btn) {
+    btn.disabled = true;
+    btn.innerText = '扫描中...';
+  }
   list.innerHTML = '正在扫描...';
   
   var found = [];
   var count = 0;
-  var ips = ['192.168.1.1', '192.168.1.100', '192.168.1.101'];
-  var total = ips.length;
+  var ips = [];
+  var ports = [9978, 8080, 10086];
+  
+  for (var i = 1; i <= 10; i++) ips.push('192.168.1.' + i);
+  for (var i = 100; i <= 105; i++) ips.push('192.168.1.' + i);
+  
+  var total = ips.length * ports.length;
   
   for (var i = 0; i < ips.length; i++) {
-    checkIP(ips[i]);
+    for (var j = 0; j < ports.length; j++) {
+      checkDevice(ips[i], ports[j]);
+    }
   }
   
-  function checkIP(ip) {
+  function checkDevice(ip, port) {
     var img = new Image();
     var done = false;
     
@@ -9392,27 +9410,56 @@ function scanLanDevices() {
     img.onload = img.onerror = function() {
       if (done) return;
       done = true;
-      found.push(ip);
+      found.push({ip: ip, port: port});
       count++;
       showResult();
     };
     
-    img.src = 'http://' + ip + ':80/favicon.ico?' + Date.now();
+    img.src = 'http://' + ip + ':' + port + '/favicon.ico?' + Date.now();
   }
   
   function showResult() {
-    if (count < total) {
-      list.innerHTML = '扫描中 ' + count + '/' + total;
-      return;
+    var pct = Math.round(count / total * 100);
+    list.innerHTML = '扫描中 ' + pct + '%';
+    
+    if (count < total) return;
+    
+    if (btn) {
+      btn.disabled = false;
+      btn.innerText = '重新扫描';
     }
+    
     if (found.length > 0) {
-      list.innerHTML = '发现: ' + found.join(', ');
+      var html = '';
+      for (var i = 0; i < found.length; i++) {
+        var d = found[i];
+        html += '<div style="padding:10px;background:var(--bg-tertiary);margin-bottom:6px;border-radius:6px;display:flex;justify-content:space-between;align-items:center;">';
+        html += '<span style="font-family:monospace;">' + d.ip + ':' + d.port + '</span>';
+        html += '<button class="btn btn-primary" style="padding:4px 12px;font-size:12px;height:auto;" onclick="useLanDevice(this)" data-ip="' + d.ip + '" data-port="' + d.port + '">使用</button>';
+        html += '</div>';
+      }
+      list.innerHTML = html;
     } else {
       list.innerHTML = '未发现设备';
     }
   }
 }
 
+function useLanDevice(el) {
+  var ip = el.getAttribute('data-ip');
+  var port = el.getAttribute('data-port');
+  var input = document.getElementById('pushTargetUrl');
+  if (!input) return;
+  
+  if (port == 9978) {
+    input.value = 'http://' + ip + ':9978/action?do=refresh&type=danmaku&path=';
+  } else {
+    input.value = 'http://' + ip + ':' + port + '/';
+  }
+  
+  localStorage.setItem('danmu_push_url', input.value);
+  showToast('已选择: ' + ip + ':' + port, 'success');
+}
 
 
 // 应用推送预设
