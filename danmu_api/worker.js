@@ -4567,23 +4567,24 @@ try {
      text-overflow: ellipsis;
    }
 
-   /* 优化后的剧集容器 */
-   .episode-grid {
-     display: grid;
-     grid-template-columns: repeat(auto-fill, minmax(75px, 1fr));
-     gap: 10px;
-     max-height: 550px;
-     overflow-y: auto;
-     padding-right: 4px;
-     padding-bottom: 20px;
-     transition: all 0.3s ease;
-   }
+        /* 优化后的剧集容器 */
+        .episode-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(75px, 1fr));
+            gap: 10px;
+            max-height: 550px;
+            overflow-y: auto;
+            padding-right: 4px;
+            padding-bottom: 20px;
+            transition: all 0.3s ease;
+        }
 
-   /* 列表模式样式 */
-   .episode-grid.list-mode {
-     grid-template-columns: 1fr;
-     gap: 8px;
-   }
+        /* 列表模式样式 - 强制单列 */
+        .episode-grid.list-mode {
+            grid-template-columns: 1fr !important;
+            gap: 8px;
+        }
+
 
    .episode-btn {
      padding: 12px 4px;
