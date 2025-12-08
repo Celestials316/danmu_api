@@ -9643,13 +9643,16 @@ function applyPushPreset(type) {
 
        showToast('已推送: ' + episodeTitle, 'success');
        btnElement.classList.add('active');
-       var animeName = selectedPushAnime ? (selectedPushAnime.name || selectedPushAnime.title || '未知番剧') : '未知番剧';
-       updatePushResult(true, animeName, episodeTitle, '');
+       try {
+         var animeName = '未知番剧';
+         if (typeof selectedPushAnime !== 'undefined' && selectedPushAnime) {
+           animeName = selectedPushAnime.name || selectedPushAnime.title || '未知番剧';
+         }
+         updatePushResult(true, animeName, episodeTitle, '');
+       } catch(e) { console.log(e); }
      } catch (error) {
        console.error('推送失败:', error);
        showToast('推送请求发送失败: ' + error.message, 'error');
-       var animeName = selectedPushAnime ? (selectedPushAnime.name || selectedPushAnime.title || '未知番剧') : '未知番剧';
-       updatePushResult(false, animeName, episodeTitle, error.message);
      } finally {
        btnElement.innerText = originalText;
        btnElement.style.pointerEvents = 'auto';
