@@ -9364,12 +9364,29 @@ function initPushPage() {
 }
 function scanLanDevices() {
   var list = document.getElementById('lanDevicesList');
-  if (!list) {
-    alert('没找到list');
-    return;
-  }
-  list.innerHTML = '扫描完成，未发现设备';
+  if (!list) return;
+  
+  list.innerHTML = '正在扫描...';
+  
+  var img = new Image();
+  var done = false;
+  
+  setTimeout(function() {
+    if (!done) {
+      done = true;
+      list.innerHTML = '扫描完成（超时）';
+    }
+  }, 3000);
+  
+  img.onload = img.onerror = function() {
+    if (done) return;
+    done = true;
+    list.innerHTML = '发现响应: 192.168.1.1:80';
+  };
+  
+  img.src = 'http://192.168.1.1:80/favicon.ico?' + Date.now();
 }
+
 
 // 应用推送预设
 function applyPushPreset(type) {
