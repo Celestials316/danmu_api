@@ -4567,7 +4567,7 @@ try {
      text-overflow: ellipsis;
    }
 
-   /* 优化后的剧集容器 - 默认样式 */
+   /* 剧集容器 - 默认网格布局 */
    .episode-grid {
      display: grid;
      grid-template-columns: repeat(auto-fill, minmax(75px, 1fr));
@@ -4579,16 +4579,24 @@ try {
      transition: all 0.3s ease;
    }
 
-   /* 网格模式：紧凑的多列布局 */
-   .episode-grid.grid-mode {
+   /* 紧凑网格模式（无标题时） */
+   .episode-grid.compact-grid {
      grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
      gap: 8px;
    }
 
-   /* 列表模式：单列布局 */
+   /* 列表模式 */
    .episode-grid.list-mode {
      grid-template-columns: 1fr;
      gap: 8px;
+   }
+
+   /* 紧凑模式按钮（无标题时） */
+   .episode-btn.compact {
+     min-width: 40px;
+     padding: 10px 6px;
+     font-size: 14px;
+     font-weight: 600;
    }
 
    .episode-btn {
@@ -6180,7 +6188,7 @@ try {
                </div>
              </div>
              
-             <div id="episodeListContainer">
+             <div id="episodeListContainer" class="episode-grid">
                </div>
            </div>
          </div>
@@ -8554,6 +8562,11 @@ try {
      const container = document.getElementById(containerId);
      if (!container) return;
 
+     // 确保容器有 episode-grid 类
+     if (!container.classList.contains('episode-grid')) {
+       container.classList.add('episode-grid');
+     }
+
      if (!currentEpisodesData || currentEpisodesData.length === 0) {
        container.innerHTML = \`
          <div style="text-align: center; padding: 80px 0; color: var(--text-tertiary);">
@@ -8563,13 +8576,23 @@ try {
        return;
      }
 
+     // 检查是否有任何剧集有标题
+     const hasAnyTitle = currentEpisodesData.some(ep => ep.episodeTitle && ep.episodeTitle.trim() !== '');
+
      // 更新容器样式
      if (isEpisodeListMode) {
+       // 列表模式：单列显示标题
        container.classList.add('list-mode');
-       container.classList.remove('grid-mode');
+       container.classList.remove('compact-grid');
      } else {
+       // 网格模式
        container.classList.remove('list-mode');
-       container.classList.add('grid-mode');
+       if (!hasAnyTitle) {
+         // 无标题时使用紧凑网格
+         container.classList.add('compact-grid');
+       } else {
+         container.classList.remove('compact-grid');
+       }
      }
 
      const html = currentEpisodesData.map((ep, index) => {
@@ -8580,21 +8603,29 @@ try {
          : \`loadEpisodeDanmu('\${ep.episodeId}', this)\`;
        
        if (isEpisodeListMode) {
-         // 列表模式：显示集数 + 标题
+         // 列表模式
          return \`
            <div class="episode-btn list-mode" title="\${escapeHtml(title)}" onclick="\${clickAction}">
              <span class="ep-num">\${num}</span>
              <span class="ep-title">\${escapeHtml(title)}</span>
            </div>
          \`;
+       } else if (!hasAnyTitle) {
+         // 无标题的紧凑网格模式
+         return \`<div class="episode-btn compact" onclick="\${clickAction}">\${num}</div>\`;
        } else {
-         // 网格模式：只显示集数，紧凑布局
-         return \`<div class="episode-btn grid-mode" onclick="\${clickAction}">\${num}</div>\`;
+         // 有标题的默认网格模式
+         return \`
+           <div class="episode-btn" title="\${escapeHtml(title)}" onclick="\${clickAction}">
+             <span class="ep-num">\${num}</span>
+           </div>
+         \`;
        }
      }).join('');
 
      container.innerHTML = html;
    }
+
 
 
    // 辅助：更新头部以包含切换按钮
