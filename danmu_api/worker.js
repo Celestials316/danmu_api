@@ -9591,27 +9591,59 @@ function applyPushPreset(type) {
      listView.classList.add('active');
    }
 
-   function updatePushResult(success, animeName, epNum, epTitle) {
-     var container = document.getElementById('pushResultContainer');
-     if (!container) return;
-     var iconEl = document.getElementById('pushResultIcon');
-     var titleEl = document.getElementById('pushResultTitle');
-     var detailsEl = document.getElementById('pushResultDetails');
-     
-     iconEl.className = 'push-result-icon ' + (success ? 'success' : 'error');
-     iconEl.textContent = success ? '✓' : '✗';
-     
-     var time = new Date().toLocaleTimeString();
-     titleEl.innerHTML = (success ? '推送成功' : '推送失败') + ' <span style="font-size:12px;color:var(--text-tertiary)">' + time + '</span>';
-     
-     var html = '<span class="detail-item"><span class="label">番剧:</span><span class="value">' + animeName + '</span></span>';
-     html += '<span class="detail-item"><span class="label">剧集:</span><span class="value">第 ' + epNum + ' 集</span></span>';
-     if (epTitle && epTitle !== epNum) {
-       html += '<span class="detail-item"><span class="value" style="color:var(--text-secondary)">' + epTitle + '</span></span>';
-     }
-     detailsEl.innerHTML = html;
-     container.style.display = 'block';
-   }
+function updatePushResult(success, animeName, originalText, episodeTitle) {
+  var resultDiv = document.getElementById('pushResultInfo');
+  if (!resultDiv) return;
+  
+  var now = new Date();
+  var timeStr = now.toLocaleTimeString('zh-CN', { hour12: false });
+  
+  // 清理番剧名称，移除来源标记和年份
+  var cleanAnimeName = animeName;
+  if (cleanAnimeName) {
+    cleanAnimeName = cleanAnimeName.replace(/from\s+\w+/gi, '').replace(/\(\d{4}\)/g, '').trim();
+  }
+  
+  // 清理剧集标题，移除来源标记
+  var cleanEpisodeTitle = episodeTitle;
+  if (cleanEpisodeTitle) {
+    cleanEpisodeTitle = cleanEpisodeTitle.replace(/【[^】]*】/g, '').trim();
+  }
+  
+  if (success) {
+    resultDiv.innerHTML = 
+      '<div class="push-result-success">' +
+        '<div class="push-result-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div>' +
+        '<div class="push-result-content">' +
+          '<div class="push-result-header">' +
+            '<span class="push-result-title">推送成功</span>' +
+            '<span class="push-result-time">' + timeStr + '</span>' +
+          '</div>' +
+          '<div class="push-result-details">' +
+            '<div class="push-result-anime">' + cleanAnimeName + '</div>' +
+            '<div class="push-result-episode">' + cleanEpisodeTitle + '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    resultDiv.style.display = 'block';
+  } else {
+    resultDiv.innerHTML = 
+      '<div class="push-result-error">' +
+        '<div class="push-result-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></div>' +
+        '<div class="push-result-content">' +
+          '<div class="push-result-header">' +
+            '<span class="push-result-title">推送失败</span>' +
+            '<span class="push-result-time">' + timeStr + '</span>' +
+          '</div>' +
+          '<div class="push-result-details">' +
+            '<div class="push-result-error-msg">' + (animeName || '请检查网络或设备连接') + '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    resultDiv.style.display = 'block';
+  }
+}
+
 
    async function executePushDanmu(episodeId, episodeTitle, btnElement) {
      const pushUrl = document.getElementById('pushTargetUrl').value.trim();
