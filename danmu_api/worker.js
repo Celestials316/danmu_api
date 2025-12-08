@@ -9606,6 +9606,9 @@ function applyPushPreset(type) {
      // 保存 URL
      localStorage.setItem('danmu_push_url', pushUrl);
 
+     // 获取番剧名称
+     var animeName = selectedPushAnime ? (selectedPushAnime.name || selectedPushAnime.title || '未知番剧') : '未知番剧';
+
      // UI 状态
      const originalText = btnElement.innerText;
      btnElement.innerHTML = '<span class="loading-spinner" style="width:12px;height:12px;border-width:2px;"></span>';
@@ -9627,14 +9630,43 @@ function applyPushPreset(type) {
 
        showToast(\`已推送: \${episodeTitle}\`, 'success');
        btnElement.classList.add('active'); // 标记为已推送
+       
+       // 显示推送结果
+       updatePushResult(true, animeName, episodeTitle, '');
      } catch (error) {
        console.error('推送失败:', error);
        showToast('推送请求发送失败: ' + error.message, 'error');
+       
+       // 显示失败结果
+       updatePushResult(false, animeName, episodeTitle, error.message);
      } finally {
        btnElement.innerText = originalText;
        btnElement.style.pointerEvents = 'auto';
      }
    }
+
+   function updatePushResult(success, animeName, episodeTitle, errMsg) {
+     var container = document.getElementById('pushResultContainer');
+     var iconEl = document.getElementById('pushResultIcon');
+     var titleEl = document.getElementById('pushResultTitle');
+     var detailsEl = document.getElementById('pushResultDetails');
+     if (!container) return;
+     
+     iconEl.className = 'push-result-icon ' + (success ? 'success' : 'error');
+     iconEl.textContent = success ? '✓' : '✗';
+     
+     var time = new Date().toLocaleTimeString();
+     titleEl.innerHTML = (success ? '推送成功' : '推送失败') + ' <span style="font-size:12px;color:var(--text-tertiary)">' + time + '</span>';
+     
+     var html = '<span class="detail-item"><span class="label">番剧:</span><span class="value">' + animeName + '</span></span>';
+     html += '<span class="detail-item"><span class="label">剧集:</span><span class="value">第 ' + episodeTitle + ' 集</span></span>';
+     if (!success && errMsg) {
+       html += '<span class="detail-item" style="color:#ef4444"><span class="label">原因:</span><span class="value">' + errMsg + '</span></span>';
+     }
+     detailsEl.innerHTML = html;
+     container.style.display = 'block';
+   }
+
 
 
 // ========== 弹幕导出功能 ==========
