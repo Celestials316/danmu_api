@@ -6475,20 +6475,11 @@ try {
                  </div>
                </div>
 
-               <div style="margin-top: 20px; padding-top: 16px; border-top: 1px dashed var(--border-color);">
-                 <div style="font-size: 12px; color: var(--text-secondary); font-weight: 600; margin-bottom: 10px;">
-                   局域网设备
-                 </div>
-                 <button class="btn btn-secondary" id="scanLanBtn" style="width: 100%; padding: 12px; font-size: 13px; border-radius: 8px;" onclick="scanLanDevices()">
-                   <span id="scanBtnText">扫描局域网设备</span>
-                 </button>
-                 <div id="lanDevicesContainer" style="display: none; margin-top: 12px;">
-                   <div id="lanDevicesList"></div>
-                 </div>
-                 <div id="scanTipsContainer" style="display: none; margin-top: 10px; padding: 10px; background: rgba(245, 158, 11, 0.1); border-radius: 8px; font-size: 11px; color: var(--warning);">
-                   提示：确保设备在同一网段，或手动输入IP
-                 </div>
+               <div style="margin-top: 20px;">
+                 <button class="btn btn-secondary" onclick="scanLanDevices()">测试扫描</button>
+                 <div id="lanDevicesList" style="margin-top: 10px;"></div>
                </div>
+
 
                <div class="form-hint" style="margin-top: 12px;">请输入接收弹幕的播放器地址。系统会自动在末尾追加 <code style="background:var(--bg-secondary);padding:2px 4px;border-radius:4px;">http://.../comment/id.xml</code> 链接</div>
              </div>
@@ -9371,7 +9362,14 @@ function initPushPage() {
     document.getElementById('pushTargetUrl').value = savedUrl;
   }
 }
-function scanLanDevices() { alert('test'); }
+function scanLanDevices() {
+  var list = document.getElementById('lanDevicesList');
+  if (!list) {
+    alert('没找到list');
+    return;
+  }
+  list.innerHTML = '扫描完成，未发现设备';
+}
 
 // 应用推送预设
 function applyPushPreset(type) {
