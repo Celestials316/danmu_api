@@ -9591,6 +9591,28 @@ function applyPushPreset(type) {
      listView.classList.add('active');
    }
 
+   function updatePushResult(success, animeName, episodeTitle, errMsg) {
+     var container = document.getElementById('pushResultContainer');
+     if (!container) return;
+     var iconEl = document.getElementById('pushResultIcon');
+     var titleEl = document.getElementById('pushResultTitle');
+     var detailsEl = document.getElementById('pushResultDetails');
+     
+     iconEl.className = 'push-result-icon ' + (success ? 'success' : 'error');
+     iconEl.textContent = success ? '✓' : '✗';
+     
+     var time = new Date().toLocaleTimeString();
+     titleEl.innerHTML = (success ? '推送成功' : '推送失败') + ' <span style="font-size:12px;color:var(--text-tertiary)">' + time + '</span>';
+     
+     var html = '<span class="detail-item"><span class="label">番剧:</span><span class="value">' + animeName + '</span></span>';
+     html += '<span class="detail-item"><span class="label">剧集:</span><span class="value">第 ' + episodeTitle + ' 集</span></span>';
+     if (!success && errMsg) {
+       html += '<span class="detail-item" style="color:#ef4444"><span class="label">原因:</span><span class="value">' + errMsg + '</span></span>';
+     }
+     detailsEl.innerHTML = html;
+     container.style.display = 'block';
+   }
+
    async function executePushDanmu(episodeId, episodeTitle, btnElement) {
      const pushUrl = document.getElementById('pushTargetUrl').value.trim();
      
@@ -9621,9 +9643,13 @@ function applyPushPreset(type) {
 
        showToast('已推送: ' + episodeTitle, 'success');
        btnElement.classList.add('active');
+       var animeName = selectedPushAnime ? (selectedPushAnime.name || selectedPushAnime.title || '未知番剧') : '未知番剧';
+       updatePushResult(true, animeName, episodeTitle, '');
      } catch (error) {
        console.error('推送失败:', error);
        showToast('推送请求发送失败: ' + error.message, 'error');
+       var animeName = selectedPushAnime ? (selectedPushAnime.name || selectedPushAnime.title || '未知番剧') : '未知番剧';
+       updatePushResult(false, animeName, episodeTitle, error.message);
      } finally {
        btnElement.innerText = originalText;
        btnElement.style.pointerEvents = 'auto';
