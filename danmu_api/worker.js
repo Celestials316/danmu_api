@@ -9383,17 +9383,12 @@ function scanLanDevices() {
   
   var found = [];
   var count = 0;
-  var targets = [
-    { ip: subnet + '.1', port: 9978 },
-    { ip: subnet + '.1', port: 8080 },
-    { ip: subnet + '.180', port: 9978 },
-    { ip: subnet + '.213', port: 9978 }
-  ];
-  var total = targets.length;
+  var total = 4;
   
-  for (var i = 0; i < targets.length; i++) {
-    checkOne(targets[i].ip, targets[i].port);
-  }
+  checkOne(subnet + '.1', 9978);
+  checkOne(subnet + '.100', 9978);
+  checkOne(subnet + '.200', 9978);
+  checkOne(subnet + '.180', 9978);
   
   function checkOne(ip, port) {
     var startTime = Date.now();
@@ -9401,58 +9396,33 @@ function scanLanDevices() {
     
     fetch(url, { mode: 'no-cors' })
       .then(function() {
-        var elapsed = Date.now() - startTime;
-        if (elapsed < 500) {
-          found.push({ ip: ip, port: port, time: elapsed });
-        }
-        count++;
-        checkDone();
+        done(ip, port, Date.now() - startTime);
       })
       .catch(function() {
-        var elapsed = Date.now() - startTime;
-        if (elapsed < 500) {
-          found.push({ ip: ip, port: port, time: elapsed });
-        }
-        count++;
-        checkDone();
+        done(ip, port, Date.now() - startTime);
       });
   }
   
-  function checkDone() {
-    if (count < total) {
-      list.innerHTML = '扫描中 ' + count + '/' + total;
-      return;
+  function done(ip, port, elapsed) {
+    if (elapsed < 500) {
+      found.push(ip + ':' + port + ' (' + elapsed + 'ms)');
     }
+    count++;
     
-    btn.disabled = false;
-    btn.innerText = '重新扫描';
-    
-    if (found.length > 0) {
-      var html = '';
-      for (var i = 0; i < found.length; i++) {
-        var d = found[i];
-        html += '<div style="padding:10px;background:var(--bg-tertiary);margin:4px 0;border-radius:6px;">';
-        html += d.ip + ':' + d.port + ' (' + d.time + 'ms) ';
-        html += '<button class="btn btn-primary" style="padding:2px 8px;font-size:12px;float:right;" onclick="useLanDevice(\'' + d.ip + '\',' + d.port + ')">使用</button>';
-        html += '</div>';
+    if (count >= total) {
+      btn.disabled = false;
+      btn.innerText = '重新扫描';
+      if (found.length > 0) {
+        list.innerHTML = '发现: ' + found.join(', ');
+      } else {
+        list.innerHTML = '未发现设备';
       }
-      list.innerHTML = html;
-    } else {
-      list.innerHTML = '未发现设备';
     }
   }
 }
 
 function useLanDevice(ip, port) {
-  var input = document.getElementById('pushTargetUrl');
-  if (!input) return;
-  if (port == 9978) {
-    input.value = 'http://' + ip + ':9978/action?do=refresh&type=danmaku&path=';
-  } else {
-    input.value = 'http://' + ip + ':' + port + '/';
-  }
-  localStorage.setItem('danmu_push_url', input.value);
-  showToast('已选择: ' + ip + ':' + port, 'success');
+  alert('选择: ' + ip + ':' + port);
 }
 
 
