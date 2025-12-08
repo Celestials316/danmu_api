@@ -9645,11 +9645,12 @@ function applyPushPreset(type) {
        btnElement.classList.add('active');
        try {
          var animeName = '未知番剧';
-         var titleEl = document.querySelector('#pushAnimeSection .selected-anime-title');
-         if (titleEl) {
-           animeName = titleEl.textContent || '未知番剧';
+         var animeCard = document.querySelector('.push-anime-card .anime-name');
+         if (animeCard) {
+           animeName = animeCard.textContent || '未知番剧';
          }
-         updatePushResult(true, animeName, episodeTitle, '');
+         var epNum = btnElement.textContent || btnElement.innerText || episodeTitle;
+         updatePushResult(true, animeName, epNum, '');
        } catch(e) { console.log(e); }
      } catch (error) {
        console.error('推送失败:', error);
