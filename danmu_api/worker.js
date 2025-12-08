@@ -6477,20 +6477,23 @@ try {
 
                <div style="margin-top: 20px; padding-top: 16px; border-top: 1px dashed var(--border-color);">
                  <div style="font-size: 12px; color: var(--text-secondary); font-weight: 600; margin-bottom: 10px;">
-                   局域网设备扫描
+                   局域网设备
                  </div>
-                 <div style="display: flex; gap: 8px; margin-bottom: 10px;">
-                   <input type="text" id="lanSubnet" value="192.168.5" placeholder="网段如 192.168.1" style="flex: 1; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; font-family: monospace; background: var(--bg-secondary); color: var(--text-primary);">
-                   <button class="btn btn-primary" id="scanLanBtn" style="padding: 8px 16px; font-size: 13px; border-radius: 6px; white-space: nowrap;" onclick="scanLanDevices()">
-                     扫描
-                   </button>
+                 <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                   <input type="text" id="lanDeviceIP" placeholder="设备IP 如 192.168.5.100" style="flex: 1; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; font-family: monospace; background: var(--bg-secondary); color: var(--text-primary);">
+                   <select id="lanDevicePort" style="padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; background: var(--bg-secondary); color: var(--text-primary);">
+                     <option value="9978">OK影视</option>
+                     <option value="8080">Kodi</option>
+                     <option value="10086">TVBox</option>
+                   </select>
                  </div>
-                 <div id="lanDevicesList"></div>
+                 <div style="display: flex; gap: 8px;">
+                   <button class="btn btn-secondary" style="flex: 1; padding: 10px; font-size: 13px; border-radius: 6px;" onclick="testLanDevice()">测试连接</button>
+                   <button class="btn btn-primary" style="flex: 1; padding: 10px; font-size: 13px; border-radius: 6px;" onclick="useLanDeviceManual()">使用此设备</button>
+                 </div>
+                 <div id="lanTestResult" style="margin-top: 10px; font-size: 12px; text-align: center;"></div>
                </div>
 
-               <div class="form-hint" style="margin-top: 12px;">请输入接收弹幕的播放器地址。系统会自动在末尾追加 <code style="background:var(--bg-secondary);padding:2px 4px;border-radius:4px;">http://.../comment/id.xml</code> 链接</div>
-             </div>
-           </div>
            
            <div class="config-item" style="background: var(--bg-primary); border: 2px solid var(--border-color); border-radius: 12px; padding: 20px;">
              <div class="config-header" style="margin-bottom: 14px;">
@@ -9368,130 +9371,94 @@ function initPushPage() {
   if (savedUrl) {
     document.getElementById('pushTargetUrl').value = savedUrl;
   }
-}
-function scanLanDevices() {
-  var list = document.getElementById('lanDevicesList');
-  var btn = document.getElementById('scanLanBtn');
-  var subnetInput = document.getElementById('lanSubnet');
-  if (!list) return;
-  
-  var baseIP = subnetInput ? subnetInput.value.trim() : '192.168.1';
-  if (!baseIP) baseIP = '192.168.1';
-  
-  if (btn) {
-    btn.disabled = true;
-    btn.innerText = '扫描中...';
-  }
-  list.innerHTML = '正在扫描 ' + baseIP + '.x ...';
-  
-  var found = [];
-  var count = 0;
-  var ips = [];
-  var ports = [9978, 8080, 10086];
-  
-  for (var i = 1; i <= 20; i++) ips.push(baseIP + '.' + i);
-  for (var i = 100; i <= 120; i++) ips.push(baseIP + '.' + i);
-  for (var i = 200; i <= 210; i++) ips.push(baseIP + '.' + i);
-  
-  var total = ips.length * ports.length;
-  var TIMEOUT = 1500;
-  var FAST_THRESHOLD = 100;
-  
-  for (var i = 0; i < ips.length; i++) {
-    for (var j = 0; j < ports.length; j++) {
-      checkDevice(ips[i], ports[j]);
-    }
-  }
-  
-  function checkDevice(ip, port) {
-    var done = false;
-    var startTime = Date.now();
-    
-    var timer = setTimeout(function() {
-      if (!done) {
-        done = true;
-        count++;
-        showResult();
-      }
-    }, TIMEOUT);
-    
-    var img = new Image();
-    
-    img.onload = function() {
-      if (done) return;
-      done = true;
-      clearTimeout(timer);
-      found.push({ip: ip, port: port, time: Date.now() - startTime});
-      count++;
-      showResult();
-    };
-    
-    img.onerror = function() {
-      if (done) return;
-      done = true;
-      clearTimeout(timer);
-      var elapsed = Date.now() - startTime;
-      if (elapsed < FAST_THRESHOLD) {
-        found.push({ip: ip, port: port, time: elapsed});
-      }
-      count++;
-      showResult();
-    };
-    
-    img.src = 'http://' + ip + ':' + port + '/favicon.ico?' + Date.now();
-  }
-  
-  function showResult() {
-    var pct = Math.round(count / total * 100);
-    list.innerHTML = '扫描中 ' + pct + '%';
-    
-    if (count < total) return;
-    
-    if (btn) {
-      btn.disabled = false;
-      btn.innerText = '重新扫描';
-    }
-    
-    if (found.length > 0) {
-      found.sort(function(a, b) { return a.time - b.time; });
-      
-      var html = '';
-      for (var i = 0; i < found.length; i++) {
-        var d = found[i];
-        var name = '';
-        if (d.port == 9978) name = 'OK影视';
-        else if (d.port == 8080) name = 'Kodi';
-        else if (d.port == 10086) name = 'TVBox';
-        
-        html += '<div style="padding:10px;background:var(--bg-tertiary);margin-bottom:6px;border-radius:6px;display:flex;justify-content:space-between;align-items:center;">';
-        html += '<div><span style="font-family:monospace;font-weight:600;">' + d.ip + ':' + d.port + '</span>';
-        if (name) html += '<span style="margin-left:8px;font-size:12px;color:var(--text-tertiary);">' + name + '</span>';
-        html += '<span style="margin-left:8px;font-size:11px;color:var(--success);">' + d.time + 'ms</span>';
-        html += '</div>';
-        html += '<button class="btn btn-primary" style="padding:4px 12px;font-size:12px;height:auto;" onclick="useLanDevice(this)" data-ip="' + d.ip + '" data-port="' + d.port + '">使用</button>';
-        html += '</div>';
-      }
-      list.innerHTML = html;
-    } else {
-      list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-tertiary);">未发现设备<br><span style="font-size:12px;">请确认网段正确且设备已开启相应服务</span></div>';
-    }
-  }
+  initLanDevice();
 }
 
-function useLanDevice(el) {
-  var ip = el.getAttribute('data-ip');
-  var port = el.getAttribute('data-port');
-  var input = document.getElementById('pushTargetUrl');
-  if (!input) return;
+function testLanDevice() {
+  var ipInput = document.getElementById('lanDeviceIP');
+  var portSelect = document.getElementById('lanDevicePort');
+  var result = document.getElementById('lanTestResult');
   
-  if (port == 9978) {
+  if (!ipInput || !result) return;
+  
+  var ip = ipInput.value.trim();
+  if (!ip) {
+    showToast('请输入设备IP', 'warning');
+    return;
+  }
+  
+  var port = portSelect ? portSelect.value : '9978';
+  var url = 'http://' + ip + ':' + port + '/';
+  
+  result.innerHTML = '正在测试 ' + ip + ':' + port + ' ...';
+  result.style.color = 'var(--text-tertiary)';
+  
+  var iframe = document.createElement('iframe');
+  iframe.style.display = 'none';
+  document.body.appendChild(iframe);
+  
+  var timer = setTimeout(function() {
+    document.body.removeChild(iframe);
+    result.innerHTML = '⚠️ 连接超时，设备可能不在线';
+    result.style.color = 'var(--warning)';
+  }, 5000);
+  
+  iframe.onload = function() {
+    clearTimeout(timer);
+    document.body.removeChild(iframe);
+    result.innerHTML = '✅ 检测到响应，可以尝试使用';
+    result.style.color = 'var(--success)';
+  };
+  
+  iframe.onerror = function() {
+    clearTimeout(timer);
+    document.body.removeChild(iframe);
+    result.innerHTML = '❓ 无法确认，请直接尝试使用';
+    result.style.color = 'var(--warning)';
+  };
+  
+  iframe.src = url;
+}
+
+function useLanDeviceManual() {
+  var ipInput = document.getElementById('lanDeviceIP');
+  var portSelect = document.getElementById('lanDevicePort');
+  var input = document.getElementById('pushTargetUrl');
+  
+  if (!ipInput || !input) return;
+  
+  var ip = ipInput.value.trim();
+  if (!ip) {
+    showToast('请输入设备IP', 'warning');
+    return;
+  }
+  
+  var port = portSelect ? portSelect.value : '9978';
+  
+  if (port == '9978') {
     input.value = 'http://' + ip + ':9978/action?do=refresh&type=danmaku&path=';
   } else {
     input.value = 'http://' + ip + ':' + port + '/';
   }
   
   localStorage.setItem('danmu_push_url', input.value);
-  showToast('已选择: ' + ip + ':' + port, 'success');
+  localStorage.setItem('danmu_lan_ip', ip);
+  localStorage.setItem('danmu_lan_port', port);
+  showToast('已设置: ' + ip + ':' + port, 'success');
+}
+
+function initLanDevice() {
+  var ipInput = document.getElementById('lanDeviceIP');
+  var portSelect = document.getElementById('lanDevicePort');
+  
+  if (ipInput) {
+    var savedIP = localStorage.getItem('danmu_lan_ip');
+    if (savedIP) ipInput.value = savedIP;
+  }
+  if (portSelect) {
+    var savedPort = localStorage.getItem('danmu_lan_port');
+    if (savedPort) portSelect.value = savedPort;
+  }
 }
 
 
