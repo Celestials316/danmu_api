@@ -9645,13 +9645,9 @@ function applyPushPreset(type) {
        btnElement.classList.add('active');
        try {
          var animeName = '未知番剧';
-         var els = document.querySelectorAll('#pushEpisodeSection *');
-         for (var i = 0; i < els.length; i++) {
-           var txt = els[i].textContent || '';
-           if (txt.indexOf('(20') > -1 && txt.indexOf('返回') === -1 && txt.length < 100) {
-             animeName = txt.split('\n')[0].trim();
-             break;
-           }
+         var backBtn = document.querySelector('#pushEpisodeSection button');
+         if (backBtn && backBtn.nextElementSibling) {
+           animeName = backBtn.nextElementSibling.textContent || '未知番剧';
          }
          updatePushResult(true, animeName, originalText, episodeTitle);
        } catch(e) { console.log(e); }
