@@ -8644,10 +8644,10 @@ try {
        
      } catch (error) {
        container.innerHTML = \`
-         <div style="grid-column: 1/-1; text-align: center; padding: 60px 20px; color: var(--error);">
+         <div style="text-align: center; padding: 60px 20px; color: var(--error);">
            <div style="font-size: 40px; margin-bottom: 16px;">❌</div>
            <div>加载失败: \${error.message}</div>
-           <button onclick="loadEpisodes('${animeId}', '${escapeHtml(animeTitle)}')" class="btn btn-secondary" style="margin-top: 16px;">重试</button>
+           <button onclick="loadEpisodes('\${animeId}', '\${escapeHtml(animeTitle)}')" class="btn btn-secondary" style="margin-top: 16px;">重试</button>
          </div>\`;
      }
    }
