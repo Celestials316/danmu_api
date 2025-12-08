@@ -9381,11 +9381,12 @@ function scanLanDevices() {
   }
   list.innerHTML = '正在扫描...';
   
-  var found = [];
+  var results = [];
   var count = 0;
-  var total = 4;
+  var total = 5;
   
   checkOne(subnet + '.1', 9978);
+  checkOne(subnet + '.2', 9978);
   checkOne(subnet + '.100', 9978);
   checkOne(subnet + '.200', 9978);
   checkOne(subnet + '.180', 9978);
@@ -9396,33 +9397,28 @@ function scanLanDevices() {
     
     fetch(url, { mode: 'no-cors' })
       .then(function() {
-        done(ip, port, Date.now() - startTime);
+        results.push(ip + ': ' + (Date.now() - startTime) + 'ms (then)');
+        count++;
+        showAll();
       })
       .catch(function() {
-        done(ip, port, Date.now() - startTime);
+        results.push(ip + ': ' + (Date.now() - startTime) + 'ms (catch)');
+        count++;
+        showAll();
       });
   }
   
-  function done(ip, port, elapsed) {
-    if (elapsed < 500) {
-      found.push(ip + ':' + port + ' (' + elapsed + 'ms)');
-    }
-    count++;
-    
+  function showAll() {
     if (count >= total) {
       btn.disabled = false;
       btn.innerText = '重新扫描';
-      if (found.length > 0) {
-        list.innerHTML = '发现: ' + found.join(', ');
-      } else {
-        list.innerHTML = '未发现设备';
-      }
+      list.innerHTML = results.join('<br>');
     }
   }
 }
 
 function useLanDevice(ip, port) {
-  alert('选择: ' + ip + ':' + port);
+  alert(ip);
 }
 
 
