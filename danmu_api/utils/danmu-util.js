@@ -549,7 +549,7 @@ export function convertToDanmakuJson(contents, platform) {
     // 格式：时间,模式,颜色,字号,时间戳,弹幕池,用户ID,弹幕ID
     const fontSize = globals.danmuFontSize || 25;
     const timestamp = Math.floor(Date.now() / 1000);
-    
+
     attributes = [
       time,
       mode,
@@ -684,8 +684,9 @@ export function convertToDanmakuJson(contents, platform) {
       const originalColor = color; // 记录原始颜色用于统计
       let modified = false;
 
-      // 1. 将顶部/底部弹幕转换为滚动弹幕
-      if (mode === 4 || mode === 5) {
+      // 1. 保留顶部/底部弹幕的原始类型，不再强制转换
+      // 如果需要转换，可以通过环境变量 CONVERT_TOP_BOTTOM=true 来启用
+      if ((mode === 4 || mode === 5) && globals.convertTopBottom) {
         topBottomCount++;
         mode = 1;
         modified = true;
@@ -735,7 +736,9 @@ export function convertToDanmakuJson(contents, platform) {
 
     // 统计输出转换结果
     log("info", `[Color Conversion Stats - Uniform Distribution]`);
-    log("info", `  - Top/Bottom→Scroll: ${topBottomCount}`);
+    if (globals.convertTopBottom) {
+      log("info", `  - Top/Bottom→Scroll: ${topBottomCount}`);
+    }
     log("info", `  - Total converted to White: ${convertedToWhite}`);
     log("info", `  - Total converted to Palette: ${convertedToColor}`);
   } else {
