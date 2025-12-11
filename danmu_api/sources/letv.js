@@ -16,7 +16,7 @@ export default class LetvSource extends BaseSource {
     this.danmuApiUrl = "https://hd-my.le.com/danmu/list";
     this.searchApiUrl = "https://so.le.com/s";
     this.episodesCache = new Map(); // 缓存分集列表
-    
+
     // 位置映射：乐视 -> 标准格式 (1=滚动, 4=底部, 5=顶部)
     this.POSITION_MAP = {
       4: 1,  // 滚动弹幕
@@ -505,29 +505,17 @@ export default class LetvSource extends BaseSource {
         return [];
       }
 
-      // 去重（根据弹幕ID）
-      const uniqueDanmu = new Map();
-      for (const danmu of allDanmu) {
-        const danmuId = danmu.id || danmu._id;
-        if (danmuId && !uniqueDanmu.has(danmuId)) {
-          uniqueDanmu.set(danmuId, danmu);
-        }
-      }
-
-      const danmuList = Array.from(uniqueDanmu.values());
-      log("info", `[Letv] 去重后弹幕数量: ${danmuList.length} 条`);
-
       // 按时间排序
-      danmuList.sort((a, b) => parseFloat(a.start || 0) - parseFloat(b.start || 0));
+      allDanmu.sort((a, b) => parseFloat(a.start || 0) - parseFloat(b.start || 0));
 
-      log("info", `[Letv] 共获取 ${danmuList.length} 条原始弹幕`);
+      log("info", `[Letv] 共获取 ${allDanmu.length} 条原始弹幕`);
 
       // 调试：打印前3条原始弹幕
-      if (danmuList.length > 0) {
-        log("debug", `[Letv] 前3条原始弹幕示例: ${JSON.stringify(danmuList.slice(0, 3))}`);
+      if (allDanmu.length > 0) {
+        log("debug", `[Letv] 前3条原始弹幕示例: ${JSON.stringify(allDanmu.slice(0, 3))}`);
       }
 
-      return danmuList;
+      return allDanmu;
 
     } catch (error) {
       log("error", `[Letv] 获取弹幕出错: ${error.message}`);
