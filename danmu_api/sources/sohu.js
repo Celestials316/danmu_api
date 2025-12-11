@@ -5,7 +5,7 @@ import { httpGet } from "../utils/http-util.js";
 import { convertToAsciiSum } from "../utils/codec-util.js";
 import { generateValidStartDate } from "../utils/time-util.js";
 import { addAnime, removeEarliestAnime } from "../utils/cache-util.js";
-import { printFirst200Chars, titleMatches } from "../utils/common-util.js";
+import { titleMatches } from "../utils/common-util.js";
 
 // =====================
 // 获取搜狐视频弹幕
@@ -377,18 +377,18 @@ export default class SohuSource extends BaseSource {
         const promises = [];
 
         for (let i = 0; i < concurrency; i++) {
-            const currentStart = batchStart + (i * segmentDuration);
-            if (currentStart >= maxTime) break;
-            const currentEnd = currentStart + segmentDuration;
+          const currentStart = batchStart + (i * segmentDuration);
+          if (currentStart >= maxTime) break;
+          const currentEnd = currentStart + segmentDuration;
 
-            const p = this.getDanmuSegment(vid, aid, currentStart, currentEnd)
-                .then(items => ({ start: currentStart, items: items || [] }))
-                .catch(err => {
-                    log("warn", `[Sohu] 获取片段 ${currentStart}s 失败: ${err.message}`);
-                    return { start: currentStart, items: [] };
-                });
+          const p = this._getDanmuSegment(vid, aid, currentStart, currentEnd)
+            .then(items => ({ start: currentStart, items: items || [] }))
+            .catch(err => {
+              log("warn", `[Sohu] 获取片段 ${currentStart}s 失败: ${err.message}`);
+              return { start: currentStart, items: [] };
+            });
 
-            promises.push(p);
+          promises.push(p);
         }
 
         const batchResults = await Promise.all(promises);
@@ -397,24 +397,24 @@ export default class SohuSource extends BaseSource {
         let stopFetching = false;
 
         for (const result of batchResults) {
-            if (result.items.length > 0) {
-                allComments.push(...result.items);
-                consecutiveEmptySegments = 0;
-            } else {
-                consecutiveEmptySegments++;
-                if (consecutiveEmptySegments >= 3 && result.start >= 600) {
-                    stopFetching = true;
-                }
+          if (result.items.length > 0) {
+            allComments.push(...result.items);
+            consecutiveEmptySegments = 0;
+          } else {
+            consecutiveEmptySegments++;
+            if (consecutiveEmptySegments >= 3 && result.start >= 600) {
+              stopFetching = true;
             }
+          }
         }
 
         if (allComments.length > 0 && batchStart % 600 === 0) {
-            log("info", `[Sohu] 已扫描至 ${Math.min(batchStart + (segmentDuration * concurrency), maxTime) / 60} 分钟, 累计弹幕: ${allComments.length}`);
+          log("info", `[Sohu] 已扫描至 ${Math.min(batchStart + (segmentDuration * concurrency), maxTime) / 60} 分钟, 累计弹幕: ${allComments.length}`);
         }
 
         if (stopFetching) {
-            log("info", `[Sohu] 连续无弹幕，提前结束获取 (位置: ${(batchStart / 60).toFixed(1)} 分钟)`);
-            break;
+          log("info", `[Sohu] 连续无弹幕，提前结束获取 (位置: ${(batchStart / 60).toFixed(1)} 分钟)`);
+          break;
         }
       }
 
@@ -424,7 +424,7 @@ export default class SohuSource extends BaseSource {
       }
 
       log("info", `[Sohu] 共获取 ${allComments.length} 条原始弹幕`);
-      
+
       // 调试：打印前3条原始弹幕
       if (allComments.length > 0) {
         log("debug", `[Sohu] 前3条原始弹幕示例: ${JSON.stringify(allComments.slice(0, 3))}`);
@@ -438,7 +438,10 @@ export default class SohuSource extends BaseSource {
     }
   }
 
-  async getDanmuSegment(vid, aid, start, end) {
+  /**
+   * 获取单个时间段的弹幕
+   */
+  async _getDanmuSegment(vid, aid, start, end) {
     try {
       const params = new URLSearchParams({
         act: 'dmlist_v2',
@@ -457,7 +460,8 @@ export default class SohuSource extends BaseSource {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
           'Referer': 'https://tv.sohu.com/'
-        }
+        },
+        timeout: 10000
       });
 
       if (!response || !response.data) {
@@ -467,9 +471,15 @@ export default class SohuSource extends BaseSource {
       const data = typeof response.data === "string" ? JSON.parse(response.data) : response.data;
       // 兼容 info 包装层级
       const comments = data?.info?.comments || data?.comments || [];
+      
+      if (comments.length > 0) {
+        log("debug", `[Sohu] 获取时间段 ${start}-${end}s 的弹幕: ${comments.length} 条`);
+      }
+      
       return comments;
 
     } catch (error) {
+      log("warn", `[Sohu] 获取时间段 ${start}-${end}s 弹幕失败: ${error.message}`);
       return [];
     }
   }
@@ -499,8 +509,7 @@ export default class SohuSource extends BaseSource {
   }
 
   /**
-   * 格式化弹幕 - 返回标准中间格式（和优酷一样的格式）
-   * 这个格式会被 base.js 的 getComments 方法传给 convertToDanmakuJson 进行统一处理
+   * 格式化弹幕 - 返回标准中间格式
    */
   formatComments(comments) {
     if (!comments || !Array.isArray(comments)) {
@@ -514,12 +523,12 @@ export default class SohuSource extends BaseSource {
       try {
         // 1. 提取内容 - 尝试多个可能的字段
         let text = item.content || item.ct || item.c || item.m || item.text || item.msg || item.message || '';
-        
+
         // 如果 text 是对象，尝试提取其中的文本
         if (typeof text === 'object' && text !== null) {
           text = text.content || text.text || text.msg || JSON.stringify(text);
         }
-        
+
         // 确保转为字符串
         if (typeof text !== 'string') {
           text = String(text);
@@ -533,7 +542,7 @@ export default class SohuSource extends BaseSource {
 
         // 2. 提取时间（秒）
         let timepoint = parseFloat(item.v || item.time || item.timepoint || 0);
-        
+
         // 3. 提取颜色
         const color = this.parseColor(item);
 
@@ -554,7 +563,7 @@ export default class SohuSource extends BaseSource {
           ct = parseInt(item.ct);
         }
 
-        // 7. 构建标准中间格式对象（和优酷保持一致）
+        // 7. 构建标准中间格式对象
         const danmuObj = {
           timepoint: timepoint,
           ct: ct,
@@ -562,24 +571,23 @@ export default class SohuSource extends BaseSource {
           color: color,
           unixtime: unixtime,
           uid: uid,
-          content: text  // 关键：这个字段会被 convertToDanmakuJson 识别
+          content: text
         };
 
         formatted.push(danmuObj);
 
       } catch (error) {
         log("debug", `[Sohu] 格式化单条弹幕出错: ${error.message}`);
-        // 忽略单条错误
       }
     }
 
     log("info", `[Sohu] 成功格式化 ${formatted.length} 条弹幕`);
-    
+
     // 调试：打印前3条格式化后的弹幕
     if (formatted.length > 0) {
       log("debug", `[Sohu] 前3条格式化后的弹幕: ${JSON.stringify(formatted.slice(0, 3))}`);
     }
-    
+
     return formatted;
   }
 }
