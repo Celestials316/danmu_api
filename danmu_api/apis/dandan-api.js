@@ -411,7 +411,7 @@ async function matchAniAndEp(season, episode, searchData, title, req, platform, 
     for (const anime of animeList) {
       if (globals.rememberLastSelect && preferAnimeId && anime.bangumiId.toString() !== preferAnimeId.toString() &&
           anime.animeId.toString() !== preferAnimeId.toString()) continue;
-      
+
       // 🔥 优化：如果标题包含关键词 OR 是源插件认证的模糊匹配(matchedByKeyword)，则进入检查
       const isTitleMatch = normalizeSpaces(anime.animeTitle).includes(normalizedTitle);
       const isFuzzyMatch = anime.matchedByKeyword && normalizeSpaces(anime.matchedByKeyword) === normalizedTitle;
@@ -460,7 +460,7 @@ async function matchAniAndEp(season, episode, searchData, title, req, platform, 
     const animeList = Array.isArray(searchData.animes) ? searchData.animes : [];
     for (const anime of animeList) {
       if (globals.rememberLastSelect && preferAnimeId && anime.bangumiId.toString() !== preferAnimeId.toString()) continue;
-      
+
       const animeTitle = anime.animeTitle.split("(")[0].trim();
       // 🔥 优化：电影同样支持 matchedByKeyword
       const isExactMatch = animeTitle === title;
