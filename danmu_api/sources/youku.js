@@ -59,7 +59,7 @@ export default class YoukuSource extends BaseSource {
     let mediaType = "电视剧"; // 默认类型
     const cats = (commonData.cats || "").toLowerCase();
     const feature = (commonData.feature || "").toLowerCase();
-    
+
     // 优先使用 cats 字段
     if (cats.includes("动漫") || cats.includes("anime")) {
       mediaType = "动漫";
@@ -347,7 +347,7 @@ export default class YoukuSource extends BaseSource {
     } else if (catsLower.includes('电视剧') || catsLower.includes('drama')) {
       return 'drama';
     }
-    
+
     // 备用：从 feature 字段提取
     if (featureLower.includes('综艺')) {
       return 'variety';
