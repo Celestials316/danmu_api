@@ -1,5 +1,5 @@
 import { globals } from '../configs/globals.js';
-import { log } from './log-util.js'
+import { log, redactSensitiveLogText } from './log-util.js'
 import { AsyncLocalStorage } from 'node:async_hooks';
 import https from 'node:https';
 import http from 'node:http';
@@ -23,6 +23,10 @@ const SOURCE_KEY_TO_LOG_NAME = {
   '360': '360kan',
   'imgo': 'mango',
 };
+
+function redactUrlForLog(value) {
+  return redactSensitiveLogText(value);
+}
 
 /**
  * 将 sourceOrderArr 中的调度键名转换为日志标签规范名称
@@ -99,7 +103,7 @@ export async function httpGet(url, options = {}) {
   const bypassCache = options.bypassCache === true;
   if (requestHttpCache && !bypassCache && requestHttpCache.has(url)) {
     const cached = requestHttpCache.get(url);
-    log("info", `[${sourceLogContext.getStore() || 'system'}] [请求复用] 复用请求内已缓存的 HTTP 响应, 跳过重复请求: ${url}`);
+    log("info", `[${sourceLogContext.getStore() || 'system'}] [请求复用] 复用请求内已缓存的 HTTP 响应, 跳过重复请求: ${redactUrlForLog(url)}`);
     return { data: structuredClone(cached.data), status: cached.status, headers: { ...cached.headers } };
   }
 
@@ -117,7 +121,7 @@ export async function httpGet(url, options = {}) {
     const currentSource = sourceLogContext.getStore() || "system";
 
     if (attempt > 0) {
-      log("info", `[${currentSource}] [请求模拟] 第 ${attempt} 次重试: ${url}`);
+      log("info", `[${currentSource}] [请求模拟] 第 ${attempt} 次重试: ${redactUrlForLog(url)}`);
       // 针对网络层物理阻断（如 ETIMEDOUT, ECONNRESET, AbortError）取消长退避，实现快速重试
       // 常规服务端报错（如 502, 429）保持指数退避逻辑
       if (lastError && (lastError.cause?.code === 'ETIMEDOUT' || lastError.cause?.code === 'ECONNRESET' || lastError.name === 'AbortError')) {
@@ -126,7 +130,7 @@ export async function httpGet(url, options = {}) {
         await new Promise(resolve => setTimeout(resolve, Math.min(1000 * Math.pow(2, attempt - 1), 5000)));
       }
     } else {
-      log("info", `[${currentSource}] [请求模拟] HTTP GET: ${url}`);
+      log("info", `[${currentSource}] [请求模拟] HTTP GET: ${redactUrlForLog(url)}`);
     }
 
     // 设置超时时间（默认5秒）
@@ -162,8 +166,6 @@ export async function httpGet(url, options = {}) {
           redirect: allow_redirects ? 'follow' : 'manual'
         });
       }
-
-      clearTimeout(timeoutId);
 
       // 非 2xx 且不在白名单内的状态码抛出异常
       if (!response.ok && !validStatusCodes.includes(response.status)) {
@@ -296,13 +298,13 @@ export async function httpGet(url, options = {}) {
       if (error.name === 'AbortError') {
         log("error", `[${currentSource}] [请求模拟] 请求超时:`, error.message);
         log("error", '详细诊断:');
-        log("error", '- URL:', url);
+        log("error", '- URL:', redactUrlForLog(url));
         log("error", '- 超时时间:', `${timeout}ms`);
         log("error", `- 当前尝试: ${attempt + 1}/${maxRetries + 1}`);
       } else {
         log("error", `[${currentSource}] [请求模拟] 请求失败:`, error.message);
         log("error", '详细诊断:');
-        log("error", '- URL:', url);
+        log("error", '- URL:', redactUrlForLog(url));
         log("error", '- 错误类型:', error.name);
         log("error", '- 消息:', error.message);
         log("error", `- 当前尝试: ${attempt + 1}/${maxRetries + 1}`);
@@ -318,6 +320,7 @@ export async function httpGet(url, options = {}) {
         continue;
       }
     } finally {
+      clearTimeout(timeoutId);
       // 请求生命周期结束，释放监听器内存引用
       cleanupSignal();
     }
@@ -340,7 +343,7 @@ export async function httpPost(url, body, options = {}) {
     const currentSource = sourceLogContext.getStore() || "system";
 
     if (attempt > 0) {
-      log("info", `[${currentSource}] [请求模拟] 第 ${attempt} 次重试: ${url}`);
+      log("info", `[${currentSource}] [请求模拟] 第 ${attempt} 次重试: ${redactUrlForLog(url)}`);
       // 针对网络层物理阻断（如 ETIMEDOUT, ECONNRESET, AbortError）取消长退避，实现快速重试
       // 常规服务端报错（如 502, 429）保持指数退避逻辑
       if (lastError && (lastError.cause?.code === 'ETIMEDOUT' || lastError.cause?.code === 'ECONNRESET' || lastError.name === 'AbortError')) {
@@ -349,7 +352,7 @@ export async function httpPost(url, body, options = {}) {
         await new Promise(resolve => setTimeout(resolve, Math.min(1000 * Math.pow(2, attempt - 1), 5000)));
       }
     } else {
-      log("info", `[${currentSource}] [请求模拟] HTTP POST: ${url}`);
+      log("info", `[${currentSource}] [请求模拟] HTTP POST: ${redactUrlForLog(url)}`);
     }
 
     // 设置超时时间（默认5秒）
@@ -385,8 +388,6 @@ export async function httpPost(url, body, options = {}) {
         // 现代浏览器环境
         response = await fetch(url, fetchOptions);
       }
-
-      clearTimeout(timeoutId);
 
       const data = await response.text();
 
@@ -428,13 +429,13 @@ export async function httpPost(url, body, options = {}) {
       if (error.name === 'AbortError') {
         log("error", `[${currentSource}] [请求模拟] 请求超时:`, error.message);
         log("error", '详细诊断:');
-        log("error", '- URL:', url);
+        log("error", '- URL:', redactUrlForLog(url));
         log("error", '- 超时时间:', `${timeout}ms`);
         log("error", `- 当前尝试: ${attempt + 1}/${maxRetries + 1}`);
       } else {
         log("error", `[${currentSource}] [请求模拟] 请求失败:`, error.message);
         log("error", '详细诊断:');
-        log("error", '- URL:', url);
+        log("error", '- URL:', redactUrlForLog(url));
         log("error", '- 错误类型:', error.name);
         log("error", '- 消息:', error.message);
         log("error", `- 当前尝试: ${attempt + 1}/${maxRetries + 1}`);
@@ -450,6 +451,7 @@ export async function httpPost(url, body, options = {}) {
         continue;
       }
     } finally {
+      clearTimeout(timeoutId);
       // 请求生命周期结束，释放监听器内存引用
       cleanupSignal();
     }
@@ -474,7 +476,7 @@ export async function httpPost(url, body, options = {}) {
  */
 async function httpRequestMethod(method, url, body, options = {}) {
   const currentSource = sourceLogContext.getStore() || "system";
-  log("info", `[${currentSource}] [请求模拟] HTTP ${method}: ${url}`);
+  log("info", `[${currentSource}] [请求模拟] HTTP ${method}: ${redactUrlForLog(url)}`);
 
   const { headers = {}, allow_redirects = true } = options;
   const validStatusCodes = Array.isArray(options.validStatusCodes) ? options.validStatusCodes : [];
@@ -533,7 +535,7 @@ async function httpRequestMethod(method, url, body, options = {}) {
     const currentSource = sourceLogContext.getStore() || "system";
     log("error", `[${currentSource}] [请求模拟] 请求失败:`, error.message);
     log("error", '详细诊断:');
-    log("error", '- URL:', url);
+    log("error", '- URL:', redactUrlForLog(url));
     log("error", '- 错误类型:', error.name);
     log("error", '- 消息:', error.message);
     if (error.cause) {
@@ -767,7 +769,7 @@ export async function httpGetWithStreamCheck(url, options = {}, checkCallback) {
 
   try {
     const currentSource = sourceLogContext.getStore() || "system";
-    log("info", `[${currentSource}] [流式请求] HTTP GET: ${url}`);
+    log("info", `[${currentSource}] [流式请求] HTTP GET: ${redactUrlForLog(url)}`);
 
     // 兼容iOS巨魔或旧版Node：使用node-fetch替代内置fetch
     let response;

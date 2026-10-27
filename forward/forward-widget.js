@@ -1,6 +1,6 @@
 import { searchAnime, getBangumi, getComment, getSegmentComment, matchSeason } from '../danmu_api/apis/dandan-api.js';
 import { Globals } from '../danmu_api/configs/globals.js';
-import { log } from '../danmu_api/utils/log-util.js';
+import { log, redactSensitiveLogText } from '../danmu_api/utils/log-util.js';
 import { simplized } from '../danmu_api/utils/zh-util.js';
 
 const wv = typeof widgetVersion !== 'undefined' ? widgetVersion : Globals.VERSION;
@@ -538,13 +538,14 @@ const FORWARD_TRACE_BATCH_SIZE = 20;
 let forwardDebugContext = null;
 
 function redactForwardTraceValue(value, key = '', depth = 0, seen = []) {
-  if (/(cookie|token|api.?key|authorization|password|secret|debugEndpoint)/i.test(key)) {
+  if (/(cookie|token|api.?key|authorization|password|secret|debugEndpoint|device_?id|install_?id|openudid|cdid|req_?id|oaid|^iid$)/i.test(key)) {
     return value ? '[REDACTED]' : value;
   }
   if (typeof value === 'string') {
-    return value.length > FORWARD_TRACE_MAX_STRING
-      ? `${value.slice(0, FORWARD_TRACE_MAX_STRING)}...[truncated]`
-      : value;
+    const safeValue = redactForwardRequestUrl(value);
+    return safeValue.length > FORWARD_TRACE_MAX_STRING
+      ? `${safeValue.slice(0, FORWARD_TRACE_MAX_STRING)}...[truncated]`
+      : safeValue;
   }
   if (value === null || value === undefined || typeof value !== 'object') return value;
   if (depth >= 4) return '[max-depth]';
@@ -606,7 +607,7 @@ function buildForwardTraceUrl(debugEndpoint) {
 }
 
 function redactForwardRequestUrl(url) {
-  return String(url || '').replace(
+  return redactSensitiveLogText(url || '').replace(
     /([?&](?:token|access_token|api_?key|key|signature|x-signature|authorization)=)[^&]*/gi,
     '$1[REDACTED]'
   );

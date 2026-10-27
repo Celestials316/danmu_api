@@ -9,9 +9,10 @@ import assert from 'node:assert';
 import {
   httpPatch, httpPut, httpDelete, jsonResponse, xmlResponse, binResponse, buildQueryString,
   sortedQueryString, updateQueryString, getPathname, toLogSourceName, runWithHttpCache,
-  getPageTitle, httpGetWithStreamCheck, sourceLogContext, httpCacheContext,
+  getPageTitle, httpGet, httpPost, httpGetWithStreamCheck, sourceLogContext, httpCacheContext,
 } from '../../utils/http-util.js';
 import { mockJsonResponse, withMockFetch } from '../helpers/context.js';
+import { globals } from '../../configs/globals.js';
 
 test('httpPatch 的 allow_redirects 与 GET/POST 行为一致', async () => {
   let seenOptions = null;
@@ -176,4 +177,78 @@ test('http-util httpGetWithStreamCheck 流式读取、嗅探回调与错误处�
     () => httpGetWithStreamCheck('http://example.com/e'),
   );
   assert.strictEqual(serverError, null, '非 2xx 由内部捕获并返回 null（调用方以 null 表示本次无数据）');
+});
+
+
+test('http-util 请求日志对设备身份查询参数脱敏', async () => {
+  const previousLogs = globals.logBuffer;
+  const previousLevel = globals.logLevel;
+  globals.logBuffer = [];
+  globals.logLevel = 'info';
+  try {
+    await withMockFetch(
+      async (url) => mockJsonResponse({}, url),
+      () => httpPatch('https://example.com/api?device_id=123456&openudid=abcdef&query=ok', '{}'),
+    );
+    const text = globals.logBuffer.map(entry => entry.message).join('\n');
+    assert.ok(text.includes('device_id=%2A%2A%2A') || text.includes('device_id=***'), text);
+    assert.ok(text.includes('openudid=%2A%2A%2A') || text.includes('openudid=***'), text);
+    assert.ok(!text.includes('123456'), text);
+    assert.ok(!text.includes('abcdef'), text);
+    assert.ok(text.includes('query=ok'), text);
+  } finally {
+    globals.logBuffer = previousLogs;
+    globals.logLevel = previousLevel;
+  }
+});
+
+test('http-util GET/POST 超时覆盖响应正文读取', { timeout: 3000 }, async () => {
+  for (const mode of ['text', 'binary', 'post']) {
+    let signal;
+    await withMockFetch(async (_url, options) => {
+      signal = options.signal;
+      return new Response(new ReadableStream({
+        start(controller) {
+          signal.addEventListener('abort', () => controller.error(new DOMException('body timeout', 'AbortError')), { once: true });
+        },
+      }));
+    }, async () => {
+      const request = mode === 'post'
+        ? httpPost('https://fixture.test/body', 'body', { timeout: 30 })
+        : httpGet('https://fixture.test/body', { timeout: 30, base64Data: mode === 'binary' });
+      await assert.rejects(request, { name: 'AbortError' });
+      assert.strictEqual(signal.aborted, true);
+    });
+  }
+});
+
+test('http-util 完整读取成功后清理定时器和外部取消监听器', async () => {
+  const external = new AbortController();
+  let signal;
+  await withMockFetch(async (_url, options) => {
+    signal = options.signal;
+    return Response.json({ ok: true });
+  }, () => httpPost('https://fixture.test/body', 'body', { timeout: 20, signal: external.signal }));
+  external.abort();
+  await new Promise(resolve => setTimeout(resolve, 40));
+  assert.strictEqual(signal.aborted, false);
+});
+
+test('http-util 网络异常文本与 cause 中的设备参数同样脱敏', async () => {
+  const previousLogs = globals.logBuffer;
+  const previousLevel = globals.logLevel;
+  globals.logBuffer = [];
+  globals.logLevel = 'info';
+  try {
+    const url = 'https://fixture.test/register?req_id=PRIVATE_REQ&device_id=PRIVATE_DEVICE&query=ok';
+    await withMockFetch(async () => {
+      throw new Error(`request to ${url} failed`, { cause: new Error('network ?openudid=PRIVATE_OPEN') });
+    }, () => assert.rejects(httpPost(url, 'body')));
+    const text = globals.logBuffer.map(entry => entry.message).join('\n');
+    assert.ok(!/PRIVATE_REQ|PRIVATE_DEVICE|PRIVATE_OPEN/.test(text), text);
+    assert.ok(text.includes('query=ok'));
+  } finally {
+    globals.logBuffer = previousLogs;
+    globals.logLevel = previousLevel;
+  }
 });

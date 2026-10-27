@@ -1,5 +1,23 @@
 import { globals } from '../configs/globals.js';
 
+export function redactSensitiveLogText(value) {
+  return String(value).replace(
+    /([?&])([^=&#\s"'<>\\]+)=([^&#\s"'<>\\]*)/g,
+    (match, separator, key) => {
+      try {
+        return /^(?:iid|install_id|device_id|openudid|cdid|req_id|oaid)$/i.test(decodeURIComponent(key))
+          ? `${separator}${key}=***`
+          : match;
+      } catch {
+        return match;
+      }
+    }
+  ).replace(
+    /("(?:iid|install_id(?:_str)?|device_id(?:_str)?|openudid|cdid|req_id|oaid)"\s*:\s*)("(?:\\.|[^"\\])*"|\d+)/gi,
+    '$1"***"'
+  );
+}
+
 // =====================
 // 日志记录工具
 // =====================
@@ -40,7 +58,7 @@ export function log(level, ...args) {
 
 // 隐藏敏感信息的辅助函数
 function hideSensitiveInfo(message) {
-  let processedMessage = message;
+  let processedMessage = redactSensitiveLogText(message);
 
   // 从 globals.originalEnvVars 获取被加密的环境变量值并替换
   // 通过比较 globals.originalEnvVars 和 globals.accessedEnvVars 来识别加密变量

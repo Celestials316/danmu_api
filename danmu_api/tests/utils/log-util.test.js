@@ -2,8 +2,19 @@
 
 import test from 'node:test';
 import assert from 'node:assert';
-import { log, formatLogMessage } from '../../utils/log-util.js';
+import { log, formatLogMessage, redactSensitiveLogText } from '../../utils/log-util.js';
 import { globals } from '../../configs/globals.js';
+
+test('设备身份脱敏覆盖编码参数、异常文本和 JSON，不改变正常查询', () => {
+    const input = 'failed https://fixture.test/?%64evice_id=PRIVATE_DEVICE&DEVICE_ID=PRIVATE_DUPLICATE&query=ok#fragment '
+        + JSON.stringify({ device_id_str: 'PRIVATE_ID', install_id: 123456, name: 'normal' });
+    const output = redactSensitiveLogText(input);
+    assert.ok(!output.includes('PRIVATE_'));
+    assert.ok(!output.includes('123456'));
+    assert.ok(output.includes('query=ok#fragment'));
+    assert.ok(output.includes('"name":"normal"'));
+    assert.strictEqual(redactSensitiveLogText('?bad%=normal&req_id=private'), '?bad%=normal&req_id=***');
+});
 
 // 临时接管 console 以收集真实输出，结束后恢复，避免污染测试输出
 function captureConsole(levels, fn) {

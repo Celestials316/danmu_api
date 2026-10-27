@@ -119,7 +119,7 @@ class AbortSignal {
     this.aborted = true;
     
     // 触发所有监听器
-    this.listeners.forEach(listener => {
+    [...this.listeners].forEach(listener => {
       try {
         if (typeof listener === 'function') {
           listener({ type: 'abort' });
@@ -176,6 +176,16 @@ class AbortSignal {
 }
 
 const { setTimeout: customSetTimeout, clearTimeout: customClearTimeout } = (function() {
+  const nativeSetTimeout = globalThis.setTimeout;
+  const nativeClearTimeout = globalThis.clearTimeout;
+  globalThis.__FORWARD_HAS_NATIVE_TIMERS__ = typeof nativeSetTimeout === 'function'
+    && typeof nativeClearTimeout === 'function';
+  if (globalThis.__FORWARD_HAS_NATIVE_TIMERS__) {
+    return {
+      setTimeout: nativeSetTimeout.bind(globalThis),
+      clearTimeout: nativeClearTimeout.bind(globalThis)
+    };
+  }
   let timerId = 0;
   const timers = new Map();
 

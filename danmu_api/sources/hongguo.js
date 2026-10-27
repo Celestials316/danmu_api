@@ -17,6 +17,16 @@ import { addAnime, removeEarliestAnime } from "../utils/cache-util.js";
 import { generateValidStartDate } from "../utils/time-util.js";
 import { titleMatches } from "../utils/common-util.js";
 import { SegmentListResponse } from "../models/dandan-model.js";
+import {
+  HONGGUO_SEARCH_VERSION_CODE,
+  HONGGUO_SEARCH_VERSION_NAME,
+  buildRegisterBody,
+  buildRegisterHeaders,
+  createAnonymousIdentity,
+  hongguoUserAgent,
+  parseRegisterResponse,
+  signHongguoSearchRequest,
+} from "../utils/hongguo-util.js";
 
 const CLIENT_CONFIG = {
   apiHosts: Object.freeze([
@@ -70,6 +80,42 @@ const CLIENT_CONFIG = {
 };
 
 const WEB_ORIGIN = "https://hongguoduanju.com";
+const REGISTER_ORIGIN = "https://log5-applog-lq.fqnovel.com";
+const SEARCH_VERSION_NAME = HONGGUO_SEARCH_VERSION_NAME;
+const SEARCH_VERSION_CODE = String(HONGGUO_SEARCH_VERSION_CODE);
+const SEARCH_AID = Number(CLIENT_CONFIG.baseQuery.aid);
+const SEARCH_TAB_TYPE = "11";
+const ANONYMOUS_IDENTITY_TTL_MS = 12 * 60 * 60 * 1000;
+const ANONYMOUS_IDENTITY_FAILURE_TTL_MS = 30_000;
+// 搜索请求本身的超时，以及一次搜索（含 App/网页/SSR 兜底）的总预算。
+// 搜索源是和其他源并行等待的，不能让单个源长时间占住整个搜索响应。
+const SEARCH_REQUEST_TIMEOUT_MS = 4_000;
+const SEARCH_WEB_TIMEOUT_MS = 3_000;
+const SEARCH_REGISTER_TIMEOUT_MS = 2_000;
+const SEARCH_REGISTER_ATTEMPTS = 2;
+const SEARCH_REGISTER_RETRY_DELAY_MS = 150;
+const SEARCH_TOTAL_BUDGET_MS = 6_000;
+const SEARCH_FALLBACK_RESERVE_MS = 2_000;
+// 风控冷却只在“短冷却”时等待，长冷却直接失败并走网页兜底，避免请求挂起。
+const SEARCH_COOLDOWN_MAX_WAIT_MS = 1_000;
+const SEARCH_COOLDOWN_MAX_MS = 10 * 60 * 1000;
+const HONGGUO_REQUEST_TIMEOUT_MS = 8_000;
+// 搜索结果的详情阶段同样要有总预算，避免几十部剧的详情串行把响应拖到数分钟。
+const HONGGUO_HANDLE_ANIMES_BUDGET_MS = 4_000;
+const EPISODE_DETAILS_TTL_MS = 2 * 60 * 1000;
+const EPISODE_DETAILS_FAILURE_TTL_MS = 30 * 1000;
+const EPISODE_DETAILS_CACHE_MAX = 100;
+const SEARCH_DEVICE = Object.freeze({
+  brand: "Redmi",
+  manufacturer: "Xiaomi",
+  model: "25053RT47C",
+  osVersion: "12",
+  osApi: 31,
+  build: "V417IR",
+  resolution: CLIENT_CONFIG.baseQuery.resolution,
+  dpi: Number(CLIENT_CONFIG.baseQuery.dpi),
+  channel: CLIENT_CONFIG.baseQuery.channel,
+});
 
 function parseWebSearchResults(html) {
   const marker = '"searchList":';
@@ -100,7 +146,10 @@ function parseWebSearchResults(html) {
 // 归一化网页搜索接口（/api/search/result/）返回的单条结果
 function normalizeWebSearchItem(item) {
   if (!item || typeof item !== "object") return null;
-  const data = item.video_data || {};
+  const videoDataList = (Array.isArray(item.video_data) ? item.video_data : [item.video_data])
+    .filter((value) => value && typeof value === "object");
+  const data = videoDataList[0] || {};
+  if (isUgcAlbum(item, ...videoDataList, data.album_info)) return null;
   const seriesId = String(data.series_id || item.keyword || "");
   const name = String(data.series_name || data.series_title || item.name || "").trim();
   const episodeCount = Number(data.episode_cnt) || 0;
@@ -115,18 +164,17 @@ function normalizeWebSearchItem(item) {
   };
 }
 
-// 解析网页搜索接口（/api/search/result/）的响应，兼容对象与字符串（HTML/文本）两种入参
+// 解析网页搜索接口（/api/search/result/）的响应，兼容对象与 JSON 字符串
 function parseWebSearchApi(payload) {
   let result = payload;
   if (typeof result === "string") {
-    const text = result.trim();
-    if (!text) return [];
-    try { result = JSON.parse(text); } catch { return []; }
+    try { result = JSON.parse(result); } catch { throw new Error("网页搜索返回无效 JSON"); }
   }
   const list = result && Array.isArray(result.searchList)
     ? result.searchList
-    : (Array.isArray(result) ? result : []);
-  return list.map(normalizeWebSearchItem).filter(Boolean);
+    : (Array.isArray(result) ? result : null);
+  if (!list) throw new Error("网页搜索返回无效搜索结果");
+  return { items: list.map(normalizeWebSearchItem).filter(Boolean), rawCount: list.length };
 }
 
 function parseWebSeriesDetail(html) {
@@ -158,6 +206,9 @@ const COMMENT_CONCURRENCY = 3;
 // 弹幕请求的最小节流间隔（毫秒），随机抖动避免固定节律被平台识别
 const COMMENT_THROTTLE_MS = 180;
 const COMMENT_THROTTLE_JITTER_MS = 240;
+// 详情请求与弹幕分开节流；搜索阶段要快速补齐多部剧详情，不能按弹幕的慢节律发送。
+const DETAIL_THROTTLE_MS = 150;
+const DETAIL_THROTTLE_JITTER_MS = 101;
 const MAX_SEARCH_ITEMS = 20;
 const IMAGE_SHRINK =
   "W3siaW1hZ2VfdHlwZSI6MywiaW1hZ2Vfd2lkdGgiOjkwMCwic2hyaW5rX3R5cGUiOjN9LHsiaW1h\n" +
@@ -619,17 +670,24 @@ function extractYearFromTimestamp(...values) {
   return null;
 }
 
+function isUgcAlbum(...items) {
+  return items.some((item) => Number(item?.content_type) === 1003 || Boolean(item?.ugc_user_info));
+}
+
 function parseSearchCell(cell) {
   const seriesId = cell && (cell.book_id || cell.search_result_id);
   if (!seriesId) return null;
-  const detail = cell.video_detail || {};
-  let videoData = cell.video_data;
-  if (Array.isArray(videoData)) videoData = videoData[0] || {};
-  if (!videoData || typeof videoData !== "object") videoData = {};
+  const detailList = (Array.isArray(cell.video_detail) ? cell.video_detail : [cell.video_detail])
+    .filter((value) => value && typeof value === "object");
+  const videoDataList = (Array.isArray(cell.video_data) ? cell.video_data : [cell.video_data])
+    .filter((value) => value && typeof value === "object");
+  const detail = detailList[0] || {};
+  const videoData = videoDataList[0] || {};
   const inner = videoData.video_detail || {};
   const albumInfo = videoData.album_info || inner.album_info || detail.album_info || {};
-  const episodeCount = detail.episode_cnt || videoData.episode_cnt || inner.episode_cnt || albumInfo.episode_cnt || 0;
-  if (!episodeCount) return null;
+  if (isUgcAlbum(cell, ...detailList, ...videoDataList, inner, albumInfo)) return null;
+  const episodeCount = Number(detail.episode_cnt || videoData.episode_cnt || inner.episode_cnt || albumInfo.episode_cnt || 0);
+  if (!Number.isFinite(episodeCount) || episodeCount <= 0) return null;
   const highlighted = cell.search_high_light && cell.search_high_light.title && cell.search_high_light.title.text;
   const title = String(highlighted || detail.series_title || videoData.title || inner.series_title || albumInfo.title || "")
     .replace(/<[^>]+>/g, "")
@@ -683,8 +741,141 @@ function dedupeDanmus(items) {
   return [...seen.values()].sort((a, b) => a.offsetMs - b.offsetMs || a.commentId.localeCompare(b.commentId) || a.text.localeCompare(b.text));
 }
 
-function sleep(milliseconds) {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+class HongguoSearchTimeoutError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "HongguoSearchTimeoutError";
+    this.searchTimeout = true;
+  }
+}
+
+class HongguoSearchCooldownError extends Error {
+  constructor(coolDownMs) {
+    super(`红果搜索触发了 ${Math.ceil(coolDownMs / 1000)}s 风控冷却`);
+    this.name = "HongguoSearchCooldownError";
+    this.coolDownMs = coolDownMs;
+  }
+}
+
+function createAbortError() {
+  const error = new Error("红果搜索已取消");
+  error.name = "AbortError";
+  return error;
+}
+
+function hasReliableTimers() {
+  return globalThis.__FORWARD_WIDGET__ !== true || globalThis.__FORWARD_HAS_NATIVE_TIMERS__ === true;
+}
+
+function sleep(milliseconds, signal = null) {
+  if (!hasReliableTimers()) {
+    return milliseconds > 0
+      ? Promise.reject(new HongguoSearchCooldownError(milliseconds))
+      : Promise.resolve();
+  }
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(createAbortError());
+      return;
+    }
+    const cleanup = () => signal?.removeEventListener?.("abort", onAbort);
+    const timer = setTimeout(() => {
+      cleanup();
+      resolve();
+    }, Math.max(0, milliseconds));
+    const onAbort = () => {
+      clearTimeout(timer);
+      cleanup();
+      reject(createAbortError());
+    };
+    signal?.addEventListener?.("abort", onAbort, { once: true });
+  });
+}
+
+function remainingSearchTime(deadline) {
+  return Math.max(0, deadline - Date.now());
+}
+
+function ensureSearchTime(deadline, stage, signal = null) {
+  if (signal?.aborted || Date.now() >= deadline) {
+    throw new HongguoSearchTimeoutError(`${stage}超时`);
+  }
+}
+
+function timeoutForSearch(deadline, maximum) {
+  const remaining = remainingSearchTime(deadline);
+  if (remaining <= 0) throw new HongguoSearchTimeoutError("红果搜索超时");
+  return Math.max(1, Math.min(maximum, remaining));
+}
+
+function withSearchDeadline(promise, deadline, message, signal = null) {
+  const remaining = remainingSearchTime(deadline);
+  return new Promise((resolve, reject) => {
+    let timer = null;
+    const cleanup = () => {
+      if (timer !== null) clearTimeout(timer);
+      signal?.removeEventListener?.("abort", onAbort);
+    };
+    const fail = (error) => {
+      cleanup();
+      reject(error);
+    };
+    const onAbort = () => fail(createAbortError());
+    promise.then(
+      (value) => {
+        cleanup();
+        if (signal?.aborted) reject(createAbortError());
+        else if (Date.now() >= deadline) reject(new HongguoSearchTimeoutError(message));
+        else resolve(value);
+      },
+      fail,
+    );
+    if (signal?.aborted) return onAbort();
+    if (remaining <= 0) return fail(new HongguoSearchTimeoutError(message));
+    signal?.addEventListener?.("abort", onAbort, { once: true });
+    if (hasReliableTimers() && Number.isFinite(remaining)) {
+      timer = setTimeout(() => fail(new HongguoSearchTimeoutError(message)), remaining);
+    }
+  });
+}
+
+function createSharedTask(run, cleanup) {
+  const task = { controller: new AbortController(), waiters: 0, settled: false, promise: null, cleanup };
+  task.promise = Promise.resolve().then(() => run(task.controller.signal)).finally(() => {
+    task.settled = true;
+    cleanup(task);
+  });
+  return task;
+}
+
+async function joinSharedTask(task, { signal = null, deadline = Infinity } = {}, message) {
+  task.waiters++;
+  try {
+    return await withSearchDeadline(task.promise, deadline, message, signal);
+  } finally {
+    task.waiters--;
+    if (!task.waiters && !task.settled) {
+      task.cleanup(task);
+      task.controller.abort();
+    }
+  }
+}
+
+function cloneEpisodeDetails(details) {
+  return { ...details, episodes: details.episodes.map((episode) => ({ ...episode })) };
+}
+
+function isTransientRegisterError(error) {
+  const message = String(error?.message || "");
+  if (error?.searchTimeout) return true;
+  if (["AbortError", "TypeError"].includes(error?.name)) return true;
+  return /HTTP error! status: (?:429|5\d\d)|fetch failed|network|timeout/i.test(message);
+}
+
+function isSearchCancellation(error, deadline = Infinity, signal = null) {
+  return Boolean(error?.searchTimeout)
+    || Boolean(signal?.aborted)
+    || Date.now() >= deadline;
 }
 
 async function mapWithConcurrency(items, concurrency, mapper) {
@@ -727,12 +918,22 @@ export default class HongguoSource extends BaseSource {
     super();
     this.preferredApiHost = CLIENT_CONFIG.apiHosts[0];
     this.nextRequestAt = 0;
+    this.throttleQueue = [];
+    this.throttleRunning = false;
     this.playerEpisodeResolutions = new Map();
     this.activeCommentRequests = 0;
     this.commentRequestWaiters = [];
     this.lastDanmu = [];
     this.durationCache = new Map();
+    this.episodeDetailsCache = new Map();
+    this.pendingEpisodeDetails = new Map();
     this.pendingEpisodeDanmu = new Map();
+    this.searchIdentity = null;
+    this.searchIdentityCreatedAt = 0;
+    this.searchIdentityPromise = null;
+    this.searchIdentityTask = null;
+    this.searchIdentityFailureUntil = 0;
+    this.searchCooldownUntil = 0;
   }
 
   buildUrl(path, extraQuery = {}, apiHost = this.preferredApiHost) {
@@ -759,7 +960,11 @@ export default class HongguoSource extends BaseSource {
     }
 
     const text = response.data.trim();
-    if (!text) throw new Error(`接口返回空响应 (${status})`);
+    if (!text) {
+      const error = new Error(`接口返回空响应 (${status})`);
+      error.code = "EMPTY_RESPONSE";
+      throw error;
+    }
     try {
       const result = JSON.parse(text);
       if (!result || typeof result !== "object") throw new Error("JSON 根节点不是对象");
@@ -769,11 +974,58 @@ export default class HongguoSource extends BaseSource {
     }
   }
 
-  async throttle(baseMs = 600, jitterMs = 401) {
-    const now = Date.now();
-    const scheduled = Math.max(now, this.nextRequestAt);
-    this.nextRequestAt = scheduled + baseMs + Math.floor(Math.random() * jitterMs);
-    if (scheduled > now) await sleep(scheduled - now);
+  async throttle(baseMs = 600, jitterMs = 401, signal = null, deadline = Infinity) {
+    ensureSearchTime(deadline, "红果请求排队", signal);
+    if (!hasReliableTimers()) return;
+    if (this.throttleQueue.length >= 100) throw new Error("红果请求队列已满");
+    return new Promise((resolve, reject) => {
+      const controller = new AbortController();
+      let timer = null;
+      const entry = { baseMs, jitterMs, deadline, controller, resolve, reject, cleanup: null };
+      const cancel = () => {
+        const index = this.throttleQueue.indexOf(entry);
+        if (index >= 0) this.throttleQueue.splice(index, 1);
+        controller.abort();
+        entry.cleanup();
+        reject(signal?.aborted ? createAbortError() : new HongguoSearchTimeoutError("红果请求排队超时"));
+      };
+      entry.cleanup = () => {
+        if (timer !== null) clearTimeout(timer);
+        signal?.removeEventListener?.("abort", cancel);
+      };
+      signal?.addEventListener?.("abort", cancel, { once: true });
+      if (hasReliableTimers() && Number.isFinite(deadline)) {
+        timer = setTimeout(cancel, remainingSearchTime(deadline));
+      }
+      this.throttleQueue.push(entry);
+      this.drainThrottleQueue();
+    });
+  }
+
+  async drainThrottleQueue() {
+    if (this.throttleRunning) return;
+    this.throttleRunning = true;
+    try {
+      while (this.throttleQueue.length) {
+        const entry = this.throttleQueue[0];
+        try {
+          ensureSearchTime(entry.deadline, "红果请求排队", entry.controller.signal);
+          const wait = Math.max(0, this.nextRequestAt - Date.now());
+          if (Date.now() + wait >= entry.deadline) throw new HongguoSearchTimeoutError("红果请求排队超时");
+          if (wait) await sleep(wait, entry.controller.signal);
+          ensureSearchTime(entry.deadline, "红果请求排队", entry.controller.signal);
+          this.nextRequestAt = Date.now() + entry.baseMs + Math.floor(Math.random() * entry.jitterMs);
+          entry.resolve();
+        } catch (error) {
+          entry.reject(error);
+        } finally {
+          entry.cleanup();
+          if (this.throttleQueue[0] === entry) this.throttleQueue.shift();
+        }
+      }
+    } finally {
+      this.throttleRunning = false;
+    }
   }
 
   checkResponse(payload) {
@@ -801,7 +1053,7 @@ export default class HongguoSource extends BaseSource {
     throw new Error(`风控或平台异常 code=${code}: ${message}`);
   }
 
-  async request(method, path, { body = null, extraQuery = {}, comment = false } = {}) {
+  async request(method, path, { body = null, extraQuery = {}, comment = false, signal = null, deadline = Infinity } = {}) {
     const apiHosts = this.getApiHosts();
     const failures = [];
     const payload = body == null ? null : JSON.stringify(body);
@@ -810,7 +1062,17 @@ export default class HongguoSource extends BaseSource {
       // 风控冷却是按设备身份生效的（与具体主机无关），在主机内做有限次退避重试，之后再切换线路
       const maxAttempts = 3;
       for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        let releaseCommentSlot = null;
         try {
+          ensureSearchTime(deadline, "红果请求", signal);
+          releaseCommentSlot = comment ? await this.acquireCommentSlot() : null;
+          await this.throttle(
+            comment ? COMMENT_THROTTLE_MS : DETAIL_THROTTLE_MS,
+            comment ? COMMENT_THROTTLE_JITTER_MS : DETAIL_THROTTLE_JITTER_MS,
+            signal,
+            deadline,
+          );
+          ensureSearchTime(deadline, "红果请求", signal);
           const url = this.buildUrl(path, extraQuery, apiHost);
           const headers = {};
           for (const [key, value] of Object.entries(CLIENT_CONFIG.sessionHeaders)) {
@@ -825,29 +1087,31 @@ export default class HongguoSource extends BaseSource {
             headers["x-ss-stub"] = md5(stringToUtf8Bytes(payload)).toUpperCase();
           }
           Object.assign(headers, signHongguoRequest(url, { headers }));
-          const releaseCommentSlot = comment ? await this.acquireCommentSlot() : null;
-          // 弹幕请求同样需要节流，避免分页/整剧连发触发风控
-          if (comment) await this.throttle(COMMENT_THROTTLE_MS, COMMENT_THROTTLE_JITTER_MS);
-          else await this.throttle();
           let response;
           try {
+            ensureSearchTime(deadline, "红果请求", signal);
+            const options = { headers, timeout: timeoutForSearch(deadline, HONGGUO_REQUEST_TIMEOUT_MS), signal };
             response = method === "GET"
-              ? await httpGet(url, { headers, timeout: 30000 })
-              : await httpPost(url, payload, { headers, timeout: 30000 });
+              ? await httpGet(url, options)
+              : await httpPost(url, payload, options);
           } finally {
             if (releaseCommentSlot) releaseCommentSlot();
           }
+          ensureSearchTime(deadline, "红果请求", signal);
           const result = this.parseApiResponse(response);
           const responseError = this.checkResponse(result);
           if (responseError) throw responseError;
           this.preferredApiHost = apiHost;
           return result;
         } catch (error) {
+          if (isSearchCancellation(error, deadline, signal)) throw error;
           if (error && error.coolDownMs) {
-            // 遵守服务端给出的冷却时间并稍作随机，退避后重试当前主机
-            log("warn", `[Hongguo] ${apiHost} 触发风控冷却 ${Math.round(error.coolDownMs / 1000)}s，退避后重试`);
-            await sleep(error.coolDownMs + Math.floor(Math.random() * 1000));
-            if (attempt < maxAttempts - 1) continue;
+            // 短冷却可在当前主机内等待；长冷却直接换线/失败，避免把详情或弹幕请求挂住。
+            if (error.coolDownMs <= SEARCH_COOLDOWN_MAX_WAIT_MS) {
+              log("warn", `[Hongguo] ${apiHost} 触发短风控冷却 ${Math.round(error.coolDownMs / 1000)}s，等待后重试`);
+              await sleep(Math.min(error.coolDownMs + Math.floor(Math.random() * 250), remainingSearchTime(deadline)), signal);
+              if (attempt < maxAttempts - 1) continue;
+            }
           }
           const message = error && error.message ? error.message : String(error);
           failures.push({ host: apiHost, message });
@@ -856,6 +1120,8 @@ export default class HongguoSource extends BaseSource {
             log("warn", `[Hongguo] ${apiHost} 请求失败，切换到 ${nextApiHost}: ${message}`);
           }
           break;
+        } finally {
+          if (releaseCommentSlot) releaseCommentSlot();
         }
       }
     }
@@ -866,75 +1132,393 @@ export default class HongguoSource extends BaseSource {
     throw requestError;
   }
 
-  async search(keyword) {
-    try {
-      // 官网已改为客户端渲染，搜索页 HTML 不再内嵌 searchList，需直接调用其搜索接口
-      const results = [];
-      const seen = new Set();
-      for (let page = 1; page <= 3 && results.length < MAX_SEARCH_ITEMS; page++) {
-        const url = `${WEB_ORIGIN}/api/search/result/?query=${encodeURIComponent(keyword)}&page=${page}`;
-        const response = await httpGet(url, { headers: { accept: "application/json" }, timeout: 30000 });
-        const items = parseWebSearchApi(response.data);
-        for (const item of items) {
-          if (seen.has(item.seriesId)) continue;
-          seen.add(item.seriesId);
-          results.push(item);
-          if (results.length >= MAX_SEARCH_ITEMS) break;
+  async getSearchIdentity(forceRefresh = false, failedIdentity = null, options = {}) {
+    ensureSearchTime(options.deadline ?? Infinity, "红果设备注册", options.signal);
+    if (this.searchIdentityTask) return joinSharedTask(this.searchIdentityTask, options, "红果设备注册超时");
+    const now = Date.now();
+    const canReuse = !forceRefresh || (failedIdentity && this.searchIdentity !== failedIdentity);
+    if (canReuse && this.searchIdentity && now - this.searchIdentityCreatedAt < ANONYMOUS_IDENTITY_TTL_MS) {
+      return this.searchIdentity;
+    }
+    if (!forceRefresh && this.searchIdentityFailureUntil > now) {
+      throw new Error("红果匿名设备注册失败，冷却中");
+    }
+    this.searchIdentity = null;
+    this.searchIdentityCreatedAt = 0;
+    const task = createSharedTask(async (signal) => {
+      ensureSearchTime(Infinity, "红果设备注册", signal);
+      const anonymous = createAnonymousIdentity();
+      const body = await buildRegisterBody(anonymous, SEARCH_DEVICE, Date.now());
+      const headers = buildRegisterHeaders(SEARCH_DEVICE, body);
+      const targetUrl = `${REGISTER_ORIGIN}/service/2/device_register/?req_id=${encodeURIComponent(anonymous.reqId)}&tt_data=a`;
+      let response;
+      for (let attempt = 0; attempt < SEARCH_REGISTER_ATTEMPTS; attempt++) {
+        const requestController = new AbortController();
+        const cancelRequest = () => requestController.abort();
+        signal.addEventListener("abort", cancelRequest, { once: true });
+        try {
+          ensureSearchTime(Infinity, "红果设备注册", signal);
+          response = await withSearchDeadline(
+            httpPost(targetUrl, body, { headers, timeout: SEARCH_REGISTER_TIMEOUT_MS, signal: requestController.signal }),
+            Date.now() + SEARCH_REGISTER_TIMEOUT_MS,
+            "红果设备注册请求超时",
+            signal,
+          );
+          break;
+        } catch (error) {
+          if (signal.aborted) throw error;
+          if (attempt + 1 >= SEARCH_REGISTER_ATTEMPTS || !isTransientRegisterError(error)) {
+            throw error;
+          }
+          log("warn", `[Hongguo] 匿名设备注册失败，准备重试: ${error.message}`);
+          requestController.abort();
+          await sleep(SEARCH_REGISTER_RETRY_DELAY_MS, signal);
+        } finally {
+          signal.removeEventListener("abort", cancelRequest);
+          requestController.abort();
         }
-        if (items.length === 0) break;
       }
-      if (results.length) return results;
-    } catch (error) { log("warn", `[Hongguo] web search unavailable: ${error.message}`); }
-    try {
-      // 兜底：部分环境下搜索页仍以 SSR 形式内嵌 searchList
-      const response = await httpGet(`${WEB_ORIGIN}/search/${encodeURIComponent(keyword)}`, { headers: { accept: "text/html" }, timeout: 30000 });
-      const items = parseWebSearchResults(typeof response.data === "string" ? response.data : "")
-        .map(normalizeWebSearchItem).filter(Boolean);
-      if (items.length) return items.slice(0, MAX_SEARCH_ITEMS);
-    } catch (error) { log("warn", `[Hongguo] web search SSR unavailable: ${error.message}`); }
-    try {
-      const results = [];
-      const seen = new Set();
-      let offset = 0;
-      let passback = "";
-      let searchId = "";
-      for (let page = 0; page < 12 && results.length < MAX_SEARCH_ITEMS; page++) {
-        const params = {
-          query: keyword,
-          tab_name: "feed",
-          search_source: "1",
-          offset: String(offset),
-          count: "0",
-          use_correct: "true",
-        };
-        if (passback) params.passback = passback;
-        if (searchId) params.search_id = searchId;
-        const payload = await this.request("GET", "/reading/bookapi/search/tab/v", { extraQuery: params });
-        const tabs = payload.search_tabs || [];
-        if (!tabs.length) break;
-        const tab = tabs[0];
-        const data = tab.data || [];
-        for (const cell of data) {
-          const item = parseSearchCell(cell);
-          if (!item || seen.has(item.seriesId)) continue;
-          seen.add(item.seriesId);
-          results.push(item);
-          if (results.length >= MAX_SEARCH_ITEMS) break;
-        }
-        offset = tab.next_offset == null ? offset : tab.next_offset;
-        passback = tab.passback || passback;
-        searchId = tab.search_id || searchId;
-        if (!tab.has_more || !data.length) break;
+      ensureSearchTime(Infinity, "红果设备注册", signal);
+      if (!response) throw new Error("红果匿名设备注册失败");
+      const registered = parseRegisterResponse(response.data);
+      const identity = { ...anonymous, ...registered, createdAt: Date.now() };
+      this.searchIdentity = identity;
+      this.searchIdentityCreatedAt = identity.createdAt;
+      this.searchIdentityFailureUntil = 0;
+      log("info", `[Hongguo] 匿名设备已注册 ${String(identity.deviceId).slice(0, 6)}***`);
+      return identity;
+    }, (finished) => {
+      if (this.searchIdentityTask === finished) {
+        this.searchIdentityTask = null;
+        this.searchIdentityPromise = null;
       }
-      log("info", `[Hongguo] 搜索找到 ${results.length} 个结果`);
-      return results;
-    } catch (error) {
-      log("error", `[Hongguo] 搜索失败: ${error.message}`);
-      return [];
+    });
+    task.promise = task.promise.catch((error) => {
+      if (!task.controller.signal.aborted && !this.searchIdentityTask) {
+        this.searchIdentity = null;
+        this.searchIdentityCreatedAt = 0;
+        this.searchIdentityFailureUntil = Date.now() + ANONYMOUS_IDENTITY_FAILURE_TTL_MS;
+      }
+      if (!task.controller.signal.aborted) log("warn", `[Hongguo] 匿名设备注册失败: ${error.message}`);
+      throw error;
+    });
+    this.searchIdentityTask = task;
+    this.searchIdentityPromise = task.promise;
+    return joinSharedTask(task, options, "红果设备注册超时");
+  }
+
+  buildSearchPairs(identity, keyword, offset, count, cursor = {}) {
+    const pairs = [
+      ["iid", identity.installId],
+      ["device_id", identity.deviceId],
+      ["ac", "wifi"],
+      ["channel", SEARCH_DEVICE.channel],
+      ["aid", String(SEARCH_AID)],
+      ["app_name", "novelread"],
+      ["cdid", identity.cdid],
+      ["version_code", SEARCH_VERSION_CODE],
+      ["version_name", SEARCH_VERSION_NAME],
+      ["device_platform", "android"],
+      ["os", "android"],
+      ["ssmix", "a"],
+      ["device_type", SEARCH_DEVICE.model],
+      ["device_brand", SEARCH_DEVICE.brand],
+      ["language", "zh"],
+      ["os_api", String(SEARCH_DEVICE.osApi)],
+      ["os_version", SEARCH_DEVICE.osVersion],
+      ["manifest_version_code", SEARCH_VERSION_CODE],
+      ["resolution", SEARCH_DEVICE.resolution],
+      ["dpi", String(SEARCH_DEVICE.dpi)],
+      ["update_version_code", SEARCH_VERSION_CODE],
+      ["host_abi", "arm64-v8a"],
+      ["dragon_device_type", "phone"],
+      ["pv_player", SEARCH_VERSION_CODE],
+      ["compliance_status", "0"],
+      ["need_personal_recommend", "1"],
+      ["player_so_load", "1"],
+      ["is_android_pad_screen", "0"],
+      ["openudid", identity.openudid],
+      ["query", keyword],
+      ["tab_type", SEARCH_TAB_TYPE],
+      ["count", String(count)],
+      ["offset", String(offset)],
+      ["use_correct", "true"],
+      ["bookshelf_search_plan", "4"],
+      ["search_source", "1"],
+      ["tab_name", "feed"],
+      ["bookstore_tab", "16"],
+      ["user_is_login", "0"],
+    ];
+    if (cursor.passback) pairs.push(["passback", String(cursor.passback)]);
+    if (cursor.searchId) pairs.push(["search_id", String(cursor.searchId)]);
+    return pairs;
+  }
+
+  async requestSearchPage(apiHost, identity, keyword, offset, count, options = {}) {
+    const deadline = options.deadline ?? (Date.now() + SEARCH_TOTAL_BUDGET_MS);
+    ensureSearchTime(deadline, "红果搜索请求", options.signal);
+    const now = Date.now();
+    const khronos = Math.floor(now / 1000);
+    const cursor = options.cursor || {};
+    const query = this.buildSearchPairs(identity, keyword, offset, count, cursor)
+      .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+      .join("&");
+    const url = `https://${apiHost}/reading/bookapi/search/tab/v?${query}&ts=${khronos}&_rticket=${now}`;
+    const readingRandom = (readWord32LE(randomBytes(4)) & 0x7fffffff) || 1;
+    const headers = {
+      "Accept": "application/json; charset=utf-8",
+      "x-xs-from-web": "0",
+      "x-ss-req-ticket": String(now),
+      "x-tt-request-tag": "t=0;n=0",
+      "sdk-version": "2",
+      "passport-sdk-version": "50561",
+      "x-vc-bdturing-sdk-version": "3.7.2.cn",
+      "x-tt-dt": "",
+      "User-Agent": hongguoUserAgent(SEARCH_DEVICE),
+      "x-ss-dp": "8662",
+      "lc": "101",
+      "x-reading-request": `${now}-${readingRandom}`,
+      ...signHongguoSearchRequest(url, {
+        deviceId: identity.deviceId,
+        versionName: SEARCH_VERSION_NAME,
+        timestamp: khronos,
+      }),
+      "x-argus": createArgus(getQueryString(url), "", khronos),
+      "x-ladon": createLadon(khronos, SEARCH_AID),
+    };
+    const response = await httpGet(url, {
+      headers,
+      timeout: timeoutForSearch(deadline, SEARCH_REQUEST_TIMEOUT_MS),
+      signal: options.signal,
+    });
+    const payload = this.parseApiResponse(response);
+    const responseError = this.checkResponse(payload);
+    if (responseError) throw responseError;
+    return payload;
+  }
+
+  async throttleSearch(signal = null, deadline = Date.now() + SEARCH_TOTAL_BUDGET_MS) {
+    while (true) {
+      ensureSearchTime(deadline, "红果搜索", signal);
+      const cooldownMs = this.searchCooldownUntil - Date.now();
+      if (cooldownMs > SEARCH_COOLDOWN_MAX_WAIT_MS) {
+        throw new HongguoSearchCooldownError(cooldownMs);
+      }
+      if (cooldownMs > 0) {
+        await sleep(Math.min(cooldownMs, remainingSearchTime(deadline)), signal);
+        continue;
+      }
+      await this.throttle(600, 401, signal, deadline);
+      if (this.searchCooldownUntil <= Date.now()) return;
     }
   }
 
-  async getEpisodes(seriesId) {
+  async fetchSearchPage(keyword, offset, count, options = {}) {
+    const deadline = options.deadline ?? (Date.now() + SEARCH_TOTAL_BUDGET_MS);
+    const signal = options.signal || null;
+    const cursor = options.cursor || {};
+    ensureSearchTime(deadline, "红果搜索", signal);
+    let identity = await withSearchDeadline(this.getSearchIdentity(false, null, { deadline, signal }), deadline, "红果设备注册超时", signal);
+    const failures = [];
+    for (let round = 0; round < 2; round++) {
+      let sawEmptyResponse = false;
+      for (const apiHost of this.getApiHosts()) {
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            ensureSearchTime(deadline, "红果搜索", signal);
+            await this.throttleSearch(signal, deadline);
+            ensureSearchTime(deadline, "红果搜索", signal);
+            const payload = await withSearchDeadline(
+              this.requestSearchPage(apiHost, identity, keyword, offset, count, { deadline, signal, cursor }),
+              deadline,
+              "红果搜索请求超时",
+              signal,
+            );
+            this.preferredApiHost = apiHost;
+            return payload;
+          } catch (error) {
+            if (isSearchCancellation(error, deadline, signal)) throw error;
+            const coolDownMs = Number(error?.coolDownMs);
+            if (Number.isFinite(coolDownMs) && coolDownMs > 0) {
+              this.searchCooldownUntil = Math.max(
+                this.searchCooldownUntil,
+                Date.now() + Math.min(coolDownMs, SEARCH_COOLDOWN_MAX_MS),
+              );
+              if (coolDownMs > SEARCH_COOLDOWN_MAX_WAIT_MS) {
+                throw new HongguoSearchCooldownError(coolDownMs);
+              }
+              if (attempt >= 2) throw error;
+              log("warn", `[Hongguo] 搜索触发短风控冷却 ${Math.ceil(coolDownMs / 1000)}s，等待后重试当前线路`);
+              continue;
+            }
+            const message = error && error.message ? error.message : String(error);
+            failures.push({ host: apiHost, message });
+            if (error?.code === "EMPTY_RESPONSE") sawEmptyResponse = true;
+            break;
+          }
+        }
+      }
+      if (round === 0 && sawEmptyResponse) {
+        log("warn", "[Hongguo] 搜索线路均未成功且存在空响应，刷新匿名设备后重试");
+        identity = await withSearchDeadline(
+          this.getSearchIdentity(true, identity, { deadline, signal }),
+          deadline,
+          "红果设备刷新超时",
+          signal,
+        );
+        continue;
+      }
+      break;
+    }
+    const details = failures.map(({ host, message }) => `${host}: ${message}`).join(" | ");
+    throw new Error(`红果搜索失败: ${details}`);
+  }
+
+  async search(keyword) {
+    const results = [];
+    const seen = new Set();
+    let hasSuccessfulSearch = false;
+    let timedOut = false;
+    const controller = new AbortController();
+    const deadline = Date.now() + SEARCH_TOTAL_BUDGET_MS;
+    const timer = hasReliableTimers() ? setTimeout(() => controller.abort(), SEARCH_TOTAL_BUDGET_MS) : null;
+    const appController = new AbortController();
+    const appDeadline = deadline - SEARCH_FALLBACK_RESERVE_MS;
+    try {
+      let offset = 0;
+      let cursor = { passback: "", searchId: "" };
+      if (!hasReliableTimers()) log("info", "[Hongguo] 当前插件运行时没有原生定时器，使用网页搜索");
+      try {
+        for (let page = 0; hasReliableTimers() && page < 3 && results.length < MAX_SEARCH_ITEMS; page++) {
+          const payload = await this.fetchSearchPage(keyword, offset, MAX_SEARCH_ITEMS, {
+            deadline: appDeadline,
+            signal: appController.signal,
+            cursor,
+          });
+          if (!Array.isArray(payload?.search_tabs)) throw new Error("客户端搜索返回无效搜索结果");
+          hasSuccessfulSearch = true;
+          const tab = payload.search_tabs.find((item) => String(item?.tab_type) === SEARCH_TAB_TYPE);
+          const data = Array.isArray(tab?.data) ? tab.data : [];
+          for (const cell of data) {
+            const item = parseSearchCell(cell);
+            if (!item || seen.has(item.seriesId)) continue;
+            seen.add(item.seriesId);
+            results.push(item);
+            if (results.length >= MAX_SEARCH_ITEMS) break;
+          }
+          const nextOffset = Number(tab?.next_offset);
+          if (!tab?.has_more || !data.length || !Number.isFinite(nextOffset) || nextOffset <= offset) break;
+          cursor = {
+            passback: String(tab?.passback || cursor.passback || ""),
+            searchId: String(tab?.search_id || cursor.searchId || ""),
+          };
+          offset = nextOffset;
+        }
+      } catch (error) {
+        timedOut = controller.signal.aborted || Date.now() >= deadline;
+        log("warn", `[Hongguo] 客户端搜索失败: ${error.message}，${results.length ? "保留已获取结果" : "尝试网页搜索"}`);
+      } finally {
+        appController.abort();
+      }
+      if (results.length) {
+        log("info", `[Hongguo] 搜索找到 ${results.length} 个结果`);
+        return results;
+      }
+      if (timedOut) {
+        log("warn", `[Hongguo] 搜索超过 ${SEARCH_TOTAL_BUDGET_MS / 1000}s 预算，跳过网页兜底`);
+        return [];
+      }
+      if (hasSuccessfulSearch) log("info", "[Hongguo] 客户端搜索未找到可用短剧，尝试网页搜索");
+      try {
+        for (let page = 1; page <= 3 && results.length < MAX_SEARCH_ITEMS; page++) {
+          ensureSearchTime(deadline, "红果网页搜索", controller.signal);
+          const targetUrl = `${WEB_ORIGIN}/api/search/result/?query=${encodeURIComponent(keyword)}&page=${page}`;
+          const response = await httpGet(targetUrl, {
+            headers: { accept: "application/json" },
+            timeout: timeoutForSearch(deadline, SEARCH_WEB_TIMEOUT_MS),
+            signal: controller.signal,
+          });
+          ensureSearchTime(deadline, "红果网页搜索", controller.signal);
+          const { items, rawCount } = parseWebSearchApi(response.data);
+          hasSuccessfulSearch = true;
+          for (const item of items) {
+            if (seen.has(item.seriesId)) continue;
+            seen.add(item.seriesId);
+            results.push(item);
+            if (results.length >= MAX_SEARCH_ITEMS) break;
+          }
+          if (rawCount === 0) break;
+        }
+      } catch (error) {
+        timedOut = isSearchCancellation(error, deadline, controller.signal);
+        log("warn", `[Hongguo] web search unavailable: ${error.message}`);
+      }
+      if (results.length) return results;
+      if (timedOut) {
+        log("warn", `[Hongguo] 搜索超过 ${SEARCH_TOTAL_BUDGET_MS / 1000}s 预算，跳过 SSR 兜底`);
+        return [];
+      }
+      try {
+        ensureSearchTime(deadline, "红果网页搜索", controller.signal);
+        const targetUrl = `${WEB_ORIGIN}/search/${encodeURIComponent(keyword)}`;
+        const response = await httpGet(targetUrl, {
+          headers: { accept: "text/html" },
+          timeout: timeoutForSearch(deadline, SEARCH_WEB_TIMEOUT_MS),
+          signal: controller.signal,
+        });
+        ensureSearchTime(deadline, "红果网页搜索", controller.signal);
+        const html = typeof response.data === "string" ? response.data : "";
+        if (html.includes('"searchList":')) hasSuccessfulSearch = true;
+        const items = parseWebSearchResults(html)
+          .map(normalizeWebSearchItem).filter(Boolean);
+        if (items.length) return items.slice(0, MAX_SEARCH_ITEMS);
+      } catch (error) {
+        timedOut = isSearchCancellation(error, deadline, controller.signal);
+        log("warn", `[Hongguo] web search SSR unavailable: ${error.message}`);
+      }
+      if (timedOut) {
+        log("warn", `[Hongguo] 搜索超过 ${SEARCH_TOTAL_BUDGET_MS / 1000}s 预算`);
+        return [];
+      }
+      log(hasSuccessfulSearch ? "info" : "error", hasSuccessfulSearch ? "[Hongguo] 未找到可用短剧" : "[Hongguo] 搜索失败");
+      return [];
+    } finally {
+      if (timer !== null) clearTimeout(timer);
+      controller.abort();
+      appController.abort();
+    }
+  }
+
+  async getEpisodes(seriesId, options = {}) {
+    ensureSearchTime(options.deadline ?? Infinity, "红果详情", options.signal);
+    const key = String(seriesId);
+    const cached = this.episodeDetailsCache.get(key);
+    if (cached && cached.expiresAt > Date.now()) return cloneEpisodeDetails(cached.value);
+    this.episodeDetailsCache.delete(key);
+    const pending = this.pendingEpisodeDetails.get(key);
+    if (pending) return cloneEpisodeDetails(await joinSharedTask(pending, options, "红果详情阶段超时"));
+    const task = createSharedTask(async (signal) => {
+      const deadline = Date.now() + HONGGUO_REQUEST_TIMEOUT_MS;
+      const details = await withSearchDeadline(
+        this.fetchEpisodeDetails(key, { signal, deadline }), deadline, "红果详情请求超时", signal,
+      );
+      ensureSearchTime(deadline, "红果详情", signal);
+      const ttl = details.episodes.length ? EPISODE_DETAILS_TTL_MS : EPISODE_DETAILS_FAILURE_TTL_MS;
+      this.episodeDetailsCache.set(key, { expiresAt: Date.now() + ttl, value: details });
+      while (this.episodeDetailsCache.size > EPISODE_DETAILS_CACHE_MAX) {
+        this.episodeDetailsCache.delete(this.episodeDetailsCache.keys().next().value);
+      }
+      return details;
+    }, (finished) => {
+      finished.controller.abort();
+      if (this.pendingEpisodeDetails.get(key) === finished) this.pendingEpisodeDetails.delete(key);
+    });
+    this.pendingEpisodeDetails.set(key, task);
+    return cloneEpisodeDetails(await joinSharedTask(task, options, "红果详情阶段超时"));
+  }
+
+  async fetchEpisodeDetails(seriesId, { signal = null, deadline = Date.now() + HONGGUO_REQUEST_TIMEOUT_MS } = {}) {
+    const emptyDetails = { episodes: [], year: null, imageUrl: "" };
     const body = {
       biz_param: {
         detail_page_version: 0,
@@ -955,6 +1539,17 @@ export default class HongguoSource extends BaseSource {
       const responseData = payload && payload.data || {};
       const entry = responseData[String(seriesId)] || responseData;
       const videoData = entry && entry.video_data || {};
+      if (isUgcAlbum(
+        entry,
+        entry?.video_detail,
+        entry?.album_info,
+        videoData,
+        videoData.video_detail,
+        videoData.album_info,
+      )) {
+        log("info", `[Hongguo] 跳过不支持的用户合集 ${seriesId}`);
+        return emptyDetails;
+      }
       const episodes = (videoData.video_list || []).map((item) => ({
         index: Number(item.vid_index) || 0,
         vid: String(item.vid || ""),
@@ -974,15 +1569,31 @@ export default class HongguoSource extends BaseSource {
     };
 
     try {
-      const apiResult = parseApiEpisodes(await this.request("POST", "/novel/player/multi_video_detail/v1/", { body }));
+      ensureSearchTime(deadline, "红果详情", signal);
+      const apiResult = hasReliableTimers()
+        ? parseApiEpisodes(await this.request("POST", "/novel/player/multi_video_detail/v1/", { body, signal, deadline }))
+        : null;
       if (apiResult) return apiResult;
-      log("warn", `[Hongguo] API detail returned no episodes for series ${seriesId}, falling back to web detail`);
+      log("info", `[Hongguo] API detail returned no episodes for series ${seriesId}, falling back to web detail`);
     } catch (error) {
+      if (isSearchCancellation(error, deadline, signal)) throw error;
       log("warn", `[Hongguo] API detail unavailable: ${error.message}, falling back to web detail`);
     }
 
     try {
-      const response = await httpGet(`${WEB_ORIGIN}/detail?series_id=${encodeURIComponent(seriesId)}`, { headers: { accept: "text/html" }, timeout: 30000 });
+      ensureSearchTime(deadline, "红果网页详情", signal);
+      const targetUrl = `${WEB_ORIGIN}/detail?series_id=${encodeURIComponent(seriesId)}`;
+      const response = await httpGet(targetUrl, {
+        headers: { accept: "text/html" },
+        timeout: timeoutForSearch(deadline, HONGGUO_REQUEST_TIMEOUT_MS),
+        validStatusCodes: [404],
+        signal,
+      });
+      ensureSearchTime(deadline, "红果网页详情", signal);
+      if (response.status === 404) {
+        log("info", `[Hongguo] 网页未收录剧集 ${seriesId}`);
+        return emptyDetails;
+      }
       const detail = parseWebSeriesDetail(typeof response.data === "string" ? response.data : "");
       if (detail && Array.isArray(detail.vid_list) && detail.vid_list.length) {
         return {
@@ -1005,8 +1616,11 @@ export default class HongguoSource extends BaseSource {
           imageUrl: extractImageUrl(detail.series_cover),
         };
       }
-    } catch (error) { log("warn", `[Hongguo] web detail unavailable: ${error.message}`); }
-    return { episodes: [], year: null, imageUrl: "" };
+    } catch (error) {
+      if (isSearchCancellation(error, deadline, signal)) throw error;
+      log("warn", `[Hongguo] web detail unavailable: ${error.message}`);
+    }
+    return emptyDetails;
   }
 
   async resolveEpisodeInfo(value) {
@@ -1094,8 +1708,31 @@ export default class HongguoSource extends BaseSource {
     if (!Array.isArray(sourceAnimes)) return [];
     const transformed = [];
     const filtered = sourceAnimes.filter((item) => titleMatches(item.name, queryTitle, querySeason));
-    for (const anime of filtered) {
-      const details = await this.getEpisodes(anime.seriesId);
+    const deadline = Date.now() + HONGGUO_HANDLE_ANIMES_BUDGET_MS;
+    let detailsTimedOut = false;
+    const detailsList = await mapWithConcurrency(filtered, 3, async (anime) => {
+      if (Date.now() >= deadline) {
+        detailsTimedOut = true;
+        return null;
+      }
+      try {
+        return await this.getEpisodes(anime.seriesId, { deadline });
+      } catch (error) {
+        if (isSearchCancellation(error, deadline)) {
+          detailsTimedOut = true;
+          return null;
+        }
+        log("warn", `[Hongguo] 获取剧集详情失败(${anime.seriesId}): ${error.message}`);
+        return null;
+      }
+    });
+    if (detailsTimedOut) {
+      log("warn", `[Hongguo] 详情阶段超过 ${HONGGUO_HANDLE_ANIMES_BUDGET_MS / 1000}s 预算，已保留完成的剧集`);
+    }
+    for (let index = 0; index < filtered.length; index++) {
+      const anime = filtered[index];
+      const details = detailsList[index];
+      if (!details) continue;
       const episodes = details.episodes;
       const links = globals.hongguoMergeAllEpisodes && episodes.length
         ? [{
