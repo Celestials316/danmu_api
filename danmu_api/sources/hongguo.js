@@ -28,11 +28,8 @@ const CLIENT_CONFIG = {
     "api5-normal-hl.fqnovel.com",
   ]),
   baseQuery: {
-    iid: "4439167111854618",
-    device_id: "4439167111850522",
     channel: "huawei_8662_64",
     device_type: "V2284A",
-    cdid: "6100e9f9-a1a0-4f65-ab47-94f5b41b8efb",
     aid: "8662",
     app_name: "novelread",
     version_code: "72932",
@@ -59,8 +56,6 @@ const CLIENT_CONFIG = {
     rom_version: "V417IR+release-keys",
   },
   sessionHeaders: {
-    cookie: "",
-    "x-tt-token": "",
     "user-agent": "com.phoenix.read/72932 (Linux; U; Android 12; zh_CN; V2284A; Build/V417IR;tt-ok/3.12.13.20)",
     "x-tt-store-region": "cn-zj",
     "x-tt-store-region-src": "did",
@@ -70,6 +65,61 @@ const CLIENT_CONFIG = {
 };
 
 const WEB_ORIGIN = "https://hongguoduanju.com";
+const GUEST_SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+const SEARCH_TIMEOUT_MS = 15000;
+
+function createSearchBudget() {
+  return { deadline: Date.now() + SEARCH_TIMEOUT_MS, controller: new AbortController() };
+}
+
+function hasSearchBudgetTimers() {
+  return typeof globalThis.setTimeout === "function" && typeof globalThis.clearTimeout === "function";
+}
+
+function checkSearchBudget(budget) {
+  if (!budget) return;
+  if (budget.controller.signal.aborted || Date.now() >= budget.deadline) {
+    budget.controller.abort();
+    const error = new Error("红果搜索及详情超过 15 秒总预算");
+    error.name = "HongguoSearchTimeout";
+    throw error;
+  }
+}
+
+function budgetRequestOptions(budget, timeout = 30000) {
+  checkSearchBudget(budget);
+  return budget
+    ? { signal: budget.controller.signal, timeout: Math.max(1, Math.min(timeout, budget.deadline - Date.now())) }
+    : { timeout };
+}
+
+async function withSearchBudget(budget, operation) {
+  checkSearchBudget(budget);
+  if (!budget) return operation();
+  const signal = budget.controller.signal;
+  let timer;
+  let onAbort;
+  const cancelled = new Promise((resolve, reject) => {
+    onAbort = () => {
+      try { checkSearchBudget(budget); } catch (error) { reject(error); }
+    };
+    signal.addEventListener("abort", onAbort);
+    if (hasSearchBudgetTimers()) {
+      timer = globalThis.setTimeout(() => budget.controller.abort(), Math.max(0, budget.deadline - Date.now()));
+    }
+  });
+  try {
+    const result = await Promise.race([Promise.resolve().then(() => {
+      checkSearchBudget(budget);
+      return operation();
+    }), cancelled]);
+    checkSearchBudget(budget);
+    return result;
+  } finally {
+    if (timer !== undefined) globalThis.clearTimeout(timer);
+    signal.removeEventListener("abort", onAbort);
+  }
+}
 
 function parseWebSearchResults(html) {
   const marker = '"searchList":';
@@ -193,6 +243,14 @@ function randomBytes(length) {
   }
   for (let i = 0; i < length; i++) output[i] = Math.floor(Math.random() * 256);
   return output;
+}
+
+function randomUuid() {
+  const bytes = randomBytes(16);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = bytesToHex(bytes);
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
 function reverseBytes(bytes) {
@@ -620,13 +678,15 @@ function extractYearFromTimestamp(...values) {
 }
 
 function parseSearchCell(cell) {
-  const seriesId = cell && (cell.book_id || cell.search_result_id);
-  if (!seriesId) return null;
+  if (!cell || typeof cell !== "object") return null;
   const detail = cell.video_detail || {};
   let videoData = cell.video_data;
   if (Array.isArray(videoData)) videoData = videoData[0] || {};
   if (!videoData || typeof videoData !== "object") videoData = {};
   const inner = videoData.video_detail || {};
+  const seriesId = cell.book_id || cell.search_result_id || videoData.series_id_str ||
+    inner.series_id_str || detail.series_id_str || videoData.series_id;
+  if (!seriesId) return null;
   const albumInfo = videoData.album_info || inner.album_info || detail.album_info || {};
   const episodeCount = detail.episode_cnt || videoData.episode_cnt || inner.episode_cnt || albumInfo.episode_cnt || 0;
   if (!episodeCount) return null;
@@ -683,8 +743,21 @@ function dedupeDanmus(items) {
   return [...seen.values()].sort((a, b) => a.offsetMs - b.offsetMs || a.commentId.localeCompare(b.commentId) || a.text.localeCompare(b.text));
 }
 
-function sleep(milliseconds) {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+function sleep(milliseconds, budget = null) {
+  checkSearchBudget(budget);
+  return new Promise((resolve, reject) => {
+    const signal = budget?.controller.signal;
+    const onAbort = () => {
+      clearTimeout(timer);
+      signal.removeEventListener("abort", onAbort);
+      try { checkSearchBudget(budget); } catch (error) { reject(error); }
+    };
+    const timer = setTimeout(() => {
+      if (signal) signal.removeEventListener("abort", onAbort);
+      resolve();
+    }, budget ? Math.min(milliseconds, Math.max(0, budget.deadline - Date.now())) : milliseconds);
+    if (signal) signal.addEventListener("abort", onAbort);
+  });
 }
 
 async function mapWithConcurrency(items, concurrency, mapper) {
@@ -733,11 +806,119 @@ export default class HongguoSource extends BaseSource {
     this.lastDanmu = [];
     this.durationCache = new Map();
     this.pendingEpisodeDanmu = new Map();
+    this.guestSession = null;
+    this.pendingGuestSession = null;
+    this.searchBudgets = new WeakMap();
   }
 
   buildUrl(path, extraQuery = {}, apiHost = this.preferredApiHost) {
     const query = { ...CLIENT_CONFIG.baseQuery, ...extraQuery, _rticket: String(Date.now()) };
     return `https://${apiHost || CLIENT_CONFIG.apiHosts[0]}${path}?${buildQueryString(query)}`;
+  }
+
+  async ensureGuestSession(budget = null) {
+    checkSearchBudget(budget);
+    if (this.guestSession && this.guestSession.expiresAt > Date.now()) return this.guestSession;
+    const canShareRegistration = hasSearchBudgetTimers() || !budget;
+    let registration = canShareRegistration ? this.pendingGuestSession : null;
+    if (!registration) {
+      registration = { budget: createSearchBudget(), waiters: 0, promise: null };
+      if (!canShareRegistration) {
+        registration.budget.deadline = Math.min(registration.budget.deadline, budget.deadline);
+      }
+      registration.promise = withSearchBudget(registration.budget, () => this.registerGuestSession(registration.budget)).then((session) => {
+        this.guestSession = session;
+        return session;
+      }).finally(() => {
+        if (this.pendingGuestSession === registration) this.pendingGuestSession = null;
+      });
+      registration.promise.catch(() => {});
+      if (canShareRegistration) this.pendingGuestSession = registration;
+    }
+    registration.waiters++;
+    try {
+      return await withSearchBudget(budget, () => registration.promise);
+    } finally {
+      registration.waiters--;
+      if (registration.waiters === 0) {
+        if (this.pendingGuestSession === registration) this.pendingGuestSession = null;
+        registration.budget.controller.abort();
+      }
+    }
+  }
+
+  async registerGuestSession(budget = null) {
+    const config = CLIENT_CONFIG.baseQuery;
+    const cdid = randomUuid();
+    const openudid = bytesToHex(randomBytes(8));
+    const reqId = randomUuid();
+    const body = JSON.stringify({
+      magic_tag: "ss_app_log",
+      header: {
+        display_name: "红果免费短剧",
+        update_version_code: Number(config.update_version_code),
+        manifest_version_code: Number(config.manifest_version_code),
+        app_version_minor: config.version_name,
+        aid: Number(config.aid),
+        channel: config.channel,
+        package: "com.phoenix.read",
+        app_version: config.version_name,
+        version_code: Number(config.version_code),
+        os: "Android",
+        os_version: config.os_version,
+        os_api: Number(config.os_api),
+        device_model: config.device_type,
+        device_brand: config.device_brand,
+        device_manufacturer: config.device_brand,
+        cpu_abi: config.host_abi,
+        language: config.language,
+        timezone: 8,
+        access: config.ac,
+        region: "CN",
+        tz_name: "Asia/Shanghai",
+        tz_offset: 28800,
+        cdid,
+        openudid,
+        clientudid: randomUuid(),
+        ipv6_list: [],
+        sim_serial_number: [],
+        req_id: reqId,
+        device_platform: config.device_platform,
+        guest_mode: 0,
+        is_system_app: 0,
+        sdk_flavor: "china",
+        device_id: "0",
+        install_id: "0",
+      },
+      _gen_time: Date.now(),
+    });
+    const response = await httpPost(`https://log5-applog-lq.fqnovel.com/service/2/device_register/?req_id=${reqId}`, body, {
+      headers: {
+        "user-agent": CLIENT_CONFIG.sessionHeaders["user-agent"],
+        "content-type": "application/json; charset=utf-8",
+        "sdk-version": "2",
+        "x-ss-dp": config.aid,
+      },
+      ...budgetRequestOptions(budget, 15000),
+    });
+    const data = this.parseApiResponse(response);
+    const cookies = {};
+    const setCookie = getHeader(response.headers, "set-cookie");
+    for (const match of setCookie.matchAll(/(?:^|[,;]\s*)(ttreq|store-region|store-region-src)=([^;,\s]+)/g)) {
+      cookies[match[1]] = match[2];
+    }
+    if (![data.device_id_str, data.install_id_str].every((value) => typeof value === "string" && /^[1-9]\d*$/.test(value)) || !cookies.ttreq) {
+      throw new Error("红果匿名设备注册失败：缺少设备 ID 或游客 Cookie");
+    }
+    cookies.install_id = data.install_id_str;
+    const headers = { cookie: Object.entries(cookies).map(([name, value]) => `${name}=${value}`).join("; "), lc: "101", "x-ss-dp": config.aid, "x-xs-from-web": "0" };
+    if (cookies["store-region"]) headers["x-tt-store-region"] = cookies["store-region"];
+    if (cookies["store-region-src"]) headers["x-tt-store-region-src"] = cookies["store-region-src"];
+    return {
+      query: { iid: data.install_id_str, device_id: data.device_id_str, cdid, openudid },
+      headers,
+      expiresAt: Date.now() + GUEST_SESSION_TTL_MS,
+    };
   }
 
   getApiHosts() {
@@ -769,15 +950,25 @@ export default class HongguoSource extends BaseSource {
     }
   }
 
-  async throttle(baseMs = 600, jitterMs = 401) {
+  async throttle(baseMs = 600, jitterMs = 401, budget = null) {
+    checkSearchBudget(budget);
     const now = Date.now();
     const scheduled = Math.max(now, this.nextRequestAt);
+    if (budget && scheduled >= budget.deadline) {
+      budget.controller.abort();
+      checkSearchBudget(budget);
+    }
     this.nextRequestAt = scheduled + baseMs + Math.floor(Math.random() * jitterMs);
-    if (scheduled > now) await sleep(scheduled - now);
+    if (scheduled > now) await sleep(scheduled - now, budget);
   }
 
   checkResponse(payload) {
     if (!payload || typeof payload !== "object") throw new Error("平台返回了无效响应");
+    if ([263175, 263176].includes(Number(payload.BaseResp?.StatusCode))) {
+      const error = new Error("红果匿名设备身份已失效");
+      error.deviceRejected = true;
+      throw error;
+    }
     const code = payload.code;
     if (code == null || code === 0) return;
     const message = String(payload.message || payload.msg || "未知错误");
@@ -801,7 +992,9 @@ export default class HongguoSource extends BaseSource {
     throw new Error(`风控或平台异常 code=${code}: ${message}`);
   }
 
-  async request(method, path, { body = null, extraQuery = {}, comment = false } = {}) {
+  async request(method, path, { body = null, extraQuery = {}, comment = false, budget = null } = {}) {
+    let session = await this.ensureGuestSession(budget);
+    let sessionRefreshed = false;
     const apiHosts = this.getApiHosts();
     const failures = [];
     const payload = body == null ? null : JSON.stringify(body);
@@ -811,11 +1004,13 @@ export default class HongguoSource extends BaseSource {
       const maxAttempts = 3;
       for (let attempt = 0; attempt < maxAttempts; attempt++) {
         try {
-          const url = this.buildUrl(path, extraQuery, apiHost);
+          checkSearchBudget(budget);
+          const url = this.buildUrl(path, { ...session.query, ...extraQuery }, apiHost);
           const headers = {};
           for (const [key, value] of Object.entries(CLIENT_CONFIG.sessionHeaders)) {
             if (value) headers[key] = String(value);
           }
+          Object.assign(headers, session.headers);
           headers["content-type"] = "application/json; charset=utf-8";
           if (comment) {
             headers["comment-source"] = String(COMMENT_SOURCE);
@@ -827,13 +1022,13 @@ export default class HongguoSource extends BaseSource {
           Object.assign(headers, signHongguoRequest(url, { headers }));
           const releaseCommentSlot = comment ? await this.acquireCommentSlot() : null;
           // 弹幕请求同样需要节流，避免分页/整剧连发触发风控
-          if (comment) await this.throttle(COMMENT_THROTTLE_MS, COMMENT_THROTTLE_JITTER_MS);
-          else await this.throttle();
           let response;
           try {
+            if (comment) await this.throttle(COMMENT_THROTTLE_MS, COMMENT_THROTTLE_JITTER_MS, budget);
+            else await this.throttle(600, 401, budget);
             response = method === "GET"
-              ? await httpGet(url, { headers, timeout: 30000 })
-              : await httpPost(url, payload, { headers, timeout: 30000 });
+              ? await withSearchBudget(budget, () => httpGet(url, { headers, ...budgetRequestOptions(budget) }))
+              : await withSearchBudget(budget, () => httpPost(url, payload, { headers, ...budgetRequestOptions(budget) }));
           } finally {
             if (releaseCommentSlot) releaseCommentSlot();
           }
@@ -843,10 +1038,17 @@ export default class HongguoSource extends BaseSource {
           this.preferredApiHost = apiHost;
           return result;
         } catch (error) {
+          checkSearchBudget(budget);
+          if (error?.deviceRejected && !sessionRefreshed && attempt < maxAttempts - 1) {
+            if (this.guestSession === session) this.guestSession = null;
+            session = await this.ensureGuestSession(budget);
+            sessionRefreshed = true;
+            continue;
+          }
           if (error && error.coolDownMs) {
             // 遵守服务端给出的冷却时间并稍作随机，退避后重试当前主机
             log("warn", `[Hongguo] ${apiHost} 触发风控冷却 ${Math.round(error.coolDownMs / 1000)}s，退避后重试`);
-            await sleep(error.coolDownMs + Math.floor(Math.random() * 1000));
+            await sleep(error.coolDownMs + Math.floor(Math.random() * 1000), budget);
             if (attempt < maxAttempts - 1) continue;
           }
           const message = error && error.message ? error.message : String(error);
@@ -866,14 +1068,14 @@ export default class HongguoSource extends BaseSource {
     throw requestError;
   }
 
-  async search(keyword) {
+  async searchWeb(keyword, budget = null) {
+    const results = [];
     try {
       // 官网已改为客户端渲染，搜索页 HTML 不再内嵌 searchList，需直接调用其搜索接口
-      const results = [];
       const seen = new Set();
       for (let page = 1; page <= 3 && results.length < MAX_SEARCH_ITEMS; page++) {
         const url = `${WEB_ORIGIN}/api/search/result/?query=${encodeURIComponent(keyword)}&page=${page}`;
-        const response = await httpGet(url, { headers: { accept: "application/json" }, timeout: 30000 });
+        const response = await withSearchBudget(budget, () => httpGet(url, { headers: { accept: "application/json" }, ...budgetRequestOptions(budget) }));
         const items = parseWebSearchApi(response.data);
         for (const item of items) {
           if (seen.has(item.seriesId)) continue;
@@ -884,16 +1086,39 @@ export default class HongguoSource extends BaseSource {
         if (items.length === 0) break;
       }
       if (results.length) return results;
-    } catch (error) { log("warn", `[Hongguo] web search unavailable: ${error.message}`); }
+    } catch (error) {
+      checkSearchBudget(budget);
+      log("warn", `[Hongguo] web search unavailable: ${error.message}`);
+      if (results.length) return results;
+    }
     try {
       // 兜底：部分环境下搜索页仍以 SSR 形式内嵌 searchList
-      const response = await httpGet(`${WEB_ORIGIN}/search/${encodeURIComponent(keyword)}`, { headers: { accept: "text/html" }, timeout: 30000 });
+      const response = await withSearchBudget(budget, () => httpGet(`${WEB_ORIGIN}/search/${encodeURIComponent(keyword)}`, { headers: { accept: "text/html" }, ...budgetRequestOptions(budget) }));
       const items = parseWebSearchResults(typeof response.data === "string" ? response.data : "")
         .map(normalizeWebSearchItem).filter(Boolean);
       if (items.length) return items.slice(0, MAX_SEARCH_ITEMS);
-    } catch (error) { log("warn", `[Hongguo] web search SSR unavailable: ${error.message}`); }
+    } catch (error) {
+      checkSearchBudget(budget);
+      log("warn", `[Hongguo] web search SSR unavailable: ${error.message}`);
+    }
+    return [];
+  }
+
+  async search(keyword) {
+    const budget = createSearchBudget();
+    const results = [];
     try {
-      const results = [];
+      return await withSearchBudget(budget, () => this.searchWithinBudget(keyword, budget, results));
+    } catch (error) {
+      log("warn", `[Hongguo] ${error.message}`);
+      return results;
+    } finally {
+      this.searchBudgets.set(results, budget);
+    }
+  }
+
+  async searchWithinBudget(keyword, budget, results) {
+    try {
       const seen = new Set();
       let offset = 0;
       let passback = "";
@@ -901,18 +1126,23 @@ export default class HongguoSource extends BaseSource {
       for (let page = 0; page < 12 && results.length < MAX_SEARCH_ITEMS; page++) {
         const params = {
           query: keyword,
+          tab_type: "11",
           tab_name: "feed",
           search_source: "1",
           offset: String(offset),
-          count: "0",
+          count: String(MAX_SEARCH_ITEMS),
           use_correct: "true",
+          bookshelf_search_plan: "4",
+          bookstore_tab: "16",
+          user_is_login: "0",
         };
         if (passback) params.passback = passback;
         if (searchId) params.search_id = searchId;
-        const payload = await this.request("GET", "/reading/bookapi/search/tab/v", { extraQuery: params });
+        const payload = await this.request("GET", "/reading/bookapi/search/tab/v", { extraQuery: params, budget });
+        checkSearchBudget(budget);
         const tabs = payload.search_tabs || [];
         if (!tabs.length) break;
-        const tab = tabs[0];
+        const tab = tabs.find((item) => String(item.tab_type) === "11") || tabs[0];
         const data = tab.data || [];
         for (const cell of data) {
           const item = parseSearchCell(cell);
@@ -929,12 +1159,18 @@ export default class HongguoSource extends BaseSource {
       log("info", `[Hongguo] 搜索找到 ${results.length} 个结果`);
       return results;
     } catch (error) {
+      checkSearchBudget(budget);
       log("error", `[Hongguo] 搜索失败: ${error.message}`);
-      return [];
+      if (!results.length) {
+        const webResults = await this.searchWeb(keyword, budget);
+        checkSearchBudget(budget);
+        results.push(...webResults);
+      }
+      return results;
     }
   }
 
-  async getEpisodes(seriesId) {
+  async getEpisodes(seriesId, budget = null) {
     const body = {
       biz_param: {
         detail_page_version: 0,
@@ -974,15 +1210,17 @@ export default class HongguoSource extends BaseSource {
     };
 
     try {
-      const apiResult = parseApiEpisodes(await this.request("POST", "/novel/player/multi_video_detail/v1/", { body }));
+      const apiResult = parseApiEpisodes(await this.request("POST", "/novel/player/multi_video_detail/v1/", { body, budget }));
+      checkSearchBudget(budget);
       if (apiResult) return apiResult;
       log("warn", `[Hongguo] API detail returned no episodes for series ${seriesId}, falling back to web detail`);
     } catch (error) {
+      checkSearchBudget(budget);
       log("warn", `[Hongguo] API detail unavailable: ${error.message}, falling back to web detail`);
     }
 
     try {
-      const response = await httpGet(`${WEB_ORIGIN}/detail?series_id=${encodeURIComponent(seriesId)}`, { headers: { accept: "text/html" }, timeout: 30000 });
+      const response = await withSearchBudget(budget, () => httpGet(`${WEB_ORIGIN}/detail?series_id=${encodeURIComponent(seriesId)}`, { headers: { accept: "text/html" }, ...budgetRequestOptions(budget) }));
       const detail = parseWebSeriesDetail(typeof response.data === "string" ? response.data : "");
       if (detail && Array.isArray(detail.vid_list) && detail.vid_list.length) {
         return {
@@ -1005,7 +1243,10 @@ export default class HongguoSource extends BaseSource {
           imageUrl: extractImageUrl(detail.series_cover),
         };
       }
-    } catch (error) { log("warn", `[Hongguo] web detail unavailable: ${error.message}`); }
+    } catch (error) {
+      checkSearchBudget(budget);
+      log("warn", `[Hongguo] web detail unavailable: ${error.message}`);
+    }
     return { episodes: [], year: null, imageUrl: "" };
   }
 
@@ -1092,10 +1333,22 @@ export default class HongguoSource extends BaseSource {
 
   async handleAnimes(sourceAnimes, queryTitle, curAnimes, detailStore = null, querySeason = null) {
     if (!Array.isArray(sourceAnimes)) return [];
+    let budget = this.searchBudgets.get(sourceAnimes);
+    if (!budget) {
+      budget = createSearchBudget();
+      this.searchBudgets.set(sourceAnimes, budget);
+    }
     const transformed = [];
     const filtered = sourceAnimes.filter((item) => titleMatches(item.name, queryTitle, querySeason));
     for (const anime of filtered) {
-      const details = await this.getEpisodes(anime.seriesId);
+      let details;
+      try {
+        details = await withSearchBudget(budget, () => this.getEpisodes(anime.seriesId, budget));
+      } catch (error) {
+        if (error.name !== "HongguoSearchTimeout") throw error;
+        log("warn", `[Hongguo] ${error.message}，保留 ${transformed.length} 个已完成结果`);
+        break;
+      }
       const episodes = details.episodes;
       const links = globals.hongguoMergeAllEpisodes && episodes.length
         ? [{
